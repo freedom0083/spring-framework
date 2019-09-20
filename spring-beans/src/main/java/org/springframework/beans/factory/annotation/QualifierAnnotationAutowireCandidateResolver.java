@@ -60,7 +60,7 @@ import org.springframework.util.StringUtils;
 public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwareAutowireCandidateResolver {
 
 	private final Set<Class<? extends Annotation>> qualifierTypes = new LinkedHashSet<>(2);
-
+	// @Value注解
 	private Class<? extends Annotation> valueAnnotationType = Value.class;
 
 
@@ -71,8 +71,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@SuppressWarnings("unchecked")
 	public QualifierAnnotationAutowireCandidateResolver() {
+		// 注册Spring的Qualifier
 		this.qualifierTypes.add(Qualifier.class);
 		try {
+			// 注册JSR-330的javax.inject.Qualifier
 			this.qualifierTypes.add((Class<? extends Annotation>) ClassUtils.forName("javax.inject.Qualifier",
 							QualifierAnnotationAutowireCandidateResolver.class.getClassLoader()));
 		}
@@ -86,6 +88,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * for the given qualifier annotation type.
 	 * @param qualifierType the qualifier annotation to look for
 	 */
+	// 注册一个自定义的qualifier注解
 	public QualifierAnnotationAutowireCandidateResolver(Class<? extends Annotation> qualifierType) {
 		Assert.notNull(qualifierType, "'qualifierType' must not be null");
 		this.qualifierTypes.add(qualifierType);
@@ -96,6 +99,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * for the given qualifier annotation types.
 	 * @param qualifierTypes the qualifier annotations to look for
 	 */
+	// 注册一个自定义的qualifier注解集合
 	public QualifierAnnotationAutowireCandidateResolver(Set<Class<? extends Annotation>> qualifierTypes) {
 		Assert.notNull(qualifierTypes, "'qualifierTypes' must not be null");
 		this.qualifierTypes.addAll(qualifierTypes);
@@ -112,6 +116,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * as a qualifier for direct use and also as a meta annotation.
 	 * @param qualifierType the annotation type to register
 	 */
+	// 用于注册自定义的qualifier注解
 	public void addQualifierType(Class<? extends Annotation> qualifierType) {
 		this.qualifierTypes.add(qualifierType);
 	}
@@ -125,6 +130,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * (non-Spring-specific) annotation type to indicate a default value
 	 * expression for a specific argument.
 	 */
+	// 自定义@Value注解
 	public void setValueAnnotationType(Class<? extends Annotation> valueAnnotationType) {
 		this.valueAnnotationType = valueAnnotationType;
 	}
@@ -143,9 +149,12 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * @see Qualifier
 	 */
 	@Override
+	// 判断是否可以被自动装配
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
+		// 先用父类检查一下bean是否可以自动装配
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
 		if (match) {
+			// 可以自动装配时, 检查bean与@Qualifier注解是否匹配
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
 				MethodParameter methodParam = descriptor.getMethodParameter();

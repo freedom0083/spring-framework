@@ -62,7 +62,10 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
+		// TODO 初始化解析带注解的bean的reader, 初始化完成后, 用于处理@Configuration, @Lazy等的处理器就会注册到容器中
 		this.reader = new AnnotatedBeanDefinitionReader(this);
+		// TODO 初始化一个使用默认过滤器的bean扫描器, 此扫描器用于后面解析过程时对指定包进行扫描
+		//  默认的过滤器可以处理@Component, @Repository, @Controller和J2EE 6的@ManagedBean, JSR-330的@Named
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}
 
@@ -84,7 +87,11 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 */
 	public AnnotationConfigApplicationContext(Class<?>... annotatedClasses) {
 		this();
+		// TODO 经过上面构造器处理后, 用于处理注解的bean已经被注册到容器, 过滤器也已经准备就绪
+		//  然后对配置类(@Configuration)进行解析注册工作, register最终调用的是
+		//  AnnotationBeanDefinitionReader#doRegisterBean()
 		register(annotatedClasses);
+		// TODO 注册后刷新并完成实例化
 		refresh();
 	}
 
@@ -169,6 +176,8 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	@Override
 	public void scan(String... basePackages) {
 		Assert.notEmpty(basePackages, "At least one base package must be specified");
+		// 包扫描，同时将包下所有符合要求的类注册到容器, 然后返回本次注册的bean数量, 只是进行注册, 并没有实例化
+		// 实现在ClassPathBeanDefinitionScanner#doScan()中
 		this.scanner.scan(basePackages);
 	}
 

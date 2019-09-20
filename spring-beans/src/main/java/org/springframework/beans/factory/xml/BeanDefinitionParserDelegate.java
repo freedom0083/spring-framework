@@ -417,12 +417,14 @@ public class BeanDefinitionParserDelegate {
 
 		List<String> aliases = new ArrayList<>();
 		if (StringUtils.hasLength(nameAttr)) {
+			// TODO name属性存在时, 将指定的名字放到一个别名集合里
 			String[] nameArr = StringUtils.tokenizeToStringArray(nameAttr, MULTI_VALUE_ATTRIBUTE_DELIMITERS);
 			aliases.addAll(Arrays.asList(nameArr));
 		}
 
 		String beanName = id;
 		if (!StringUtils.hasText(beanName) && !aliases.isEmpty()) {
+			// TODO 不指定id时,使用第一个另名当做bean的名字
 			beanName = aliases.remove(0);
 			if (logger.isTraceEnabled()) {
 				logger.trace("No XML 'id' specified - using '" + beanName +
@@ -433,11 +435,12 @@ public class BeanDefinitionParserDelegate {
 		if (containingBean == null) {
 			checkNameUniqueness(beanName, aliases, ele);
 		}
-
+		// TODO 开始解析<bean />, 解析完成后返回一个beanDefinition
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 		if (beanDefinition != null) {
 			if (!StringUtils.hasText(beanName)) {
 				try {
+					// TODO 如果还是没有beanName属性, 则根据规则生成一个
 					if (containingBean != null) {
 						beanName = BeanDefinitionReaderUtils.generateBeanName(
 								beanDefinition, this.readerContext.getRegistry(), true);
@@ -465,9 +468,10 @@ public class BeanDefinitionParserDelegate {
 				}
 			}
 			String[] aliasesArray = StringUtils.toStringArray(aliases);
+			// TODO 返回一个包含beanDefinition, 名字和别名表的holder
 			return new BeanDefinitionHolder(beanDefinition, beanName, aliasesArray);
 		}
-
+		// TODO 解析失败则什么也不返回了
 		return null;
 	}
 
@@ -513,16 +517,20 @@ public class BeanDefinitionParserDelegate {
 
 		try {
 			AbstractBeanDefinition bd = createBeanDefinition(className, parent);
-
+			// TODO 解析元素的属性, 比如: scope, abstract, lazy-init, autowire-candidate等等
 			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);
 			bd.setDescription(DomUtils.getChildElementValueByTagName(ele, DESCRIPTION_ELEMENT));
-
+			// TODO 解析元数据<meta />
 			parseMetaElements(ele, bd);
+			// TODO 解析<lookup-method />
 			parseLookupOverrideSubElements(ele, bd.getMethodOverrides());
+			// TODO 解析<replaced-method />
 			parseReplacedMethodSubElements(ele, bd.getMethodOverrides());
-
+			// TODO 解析<constructor-arg />
 			parseConstructorArgElements(ele, bd);
+			// TODO 解析<property />
 			parsePropertyElements(ele, bd);
+			// TODO 解析<qualifier />
 			parseQualifierElements(ele, bd);
 
 			bd.setResource(this.readerContext.getResource());
@@ -1388,6 +1396,7 @@ public class BeanDefinitionParserDelegate {
 			error("Unable to locate Spring NamespaceHandler for XML schema namespace [" + namespaceUri + "]", ele);
 			return null;
 		}
+		// TODO 取得命名空间中的handler, 用其对element进行解析
 		return handler.parse(ele, new ParserContext(this.readerContext, this, containingBd));
 	}
 

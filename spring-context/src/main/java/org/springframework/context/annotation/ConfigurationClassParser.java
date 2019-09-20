@@ -167,12 +167,15 @@ class ConfigurationClassParser {
 			BeanDefinition bd = holder.getBeanDefinition();
 			try {
 				if (bd instanceof AnnotatedBeanDefinition) {
+					// TODO 解析AnnotatedBeanDefinition
 					parse(((AnnotatedBeanDefinition) bd).getMetadata(), holder.getBeanName());
 				}
 				else if (bd instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) bd).hasBeanClass()) {
+					// TODO 解析AbstractBeanDefinition
 					parse(((AbstractBeanDefinition) bd).getBeanClass(), holder.getBeanName());
 				}
 				else {
+					// TODO 解析其他的
 					parse(bd.getBeanClassName(), holder.getBeanName());
 				}
 			}
@@ -225,6 +228,7 @@ class ConfigurationClassParser {
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
 		if (existingClass != null) {
 			if (configClass.isImported()) {
+				// TODO 对import进行处理
 				if (existingClass.isImported()) {
 					existingClass.mergeImportedBy(configClass);
 				}
@@ -242,6 +246,7 @@ class ConfigurationClassParser {
 		// Recursively process the configuration class and its superclass hierarchy.
 		SourceClass sourceClass = asSourceClass(configClass);
 		do {
+			// TODO 正式开始解析配置类
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass);
 		}
 		while (sourceClass != null);
@@ -263,6 +268,7 @@ class ConfigurationClassParser {
 
 		if (configClass.getMetadata().isAnnotated(Component.class.getName())) {
 			// Recursively process any member (nested) classes first
+			// TODO 处理@Component
 			processMemberClasses(configClass, sourceClass);
 		}
 
@@ -270,6 +276,7 @@ class ConfigurationClassParser {
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {
+			// TODO 处理@PropertySources, 加载properties
 			if (this.environment instanceof ConfigurableEnvironment) {
 				processPropertySource(propertySource);
 			}
@@ -284,6 +291,7 @@ class ConfigurationClassParser {
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
 		if (!componentScans.isEmpty() &&
 				!this.conditionEvaluator.shouldSkip(sourceClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)) {
+			// TODO 处理@ComponentScans指定的包, 使用ClassPathBeanDefinitionScanner开始进行扫描
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
@@ -350,6 +358,7 @@ class ConfigurationClassParser {
 			for (SourceClass memberClass : memberClasses) {
 				if (ConfigurationClassUtils.isConfigurationCandidate(memberClass.getMetadata()) &&
 						!memberClass.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
+					// TODO 把带有@Bean注解的类加入到候选中
 					candidates.add(memberClass);
 				}
 			}
@@ -359,11 +368,14 @@ class ConfigurationClassParser {
 					this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 				}
 				else {
+					// TODO 挨个处理配置类, 把当前正在处理的类入栈保存
 					this.importStack.push(configClass);
 					try {
+						// TODO 然后开始递归解析
 						processConfigurationClass(candidate.asConfigClass(configClass));
 					}
 					finally {
+						// TODO 直到当前配置类全部处理完成后, 弹出
 						this.importStack.pop();
 					}
 				}

@@ -65,12 +65,17 @@ final class PostProcessorRegistrationDelegate {
 
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
+					// TODO 目前只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
+					//  AnnotationConfigApplicationContext在初始化reader时
+					//  由AnnotationConfigUtils#registerAnnotationConfigProcessors()注册了ConfigurationClassPostProcessor
+					//  到这里就是要配置类进行解析和注册工作了
 					BeanDefinitionRegistryPostProcessor registryProcessor =
 							(BeanDefinitionRegistryPostProcessor) postProcessor;
 					registryProcessor.postProcessBeanDefinitionRegistry(registry);
 					registryProcessors.add(registryProcessor);
 				}
 				else {
+					// TODO 这边是xml
 					regularPostProcessors.add(postProcessor);
 				}
 			}

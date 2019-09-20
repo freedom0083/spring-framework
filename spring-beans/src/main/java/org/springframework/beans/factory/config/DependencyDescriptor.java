@@ -50,6 +50,7 @@ import org.springframework.util.ObjectUtils;
  * @since 2.5
  */
 @SuppressWarnings("serial")
+// TODO 用来描述一个依赖
 public class DependencyDescriptor extends InjectionPoint implements Serializable {
 
 	private final Class<?> declaringClass;

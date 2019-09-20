@@ -51,8 +51,9 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 	public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
 		return (isLazy(descriptor) ? buildLazyResolutionProxy(descriptor, beanName) : null);
 	}
-
+	// TODO 是否支持延时处理
 	protected boolean isLazy(DependencyDescriptor descriptor) {
+		// TODO 取得属性或方法参数的注解集合, 如果带有@Lazy, 则表示可以延时加载
 		for (Annotation ann : descriptor.getAnnotations()) {
 			Lazy lazy = AnnotationUtils.getAnnotation(ann, Lazy.class);
 			if (lazy != null && lazy.value()) {
@@ -61,6 +62,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 		}
 		MethodParameter methodParam = descriptor.getMethodParameter();
 		if (methodParam != null) {
+			// TODO 属性没有@Lazy注解时,再看方法参数
 			Method method = methodParam.getMethod();
 			if (method == null || void.class == method.getReturnType()) {
 				Lazy lazy = AnnotationUtils.getAnnotation(methodParam.getAnnotatedElement(), Lazy.class);

@@ -123,13 +123,26 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	@Override
 	protected final void refreshBeanFactory() throws BeansException {
 		if (hasBeanFactory()) {
+			// TODO 在beanFactory存在时, 会先进行清理动作, 然后再创建新的beanFactory
 			destroyBeans();
 			closeBeanFactory();
 		}
 		try {
+			// TODO 创建DefaultListableBeanFactory
 			DefaultListableBeanFactory beanFactory = createBeanFactory();
 			beanFactory.setSerializationId(getId());
+			// TODO 设置是否支持覆盖和循环引用
 			customizeBeanFactory(beanFactory);
+			// TODO 同样根据使用不同的配置方式分为两种:
+			//  1. 对于xml配置的情况来说, 总体思路都是创建一个reader, 然后用reader来解析配置文件.
+			//     reader可以解析字符串形式的路径, 或者直接使用Resource. 无论使用哪种方式, 最终都会转化为对Resource的解析.
+			//     即, 使用AbstractBeanDefinitionReader#loadBeanDefinitions(Resource)来进行解析和注册工作:
+			//     AbstractXmlApplicationContext: 除了可以处理字符串形式的path外, 还可以直接处理直接处理Resource
+			//     GroovyWebApplicationContext, XmlWebApplicationContext: 这俩只能处理字符串形式的path
+			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext
+			//     创建了AnnotatedBeanDefinitionReader来对配置类进行解析和注册
+			//     ClassPathBeanDefinitionScanner来扫描指定包下的@Component, @Repository, @Controller等
+			//     这一步实际上和使用AnnotationConfigApplicationContext完全相同, 真正对配置文件内定义的@Bean的解析在后面进行
 			loadBeanDefinitions(beanFactory);
 			synchronized (this.beanFactoryMonitor) {
 				this.beanFactory = beanFactory;

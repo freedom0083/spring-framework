@@ -37,6 +37,7 @@ import org.springframework.util.ObjectUtils;
  * @see UnsatisfiedDependencyException#getInjectionPoint()
  * @see org.springframework.beans.factory.config.DependencyDescriptor
  */
+// TODO 用来描述注入点的信息
 public class InjectionPoint {
 
 	@Nullable

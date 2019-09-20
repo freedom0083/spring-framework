@@ -84,6 +84,7 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+		// TODO 注册注解处理器, 执行后会将处理注解方法的后处理器注册到容器中(beanDefinitionMap)
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 
@@ -248,18 +249,21 @@ public class AnnotatedBeanDefinitionReader {
 	private <T> void doRegisterBean(Class<T> annotatedClass, @Nullable String name,
 			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
 			@Nullable BeanDefinitionCustomizer[] customizers) {
-
+		// TODO 将传入的配置类转化为bean definition, 转化过程会提取配置类内注解的元数据
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(annotatedClass);
+		// TODO 判断一下是否满足@Condition要求的条件, 不满足的就不需要进行注入了
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
-
+		// TODO 设置callback
 		abd.setInstanceSupplier(supplier);
+		// TODO 解析@Scope, 默认为singleton
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
 		abd.setScope(scopeMetadata.getScopeName());
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
-
+		// TODO 解析@Lazy, @Primary, @DependsOn, @Role和@Description这五个注解, 设置bean对应的方法
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
+		// TODO 解析@Qualifier, 优先用@Qualifier指定的值重新对bean进行设置
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
@@ -273,6 +277,8 @@ public class AnnotatedBeanDefinitionReader {
 				}
 			}
 		}
+		// TODO 自定义bean注册, 在手动进行注册时会用到
+		//  applicationContext.registerBean(UserService.class, () -> new UserService());
 		if (customizers != null) {
 			for (BeanDefinitionCustomizer customizer : customizers) {
 				customizer.customize(abd);
@@ -280,7 +286,9 @@ public class AnnotatedBeanDefinitionReader {
 		}
 
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(abd, beanName);
+		// TODO 创建一个代理对象, 当代理模式设置为NO时, 直接返回definitionHolder本身
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+		// TODO 将解析后的bean注册到容器中
 		BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, this.registry);
 	}
 
