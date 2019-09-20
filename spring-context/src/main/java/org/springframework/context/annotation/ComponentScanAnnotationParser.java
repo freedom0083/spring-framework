@@ -74,6 +74,7 @@ class ComponentScanAnnotationParser {
 
 
 	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, final String declaringClass) {
+		// TODO 使用默认过滤器创建一个扫描器
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(this.registry,
 				componentScan.getBoolean("useDefaultFilters"), this.environment, this.resourceLoader);
 
@@ -84,9 +85,12 @@ class ComponentScanAnnotationParser {
 
 		ScopedProxyMode scopedProxyMode = componentScan.getEnum("scopedProxy");
 		if (scopedProxyMode != ScopedProxyMode.DEFAULT) {
+			// TODO 如果在@Componet中设置了非default情况的scopedProxy, 就会重置scope代理模式
+			//  同时scopeResolver也会随着scopedProxy更新
 			scanner.setScopedProxyMode(scopedProxyMode);
 		}
 		else {
+			// TODO 在scopedProxy为默认值时, 可以更改scopedResolver
 			Class<? extends ScopeMetadataResolver> resolverClass = componentScan.getClass("scopeResolver");
 			scanner.setScopeMetadataResolver(BeanUtils.instantiateClass(resolverClass));
 		}
@@ -95,21 +99,25 @@ class ComponentScanAnnotationParser {
 
 		for (AnnotationAttributes filter : componentScan.getAnnotationArray("includeFilters")) {
 			for (TypeFilter typeFilter : typeFiltersFor(filter)) {
+				// TODO 设置白名单, 解析用来@Component, @Repository, @Controller和J2EE 6的@ManagedBean, JSR-330的@Named
 				scanner.addIncludeFilter(typeFilter);
 			}
 		}
 		for (AnnotationAttributes filter : componentScan.getAnnotationArray("excludeFilters")) {
 			for (TypeFilter typeFilter : typeFiltersFor(filter)) {
+				// TODO 设置黑名单
 				scanner.addExcludeFilter(typeFilter);
 			}
 		}
 
 		boolean lazyInit = componentScan.getBoolean("lazyInit");
 		if (lazyInit) {
+			// TODO 设置延迟加载
 			scanner.getBeanDefinitionDefaults().setLazyInit(true);
 		}
 
 		Set<String> basePackages = new LinkedHashSet<>();
+		// TODO 解析出要扫描的位置
 		String[] basePackagesArray = componentScan.getStringArray("basePackages");
 		for (String pkg : basePackagesArray) {
 			String[] tokenized = StringUtils.tokenizeToStringArray(this.environment.resolvePlaceholders(pkg),
@@ -129,6 +137,7 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
+		// TODO 执行扫描
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

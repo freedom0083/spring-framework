@@ -66,9 +66,14 @@ final class PostProcessorRegistrationDelegate {
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
 					// TODO 目前只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
-					//  AnnotationConfigApplicationContext在初始化reader时
-					//  由AnnotationConfigUtils#registerAnnotationConfigProcessors()注册了ConfigurationClassPostProcessor
-					//  到这里就是要配置类进行解析和注册工作了
+					//  AnnotationConfigApplicationContext在初始化reader时, AnnotationConfigUtils#registerAnnotationConfigProcessors()
+					//  会根据情况注册以下几个后处理器:
+					//  ConfigurationClassPostProcessor: 用来
+					//  AutowiredAnnotationBeanPostProcessor:
+					//  CommonAnnotationBeanPostProcessor:
+					//  PersistenceAnnotationBeanPostProcessor:
+					//  EventListenerMethodProcessor:
+					//  DefaultEventListenerFactory:
 					BeanDefinitionRegistryPostProcessor registryProcessor =
 							(BeanDefinitionRegistryPostProcessor) postProcessor;
 					registryProcessor.postProcessBeanDefinitionRegistry(registry);

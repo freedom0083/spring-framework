@@ -62,7 +62,14 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
-		// TODO 初始化解析带注解的bean的reader, 初始化完成后, 用于处理@Configuration, @Lazy等的处理器就会注册到容器中
+		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
+		//  根据情况注册一些用于处理注解的后处理器:
+		//  ConfigurationClassPostProcessor: 用来
+		//  AutowiredAnnotationBeanPostProcessor:
+		//  CommonAnnotationBeanPostProcessor:
+		//  PersistenceAnnotationBeanPostProcessor:
+		//  EventListenerMethodProcessor:
+		//  DefaultEventListenerFactory:
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		// TODO 初始化一个使用默认过滤器的bean扫描器, 此扫描器用于后面解析过程时对指定包进行扫描
 		//  默认的过滤器可以处理@Component, @Repository, @Controller和J2EE 6的@ManagedBean, JSR-330的@Named

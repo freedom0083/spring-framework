@@ -291,7 +291,7 @@ class ConfigurationClassParser {
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
 		if (!componentScans.isEmpty() &&
 				!this.conditionEvaluator.shouldSkip(sourceClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)) {
-			// TODO 处理@ComponentScans指定的包, 使用ClassPathBeanDefinitionScanner开始进行扫描
+			// TODO 遇到@ComponentScans时, 使用ClassPathBeanDefinitionScanner对@ComponentScans指定的包开始进行扫描
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =

@@ -163,6 +163,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		this.registry = registry;
 
 		if (useDefaultFilters) {
+			// TODO 注册默认过滤器, 用来处理@Componet, @Repository, @Service, @Controller, @ManagedBean, @Named
 			registerDefaultFilters();
 		}
 		setEnvironment(environment);
@@ -273,27 +274,27 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		Assert.notEmpty(basePackages, "At least one base package must be specified");
 		Set<BeanDefinitionHolder> beanDefinitions = new LinkedHashSet<>();
 		for (String basePackage : basePackages) {
-			// 扫描指定包下的类,判断类的TypeFilter,只要包含在includeFilters中就为其创建beanDefinition
+			// TODO 扫描指定包下的类,判断类的TypeFilter,只要包含在includeFilters中就为其创建beanDefinition
 			Set<BeanDefinition> candidates = findCandidateComponents(basePackage);
 			for (BeanDefinition candidate : candidates) {
 				ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(candidate);
 				candidate.setScope(scopeMetadata.getScopeName());
 				String beanName = this.beanNameGenerator.generateBeanName(candidate, this.registry);
 				if (candidate instanceof AbstractBeanDefinition) {
-					// 为AbstractBeanDefinition类型的bean执行后处理操作
+					// TODO 为AbstractBeanDefinition类型的bean执行后处理操作
 					postProcessBeanDefinition((AbstractBeanDefinition) candidate, beanName);
 				}
 				if (candidate instanceof AnnotatedBeanDefinition) {
-					// 为annotation类型的beanDefinition设置通用属性,如:lazy, primary等
+					// TODO 为annotation类型的beanDefinition设置通用属性,如:lazy, primary等
 					AnnotationConfigUtils.processCommonDefinitionAnnotations((AnnotatedBeanDefinition) candidate);
 				}
-				// 检查目标bean是否存在于beanDefinitionMap中
+				// TODO 检查目标bean是否存在于beanDefinitionMap中
 				if (checkCandidate(beanName, candidate)) {
 					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					beanDefinitions.add(definitionHolder);
-					// 将candidate表示的beanDefinition注册到beanDefinitionMap中, 分别会注册名字及别名
+					// TODO 将candidate表示的beanDefinition注册到beanDefinitionMap中, 分别会注册名字及别名
 					registerBeanDefinition(definitionHolder, this.registry);
 				}
 			}

@@ -270,8 +270,13 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
-		// TODO AnnotationConfigApplicationContext里注册的都是用于处理注解的beanDefinition, 比如:
-		//  ConfigurationClassPostProcessor, AutowiredAnnotationBeanPostProcessor等
+		// TODO AnnotationConfigApplicationContext里会注册处理注解用的beanDefinition, candidateNames会包括下面这些后处理器:
+		//  ConfigurationClassPostProcessor: 用来
+		//  AutowiredAnnotationBeanPostProcessor:
+		//  CommonAnnotationBeanPostProcessor:
+		//  PersistenceAnnotationBeanPostProcessor:
+		//  EventListenerMethodProcessor:
+		//  DefaultEventListenerFactory:
 		String[] candidateNames = registry.getBeanDefinitionNames();
 
 		for (String beanName : candidateNames) {
