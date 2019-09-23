@@ -376,13 +376,13 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 	private Set<BeanDefinition> addCandidateComponentsFromIndex(CandidateComponentsIndex index, String basePackage) {
 		Set<BeanDefinition> candidates = new LinkedHashSet<>();
 		try {
-			// types包含了TypeFilter指定的所有类型,比如annotationTypeFilter时
-			// 包含Componet, Service等定义在stereotype包内的annotation类名
+			// TODO types包含了TypeFilter指定的所有类型, 比如annotationTypeFilter时
+			//  包含Componet, Service等定义在stereotype包内的annotation类名
 			Set<String> types = new HashSet<>();
 			for (TypeFilter filter : this.includeFilters) {
-				// 提取TypeFilter的类型
-				// 1. annotation：annotation类名，比如Component
-				// 2. 直接指定的类型：指定类的类名
+				// TODO 提取TypeFilter的类型
+				//  1. annotation：annotation类名，比如Component
+				//  2. 直接指定的类型：指定类的类名
 				String stereotype = extractStereotype(filter);
 				if (stereotype == null) {
 					throw new IllegalArgumentException("Failed to extract stereotype from " + filter);
@@ -393,7 +393,9 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 			boolean debugEnabled = logger.isDebugEnabled();
 			for (String type : types) {
 				MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(type);
+				// TODO 看一下元数据的类型是否的可解析的类型中
 				if (isCandidateComponent(metadataReader)) {
+					// TODO 把符合条件的元数据加载到一个支持注解的beanDefinition中
 					AnnotatedGenericBeanDefinition sbd = new AnnotatedGenericBeanDefinition(
 							metadataReader.getAnnotationMetadata());
 					if (isCandidateComponent(sbd)) {
@@ -424,9 +426,10 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 	private Set<BeanDefinition> scanCandidateComponents(String basePackage) {
 		Set<BeanDefinition> candidates = new LinkedHashSet<>();
 		try {
+			// TODO 取得待扫描包的路径
 			String packageSearchPath = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX +
 					resolveBasePackage(basePackage) + '/' + this.resourcePattern;
-			// 取得给定包下所有class文件
+			// TODO 拿出路径下所有文件
 			Resource[] resources = getResourcePatternResolver().getResources(packageSearchPath);
 			boolean traceEnabled = logger.isTraceEnabled();
 			boolean debugEnabled = logger.isDebugEnabled();
@@ -437,18 +440,21 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 				if (resource.isReadable()) {
 					try {
 						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
-						// 根据类的元数据信息，判断类是否包含注册到includeFilters中的注解类型，比如@Component等
+						// TODO 取得侯选类, 规则是:
+						//  根据类的元数据信息，判断类的注解是否包含includeFilters中的注解类型，比如@Component等
 						if (isCandidateComponent(metadataReader)) {
-							// 为包含includeFilters中类型的类创建对应的BeanDefinition
-							// ScannedGenericBeanDefinition使用ASM ClassReader来进行反射操作
+							// TODO 创建支持注解类型的元数据的BeanDefinition
+							//  *ScannedGenericBeanDefinition使用ASM ClassReader来进行反射操作
 							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
 							sbd.setResource(resource);
 							sbd.setSource(resource);
-							// 判断beanDefinition是否可以实例化，如果是一个abstract，则要求使用@Lookup注解
+							// TODO 判断beanDefinition是否可以实例化，对于abstract类，需要定义由@Lookup注解的获取器
+							//  此获取器把方法声明为返回由@Lookup或<lookup-method />中配置的bean
 							if (isCandidateComponent(sbd)) {
 								if (debugEnabled) {
 									logger.debug("Identified candidate component class: " + resource);
 								}
+								// TODO 确定可以实例化后, 加入到侯选中
 								candidates.add(sbd);
 							}
 							else {

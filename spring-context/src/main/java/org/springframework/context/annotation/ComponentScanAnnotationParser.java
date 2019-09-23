@@ -130,14 +130,14 @@ class ComponentScanAnnotationParser {
 		if (basePackages.isEmpty()) {
 			basePackages.add(ClassUtils.getPackageName(declaringClass));
 		}
-
+		// TODO 排除层级类型
 		scanner.addExcludeFilter(new AbstractTypeHierarchyTraversingFilter(false, false) {
 			@Override
 			protected boolean matchClassName(String className) {
 				return declaringClass.equals(className);
 			}
 		});
-		// TODO 执行扫描
+		// TODO 扫描路径下所有需要注册的类, 注册到容器中
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

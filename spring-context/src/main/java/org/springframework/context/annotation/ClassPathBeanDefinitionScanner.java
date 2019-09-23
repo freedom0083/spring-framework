@@ -258,7 +258,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		if (this.includeAnnotationConfig) {
 			AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 		}
-        // 本次注册进容器的bean数量
+        // TODO 本次注册进容器的bean数量
 		return (this.registry.getBeanDefinitionCount() - beanCountAtScanStart);
 	}
 
@@ -274,27 +274,29 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		Assert.notEmpty(basePackages, "At least one base package must be specified");
 		Set<BeanDefinitionHolder> beanDefinitions = new LinkedHashSet<>();
 		for (String basePackage : basePackages) {
-			// TODO 扫描指定包下的类,判断类的TypeFilter,只要包含在includeFilters中就为其创建beanDefinition
+			// TODO 扫描指定包下的类, 判断类的TypeFilter, 只要包含在includeFilters中就为其创建beanDefinition
+			//  返回的侯选类型都是带注解元数据的beanDefinition
 			Set<BeanDefinition> candidates = findCandidateComponents(basePackage);
 			for (BeanDefinition candidate : candidates) {
 				ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(candidate);
 				candidate.setScope(scopeMetadata.getScopeName());
 				String beanName = this.beanNameGenerator.generateBeanName(candidate, this.registry);
 				if (candidate instanceof AbstractBeanDefinition) {
-					// TODO 为AbstractBeanDefinition类型的bean执行后处理操作
+					// TODO 先设置一下bean的普通属性, 比如autowire, lazy init, 以及是否支持自动注入等
 					postProcessBeanDefinition((AbstractBeanDefinition) candidate, beanName);
 				}
 				if (candidate instanceof AnnotatedBeanDefinition) {
-					// TODO 为annotation类型的beanDefinition设置通用属性,如:lazy, primary等
+					// TODO 然后再解析一下注解, 为beanDefinition设置注解的通用属性, 如:@lazy, @primary, @dependsOn等
 					AnnotationConfigUtils.processCommonDefinitionAnnotations((AnnotatedBeanDefinition) candidate);
 				}
 				// TODO 检查目标bean是否存在于beanDefinitionMap中
 				if (checkCandidate(beanName, candidate)) {
 					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
+					// TODO 在设置了proxy-mode时, 创建一个代理
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					beanDefinitions.add(definitionHolder);
-					// TODO 将candidate表示的beanDefinition注册到beanDefinitionMap中, 分别会注册名字及别名
+					// TODO 最后将创建好的beanDefinition注册到beanDefinitionMap中, 分别会注册名字及别名
 					registerBeanDefinition(definitionHolder, this.registry);
 				}
 			}

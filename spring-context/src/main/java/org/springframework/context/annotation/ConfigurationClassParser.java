@@ -193,7 +193,9 @@ class ConfigurationClassParser {
 
 	protected final void parse(@Nullable String className, String beanName) throws IOException {
 		Assert.notNull(className, "No bean class name for configuration class bean definition");
+		// TODO 这里得到了一个SimpleMetadataReader, 用ASM方式进行反射
 		MetadataReader reader = this.metadataReaderFactory.getMetadataReader(className);
+		// TODO 开始解析配置文件
 		processConfigurationClass(new ConfigurationClass(reader, beanName));
 	}
 
@@ -294,6 +296,7 @@ class ConfigurationClassParser {
 			// TODO 遇到@ComponentScans时, 使用ClassPathBeanDefinitionScanner对@ComponentScans指定的包开始进行扫描
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
+				// TODO 这里开始解析@ComponentScan内指定位置的类, 然后注册到容器中
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
@@ -302,6 +305,7 @@ class ConfigurationClassParser {
 					if (bdCand == null) {
 						bdCand = holder.getBeanDefinition();
 					}
+					// TODO 如果是配置类, 开始进行解析
 					if (ConfigurationClassUtils.checkConfigurationClassCandidate(bdCand, this.metadataReaderFactory)) {
 						parse(bdCand.getBeanClassName(), holder.getBeanName());
 					}
@@ -310,6 +314,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
+		// TODO 处理@Import指定的类
 		processImports(configClass, sourceClass, getImports(sourceClass), true);
 
 		// Process any @ImportResource annotations
@@ -560,14 +565,16 @@ class ConfigurationClassParser {
 		if (importCandidates.isEmpty()) {
 			return;
 		}
-
+		// TODO 看一下栈里是否有正在处理的配置类, 如果有表示有循环引用
 		if (checkForCircularImports && isChainedImportOnStack(configClass)) {
 			this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 		}
 		else {
+			// TODO 没有时入栈, 然后开始进行解析
 			this.importStack.push(configClass);
 			try {
 				for (SourceClass candidate : importCandidates) {
+					// TODO ImportSelector时
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
 						Class<?> candidateClass = candidate.loadClass();
@@ -579,9 +586,11 @@ class ConfigurationClassParser {
 						else {
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames);
+							// TODO 递归解析import
 							processImports(configClass, currentSourceClass, importSourceClasses, false);
 						}
 					}
+					// TODO ImportBeanDefinitionRegistrar时
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
 						// Candidate class is an ImportBeanDefinitionRegistrar ->
 						// delegate to it to register additional bean definitions

@@ -123,9 +123,11 @@ abstract class ConfigurationClassUtils {
 
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
+			// TODO 带有@Configuration注解, 恶搞不是带理方法时, 设置configurationClass为full类型
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
 		else if (config != null || isConfigurationCandidate(metadata)) {
+			// TODO 带有@Configuration注解, 或有其他注解以及@Bean时, 设置configurationClass为lite类型
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
 		else {
@@ -135,6 +137,7 @@ abstract class ConfigurationClassUtils {
 		// It's a full or lite configuration candidate... Let's determine the order value, if any.
 		Integer order = getOrder(metadata);
 		if (order != null) {
+			// TODO 然后再看看有没有设置order
 			beanDef.setAttribute(ORDER_ATTRIBUTE, order);
 		}
 
