@@ -187,15 +187,16 @@ class ConfigurationClassParser {
 						"Failed to parse configuration class [" + bd.getBeanClassName() + "]", ex);
 			}
 		}
-
+		// TODO 配置类解析完毕后, 再解析由@DeferredImport指定的配置类
 		this.deferredImportSelectorHandler.process();
 	}
 
 	protected final void parse(@Nullable String className, String beanName) throws IOException {
 		Assert.notNull(className, "No bean class name for configuration class bean definition");
-		// TODO 这里得到了一个SimpleMetadataReader, 用ASM方式进行反射
+		// TODO 这里得到了一个SimpleMetadataReader, 用ASM方式进行反射. 元数据信息用SimpleAnnotationMetadataReadingVisitor得到
 		MetadataReader reader = this.metadataReaderFactory.getMetadataReader(className);
-		// TODO 开始解析配置文件
+		// TODO 开始解析配置文件, 这里就用上面创建的reader的元数据信息和资源文件来创建configuration类, 这个类里包含了所有@Bean注解的方法集
+		//  import的其他配置类集合, import的资源类集合, 要跳过的方法, ImportBeanDefinitionRegistrar集合等
 		processConfigurationClass(new ConfigurationClass(reader, beanName));
 	}
 
@@ -252,7 +253,7 @@ class ConfigurationClassParser {
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass);
 		}
 		while (sourceClass != null);
-
+		// TODO 解析过的类放到缓存中
 		this.configurationClasses.put(configClass, configClass);
 	}
 
@@ -314,31 +315,37 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
-		// TODO 处理@Import指定的类
+		// TODO 处理@Import指定的类, 具体有哪此类是存储在getImports()返回的一个set中, 这个set包含了当前配置类, 及其包含的其他注解
+		//  比如@EnableXXX中, 所有@Import指向的类
 		processImports(configClass, sourceClass, getImports(sourceClass), true);
 
 		// Process any @ImportResource annotations
 		AnnotationAttributes importResource =
 				AnnotationConfigUtils.attributesFor(sourceClass.getMetadata(), ImportResource.class);
 		if (importResource != null) {
+			// TODO 处理@ImportResource注解
 			String[] resources = importResource.getStringArray("locations");
 			Class<? extends BeanDefinitionReader> readerClass = importResource.getClass("reader");
 			for (String resource : resources) {
 				String resolvedResource = this.environment.resolveRequiredPlaceholders(resource);
+				// TODO 处理完放到configClass的importedResources中
 				configClass.addImportedResource(resolvedResource, readerClass);
 			}
 		}
 
 		// Process individual @Bean methods
+		// TODO 开始处理@Bean注解, 会得到一个由@Bean注解的方法集合, 并放到configClass的beanMethod集合中
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
 		}
 
 		// Process default methods on interfaces
+		// TODO 配置类有实现接口时, 把接口中的default方法也注册到configClass的beanMethod集合中, 这个是对Java8后用的
 		processInterfaces(configClass, sourceClass);
 
 		// Process superclass, if any
+		// TODO 配置类还有父类时, 将其父类加入到缓存中, 并返回, 此时解析结束
 		if (sourceClass.getMetadata().hasSuperClass()) {
 			String superclass = sourceClass.getMetadata().getSuperClassName();
 			if (superclass != null && !superclass.startsWith("java") &&
@@ -350,6 +357,7 @@ class ConfigurationClassParser {
 		}
 
 		// No superclass -> processing is complete
+		// TODO 没有父类时, 直接返回null
 		return null;
 	}
 
@@ -397,9 +405,11 @@ class ConfigurationClassParser {
 			for (MethodMetadata methodMetadata : beanMethods) {
 				if (!methodMetadata.isAbstract()) {
 					// A default method or other concrete method on a Java 8+ interface...
+					// TODO 将接口中的default方法也当做beanMethod
 					configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
 				}
 			}
+			// TODO 递归所有接口
 			processInterfaces(configClass, ifc);
 		}
 	}
@@ -409,12 +419,15 @@ class ConfigurationClassParser {
 	 */
 	private Set<MethodMetadata> retrieveBeanMethodMetadata(SourceClass sourceClass) {
 		AnnotationMetadata original = sourceClass.getMetadata();
+		// TODO 这里得到的是一个由@Bean注解的方法集合
 		Set<MethodMetadata> beanMethods = original.getAnnotatedMethods(Bean.class.getName());
+		// TODO 使用标准反向时, 再用ASM处理一次元数据信息
 		if (beanMethods.size() > 1 && original instanceof StandardAnnotationMetadata) {
 			// Try reading the class file via ASM for deterministic declaration order...
 			// Unfortunately, the JVM's standard reflection returns methods in arbitrary
 			// order, even between different runs of the same application on the same JVM.
 			try {
+				// TODO 这边也是得到了一个SimpleMetadataReader, 后面用ASM方式进行动态处理
 				AnnotationMetadata asm =
 						this.metadataReaderFactory.getMetadataReader(original.getClassName()).getAnnotationMetadata();
 				Set<MethodMetadata> asmMethods = asm.getAnnotatedMethods(Bean.class.getName());
@@ -547,14 +560,17 @@ class ConfigurationClassParser {
 	 */
 	private void collectImports(SourceClass sourceClass, Set<SourceClass> imports, Set<SourceClass> visited)
 			throws IOException {
-
+		// TODO 判断一下配置类@Import的配置类是否已经访问过了, 这里对@Import指向的配置类只处理一次, 防止无限递归
 		if (visited.add(sourceClass)) {
 			for (SourceClass annotation : sourceClass.getAnnotations()) {
 				String annName = annotation.getMetadata().getClassName();
+				// TODO 挨个判断一下配置类的其他注解, 并进入其中查看是否还有内嵌的@Import注解
 				if (!annName.equals(Import.class.getName())) {
+					// TODO 如果有, 就递归进入, 解析其中可能出现的@Import注解
 					collectImports(annotation, imports, visited);
 				}
 			}
+			// TODO 返回的是配置类中, 以及其包含的其他注解中的@Import指向的所有类
 			imports.addAll(sourceClass.getAnnotationAttributes(Import.class.getName(), "value"));
 		}
 	}
@@ -565,32 +581,39 @@ class ConfigurationClassParser {
 		if (importCandidates.isEmpty()) {
 			return;
 		}
-		// TODO 看一下栈里是否有正在处理的配置类, 如果有表示有循环引用
+		// TODO 看一下栈里是否有正在处理的配置类, 如果有表示当前处理的import内容目前正处于进行中, 这时需要提示个错误信息这个import正在处理中
 		if (checkForCircularImports && isChainedImportOnStack(configClass)) {
 			this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 		}
 		else {
-			// TODO 没有时入栈, 然后开始进行解析
+			// TODO import的配置类目前没有解析时, 先将其入栈保留现场, 然后开始进行解析
 			this.importStack.push(configClass);
 			try {
+				// TODO 解析时, 会根据@Import中指定的不同selector进行区分, selector可以实现动态加载不同配置
 				for (SourceClass candidate : importCandidates) {
-					// TODO ImportSelector时
+					// TODO 指定的是ImportSelector时
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
 						Class<?> candidateClass = candidate.loadClass();
 						ImportSelector selector = ParserStrategyUtils.instantiateClass(candidateClass, ImportSelector.class,
 								this.environment, this.resourceLoader, this.registry);
+						// TODO DeferredImportSelector表示的是要在@Configuration之后进行处理的import配置类
+						//  会在配置类解析后再由DeferredImportSelectorHandler进行解析
 						if (selector instanceof DeferredImportSelector) {
 							this.deferredImportSelectorHandler.handle(configClass, (DeferredImportSelector) selector);
 						}
 						else {
+							// TODO 普通的ImportSelector这时就直接调用selectImports执行自定义的选择器来选择需要进行解析的配置类了
+							//  自己实现时, 只需要实现selectImports()即可
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames);
 							// TODO 递归解析import
 							processImports(configClass, currentSourceClass, importSourceClasses, false);
 						}
 					}
-					// TODO ImportBeanDefinitionRegistrar时
+					// TODO 指定的是ImportBeanDefinitionRegistrar时, 将其加入到配置文件的缓存里
+					//  实现ImportBeanDefinitionRegistrar接口的类不会被注册到容器中, 他是用来注册其指定的beanDefinition
+					//  重写其中的registerBeanDefinitions()方法可以实现自定义的方式将beanDefinition注册到容器中
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
 						// Candidate class is an ImportBeanDefinitionRegistrar ->
 						// delegate to it to register additional bean definitions
@@ -598,13 +621,16 @@ class ConfigurationClassParser {
 						ImportBeanDefinitionRegistrar registrar =
 								ParserStrategyUtils.instantiateClass(candidateClass, ImportBeanDefinitionRegistrar.class,
 										this.environment, this.resourceLoader, this.registry);
+						// TODO 将实现接口的类放入importBeanDefinitionRegistrars的Map中
 						configClass.addImportBeanDefinitionRegistrar(registrar, currentSourceClass.getMetadata());
 					}
 					else {
 						// Candidate class not an ImportSelector or ImportBeanDefinitionRegistrar ->
 						// process it as an @Configuration class
+						// TODO 走到这时, 就应该是递归的最后一层了, 开始处理配置类了, 元数据都会放到缓存, 准备后面的处理工作
 						this.importStack.registerImport(
 								currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
+						// TODO 继续处理@Configuration注解的配置类
 						processConfigurationClass(candidate.asConfigClass(configClass));
 					}
 				}
@@ -618,6 +644,7 @@ class ConfigurationClassParser {
 						configClass.getMetadata().getClassName() + "]", ex);
 			}
 			finally {
+				// TODO 处理完一个类后弹出, 恢复现场
 				this.importStack.pop();
 			}
 		}

@@ -270,8 +270,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
-		// TODO AnnotationConfigApplicationContext里会注册处理注解用的beanDefinition, candidateNames会包括下面这些后处理器:
-		//  ConfigurationClassPostProcessor: 用来
+		// TODO AnnotationConfigApplicationContext里会注册处理注解用的beanDefinition, candidateNames会包括下面
+		//  这些RootBeanDefinition(AbstractBeanDefinition)类型后处理器:
+		//  ConfigurationClassPostProcessor: 用来解析由@Configuration注解的配置类
 		//  AutowiredAnnotationBeanPostProcessor:
 		//  CommonAnnotationBeanPostProcessor:
 		//  PersistenceAnnotationBeanPostProcessor:
@@ -286,7 +287,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
-			// TODO 检查是否为配置类
+			// TODO 检查是否为配置类, 如果是则加入到候选列表中准备后续处理
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				// TODO 把beanDefinition放到一个list里, 按order排序后, 进行处理
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
@@ -324,6 +325,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Parse each @Configuration class
+		// TODO 创建用于解析配置类的解析器
 		ConfigurationClassParser parser = new ConfigurationClassParser(
 				this.metadataReaderFactory, this.problemReporter, this.environment,
 				this.resourceLoader, this.componentScanBeanNameGenerator, registry);
@@ -331,15 +333,18 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
-			// TODO 开始对配置类进行解析
+			// TODO 开始对每个配置类进行解析, 执行后, 整个@Configuration配置类就解析完毕了
 			parser.parse(candidates);
+			// TODO 再查一下解析后的配置类, 注解的方法不能是final类型的, @Bean注解的方法必需可以被覆盖, 违反规则的都会记录错误信息
 			parser.validate();
-
+			// TODO 拿到所有的配置类
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
+			// TODO 从中删除解析过的
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content
 			if (this.reader == null) {
+				// TODO 初始化用来注册配置类configClass中bean的reader
 				this.reader = new ConfigurationClassBeanDefinitionReader(
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());

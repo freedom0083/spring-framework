@@ -63,8 +63,8 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 */
 	public AnnotationConfigApplicationContext() {
 		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
-		//  根据情况注册一些用于处理注解的后处理器:
-		//  ConfigurationClassPostProcessor: 用来
+		//  根据情况注册一些用RootBeanDefinition(AbstractBeanDefinition)类型于处理注解的后处理器:
+		//  ConfigurationClassPostProcessor:
 		//  AutowiredAnnotationBeanPostProcessor:
 		//  CommonAnnotationBeanPostProcessor:
 		//  PersistenceAnnotationBeanPostProcessor:

@@ -67,7 +67,7 @@ final class PostProcessorRegistrationDelegate {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
 					// TODO 目前只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
 					//  AnnotationConfigApplicationContext在初始化reader时, AnnotationConfigUtils#registerAnnotationConfigProcessors()
-					//  会根据情况注册以下几个后处理器:
+					//  会根据情况注册以下几个RootBeanDefinition(AbstractBeanDefinition)类型的后处理器:
 					//  ConfigurationClassPostProcessor: 用来
 					//  AutowiredAnnotationBeanPostProcessor:
 					//  CommonAnnotationBeanPostProcessor:
