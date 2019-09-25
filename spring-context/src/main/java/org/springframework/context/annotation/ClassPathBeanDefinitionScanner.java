@@ -275,24 +275,29 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		Set<BeanDefinitionHolder> beanDefinitions = new LinkedHashSet<>();
 		for (String basePackage : basePackages) {
 			// TODO 扫描指定包下的类, 判断类的TypeFilter, 只要包含在includeFilters中就为其创建beanDefinition
-			//  返回的侯选类型都是带注解元数据的beanDefinition
+			//  返回的侯选beanDefinition都是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
 			Set<BeanDefinition> candidates = findCandidateComponents(basePackage);
 			for (BeanDefinition candidate : candidates) {
+				// TODO 使用AnnotationScopeMetadataResolver获取一个ScopeMetadata对象
+				//  resolveScopeMetadata()内部会处理@Scope注解
+				//    1. 如果没有@Scope注解: 会返回一个代理模式为NO, scope为单例的ScopeMetadata对象
+				//    2. 如果有@Scop注解: 还会将ScopeMetadata对象proxy模式设置为由@Scope的proxyMode指定的模式, 为后面AOP做准备
 				ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(candidate);
+				// TODO 设置候选类的scope, 即, 单例或原型等
 				candidate.setScope(scopeMetadata.getScopeName());
 				String beanName = this.beanNameGenerator.generateBeanName(candidate, this.registry);
 				if (candidate instanceof AbstractBeanDefinition) {
-					// TODO 先设置一下bean的普通属性, 比如autowire, lazy init, 以及是否支持自动注入等
+					// TODO 设置bean的普通属性, 比如autowire, lazy init, 以及是否支持自动注入等
 					postProcessBeanDefinition((AbstractBeanDefinition) candidate, beanName);
 				}
 				if (candidate instanceof AnnotatedBeanDefinition) {
-					// TODO 然后再解析一下注解, 为beanDefinition设置注解的通用属性, 如:@lazy, @primary, @dependsOn等
+					// TODO 然后解析注解, 设置注解的通用属性, 如:@lazy, @primary, @dependsOn等
 					AnnotationConfigUtils.processCommonDefinitionAnnotations((AnnotatedBeanDefinition) candidate);
 				}
 				// TODO 检查目标bean是否存在于beanDefinitionMap中
 				if (checkCandidate(beanName, candidate)) {
 					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
-					// TODO 在设置了proxy-mode时, 创建一个代理
+					// TODO 在设置了proxy-mode时, 创建一个beanDefinitionHolder的代理
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					beanDefinitions.add(definitionHolder);
@@ -311,6 +316,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 	 * @param beanName the generated bean name for the given bean
 	 */
 	protected void postProcessBeanDefinition(AbstractBeanDefinition beanDefinition, String beanName) {
+		// TODO 设置bean的基本属性
 		beanDefinition.applyDefaults(this.beanDefinitionDefaults);
 		if (this.autowireCandidatePatterns != null) {
 			beanDefinition.setAutowireCandidate(PatternMatchUtils.simpleMatch(this.autowireCandidatePatterns, beanName));

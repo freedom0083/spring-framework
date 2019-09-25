@@ -137,7 +137,7 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
-		// TODO 扫描路径下所有需要注册的类, 注册到容器中
+		// TODO 扫描路径下所有需要注册的类, 注册到容器中, 扫描后所有定义的属性会被设置好, 同时也会自动设置好代理机制
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

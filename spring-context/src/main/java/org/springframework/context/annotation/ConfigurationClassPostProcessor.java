@@ -337,9 +337,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			parser.parse(candidates);
 			// TODO 再查一下解析后的配置类, 注解的方法不能是final类型的, @Bean注解的方法必需可以被覆盖, 违反规则的都会记录错误信息
 			parser.validate();
-			// TODO 拿到所有的配置类
+			// TODO 从解析器中拿到所有的配置类
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
-			// TODO 从中删除解析过的
+			// TODO 删掉解析过的配置类
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content

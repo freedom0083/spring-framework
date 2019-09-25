@@ -381,7 +381,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 			Set<String> types = new HashSet<>();
 			for (TypeFilter filter : this.includeFilters) {
 				// TODO 提取TypeFilter的类型
-				//  1. annotation：annotation类名，比如Component
+				//  1. annotation：annotation名，比如Component
 				//  2. 直接指定的类型：指定类的类名
 				String stereotype = extractStereotype(filter);
 				if (stereotype == null) {
@@ -396,8 +396,11 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 				// TODO 看一下元数据的类型是否的可解析的类型中
 				if (isCandidateComponent(metadataReader)) {
 					// TODO 把符合条件的元数据加载到一个支持注解的beanDefinition中
+					//  AnnotatedGenericBeanDefinition是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
 					AnnotatedGenericBeanDefinition sbd = new AnnotatedGenericBeanDefinition(
 							metadataReader.getAnnotationMetadata());
+					// TODO 判断beanDefinition是否为一个可以实例化的具体类
+					//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
 					if (isCandidateComponent(sbd)) {
 						if (debugEnabled) {
 							logger.debug("Using candidate component class from index: " + type);
@@ -439,22 +442,24 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 				}
 				if (resource.isReadable()) {
 					try {
+						// TODO 默认的MetadataReaderFactory实现类为CachingMetadataReaderFactory
+						//  默认返回的是SimpleMetadataReader对象
 						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
-						// TODO 取得侯选类, 规则是:
-						//  根据类的元数据信息，判断类的注解是否包含includeFilters中的注解类型，比如@Component等
+						// TODO 根据includeFilters过滤器和元数据信息来来判断取类是否是可以成为一个侯选类(比如就否有@Component等)
 						if (isCandidateComponent(metadataReader)) {
-							// TODO 创建支持注解类型的元数据的BeanDefinition
-							//  *ScannedGenericBeanDefinition使用ASM ClassReader来进行反射操作
+							// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 这里创建的是
+							//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作
+							//  是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
 							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
 							sbd.setResource(resource);
 							sbd.setSource(resource);
-							// TODO 判断beanDefinition是否可以实例化，对于abstract类，需要定义由@Lookup注解的获取器
-							//  此获取器把方法声明为返回由@Lookup或<lookup-method />中配置的bean
+							// TODO 判断beanDefinition是否为一个可以实例化的具体类
+							//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
 							if (isCandidateComponent(sbd)) {
 								if (debugEnabled) {
 									logger.debug("Identified candidate component class: " + resource);
 								}
-								// TODO 确定可以实例化后, 加入到侯选中
+								// TODO 只有可以实例化的类才能加入侯选中
 								candidates.add(sbd);
 							}
 							else {

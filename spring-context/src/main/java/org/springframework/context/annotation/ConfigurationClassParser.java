@@ -161,7 +161,7 @@ class ConfigurationClassParser {
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, resourceLoader);
 	}
 
-
+	// TODO 由ConfigurationClassPostProcessor的processConfigBeanDefinitions()方法进入
 	public void parse(Set<BeanDefinitionHolder> configCandidates) {
 		for (BeanDefinitionHolder holder : configCandidates) {
 			BeanDefinition bd = holder.getBeanDefinition();
@@ -175,7 +175,7 @@ class ConfigurationClassParser {
 					parse(((AbstractBeanDefinition) bd).getBeanClass(), holder.getBeanName());
 				}
 				else {
-					// TODO 解析其他的
+					// TODO 解析其他情况
 					parse(bd.getBeanClassName(), holder.getBeanName());
 				}
 			}
@@ -290,6 +290,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @ComponentScan annotations
+		// TODO 准备开始扫描
 		Set<AnnotationAttributes> componentScans = AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
 		if (!componentScans.isEmpty() &&
@@ -297,7 +298,8 @@ class ConfigurationClassParser {
 			// TODO 遇到@ComponentScans时, 使用ClassPathBeanDefinitionScanner对@ComponentScans指定的包开始进行扫描
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
-				// TODO 这里开始解析@ComponentScan内指定位置的类, 然后注册到容器中
+				// TODO 这里开始解析@ComponentScan内指定位置的类, 然后注册到容器中, 这时bean的属性已经被填充好了
+				//  如果设置了代理机制, 则返回的会是代理类的holder
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
@@ -306,8 +308,8 @@ class ConfigurationClassParser {
 					if (bdCand == null) {
 						bdCand = holder.getBeanDefinition();
 					}
-					// TODO 如果是配置类, 开始进行解析
 					if (ConfigurationClassUtils.checkConfigurationClassCandidate(bdCand, this.metadataReaderFactory)) {
+						// TODO 如果已经被注册到容器中的bean有被注解为@Configuration的配置类时, 对其进行解析
 						parse(bdCand.getBeanClassName(), holder.getBeanName());
 					}
 				}
@@ -320,6 +322,7 @@ class ConfigurationClassParser {
 		processImports(configClass, sourceClass, getImports(sourceClass), true);
 
 		// Process any @ImportResource annotations
+		// TODO 处理@ImportResource注解
 		AnnotationAttributes importResource =
 				AnnotationConfigUtils.attributesFor(sourceClass.getMetadata(), ImportResource.class);
 		if (importResource != null) {
@@ -334,7 +337,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process individual @Bean methods
-		// TODO 开始处理@Bean注解, 会得到一个由@Bean注解的方法集合, 并放到configClass的beanMethod集合中
+		// TODO 开始处理@Bean注解的方法, 会得到一个由@Bean注解的方法集合, 并放到configClass的beanMethod集合中
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
@@ -421,7 +424,7 @@ class ConfigurationClassParser {
 		AnnotationMetadata original = sourceClass.getMetadata();
 		// TODO 这里得到的是一个由@Bean注解的方法集合
 		Set<MethodMetadata> beanMethods = original.getAnnotatedMethods(Bean.class.getName());
-		// TODO 使用标准反向时, 再用ASM处理一次元数据信息
+		// TODO 使用标准反射时, 再用ASM处理一次元数据信息
 		if (beanMethods.size() > 1 && original instanceof StandardAnnotationMetadata) {
 			// Try reading the class file via ASM for deterministic declaration order...
 			// Unfortunately, the JVM's standard reflection returns methods in arbitrary

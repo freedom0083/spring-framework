@@ -127,7 +127,7 @@ class ConfigurationClassBeanDefinitionReader {
 	 */
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
-		// TODO 对于不需要注册的配置类来说, 将其从容器(), 他import集合中去掉, 然后直接返回
+		// TODO 查检一下配置类是否需要进行注册, 对于不需要注册的配置类来说, 将其从缓存registry以及import缓存中移除, 然后直接返回
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
 			String beanName = configClass.getBeanName();
 			if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
@@ -138,10 +138,11 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 
 		if (configClass.isImported()) {
-			// TODO
+			// TODO 注册引用的配置类
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
+			// TODO 这边开始处理配置类中@Bean标注的方法了
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
 
@@ -162,10 +163,11 @@ class ConfigurationClassBeanDefinitionReader {
 		String configBeanName = this.importBeanNameGenerator.generateBeanName(configBeanDef, this.registry);
 		// TODO 设置通用的属性: lazy, primary, dependOn, role, description
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(configBeanDef, metadata);
-
+		// TODO 配置类设置好后, 创建一个holder
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(configBeanDef, configBeanName);
 		// TODO 根据scope的代理模式决定是否对definitionHolder进行代理
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+		// TODO 将配置类注册到容器中
 		this.registry.registerBeanDefinition(definitionHolder.getBeanName(), definitionHolder.getBeanDefinition());
 		configClass.setBeanName(configBeanName);
 
@@ -186,6 +188,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// Do we need to mark the bean as skipped by its condition?
 		if (this.conditionEvaluator.shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN)) {
+			// TODO 注册阶段根据@Condition条件来将需要跳过的方法加入到缓存, 并直接返回
 			configClass.skippedBeanMethods.add(methodName);
 			return;
 		}
@@ -458,18 +461,22 @@ class ConfigurationClassBeanDefinitionReader {
 			if (skip == null) {
 				if (configClass.isImported()) {
 					boolean allSkipped = true;
+					// TODO 如果配置类是被其他配置类import的, 就递归判断引用者是否可以跳过
 					for (ConfigurationClass importedBy : configClass.getImportedBy()) {
 						if (!shouldSkip(importedBy)) {
+							// TODO 只要有一个不能跳过的, 当前配置文件就需要解析
 							allSkipped = false;
 							break;
 						}
 					}
 					if (allSkipped) {
 						// The config classes that imported this one were all skipped, therefore we are skipped...
+						// TODO 所有引用当前配置类的其他配置类都跳过的情况下, 当前配置类也可以跳过
 						skip = true;
 					}
 				}
 				if (skip == null) {
+					// TODO 走到这就表示这个是一个@Conditional注解的配置类, 这时就需要检查是否满足@Conditional的条件了
 					skip = conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN);
 				}
 				this.skipped.put(configClass, skip);

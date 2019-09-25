@@ -235,18 +235,23 @@ public class ComponentScanBeanDefinitionParser implements BeanDefinitionParser {
 		String expression = element.getAttribute(FILTER_EXPRESSION_ATTRIBUTE);
 		expression = parserContext.getReaderContext().getEnvironment().resolvePlaceholders(expression);
 		if ("annotation".equals(filterType)) {
+			// TODO 注解类型过滤时, expression=类全名称
 			return new AnnotationTypeFilter((Class<Annotation>) ClassUtils.forName(expression, classLoader));
 		}
 		else if ("assignable".equals(filterType)) {
+			// TODO 直接指定类时(包括其子类及实现类)过滤时, expression=类全名称
 			return new AssignableTypeFilter(ClassUtils.forName(expression, classLoader));
 		}
 		else if ("aspectj".equals(filterType)) {
+			// TODO 通过aspectj过滤时, expression=aspectj表达式字符串
 			return new AspectJTypeFilter(expression, classLoader);
 		}
 		else if ("regex".equals(filterType)) {
+			// TODO 通过指定的正则表达式过滤时, expression=正则表达式字符串
 			return new RegexPatternTypeFilter(Pattern.compile(expression));
 		}
 		else if ("custom".equals(filterType)) {
+			// TODO 自定义过滤类型
 			Class<?> filterClass = ClassUtils.forName(expression, classLoader);
 			if (!TypeFilter.class.isAssignableFrom(filterClass)) {
 				throw new IllegalArgumentException(
