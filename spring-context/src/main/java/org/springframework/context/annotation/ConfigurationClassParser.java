@@ -332,6 +332,8 @@ class ConfigurationClassParser {
 			for (String resource : resources) {
 				String resolvedResource = this.environment.resolveRequiredPlaceholders(resource);
 				// TODO 处理完放到configClass的importedResources中
+				//  ConfigurationClassBeanDefinitionReader的loadBeanDefinitionsForConfigurationClass()方法
+				//  会用到@ImportResource指定的reader来解析并注册bean
 				configClass.addImportedResource(resolvedResource, readerClass);
 			}
 		}
@@ -614,7 +616,7 @@ class ConfigurationClassParser {
 							processImports(configClass, currentSourceClass, importSourceClasses, false);
 						}
 					}
-					// TODO 指定的是ImportBeanDefinitionRegistrar时, 将其加入到配置文件的缓存里
+					// TODO 指定的是ImportBeanDefinitionRegistrar时, 将其加入到配置文件的缓存里, 此接口只有默认方法, 因为可以使用默认实现
 					//  实现ImportBeanDefinitionRegistrar接口的类不会被注册到容器中, 他是用来注册其指定的beanDefinition
 					//  重写其中的registerBeanDefinitions()方法可以实现自定义的方式将beanDefinition注册到容器中
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {

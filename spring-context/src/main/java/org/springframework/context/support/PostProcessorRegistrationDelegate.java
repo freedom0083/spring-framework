@@ -62,25 +62,28 @@ final class PostProcessorRegistrationDelegate {
 			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 			List<BeanFactoryPostProcessor> regularPostProcessors = new ArrayList<>();
 			List<BeanDefinitionRegistryPostProcessor> registryProcessors = new ArrayList<>();
-
+			// TODO beanFactoryPostProcessors有两个地方会被加入到处理列表中
+			//  1. AnnotationConfigApplicationContext在初始化reader时, AnnotationConfigUtils#registerAnnotationConfigProcessors()
+			//     会根据情况注册以下几个RootBeanDefinition(AbstractBeanDefinition)类型的后处理器:
+			//     ConfigurationClassPostProcessor: 用来解析@Configuraton注解的配置类, 目前空有
+			//     AutowiredAnnotationBeanPostProcessor:
+			//     CommonAnnotationBeanPostProcessor:
+			//     PersistenceAnnotationBeanPostProcessor:
+			//     EventListenerMethodProcessor:
+			//     DefaultEventListenerFactory:
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
 					// TODO 目前只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
-					//  AnnotationConfigApplicationContext在初始化reader时, AnnotationConfigUtils#registerAnnotationConfigProcessors()
-					//  会根据情况注册以下几个RootBeanDefinition(AbstractBeanDefinition)类型的后处理器:
-					//  ConfigurationClassPostProcessor: 用来
-					//  AutowiredAnnotationBeanPostProcessor:
-					//  CommonAnnotationBeanPostProcessor:
-					//  PersistenceAnnotationBeanPostProcessor:
-					//  EventListenerMethodProcessor:
-					//  DefaultEventListenerFactory:
+					//  用于解析@Configuration注解的配置类
 					BeanDefinitionRegistryPostProcessor registryProcessor =
 							(BeanDefinitionRegistryPostProcessor) postProcessor;
+					// TODO 解析@Configuration注解的配置类
 					registryProcessor.postProcessBeanDefinitionRegistry(registry);
+					// TODO 然后加到缓存中
 					registryProcessors.add(registryProcessor);
 				}
 				else {
-					// TODO 这边是xml
+					// TODO 这里是处理其他类型的后处理器
 					regularPostProcessors.add(postProcessor);
 				}
 			}

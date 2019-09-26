@@ -1097,6 +1097,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	public void validate() throws BeanDefinitionValidationException {
 		if (hasMethodOverrides() && getFactoryMethodName() != null) {
+			// TODO methodOverrides与工厂方法不能同时设置
 			throw new BeanDefinitionValidationException(
 					"Cannot combine static factory method with method overrides: " +
 					"the static factory method must create the instance");
@@ -1115,6 +1116,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
 		// Check that lookup methods exists.
 		if (hasMethodOverrides()) {
+			// TODO 从缓存中取得所有被覆盖的方法, 对每个方法进行查检
 			Set<MethodOverride> overrides = getMethodOverrides().getOverrides();
 			synchronized (overrides) {
 				for (MethodOverride mo : overrides) {
@@ -1140,6 +1142,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		}
 		else if (count == 1) {
 			// Mark override as not overloaded, to avoid the overhead of arg type checking.
+			// TODO 没有其他方法覆盖过本方法时, 将当前方法覆盖状态设置为false
 			mo.setOverloaded(false);
 		}
 	}

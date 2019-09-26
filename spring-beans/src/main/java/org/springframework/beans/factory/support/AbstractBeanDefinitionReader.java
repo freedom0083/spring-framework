@@ -223,6 +223,7 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 			try {
 				// TODO 将文件路径转化为Resource
 				Resource[] resources = ((ResourcePatternResolver) resourceLoader).getResources(location);
+				// TODO 将resources中对应的类文件集合注册到容器
 				int count = loadBeanDefinitions(resources);
 				if (actualResources != null) {
 					Collections.addAll(actualResources, resources);
@@ -241,6 +242,7 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 			// Can only load single resources by absolute URL.
 			// TODO 将文件路径转化为Resource, 这边是处理单一Resource的情况
 			Resource resource = resourceLoader.getResource(location);
+			// TODO 将resource对应的类文件注册到容器
 			int count = loadBeanDefinitions(resource);
 			if (actualResources != null) {
 				actualResources.add(resource);

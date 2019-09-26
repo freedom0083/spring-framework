@@ -94,7 +94,7 @@ public abstract class ScopedProxyUtils {
 		// The target bean should be ignored in favor of the scoped proxy.
 		targetDefinition.setAutowireCandidate(false);
 		targetDefinition.setPrimary(false);
-		// TODO 再把更改后的目标类注册到容器中(beanDefinitionMap)
+		// TODO 目标类重新设置后, 再把新的目标类注册到容器中(beanDefinitionMap)
 		// Register the target bean as separate bean in the factory.
 		registry.registerBeanDefinition(targetBeanName, targetDefinition);
 

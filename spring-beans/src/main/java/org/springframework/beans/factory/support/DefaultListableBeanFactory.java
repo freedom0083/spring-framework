@@ -912,6 +912,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
+				// TODO 注册前的验证beanDefinition的正确性, 有两种可能会抛出异常:
+				//  1. methodOverrides与工厂方法同时存在
+				//  2. beanDefinition中没有覆盖的方法
 				((AbstractBeanDefinition) beanDefinition).validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -1098,7 +1101,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private void updateManualSingletonNames(Consumer<Set<String>> action, Predicate<Set<String>> condition) {
 		if (hasBeanCreationStarted()) {
 			// Cannot modify startup-time collection elements anymore (for stable iteration)
-			// 开始bean初始化动作时,需要同步的对manualSingletonName进行删除操作
+			// TODO 开始bean初始化动作时,需要同步的对手动注册的bean进行删除操作
 			synchronized (this.beanDefinitionMap) {
 				if (condition.test(this.manualSingletonNames)) {
 					Set<String> updatedSingletons = new LinkedHashSet<>(this.manualSingletonNames);

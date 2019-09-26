@@ -349,13 +349,18 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
+			// TODO 把配置类的bean注册到容器中
 			this.reader.loadBeanDefinitions(configClasses);
+			// TODO 缓存所有解析过的配置类
 			alreadyParsed.addAll(configClasses);
 
 			candidates.clear();
 			if (registry.getBeanDefinitionCount() > candidateNames.length) {
+				// TODO 这里是包含到现在为止所有注册到容器中的bean
 				String[] newCandidateNames = registry.getBeanDefinitionNames();
+				// TODO 这里包含的是开头提到的后处理器
 				Set<String> oldCandidateNames = new HashSet<>(Arrays.asList(candidateNames));
+				// TODO 用来记录哪些bean被解析过了
 				Set<String> alreadyParsedClasses = new HashSet<>();
 				for (ConfigurationClass configurationClass : alreadyParsed) {
 					alreadyParsedClasses.add(configurationClass.getMetadata().getClassName());
@@ -365,23 +370,28 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						BeanDefinition bd = registry.getBeanDefinition(candidateName);
 						if (ConfigurationClassUtils.checkConfigurationClassCandidate(bd, this.metadataReaderFactory) &&
 								!alreadyParsedClasses.contains(bd.getBeanClassName())) {
+							// TODO 还有没处理的配置类时, 将其加入处理队列继续解析
 							candidates.add(new BeanDefinitionHolder(bd, candidateName));
 						}
 					}
 				}
+				// TODO 变更一下候选类
 				candidateNames = newCandidateNames;
 			}
 		}
+		// TODO 处理所有配置类, 直到空为止
 		while (!candidates.isEmpty());
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
+			// TODO import其他配置类时, 会先解析其他配置类, 当前配置类会入栈来保存现场, 这边是把栈里的配置类也拿出来注册为一个单例???
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
 
 		if (this.metadataReaderFactory instanceof CachingMetadataReaderFactory) {
 			// Clear cache in externally provided MetadataReaderFactory; this is a no-op
 			// for a shared cache since it'll be cleared by the ApplicationContext.
+			// TODO 清空元数据缓存
 			((CachingMetadataReaderFactory) this.metadataReaderFactory).clearCache();
 		}
 	}
