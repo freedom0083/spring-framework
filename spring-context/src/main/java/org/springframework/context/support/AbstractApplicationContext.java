@@ -530,11 +530,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
-				// TODO 勾子方法, 用于子类(比如web系的ApplicationContext)为beanFactory添加后处理器
+				// TODO 勾子方法, 用于子类(比如web系的ApplicationContext)为bean factory添加后处理器
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
-				// TODO
+				// TODO 执行bean factory的后处理器
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.

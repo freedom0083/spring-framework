@@ -164,7 +164,8 @@ public abstract class AnnotationConfigUtils {
 		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			// TODO 用一个用来处理@Configuration的后处理器构造一个RootBeanDefinition
+			// TODO 用ConfigurationClassPostProcessor构造一个用来解析@Configuration配置类的RootBeanDefinition
+			//  其实现了BeanDefinitionRegistryPostProcessor接口, 通过postProcessBeanDefinitionRegistry()方法实现自定义bean的注册动作
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
 			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中

@@ -134,7 +134,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			// TODO 设置是否支持覆盖和循环引用
 			customizeBeanFactory(beanFactory);
 			// TODO 同样根据使用不同的配置方式分为两种:
-			//  1. 对于xml配置的情况来说, 总体思路都是创建一个reader, 然后用reader来解析配置文件.
+			//  1. 对于使用非配置类方式的情况来说, 总体思路都是创建一个reader, 然后用reader来解析配置文件.
 			//     reader可以解析字符串形式的路径, 或者直接使用Resource. 无论使用哪种方式, 最终都会转化为对Resource的解析.
 			//     即, 使用AbstractBeanDefinitionReader#loadBeanDefinitions(Resource)来进行解析和注册工作:
 			//     AbstractXmlApplicationContext: 除了可以处理字符串形式的path外, 还可以直接处理直接处理Resource
