@@ -67,11 +67,11 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
 		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
 		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
-		//  AutowiredAnnotationBeanPostProcessor:
-		//  CommonAnnotationBeanPostProcessor:
-		//  PersistenceAnnotationBeanPostProcessor:
-		//  EventListenerMethodProcessor:
-		//  DefaultEventListenerFactory:
+		//  2. AutowiredAnnotationBeanPostProcessor:
+		//  3. CommonAnnotationBeanPostProcessor:
+		//  4. PersistenceAnnotationBeanPostProcessor:
+		//  5. EventListenerMethodProcessor:
+		//  6. DefaultEventListenerFactory:
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		// TODO 初始化一个使用默认过滤器的bean扫描器, 此扫描器用于后面解析过程时对指定包进行扫描
 		//  默认的过滤器可以处理@Component, @Repository, @Controller和J2EE 6的@ManagedBean, JSR-330的@Named
@@ -96,11 +96,10 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 */
 	public AnnotationConfigApplicationContext(Class<?>... annotatedClasses) {
 		this();
-		// TODO 经过上面构造器处理后, 用于处理注解的bean已经被注册到容器, 过滤器也已经准备就绪
-		//  然后对配置类(@Configuration)进行解析注册工作, register最终调用的是
-		//  AnnotationBeanDefinitionReader#doRegisterBean()
+		// TODO 用初始化好的AnnotatedBeanDefinitionReader来解析配置类, 设置由@Lazy, @Primary, @DependsOn, @Role, @Description等
+		//  指定的value值, 并将配置类注册到容器中.  register最终调用的是AnnotationBeanDefinitionReader#doRegisterBean()
 		register(annotatedClasses);
-		// TODO 注册后刷新并完成实例化
+		// TODO 开始注册bean, 同时完成单例bean的实例化
 		refresh();
 	}
 
@@ -111,7 +110,9 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 */
 	public AnnotationConfigApplicationContext(String... basePackages) {
 		this();
+		// TODO 如果传入的是一个包路径, 则扫描包下所有符合要求的bean, 并注册到容器中
 		scan(basePackages);
+		// TODO 开始注册bean, 同时完成单例bean的实例化
 		refresh();
 	}
 
@@ -185,8 +186,8 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	@Override
 	public void scan(String... basePackages) {
 		Assert.notEmpty(basePackages, "At least one base package must be specified");
-		// 包扫描，同时将包下所有符合要求的类注册到容器, 然后返回本次注册的bean数量, 只是进行注册, 并没有实例化
-		// 实现在ClassPathBeanDefinitionScanner#doScan()中
+		// TODO 包扫描，同时将包下所有符合要求的类注册到容器, 然后返回本次注册的bean数量, 只是进行注册, 并没有实例化
+		//  实现在ClassPathBeanDefinitionScanner#doScan()中
 		this.scanner.scan(basePackages);
 	}
 

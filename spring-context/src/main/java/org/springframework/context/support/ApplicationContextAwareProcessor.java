@@ -83,7 +83,7 @@ class ApplicationContextAwareProcessor implements BeanPostProcessor {
 				bean instanceof MessageSourceAware || bean instanceof ApplicationContextAware)){
 			return bean;
 		}
-
+		// TODO 对于spring来说, 会在执行aware接口的bean执行前做一些设置
 		AccessControlContext acc = null;
 
 		if (System.getSecurityManager() != null) {

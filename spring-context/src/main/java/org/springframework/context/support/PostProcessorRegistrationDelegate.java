@@ -59,10 +59,12 @@ final class PostProcessorRegistrationDelegate {
 		Set<String> processedBeans = new HashSet<>();
 
 		if (beanFactory instanceof BeanDefinitionRegistry) {
+			// TODO 处理BeanDefinitionRegistry类型的bean factory
 			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 			List<BeanFactoryPostProcessor> regularPostProcessors = new ArrayList<>();
 			List<BeanDefinitionRegistryPostProcessor> registryProcessors = new ArrayList<>();
-			// TODO beanFactoryPostProcessors有两个地方会被加入到处理列表中
+			// TODO beanFactoryPostProcessors内的对象都是直接new出来, 然后通过AbstractApplicationContext#addBeanFactoryPostProcessor()
+			//  加入到集合里的. 有两个地方调用此方法添加了后处理器:
 			//  1. AnnotationConfigApplicationContext在初始化reader时, AnnotationConfigUtils#registerAnnotationConfigProcessors()
 			//     会根据情况注册以下几个RootBeanDefinition(AbstractBeanDefinition)类型的后处理器:
 			//     ConfigurationClassPostProcessor: 通过实现BeanDefinitionRegistryPostProcessor接口的postProcessBeanDefinitionRegistry()方法
@@ -72,13 +74,19 @@ final class PostProcessorRegistrationDelegate {
 			//     PersistenceAnnotationBeanPostProcessor:
 			//     EventListenerMethodProcessor:
 			//     DefaultEventListenerFactory:
+
+			// TODO beanFactoryPostProcessors中所有的对象都是在ApplicationContext#addBeanFactoryPostProcessor()手动注册进去的
+			//  如果没有进行过手动注册, beanFactoryPostProcessors一般情况下都是空的
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
-					// TODO 目前Spring体系中只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
+					// TODO BeanDefinitionRegistryPostProcessor接口定义了以自定义方式注册bean的方式
+					//  通过实现postProcessBeanDefinitionRegistry()方法来实现自定义的bean注册动作
+					//  目前Spring体系中只有ConfigurationClassPostProcessor实现了BeanDefinitionRegistryPostProcessor
+
+					// TODO 处理手动注册的BeanFactoryPostProcessor后处理器是BeanDefinitionRegistryPostProcessor类型的情况
 					BeanDefinitionRegistryPostProcessor registryProcessor =
 							(BeanDefinitionRegistryPostProcessor) postProcessor;
-					// TODO 调用ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry()
-					//  解析@Configuration注解的配置类, 并将解析出来的bean注册到容器中
+					// TODO 调用后处理器的postProcessBeanDefinitionRegistry()执行自定义bean注册动作
 					registryProcessor.postProcessBeanDefinitionRegistry(registry);
 					// TODO 然后加到注册后处理器用的缓存中
 					registryProcessors.add(registryProcessor);
@@ -90,6 +98,8 @@ final class PostProcessorRegistrationDelegate {
 					//  PersistenceAnnotationBeanPostProcessor:
 					//  EventListenerMethodProcessor:
 					//  DefaultEventListenerFactory:
+
+					// TODO 其他类型的BeanFactoryPostProcessor后处理器都放入regular缓存, 后面统一处理
 					regularPostProcessors.add(postProcessor);
 				}
 			}
@@ -101,7 +111,11 @@ final class PostProcessorRegistrationDelegate {
 			List<BeanDefinitionRegistryPostProcessor> currentRegistryProcessors = new ArrayList<>();
 
 			// First, invoke the BeanDefinitionRegistryPostProcessors that implement PriorityOrdered.
-			// TODO 拿到所有实现BeanDefinitionRegistryPostProcessor接口的, 用于自定义处理bean注册的后处理器
+			// TODO 拿到所有通过配置文件注册到容器中的实现了BeanDefinitionRegistryPostProcessor接口的后处理器, 如果没有自定义的实现类时
+			//  这里只包括AnnotationConfigApplicationContext初始化reader时由AnnotationConfigUtils#registerAnnotationConfigProcessors()
+			//  注册的后处理器ConfigurationClassPostProcessor, 极其内部类ImportAwareBeanPostProcessor:
+			//  1. ConfigurationClassPostProcessor: 解析@Configuraton配置类,并将解析结果(@Bean方法等)注册到容器
+			//  2. ImportAwareBeanPostProcessor: ConfigurationClassPostProcessor的内部类, 处理ImportRegistry的情况
 			String[] postProcessorNames =
 					beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
 			for (String ppName : postProcessorNames) {

@@ -139,10 +139,12 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			//     即, 使用AbstractBeanDefinitionReader#loadBeanDefinitions(Resource)来进行解析和注册工作:
 			//     AbstractXmlApplicationContext: 除了可以处理字符串形式的path外, 还可以直接处理直接处理Resource
 			//     GroovyWebApplicationContext, XmlWebApplicationContext: 这俩只能处理字符串形式的path
-			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext
-			//     创建了AnnotatedBeanDefinitionReader来对配置类进行解析和注册
-			//     ClassPathBeanDefinitionScanner来扫描指定包下的@Component, @Repository, @Controller等
-			//     这一步实际上和使用AnnotationConfigApplicationContext完全相同, 真正对配置文件内定义的@Bean的解析在后面进行
+			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext创建了用于解析动作的reader和扫描动作的scanner:
+			//     a. reader: AnnotatedBeanDefinitionReader会注册实现了BeanDefinitionRegistryPostProcessor接口的后处理器,
+			//     通过实现postProcessBeanDefinitionRegistry()方法来实现自定义bean注册的功能,
+			//     比如解析配置类的ConfigurationClassPostProcessor后处理器靠其来在后面执行后处理器等.
+			//     b. scanner: ClassPathBeanDefinitionScanner来扫描指定包下的@Component, @Repository, @Controller等
+			//  这一步实际上和使用AnnotationConfigApplicationContext完全相同
 			loadBeanDefinitions(beanFactory);
 			synchronized (this.beanFactoryMonitor) {
 				this.beanFactory = beanFactory;

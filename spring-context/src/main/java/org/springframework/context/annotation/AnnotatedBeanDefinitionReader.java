@@ -261,7 +261,7 @@ public class AnnotatedBeanDefinitionReader {
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
 		abd.setScope(scopeMetadata.getScopeName());
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
-		// TODO 解析@Lazy, @Primary, @DependsOn, @Role和@Description这五个注解, 设置bean对应的方法
+		// TODO 根据@Lazy, @Primary, @DependsOn, @Role和@Description这五个注解中的value来设置bean中对应的方法
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
 		// TODO 解析@Qualifier, 优先用@Qualifier指定的值重新对bean进行设置
 		if (qualifiers != null) {

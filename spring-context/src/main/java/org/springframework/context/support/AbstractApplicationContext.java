@@ -519,7 +519,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			prepareRefresh();
 
 			// Tell the subclass to refresh the internal bean factory.
-			// TODO obtainFreshBeanFactory会返回一个beanFactory, 根据ApplicationContext类型不同,会有两种情况:
+			// TODO obtainFreshBeanFactory会返回一个beanFactory, 到此ApplicationContext就持有了一个BeanFactory对象
+			//  使其拥有了BeanFactory的全部功能. 根据ApplicationContext类型不同,会有两种情况:
 			//  1. 使用xml进行配置时: 会解析xml中定义的bean并注册到容器中(beanDefinitionMap)
 			//  2. 使用配置类(@Configuration)时: 没有解析过程, 其解析过程在ConfigurationClassPostProcessor后处理器中进行
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
@@ -642,8 +643,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
 		// TODO refreshBeanFactory对于不同类型的ApplicationContext有不同处理
-		//  1. AbstractRefreshableApplicationContext: 用于以XML形式进行配置, 会解析xml中的bean定义并注册到容器中(beanDefinitionMap)
-		//  2. GenericApplicationContext: 用于配置类方式, 什么也不做
+		//  1. AbstractRefreshableApplicationContext: 通过使用reader的方式来创建一个用于解析文件的类, 比如:
+		//     a. XmlBeanDefinitionReader: 解析xml中的bean定义并注册到容器中(beanDefinitionMap)
+		//     b. AnnotatedBeanDefinitionReader: 解析配置类并注册到容器中
+		//     c. GroovyBeanDefinitionReader: 解析groovy, 实现上内部还是利用XmlBeanDefinitionReader
+		//  2. GenericApplicationContext: 用于自定义方式注册bean, 这边什么也不做, 在后面执行后处理器时实现注册动作,
+		//     AnnotationConfigApplicationContext是其中的一个代表
 		refreshBeanFactory();
 		// TODO 返回创建好的beanFactory
 		return getBeanFactory();
@@ -736,6 +741,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * <p>Must be called before singleton instantiation.
 	 */
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		// TODO getBeanFactoryPostProcessors()所得到的容器级后处理器都是通过调用
+		//  ApplicationContext#addBeanFactoryPostProcessor()手动注册进去的, 而并不是从配置文件等放入的
+		//  public void initialize(ConfigurableApplicationContext context) {
+		//	    context.addBeanFactoryPostProcessor(new ConfigurationWarningsPostProcessor(getChecks()));
+		//  }
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
