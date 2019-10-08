@@ -238,7 +238,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			throw new IllegalStateException(
 					"postProcessBeanFactory already called on this post-processor against " + registry);
 		}
-		// TODO 直接入到注册过的后处理器缓存中
+		// TODO 直接放入注册过的后处理器缓存中
 		this.registriesPostProcessed.add(registryId);
 		// TODO 然后再开始处理配置文件
 		processConfigBeanDefinitions(registry);
@@ -272,14 +272,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
-		// TODO AnnotationConfigApplicationContext里会注册处理注解用的beanDefinition, candidateNames会包括下面
-		//  这些RootBeanDefinition(AbstractBeanDefinition)类型后处理器:
-		//  ConfigurationClassPostProcessor: 用来解析由@Configuration注解的配置类
-		//  AutowiredAnnotationBeanPostProcessor:
-		//  CommonAnnotationBeanPostProcessor:
-		//  PersistenceAnnotationBeanPostProcessor:
-		//  EventListenerMethodProcessor:
-		//  DefaultEventListenerFactory:
+		// TODO 把BeanDefinitionRegistry里所有的BeanDefinition都拿出来
 		String[] candidateNames = registry.getBeanDefinitionNames();
 
 		for (String beanName : candidateNames) {

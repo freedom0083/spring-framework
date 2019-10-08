@@ -120,6 +120,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 				throw new IllegalStateException("Could not register object [" + singletonObject +
 						"] under bean name '" + beanName + "': there is already object [" + oldObject + "] bound");
 			}
+			// TODO 同步的加入到单例缓存singletonObjects中, 并从singletonFactories和earlySingletonObjects移除
 			addSingleton(beanName, singletonObject);
 		}
 	}
@@ -132,9 +133,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 */
 	protected void addSingleton(String beanName, Object singletonObject) {
 		synchronized (this.singletonObjects) {
+			// TODO 放到单例缓存singletonObjects中
 			this.singletonObjects.put(beanName, singletonObject);
+			// TODO 并从singletonFactories和earlySingletonObjects缓存移除当前bean
 			this.singletonFactories.remove(beanName);
 			this.earlySingletonObjects.remove(beanName);
+			// TODO 放到已注册的单例缓存registeredSingletons中
 			this.registeredSingletons.add(beanName);
 		}
 	}
@@ -174,9 +178,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 */
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+		// TODO 首先从缓存里尝试取得bean
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+			// TODO 如果没有取得bean, 但对应的bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 需要进行同步实例化
 			synchronized (this.singletonObjects) {
+				// TODO 再次尝试从earlySingletonObjects缓存中取得对应的bean
 				singletonObject = this.earlySingletonObjects.get(beanName);
 				if (singletonObject == null && allowEarlyReference) {
 					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);

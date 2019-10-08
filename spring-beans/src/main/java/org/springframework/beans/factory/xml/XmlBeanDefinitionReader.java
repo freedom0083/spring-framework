@@ -393,6 +393,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		try {
 			// TODO 用SAX解析XML文件
 			Document doc = doLoadDocument(inputSource, resource);
+			// TODO 用解析后的结点注册BeanDefinition
 			int count = registerBeanDefinitions(doc, resource);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Loaded " + count + " bean definitions from " + resource);

@@ -535,10 +535,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
-				// TODO 执行bean factory的后处理器
+				// TODO 执行bean factory的后处理器, 执行后所有的BeanFactoryPostProcessor后处理器会被实例化
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
+				// TODO 注册所有的BeanPostPorcessor后处理器
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
@@ -751,6 +752,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
 		if (beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			// TODO 在支持LTW时, 加入LoadTimeWeaverAwareProcessor后处理器以及class loader
 			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
 			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
 		}
