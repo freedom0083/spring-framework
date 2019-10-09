@@ -1261,6 +1261,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		String currentlyCreatedBean = this.currentlyCreatedBean.get();
 		if (currentlyCreatedBean != null) {
+			// TODO 注册依赖的bean
 			registerDependentBean(beanName, currentlyCreatedBean);
 		}
 
@@ -1944,6 +1945,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Override
 	protected Object postProcessObjectFromFactoryBean(Object object, String beanName) {
+		// TODO 挨个调用BeanPostProcessor.postProcessAfterInitialization()对原始bean进行处理并返回加工后的bean对象
 		return applyBeanPostProcessorsAfterInitialization(object, beanName);
 	}
 
