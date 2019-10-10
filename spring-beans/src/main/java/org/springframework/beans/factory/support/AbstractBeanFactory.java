@@ -231,8 +231,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
-	 * @param name the name of the bean to retrieve
-	 * @param requiredType the required type of the bean to retrieve
+	 * @param name the name of the bean to retrieve 要获取的bean的名字
+	 * @param requiredType the required type of the bean to retrieve 获取的bean的类型
 	 * @param args arguments to use when creating a bean instance using explicit arguments
 	 * (only applied when creating a new instance as opposed to retrieving an existing one)
 	 * @param typeCheckOnly whether the instance is obtained for a type check,
@@ -243,8 +243,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@SuppressWarnings("unchecked")
 	protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredType,
 			@Nullable final Object[] args, boolean typeCheckOnly) throws BeansException {
-		// TODO 把想得到的bean名字规范一下. Factory Bean注册的Bean会带有'&', 这个方法先去掉可能有的'&',
-		//  然后再从可能存在的别名里拿出别名, 如果没有别名, 则直接使用去掉'&'的名字
+		// TODO transformedBeanName()用来规范化要取得的bean的名字, 此方法做了两件事:
+		//  1. 去掉'&': 由Factory Bean注册的Bean的名字会带有'&'前缀, 这个方法会去掉这个前缀
+		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
+		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
 		final String beanName = transformedBeanName(name);
 		Object bean;
 
@@ -265,16 +267,18 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 			// TODO 缓存命中时, 从缓存中取得bean实例, 这个bean实例可能是原始的bean, 也可能是经过后处理器加工过的bean, 具体看是否应用后果处理器
-			//  1. 默认实现: 从sharedInstance中取得原始bean对象, 然后根据条件决定是否用后处理器对原始bean对象进行加工
+			//  1. 默认实现: 从bean实例sharedInstance中取得原始bean对象, 然后根据条件决定是否用后处理器对原始bean对象进行加工
 			//  2. AbstractAutowireCapableBeanFactory实现: 先注册依赖的bean, 然后再使用默认实现
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
 		else {
-			// TODO 缓存中不存在时
+			// TODO 缓存中不存时的情况：
+			//  1. bean的scope是prototype, 这种情况spring无法完成依赖注入, 无法提前暴露正在创建中的bean, 需要处理循环引用问题
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {
+				// TODO 原型对象不允许循环创建, 如果是原型对象正在创建, 那就抛异常
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
@@ -282,42 +286,60 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			BeanFactory parentBeanFactory = getParentBeanFactory();
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
+				// TODO 注册中心beanDefinitionMap中没有要取得到bean时, 看看其是否存在于父容器中, 存在则直接使用父容器中的bean来避免重复实例化
 				String nameToLookup = originalBeanName(name);
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
+					// TODO 如果父容器是AbstractBeanFactory类型, 即: AbstractAutowireCapableBeanFactory,
+					//  DefaultListableBeanFactory, 或XmlBeanFactory时, 调用父容器的doGetBean()方法, 尝试从父容器中取得bean
 					return ((AbstractBeanFactory) parentBeanFactory).doGetBean(
 							nameToLookup, requiredType, args, typeCheckOnly);
 				}
 				else if (args != null) {
 					// Delegation to parent with explicit args.
+					// TODO 如果有参数, 调用父容器的getBean()方法加上传入的参数args取得bean对象
 					return (T) parentBeanFactory.getBean(nameToLookup, args);
 				}
 				else if (requiredType != null) {
 					// No args -> delegate to standard getBean method.
+					// TODO 有类型时, 调用父容器的getBean()方法加上传入的类型args取得bean对象
 					return parentBeanFactory.getBean(nameToLookup, requiredType);
 				}
 				else {
+					// TODO 普通的直接调用父容器的getBean()取得bean对象
 					return (T) parentBeanFactory.getBean(nameToLookup);
 				}
 			}
 
 			if (!typeCheckOnly) {
+				// TODO 把bean标识为已创建, 放alreadyCreated缓存中
 				markBeanAsCreated(beanName);
 			}
 
 			try {
 				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+				// TODO 取得合并父bean definition的root bean definition, 然后查检一下是不是抽象的, 如果是则抛出BeanIsAbstractException异常
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
+				// TODO 取得当前这个bean definition所依赖的所有bean.
+				//  要保证这些bean先完成实例化
+				// 这里就重要了，因为我们会有属性注入等等  所以这里就是要保证它依赖的那些属性先初始化才行
+				// 这部分是处理循环依赖的核心，这里稍微放一放。下面有大篇幅专门讲解这方面的以及原理解决方案
+				// @DependsOn注解可以控制Bean的初始化顺序~~~
 				String[] dependsOn = mbd.getDependsOn();
 				if (dependsOn != null) {
 					for (String dep : dependsOn) {
+						// TODO 然后检查一下循环依赖问题, 看一下要取得的这个bean是否出现在自己要依赖的bean中, 如果是则抛出异常
 						if (isDependent(beanName, dep)) {
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
 						}
+						// TODO 没有循环依赖时, 注册一下bean与其依赖bean的关系
+						//  1. dependentBeanMap: 注册了依赖bean -> 当前bean, 即依赖的bean依赖了当前bean
+						//  2. dependenciesForBeanMap: 注册了当前bean -> 依赖的bean, 即当前bean被依赖bean所依赖
 						registerDependentBean(dep, beanName);
 						try {
+							// TODO 然后开始初始化依赖的bean, 只有这些依赖的bean都初始化完成后, 才能继续当前bean的初始化
 							getBean(dep);
 						}
 						catch (NoSuchBeanDefinitionException ex) {
@@ -329,8 +351,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				if (mbd.isSingleton()) {
+					// TODO 开始创建单例bean实例, 这里创建的是原始的bean实例
+					//  getSingleton(String, ObjectFactory<?>)的第二个参数ObjectFactory是个函数接口, 提供了一个getObject()方法
+					//  用来实现获取bean的主逻辑, 在这里传入的是createBean()方法, 最终会由此方法来为bean创建实例
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
+							// TODO 这里真正实现了创建单例bean实例的逻辑
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
@@ -341,6 +367,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							throw ex;
 						}
 					});
+					// TODO 创建完成后, 再看是否既要后处理器进行加工, 最终返回一个可能经过了加工的bean实例
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
 
@@ -1202,7 +1229,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	protected String transformedBeanName(String name) {
 		// TODO 通过Factory Bean注册的Bean会带有'&', BeanFactoryUtils.transformedBeanName()方法用于去掉'&'
-		//  然后再取得对应的别名(如果存在)
+		//  然后再通过别名得到最终bean的名字
 		return canonicalName(BeanFactoryUtils.transformedBeanName(name));
 	}
 
