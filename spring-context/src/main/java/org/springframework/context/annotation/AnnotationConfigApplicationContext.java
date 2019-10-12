@@ -99,8 +99,8 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		this();
 		// TODO 用初始化好的AnnotatedBeanDefinitionReader来解析配置类, 设置由@Lazy, @Primary, @DependsOn, @Role, @Description等
 		//  指定的value值, 并将配置类注册到容器中.  register最终调用的是AnnotationBeanDefinitionReader#doRegisterBean()
-		// TODO 开始注册bean, 同时完成单例bean的实例化
 		register(componentClasses);
+		// TODO 开始注册bean, 同时完成单例bean的实例化
 		refresh();
 	}
 
