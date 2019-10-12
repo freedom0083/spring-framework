@@ -85,6 +85,7 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+		// TODO 注册注解处理器, 执行后会将处理注解方法的后处理器注册到容器中(beanDefinitionMap)
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 
