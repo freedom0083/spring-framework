@@ -17,7 +17,6 @@
 package org.springframework.messaging.rsocket
 
 import io.rsocket.transport.ClientTransport
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.reactive.awaitSingle
@@ -62,7 +61,7 @@ suspend fun RSocketRequester.Builder.connectWebSocketAndAwait(uri: URI): RSocket
  * @param producer the source of payload data value(s). This must be a
  * [Publisher] or another producer adaptable to a
  * [Publisher] via [org.springframework.core.ReactiveAdapterRegistry]
- * @param <T> the type of values to be produced
+ * @param T the type of values to be produced
  * @author Sebastien Deleuze
  * @since 5.2
  */
@@ -74,7 +73,7 @@ inline fun <reified T : Any> RSocketRequester.RequestSpec.dataWithType(producer:
  * variant leveraging Kotlin reified type parameters. This extension is not subject to type
  * erasure and retains actual generic type arguments.
  * @param publisher the source of payload data value(s)
- * @param <T> the type of values to be produced
+ * @param T the type of values to be produced
  * @author Sebastien Deleuze
  * @since 5.2
  */
@@ -86,7 +85,7 @@ inline fun <reified T : Any> RSocketRequester.RequestSpec.dataWithType(publisher
  * variant leveraging Kotlin reified type parameters. This extension is not subject to type
  * erasure and retains actual generic type arguments.
  * @param flow the [Flow] to write to the request
- * @param <T> the source of payload data value(s)
+ * @param T the source of payload data value(s)
  * @author Sebastien Deleuze
  * @since 5.2
  */
@@ -119,7 +118,6 @@ suspend inline fun <reified T : Any> RSocketRequester.RequestSpec.retrieveAndAwa
  * @author Sebastien Deleuze
  * @since 5.2
  */
-@ExperimentalCoroutinesApi
 inline fun <reified T : Any> RSocketRequester.RequestSpec.retrieveFlow(): Flow<T> =
 		retrieveFlux(object : ParameterizedTypeReference<T>() {}).asFlow()
 

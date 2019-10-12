@@ -1691,7 +1691,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Boolean result = mbd.isFactoryBean;
 		if (result == null) {
 			Class<?> beanType = predictBeanType(beanName, mbd, FactoryBean.class);
-			result = beanType != null && FactoryBean.class.isAssignableFrom(beanType);
+			result = (beanType != null && FactoryBean.class.isAssignableFrom(beanType));
 			mbd.isFactoryBean = result;
 		}
 		return result;
@@ -1878,18 +1878,25 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// TODO 如果不是FactoryBean, 则抛出异常
 				throw new BeanIsNotAFactoryException(beanName, beanInstance.getClass());
 			}
+			if (mbd != null) {
+				mbd.isFactoryBean = true;
+			}
+			return beanInstance;
 		}
 
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
-		if (!(beanInstance instanceof FactoryBean) || BeanFactoryUtils.isFactoryDereference(name)) {
-			// TODO 如果取得的bean实例不是FactoryBean类型, 即普通的bean, 或bean是由Factory创建的的情况下, 直接返回实例
+		if (!(beanInstance instanceof FactoryBean)) {
+			// TODO 如果取得的bean实例不是FactoryBean类型, 即普通的bean
 			return beanInstance;
 		}
 		// TODO 用于返回的, 经过处理的最终bean对象
 		Object object = null;
-		if (mbd == null) {
+		if (mbd != null) {
+			mbd.isFactoryBean = true;
+		}
+		else {
 			// TODO 合并的bean definition为空时, 尝试从factoryBeanObjectCache缓存中取得实例
 			object = getCachedObjectForFactoryBean(beanName);
 		}
