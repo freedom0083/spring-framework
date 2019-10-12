@@ -61,7 +61,7 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 	private String expressionSuffix = DEFAULT_EXPRESSION_SUFFIX;
 
 	private ExpressionParser expressionParser;
-
+	// TODO Expression表达式缓存
 	private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>(256);
 
 	private final Map<BeanExpressionContext, StandardEvaluationContext> evaluationCache = new ConcurrentHashMap<>(8);
@@ -139,12 +139,24 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 		try {
 			Expression expr = this.expressionCache.get(value);
 			if (expr == null) {
+				// TODO expressionCache缓存中没有对应的Expression时用TemplateAwareExpressionParser解析传入的表达式并得到一个Expression
 				expr = this.expressionParser.parseExpression(value, this.beanExpressionParserContext);
+				// TODO 然后存入缓存
 				this.expressionCache.put(value, expr);
 			}
+			// TODO 从缓存中取得上下文环境
 			StandardEvaluationContext sec = this.evaluationCache.get(evalContext);
 			if (sec == null) {
+				// TODO 上下文环境不存在于缓存中时新建一个, 并将rootObject设置为evalContext
 				sec = new StandardEvaluationContext(evalContext);
+				// TODO 然后按顺序设置5个属性属性解析器PropertyAccessor, 这些PropertyAccessor的实现类通过实现接口中的canRead(),
+				//  read(), canWrite(), write()来实现对属性的读写操作:
+				//  1. ReflectivePropertyAccessor/DataBindingPropertyAccessor: 通过addPropertyAccessor()添加的默认解析器,
+				//     通过反射读/写对象的属性
+				//  2. BeanExpressionContextAccessor：支持从BeanExpressionContext获取属性
+				//  3. BeanFactoryAccessor：支持从bean工厂获取属性
+				//  4. MapAccessor：支持从map获取属性
+				//  5. EnvironmentAccessor：支持从环境获取属性
 				sec.addPropertyAccessor(new BeanExpressionContextAccessor());
 				sec.addPropertyAccessor(new BeanFactoryAccessor());
 				sec.addPropertyAccessor(new MapAccessor());
@@ -158,6 +170,7 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 				customizeEvaluationContext(sec);
 				this.evaluationCache.put(evalContext, sec);
 			}
+			// TODO 从上下文环境sec中拿出表达式Expression表示的对象
 			return expr.getValue(sec);
 		}
 		catch (Throwable ex) {

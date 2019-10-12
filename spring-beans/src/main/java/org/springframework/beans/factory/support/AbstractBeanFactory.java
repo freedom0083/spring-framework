@@ -1532,6 +1532,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		try {
 			if (mbd.hasBeanClass()) {
+				// TODO 在有合并过的root bean definition时, 直接返回bean对象
 				return mbd.getBeanClass();
 			}
 			if (System.getSecurityManager() != null) {
@@ -1557,27 +1558,36 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@Nullable
 	private Class<?> doResolveBeanClass(RootBeanDefinition mbd, Class<?>... typesToMatch)
 			throws ClassNotFoundException {
-
+		// TODO 取得当前的beanClassLoader
 		ClassLoader beanClassLoader = getBeanClassLoader();
 		ClassLoader dynamicLoader = beanClassLoader;
 		boolean freshResolve = false;
 
 		if (!ObjectUtils.isEmpty(typesToMatch)) {
+			// TODO typesToMatch是个可变长参数:
+			//  1. AbstractAutowireCapableBeanFactory#createBean()方法调用了resolveBeanClass(), 其中在调用doResolveBeanClass()
+			//     时并没有指定这个参数, 所以getBean()创建bean实例时不会走到这里????
 			// When just doing type checks (i.e. not creating an actual instance yet),
 			// use the specified temporary class loader (e.g. in a weaving scenario).
+			// TODO 这个tempClassLoader是在容器初始化时, 发现支持Load Time Weaving(AspectJ的类加载期织入)时添加到beanFactory的,
+			//  会添加一个DecoratingClassLoader的子类ContextTypeMatchClassLoader(其父类加载器依然是容器bean类加载器),
+			//  来代理JVM默认的类加载器:
+			//  beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
 			ClassLoader tempClassLoader = getTempClassLoader();
 			if (tempClassLoader != null) {
+				// TODO 这里就是替换了JVM默认的类加载器, 如果容器支持LWT, 后面的所有操作都会是基于AspectJ的classLoader了
 				dynamicLoader = tempClassLoader;
 				freshResolve = true;
 				if (tempClassLoader instanceof DecoratingClassLoader) {
 					DecoratingClassLoader dcl = (DecoratingClassLoader) tempClassLoader;
 					for (Class<?> typeToMatch : typesToMatch) {
+						// TODO 临时的classLoader如果是参数指定的类型时, 将其加入到排除列表excludedClasses中
 						dcl.excludeClass(typeToMatch.getName());
 					}
 				}
 			}
 		}
-
+		// TODO 取得当前合并过的root bean definition的名字
 		String className = mbd.getBeanClassName();
 		if (className != null) {
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
@@ -1633,9 +1643,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (beanDefinition != null) {
 			String scopeName = beanDefinition.getScope();
 			if (scopeName != null) {
+				// TODO 取得bean definition的作用域
 				scope = getRegisteredScope(scopeName);
 			}
 		}
+		// TODO 用BeanExpressionResolver.evaluate(String, BeanExpressionContext)来将String值做为表达式进行评估解析.
+		//  默认使用StandardBeanExpressionResolver做为解析器
+		//  1. 返回Object: SpelExpression
+		//  2. 返回String: LiteralExpression, CompositeStringExpression
 		return this.beanExpressionResolver.evaluate(value, new BeanExpressionContext(this, scope));
 	}
 
