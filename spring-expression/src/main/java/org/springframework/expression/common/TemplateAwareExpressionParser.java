@@ -46,9 +46,11 @@ public abstract class TemplateAwareExpressionParser implements ExpressionParser 
 	@Override
 	public Expression parseExpression(String expressionString, @Nullable ParserContext context) throws ParseException {
 		if (context != null && context.isTemplate()) {
+			// TODO 通过模版解析表达式
 			return parseTemplate(expressionString, context);
 		}
 		else {
+			// TODO 直接解析表达式
 			return doParseExpression(expressionString, context);
 		}
 	}

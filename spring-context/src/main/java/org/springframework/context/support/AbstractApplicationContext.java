@@ -664,7 +664,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
 		beanFactory.setBeanClassLoader(getClassLoader());
-		// TODO 设置Spel表达式解析器
+		// TODO 设置Spel表达式解析器, 默认使用StandardBeanExpressionResolver做为解析器,
+		//  这个解析器使用SpelExpressionParser做为分析器来实现解析Spel
 		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 

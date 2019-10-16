@@ -86,11 +86,16 @@ class Tokenizer {
 
 	public List<Token> process() {
 		while (this.pos < this.max) {
+			// TODO 从头开始挨个儿处理表达式中的每个字符, 为每个操作符和操作数生成token, 放入tokens
 			char ch = this.charsToProcess[this.pos];
 			if (isAlphabetic(ch)) {
+				// TODO 字母开头的情况做词法分析, 做了两件事:
+				//  1. 将SpEL定义的关系运算符替换成对应的关系运算符, 生成token后放入tokens
+				//  2. 其他情况下, 直接生成IDENTIFIER类型的token放入tokens
 				lexIdentifier();
 			}
 			else {
+				// TODO 处理其他操作符, 生成对应的token放入tokens
 				switch (ch) {
 					case '+':
 						if (isTwoCharToken(TokenKind.INC)) {
@@ -101,6 +106,7 @@ class Tokenizer {
 						}
 						break;
 					case '_': // the other way to start an identifier
+						// TODO '_'开头的情况也要做词法分析
 						lexIdentifier();
 						break;
 					case '-':
@@ -445,23 +451,30 @@ class Tokenizer {
 	}
 
 	private void lexIdentifier() {
+		// TODO 以当前处理的字符位置做为起始位置
 		int start = this.pos;
+		// TODO 顺序分析每一个字符, 找到表达式中每个关键字, 非字通母, 数字, '_', '$'时, 表示后面的字符是另一个单独的关键字
 		do {
 			this.pos++;
 		}
 		while (isIdentifier(this.charsToProcess[this.pos]));
+		// TODO 取出当前要处理的关键字
 		char[] subarray = subarray(start, this.pos);
 
 		// Check if this is the alternative (textual) representation of an operator (see
 		// alternativeOperatorNames)
 		if ((this.pos - start) == 2 || (this.pos - start) == 3) {
+			// TODO 操作符长度为2, 或3时, 需要判断一下是否为SpEL定义的关系运算符, 如果是, 则用对应的关系运算符进行替换:
+			//  DIV -> '/', EQ -> '==', GE -> '>=', GT -> '>', LE -> '<=', LT -> '<', MOD -> '%', NE -> '!=', NOT -> '!'
 			String asString = new String(subarray).toUpperCase();
 			int idx = Arrays.binarySearch(ALTERNATIVE_OPERATOR_NAMES, asString);
 			if (idx >= 0) {
+				// TODO 如果是, 生成对应的关系运算符类型的token放入tokens
 				pushOneCharOrTwoCharToken(TokenKind.valueOf(asString), start, subarray);
 				return;
 			}
 		}
+		// TODO 其他情况, 直接以标识符(identifier)类型, 放入tokens
 		this.tokens.add(new Token(TokenKind.IDENTIFIER, subarray, start, this.pos));
 	}
 
