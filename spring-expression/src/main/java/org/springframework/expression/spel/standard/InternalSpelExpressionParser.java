@@ -136,14 +136,19 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			// TODO 处理token的位置, 0表示从第一个token开始
 			this.tokenStreamPointer = 0;
 			this.constructedNodes.clear();
-			// TODO 解析表达式, 根据tokens建立语法树
+			// TODO 按优先级解析toke, 并建立一个抽象语法树, eatExpression()执行后得到的是抽象语法树的根,
+			//  整个解析过程是层层嵌套的(*调用关系与优先级是相反的):
+			//    调用关系: 赋值 -> 逻辑或 -> 逻辑与 -> 关系运算 -> 求和运算 -> 乘积运算 -> 平方运算 -> 一元运算或字面量
+			//    优先级: 一元运算或字面量 -> 平方运算 -> 乘积运算 -> 求和运算 -> 关系运算 -> 逻辑与 -> 逻辑或 -> 赋值
 			SpelNodeImpl ast = eatExpression();
 			Assert.state(ast != null, "No node");
 			Token t = peekToken();
 			if (t != null) {
+				// TODO 如果后面还有其他token, 则表示解析出现了问题, 因为ast已经是语法树的根了. 这时抛出解析异常
 				throw new SpelParseException(t.startPos, SpelMessage.MORE_INPUT, toString(nextToken()));
 			}
 			Assert.isTrue(this.constructedNodes.isEmpty(), "At least one node expected");
+			// TODO 解析完毕后, 返回Expression, 这里返回的是SpelExpression
 			return new SpelExpression(expressionString, ast, this.configuration);
 		}
 		catch (InternalParseException ex) {
@@ -159,89 +164,115 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	//      | (ELVIS^ expression))?;
 	@Nullable
 	private SpelNodeImpl eatExpression() {
-		// TODO 首先处理逻辑或运算符('or', 或'||')
+		// TODO 开始正式解析token, 这个方法主要处理的是赋值动作, 即, '=', '?:', '?'的情况, 是优先级最低的情况.
+		//  所以按优先级, 先进行其他解析, 解析成功后得到一个node
 		SpelNodeImpl expr = eatLogicalOrExpression();
+		// TODO 然后测试下一个token是否存在, 不存在则直接返回上面解析后的node
 		Token t = peekToken();
 		if (t != null) {
+			// TODO 如果token存在, 则根据不同的赋值操作生成node返回
 			if (t.kind == TokenKind.ASSIGN) {  // a=b
-				// TODO 当前操作符是'='时, 且表达式结果为空时, 给一个NullLiteral类型的node
+				// TODO 赋值操作'='的处理
 				if (expr == null) {
+					// TODO 如果上面解析后的node是空的, 即左值为空时, 创建一个NullLiteral类型的node
 					expr = new NullLiteral(t.startPos - 1, t.endPos - 1);
 				}
 				nextToken();
+				// TODO 然后再解析右值, 生成Assign类型的node返回
 				SpelNodeImpl assignedValue = eatLogicalOrExpression();
 				return new Assign(t.startPos, t.endPos, expr, assignedValue);
 			}
 			if (t.kind == TokenKind.ELVIS) {  // a?:b (a if it isn't null, otherwise b)
-				// TODO 当前操作符是'?:'时
+				// TODO ELVIS操作的处理, 表示的是左值不为空时使用左值, 否则使用右值. 比如: a?:b, 表示为a为null时使用b, 否则使用a
 				if (expr == null) {
+					// TODO 如果上面解析后的node是空的, 即左值为空时, 创建一个NullLiteral类型的node
 					expr = new NullLiteral(t.startPos - 1, t.endPos - 2);
 				}
 				nextToken();  // elvis has left the building
+				// TODO 然后再解析右值, 如果右值也是空的, 同样生成一个NullLiteral类型的node
 				SpelNodeImpl valueIfNull = eatExpression();
 				if (valueIfNull == null) {
 					valueIfNull = new NullLiteral(t.startPos + 1, t.endPos + 1);
 				}
+				// TODO 然后用左值和右值生成一个Elvis类型的node返回
 				return new Elvis(t.startPos, t.endPos, expr, valueIfNull);
 			}
 			if (t.kind == TokenKind.QMARK) {  // a?b:c
-				// TODO 当前操作符是'?'的情况, 三目表达式
+				// TODO 三目表达式的处理, 即: a?b:c
 				if (expr == null) {
+					// TODO 如果上面解析后的node是空的, 即左值为空时, 创建一个NullLiteral类型的node
 					expr = new NullLiteral(t.startPos - 1, t.endPos - 1);
 				}
 				nextToken();
+				// TODO 解析第二个值
 				SpelNodeImpl ifTrueExprValue = eatExpression();
 				eatToken(TokenKind.COLON);
+				// TODO 解析第三个值
 				SpelNodeImpl ifFalseExprValue = eatExpression();
+				// TODO 用这三个值生成一个Ternary类型的node返回
 				return new Ternary(t.startPos, t.endPos, expr, ifTrueExprValue, ifFalseExprValue);
 			}
 		}
+		// TODO 如果token后面没有其他token了, 则直接返回解析后的node
 		return expr;
 	}
 
 	//logicalOrExpression : logicalAndExpression (OR^ logicalAndExpression)*;
 	@Nullable
 	private SpelNodeImpl eatLogicalOrExpression() {
-		// TODO 处理或操作时, 首先处理与操作('and', 或'&&')
+		// TODO 用于解析或运算, 即, 'or', '||'. 先进行优先级更高的解析工作, 得到一个node
 		SpelNodeImpl expr = eatLogicalAndExpression();
 		while (peekIdentifierToken("or") || peekToken(TokenKind.SYMBOLIC_OR)) {
 			Token t = takeToken();  //consume OR
+			// TODO 遇到或运算符时, 解析下一个token做为右值
 			SpelNodeImpl rhExpr = eatLogicalAndExpression();
 			checkOperands(t, expr, rhExpr);
+			// TODO 然后用之前得到的node和右值生成一个OpOr类型的node, 并替换开始时解析出来的node,
+			//  这是在一个循环中做的, 为的是将一串或操作连接起来得到一个包含所有或操作的根node
 			expr = new OpOr(t.startPos, t.endPos, expr, rhExpr);
 		}
+		// TODO 返回node
 		return expr;
 	}
 
 	// logicalAndExpression : relationalExpression (AND^ relationalExpression)*;
 	@Nullable
 	private SpelNodeImpl eatLogicalAndExpression() {
-		// TODO 处理与操作前, 首先处理关系运算:
+		// TODO 用于解析与运算, 即, 'and', 或'&&'. 先进行优先级更高的解析工作, 得到一个node
+		//  处理与操作前, 首先处理关系运算:
 		//  1. EQUAL('=='), 2. NOT_EQUAL('!='), 3. LESS_THAN('<'), 4. LESS_THAN_OR_EQUAL('<='), 5. GREATER_THAN('>')
 		//  6. GREATER_THAN_OR_EQUAL('>='), 7, INSTANCEOF('instanceof'), 8. BETWEEN('between'), 9. MATCHES('matches')
 		SpelNodeImpl expr = eatRelationalExpression();
 		while (peekIdentifierToken("and") || peekToken(TokenKind.SYMBOLIC_AND)) {
+			// TODO 遇到与运算符时, 解析下一个token得到右值
 			Token t = takeToken();  // consume 'AND'
 			SpelNodeImpl rhExpr = eatRelationalExpression();
 			checkOperands(t, expr, rhExpr);
+			// TODO 然后用之前得到的node和右值生成一个OpAnd类型的node, 并替换开始时解析出来的node,
+			//  这是在一个循环中做的, 为的是将一串与操作连接起来得到一个包含所有与操作的根node
 			expr = new OpAnd(t.startPos, t.endPos, expr, rhExpr);
 		}
+		// TODO 返回node
 		return expr;
 	}
 
 	// relationalExpression : sumExpression (relationalOperator^ sumExpression)?;
 	@Nullable
 	private SpelNodeImpl eatRelationalExpression() {
-		// TODO 处理关系运算前, 先处理求和运算:
-		//  1. PLUS('+'), 2. MINUS('-'), 3. INC('++')
+		// TODO 用于解析关系运算, 即:
+		//  1. EQUAL('=='), 2. NOT_EQUAL('!='), 3. LESS_THAN('<'), 4. LESS_THAN_OR_EQUAL('<='), 5. GREATER_THAN('>')
+		//  6. GREATER_THAN_OR_EQUAL('>='), 7, INSTANCEOF('instanceof'), 8. BETWEEN('between'), 9. MATCHES('matches')
+		//  先进行优先级更高的解析工作, 得到一个node
 		SpelNodeImpl expr = eatSumExpression();
+		// TODO 解析随后的表示关系运算的token
 		Token relationalOperatorToken = maybeEatRelationalOperator();
 		if (relationalOperatorToken != null) {
 			Token t = takeToken();  // consume relational operator token
+			// TODO 如果随后是关系运算符, 解析下一个token得到右值
 			SpelNodeImpl rhExpr = eatSumExpression();
 			checkOperands(t, expr, rhExpr);
 			TokenKind tk = relationalOperatorToken.kind;
-
+			// TODO 然后根据关系运算符的类型, 生成对应的node返回
 			if (relationalOperatorToken.isNumericRelationalOperator()) {
 				if (tk == TokenKind.GT) {
 					return new OpGT(t.startPos, t.endPos, expr, rhExpr);
@@ -273,20 +304,24 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			Assert.isTrue(tk == TokenKind.BETWEEN, "Between token expected");
 			return new OperatorBetween(t.startPos, t.endPos, expr, rhExpr);
 		}
+		// TODO 没有关系运算符时, 直接返回node
 		return expr;
 	}
 
 	//sumExpression: productExpression ( (PLUS^ | MINUS^) productExpression)*;
 	@Nullable
 	private SpelNodeImpl eatSumExpression() {
-		// TODO 求和操作前, 要先处理乘积运算:
+		// TODO 用于解析求和运算, 即: PLUS('+'), MINUS('-'), INC('++'). 先进行优先级更高的解析工作, 得到一个node
+		//  求和操作前, 要先处理乘积运算:
 		//  1. START('*'), 2. DIV('/'), 3. MOD('%')
 		SpelNodeImpl expr = eatProductExpression();
 		while (peekToken(TokenKind.PLUS, TokenKind.MINUS, TokenKind.INC)) {
-			// TODO 处理'*', '-', '++'操作符
 			Token t = takeToken();  //consume PLUS or MINUS or INC
+			// TODO 如果后续token是求和运算符, 解析下一个token得到右值
 			SpelNodeImpl rhExpr = eatProductExpression();
 			checkRightOperand(t, rhExpr);
+			// TODO 然后根据求和类型, 用之前得到的node和右值生成对应类型的node, 并替换开始时解析出来的node,
+			//  这是在一个循环中做的, 为的是将一串求和操作连接起来得到一个包含所有求和操作的根node
 			if (t.kind == TokenKind.PLUS) {
 				expr = new OpPlus(t.startPos, t.endPos, expr, rhExpr);
 			}
@@ -294,19 +329,22 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				expr = new OpMinus(t.startPos, t.endPos, expr, rhExpr);
 			}
 		}
+		// TODO 返回node
 		return expr;
 	}
 
 	// productExpression: powerExpr ((STAR^ | DIV^| MOD^) powerExpr)* ;
 	@Nullable
 	private SpelNodeImpl eatProductExpression() {
-		// TODO 乘积操作前, 要先处理平方, 自增, 自减操作
+		// TODO 用于解析乘积运算, 即: START('*'), DIV('/'), MOD('%'). 先进行优先级更高的解析工作, 得到一个node
 		//  1. POWER('^'), 2. INC('++'), 3. DEC('--')
 		SpelNodeImpl expr = eatPowerIncDecExpression();
 		while (peekToken(TokenKind.STAR, TokenKind.DIV, TokenKind.MOD)) {
-			// TODO 处理'*', '/', '%'操作符
 			Token t = takeToken();  // consume STAR/DIV/MOD
+			// TODO 如果后续token是乘积运算符, 解析下一个token得到右值
 			SpelNodeImpl rhExpr = eatPowerIncDecExpression();
+			// TODO 然后根据乘积类型, 用之前得到的node和右值生成对应类型的node, 并替换开始时解析出来的node,
+			//  这是在一个循环中做的, 为的是将一串乘积操作连接起来得到一个包含所有乘积操作的根node
 			checkOperands(t, expr, rhExpr);
 			if (t.kind == TokenKind.STAR) {
 				expr = new OpMultiply(t.startPos, t.endPos, expr, rhExpr);
@@ -319,38 +357,41 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				expr = new OpModulus(t.startPos, t.endPos, expr, rhExpr);
 			}
 		}
+		// TODO 返回node
 		return expr;
 	}
 
 	// powerExpr  : unaryExpression (POWER^ unaryExpression)? (INC || DEC) ;
 	@Nullable
 	private SpelNodeImpl eatPowerIncDecExpression() {
-		// TODO 处理平方, 自增, 自减操作前, 先处理一元操作符:
-		//  1. PLUS('+'), 2. MINUS('-'), 3. NOT('!'), 4. INC('++'), 5. DEC('--')
+		// TODO 用于解析乘积运算, 即: POWER('^'), INC('++'), DEC('--'). 先进行优先级更高的解析工作, 得到一个node
+		//  这个node有可能是个一元操作, 也有可能是个字面量等.
 		SpelNodeImpl expr = eatUnaryExpression();
 		if (peekToken(TokenKind.POWER)) {
-			// TODO 当前token是'^'操作符时, 消费掉'^'操作符
 			Token t = takeToken();  //consume POWER
+			// TODO 如果后续token是幂操作, 解析下一个token得到右值, 即, 幂的次数
 			SpelNodeImpl rhExpr = eatUnaryExpression();
 			checkRightOperand(t, rhExpr);
+			// TODO 然后用之前得到的node和右值生成OperatorPower类型node并返回
 			return new OperatorPower(t.startPos, t.endPos, expr, rhExpr);
 		}
 		if (expr != null && peekToken(TokenKind.INC, TokenKind.DEC)) {
-			// TODO 处理自增和自减的情况
 			Token t = takeToken();  //consume INC/DEC
+			// TODO 如果后续token是自增或自减扣作, 根据token类型生成对应的node并返回
 			if (t.getKind() == TokenKind.INC) {
 				return new OpInc(t.startPos, t.endPos, true, expr);
 			}
 			return new OpDec(t.startPos, t.endPos, true, expr);
 		}
+		// TODO 对于纯一元操作, 不包含其他操作符时, 直接返回一元表达式解析后的node
 		return expr;
 	}
 
 	// unaryExpression: (PLUS^ | MINUS^ | BANG^ | INC^ | DEC^) unaryExpression | primaryExpression ;
 	@Nullable
-	// TODO 处理一元表达式:
-	//  PLUS -> '+', MINUS -> '-', NOT -> '!', INC -> '++', DEC -> '--'
 	private SpelNodeImpl eatUnaryExpression() {
+		// TODO 处理一元表达式(只需要一个操作数), 最高优先级:
+		//  PLUS -> '+', MINUS -> '-', NOT -> '!', INC -> '++', DEC -> '--'
 		if (peekToken(TokenKind.PLUS, TokenKind.MINUS, TokenKind.NOT)) {
 			// TODO 当前token是'+', '-', '!'操作符时, 拿出对应的操作符token, 同时token集合的指向后一个token
 			Token t = takeToken();
@@ -358,12 +399,15 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			SpelNodeImpl expr = eatUnaryExpression();
 			Assert.state(expr != null, "No node");
 			if (t.kind == TokenKind.NOT) {
+				// TODO NOT时, 返回OperatorNot类型的node, 其中包含了NOT针对的整个部分
 				return new OperatorNot(t.startPos, t.endPos, expr);
 			}
 			if (t.kind == TokenKind.PLUS) {
+				// TODO PLUS时, 返回OpPlus类型的node, 其中包含了PLUS针对的整个部分
 				return new OpPlus(t.startPos, t.endPos, expr);
 			}
 			Assert.isTrue(t.kind == TokenKind.MINUS, "Minus token expected");
+			// TODO 最后是MINUS的情况, 返回OpMinus类型的node, 其中包含了OpMinus针对的整个部分
 			return new OpMinus(t.startPos, t.endPos, expr);
 		}
 		if (peekToken(TokenKind.INC, TokenKind.DEC)) {
@@ -372,8 +416,10 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			// TODO 然后递归后面的token
 			SpelNodeImpl expr = eatUnaryExpression();
 			if (t.getKind() == TokenKind.INC) {
+				// TODO 自增的情况, 返回OpInc类型的node, 其中包含了自增操作针对的整个部分
 				return new OpInc(t.startPos, t.endPos, false, expr);
 			}
+			// TODO 自减的情况, 返回OpDec类型的node, 其中包含了自减操作针对的整个部分
 			return new OpDec(t.startPos, t.endPos, false, expr);
 		}
 		// TODO 其他情况时, 应该是个表达式, 而非操作符, 即: 操作符要操作的主体token
@@ -383,10 +429,10 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	// primaryExpression : startNode (node)? -> ^(EXPRESSION startNode (node)?);
 	@Nullable
 	private SpelNodeImpl eatPrimaryExpression() {
-		// TODO 走到这时, 就表示当前的token不是一个运算符(可能是个字面量, 引用, '('等等), 开始解析当前token
+		// TODO 走到这时, 就表示当前的token不是一个运算符(可能是个字面量, 引用, '('等等), 以当前位置为首, 开始解析token
 		SpelNodeImpl start = eatStartNode();  // always a start node
 		List<SpelNodeImpl> nodes = null;
-		// TODO 然后解析下一个token, 这时会有两种情况:这个token也许还解析其他表达式, 只要其后包含有'.[', '[', 因为SpEL支持方法调用表达式, 所以下一个token有可能会是'.', 或'?.', 也有可能不是:
+		// TODO 然后解析下一个token, 这时会有两种情况:
 		//  1. 包含'.', 或'?.': 表示其为一个方法, 属性, 函数, 变量, 投影, 或选择操作. 会生成对应的语法node, 也许还会解析其中包含的表达式.
 		//  2. 不包含'.', 或'?.': 其有可能是个索引, 也有可能是个表达式
 		SpelNodeImpl node = eatNode();
@@ -402,7 +448,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		if (start == null || nodes == null) {
 			return start;
 		}
-		// TODO
+		// TODO 然后返回CompoundExpression类型的node, 表示其为一个用'.'切分的node
 		return new CompoundExpression(start.getStartPosition(), nodes.get(nodes.size() - 1).getEndPosition(),
 				nodes.toArray(new SpelNodeImpl[0]));
 	}
@@ -587,12 +633,15 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			return pop();
 		}
 		else if (maybeEatProjection(false) || maybeEatSelection(false) || maybeEatIndexer()) {
+			// TODO 处理投影, 选择, 和索引类型的token, 并弹出解析后的node
 			return pop();
 		}
 		else if (maybeEatInlineListOrMap()) {
+			// TODO 处理内嵌类型的的token, 并弹出解析后的node
 			return pop();
 		}
 		else {
+			// TODO 非以上类型返回空
 			return null;
 		}
 	}
@@ -606,10 +655,12 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			Token beanNameToken = null;
 			String beanName = null;
 			if (peekToken(TokenKind.IDENTIFIER)) {
+				// TODO '@', 或'&'后面的token是IDENTIFIER类型时, 其value值即为bean名字
 				beanNameToken = eatToken(TokenKind.IDENTIFIER);
 				beanName = beanNameToken.stringValue();
 			}
 			else if (peekToken(TokenKind.LITERAL_STRING)) {
+				// TODO '@', 或'&'后面的token是LITERAL_STRING(字符串字面量)类型时, 需要截取一下名字
 				beanNameToken = eatToken(TokenKind.LITERAL_STRING);
 				beanName = beanNameToken.stringValue();
 				beanName = beanName.substring(1, beanName.length() - 1);
@@ -618,6 +669,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				throw internalException(beanRefToken.startPos, SpelMessage.INVALID_BEAN_REFERENCE);
 			}
 			BeanReference beanReference;
+			// TODO 生成BeanReference类型的node放入队列, Facotry的bean再在名字前加上'&'
 			if (beanRefToken.getKind() == TokenKind.FACTORY_BEAN_REF) {
 				String beanNameString = String.valueOf(TokenKind.FACTORY_BEAN_REF.tokenChars) + beanName;
 				beanReference = new BeanReference(beanRefToken.startPos, beanNameToken.endPos, beanNameString);

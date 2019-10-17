@@ -1590,7 +1590,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// TODO 取得当前合并过的root bean definition的名字
 		String className = mbd.getBeanClassName();
 		if (className != null) {
-			// TODO Spring支持SpEL表达式, 取得的这个bean名字可能有可能是SpEL表达式, 尝试解析bean名
+			// TODO Spring以支持SpEL表达式的方式解析bean, 所以当前得到的className可能是个SpEL表达式, 也有可能是真实的bean名, 所以需要解析一下
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
 			if (!className.equals(evaluated)) {
 				// A dynamically resolved expression, supported as of 4.2...
@@ -1651,9 +1651,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// TODO 用BeanExpressionResolver.evaluate(String, BeanExpressionContext)来将String值做为表达式进行评估解析(value有可能是SpEL表达式).
 		//  解析的过程是用BeanExpressionContext表达式上下文对应的StandardEvaluationContext取值上下文中取出value表达式对应的对象.
 		//  Spring在ApplicationContext初始化时, 通过prepareBeanFactory()设置了StandardBeanExpressionResolver做为默认解析器,
-		//  所以这里调用的是StandardBeanExpressionResolver#evaluate()对value进行评估解析
-		//  1. 返回Object: SpelExpression
-		//  2. 返回String: LiteralExpression, CompositeStringExpression
+		//  所以这里调用的是StandardBeanExpressionResolver#evaluate()对value进行评估解析, 返回的结果有以下可能:
+		//  1. 传入的值是个SpEL表达式, 返回的是解析后的值
+		//  2. 字面量
 		return this.beanExpressionResolver.evaluate(value, new BeanExpressionContext(this, scope));
 	}
 

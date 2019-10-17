@@ -142,7 +142,7 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 			//  也可以通过调用getValue(EvaluationContext)从评估(evaluation)上下文中获取表达式对于当前上下文的值
 			Expression expr = this.expressionCache.get(value);
 			if (expr == null) {
-				// TODO expressionCache缓存中没有对应的Expression时, 表达之前并没有解析过这个表达式(首次解析),
+				// TODO expressionCache缓存中没有对应的Expression时, 表示之前并没有解析过这个表达式(首次解析),
 				//  就需要用ExpressionParser将字符串value解析为一个Expression. 目前Spring提供了一个实现InternalSpelExpressionParser
 				//  解析过程是通过parseExpression()方法来实现的, 具体实现在抽象类TemplateAwareExpressionParser中,
 				//  提供了直接解析和从模版解析两种方式. 此方法有两个重载:
