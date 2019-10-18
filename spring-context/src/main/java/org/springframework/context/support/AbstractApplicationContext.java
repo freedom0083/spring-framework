@@ -701,7 +701,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Register early post-processor for detecting inner beans as ApplicationListeners.
 		// TODO 添加一个用于ApplicationListener的后处理器, 作用是在bean初始化后检查其是否实现了ApplicationListener接口
-		//  如果实现了, 将其加到容器中(applicationListeners)
+		//  如果实现了, 将其加到容器中(applicationListeners). 添加后, 会自动将hasDestructionAwareBeanPostProcessors设置为true,
+		//  表示容器有支持销毁bean时的后处理器
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found.

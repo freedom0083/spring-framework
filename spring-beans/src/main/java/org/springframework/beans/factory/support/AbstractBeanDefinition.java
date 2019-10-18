@@ -139,6 +139,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 
 	@Nullable
+	// TODO bean对应的class对象或是类的全限定名
 	private volatile Object beanClass;
 
 	@Nullable
@@ -436,6 +437,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @see #resolveBeanClass(ClassLoader)
 	 */
 	public boolean hasBeanClass() {
+		// TODO bean definition对应的是class(true), 还是全限定名(false)
 		return (this.beanClass instanceof Class);
 	}
 
@@ -449,10 +451,13 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	@Nullable
 	public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
+		// TODO 从beanClass中取得当前bean的名字
 		String className = getBeanClassName();
 		if (className == null) {
+			// TODO 没有名字时, 表示bean没有对应的class引用或是全限定名, 直接返回null
 			return null;
 		}
+		// TODO 有名字时, 委托给ClassUtils对指定名字的类进行加载, 然后把加载的类赋给beanClass
 		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
 		this.beanClass = resolvedClass;
 		return resolvedClass;
@@ -1099,6 +1104,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 					"the factory method must create the concrete bean instance.");
 		}
 		if (hasBeanClass()) {
+			// TODO 如果bean definition是class类型, 处理一下方法覆盖
 			prepareMethodOverrides();
 		}
 	}
@@ -1109,6 +1115,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
+		// TODO Spring支持lookup-method, replace-method两个依赖注入的方式, 比如: <lookup-method name="getFruit" bean="bananer"/>
+		//  相当于调用指定类里面的指定方法进行注入, 所以需要处理方法重载
 		// Check that lookup methods exists.
 		if (hasMethodOverrides()) {
 			// TODO 从缓存中取得所有被覆盖的方法, 对每个方法进行查检

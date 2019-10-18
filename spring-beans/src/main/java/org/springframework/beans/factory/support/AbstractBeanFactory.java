@@ -321,11 +321,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
-				// TODO 取得当前这个bean definition所依赖的所有bean.
+				// TODO 取得当前这个bean definition所依赖的所有bean. Spring支持属性注入等, 所以这里的目的是要保证当前bean
+				//  所依赖的其他bean要先完成实例化. @DependsOn注解可以控制Bean的初始化顺序
 				//  要保证这些bean先完成实例化
-				// 这里就重要了，因为我们会有属性注入等等  所以这里就是要保证它依赖的那些属性先初始化才行
-				// 这部分是处理循环依赖的核心，这里稍微放一放。下面有大篇幅专门讲解这方面的以及原理解决方案
-				// @DependsOn注解可以控制Bean的初始化顺序~~~
 				String[] dependsOn = mbd.getDependsOn();
 				if (dependsOn != null) {
 					for (String dep : dependsOn) {
@@ -356,7 +354,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					//  用来实现获取bean的主逻辑, 在这里传入的是createBean()方法, 最终会由此方法来为bean创建实例
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
-							// TODO 这里真正实现了创建单例bean实例的逻辑
+							// TODO 这里真正实现了创建单例bean实例的逻辑, 这里使用的是AbstractBeanFactory抽象工厂的子类
+							//  AbstractAutowireCapableBeanFactory#createBean()来创建原始bean实例
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
@@ -958,9 +957,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		this.beanPostProcessors.remove(beanPostProcessor);
 		// Track whether it is instantiation/destruction aware
 		if (beanPostProcessor instanceof InstantiationAwareBeanPostProcessor) {
+			// TODO 设置容器是否提供bean初始化时, 对bean进行处理的后处理器
 			this.hasInstantiationAwareBeanPostProcessors = true;
 		}
 		if (beanPostProcessor instanceof DestructionAwareBeanPostProcessor) {
+			// TODO 设置容器是否提供bean销毁时, 对bean进行处理的后处理器. 在Application初始化时, prepareBeanFactory()
+			//  会自动添加ApplicationListenerDetector, 所以这个值会是true
 			this.hasDestructionAwareBeanPostProcessors = true;
 		}
 		// Add to end of list
@@ -1532,14 +1534,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		try {
 			if (mbd.hasBeanClass()) {
-				// TODO 在有合并过的root bean definition时, 直接返回bean对象
+				// TODO 在合并过的root bean definition对应的是class引用, 而不是全限定名时, 直接返回其对应的bean引用
 				return mbd.getBeanClass();
 			}
+			// TODO 没有合并过root bean definition时会有下面两种情况
 			if (System.getSecurityManager() != null) {
 				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>) () ->
 					doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
 			}
 			else {
+				// TODO 系统中找不到security设置时, 直接去根据类型取得想要的bean
 				return doResolveBeanClass(mbd, typesToMatch);
 			}
 		}
@@ -1569,7 +1573,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			//     时并没有指定这个参数, 所以getBean()创建bean实例时不会走到这里????
 			// When just doing type checks (i.e. not creating an actual instance yet),
 			// use the specified temporary class loader (e.g. in a weaving scenario).
-			// TODO 这个tempClassLoader是在容器初始化时, 发现支持Load Time Weaving(AspectJ的类加载期织入)时添加到beanFactory的,
+			// TODO tempClassLoader是在容器初始化时, 发现支持Load Time Weaving(AspectJ的类加载期织入)时添加到beanFactory的,
 			//  会添加一个DecoratingClassLoader的子类ContextTypeMatchClassLoader(其父类加载器依然是容器bean类加载器),
 			//  来代理JVM默认的类加载器:
 			//  beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
@@ -1577,6 +1581,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (tempClassLoader != null) {
 				// TODO 这里就是替换了JVM默认的类加载器, 如果容器支持LWT, 后面的所有操作都会是基于AspectJ的classLoader了
 				dynamicLoader = tempClassLoader;
+				// TODO 因为替换了JVM默认的类加载器, 所以需要重新用新类加载器加载一下
 				freshResolve = true;
 				if (tempClassLoader instanceof DecoratingClassLoader) {
 					DecoratingClassLoader dcl = (DecoratingClassLoader) tempClassLoader;
@@ -1594,14 +1599,18 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
 			if (!className.equals(evaluated)) {
 				// A dynamically resolved expression, supported as of 4.2...
+				// TODO 如果解析出来的名字和传入的名字不同时, 会根据解析出的不同值做不同的表现
 				if (evaluated instanceof Class) {
+					// TODO 如果返回的是一个Class, 直接返回
 					return (Class<?>) evaluated;
 				}
 				else if (evaluated instanceof String) {
+					// TODO 如果返回的是一个字符串, 这时就需要用解析后的名字进行加载
 					className = (String) evaluated;
 					freshResolve = true;
 				}
 				else {
+					// TODO 其他情况都是解析出问题了
 					throw new IllegalStateException("Invalid class name expression result: " + evaluated);
 				}
 			}
@@ -1610,6 +1619,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// to avoid storing the resolved Class in the bean definition.
 				if (dynamicLoader != null) {
 					try {
+						// TODO 用临时类加载器加载类, 用于支持AspectJ
 						return dynamicLoader.loadClass(className);
 					}
 					catch (ClassNotFoundException ex) {
@@ -1618,11 +1628,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						}
 					}
 				}
+				// TODO 没有动态类加载器时, 交给委托给ClassUtils去加载类
 				return ClassUtils.forName(className, dynamicLoader);
 			}
 		}
 
 		// Resolve regularly, caching the result in the BeanDefinition...
+		// TODO 没名字时, 通过反射加载类
 		return mbd.resolveBeanClass(beanClassLoader);
 	}
 

@@ -112,6 +112,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	/** Package-visible field that indicates a before-instantiation post-processor having kicked in. */
 	@Nullable
+	// TODO bean是否需要前置处理
 	volatile Boolean beforeInstantiationResolved;
 
 	@Nullable
