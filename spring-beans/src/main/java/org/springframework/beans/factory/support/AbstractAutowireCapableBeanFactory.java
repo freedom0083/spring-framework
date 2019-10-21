@@ -660,22 +660,29 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Override
 	@Nullable
 	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
+		// TODO 取得合并过的bean definition的代理目标的类型class
 		Class<?> targetType = determineTargetType(beanName, mbd, typesToMatch);
 		// Apply SmartInstantiationAwareBeanPostProcessors to predict the
 		// eventual type after a before-instantiation shortcut.
 		if (targetType != null && !mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+			// TODO 当有确定的代理类型, 则这个合并过的bean definition是由容器创建的, 并且容器注册过
+			//  InstantiationAwareBeanPostProcessor类型的初始化后处理器时, 开始类型预测.
+			//  首先看一下要匹配的类型是否只是FactoryBean类型时
 			boolean matchingOnlyFactoryBean = typesToMatch.length == 1 && typesToMatch[0] == FactoryBean.class;
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+					// TODO 如果有SmartInstantiationAwareBeanPostProcessor类型的后处理器, 用后处理器预测一下类型
 					Class<?> predicted = ibp.predictBeanType(targetType, beanName);
 					if (predicted != null &&
 							(!matchingOnlyFactoryBean || FactoryBean.class.isAssignableFrom(predicted))) {
+						// TODO 只要有一个类型匹配上, 并且不是FactoryBean类型时, 就返回预测的类型
 						return predicted;
 					}
 				}
 			}
 		}
+		// TODO 其他情况直接返回代理目标的类型
 		return targetType;
 	}
 
@@ -691,10 +698,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected Class<?> determineTargetType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType == null) {
+			// TODO 合并过的bean definition目标类型不存在时, 取得对应的目标类型:
 			targetType = (mbd.getFactoryMethodName() != null ?
+					// TODO 有工厂方法时, 从工厂里取得类型
 					getTypeForFactoryMethod(beanName, mbd, typesToMatch) :
+					// TODO 没有时, 直接取得类类型
 					resolveBeanClass(mbd, beanName, typesToMatch));
 			if (ObjectUtils.isEmpty(typesToMatch) || getTempClassLoader() == null) {
+				// TODO 并没有指定匹配的类型时, 把目标类型当做匹配类型
 				mbd.resolvedTargetType = targetType;
 			}
 		}
@@ -719,19 +730,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected Class<?> getTypeForFactoryMethod(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
 		ResolvableType cachedReturnType = mbd.factoryMethodReturnType;
 		if (cachedReturnType != null) {
+			// TODO 首先从缓存找, 找到直接返回
 			return cachedReturnType.resolve();
 		}
 
 		Class<?> commonType = null;
+		// TODO 取得合并后的bean definition的内省方法
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
 
 		if (uniqueCandidate == null) {
 			Class<?> factoryClass;
 			boolean isStatic = true;
-
+			// TODO factory Bean的名字
 			String factoryBeanName = mbd.getFactoryBeanName();
 			if (factoryBeanName != null) {
 				if (factoryBeanName.equals(beanName)) {
+					// TODO factory bean的名字不能和要实例化的bean同名
 					throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 							"factory-bean reference points back to the same bean definition");
 				}
@@ -839,16 +853,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
 		// Check if the bean definition itself has defined the type with an attribute
+		// TODO 从合并过的bean definition的'factoryBeanObjectType'属性中取得类型
 		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
 		if (result != ResolvableType.NONE) {
+			// TODO 不是NONE类型时, 直接返回
 			return result;
 		}
-
+		// TODO 如果合并后的bean definition对应是的class对象, 用bean的类型创建一个ResolvableType, 如果是全限定名, 则返回的是NONE
 		ResolvableType beanType =
 				(mbd.hasBeanClass() ? ResolvableType.forClass(mbd.getBeanClass()) : ResolvableType.NONE);
 
 		// For instance supplied beans try the target type and bean class
 		if (mbd.getInstanceSupplier() != null) {
+			// TODO 如果合并后的bean definition有回调函数, 尝试用两种方式取得类型:
+			//  1. 通过合并后的bean definition的目标类型
+			//  2. 通过上面得到的beanType类型
 			result = getFactoryBeanGeneric(mbd.targetType);
 			if (result.resolve() != null) {
 				return result;
@@ -860,6 +879,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Consider factory methods
+		// TODO 取得工厂bean和工厂方法的名字
 		String factoryBeanName = mbd.getFactoryBeanName();
 		String factoryMethodName = mbd.getFactoryMethodName();
 
@@ -868,13 +888,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (factoryMethodName != null) {
 				// Try to obtain the FactoryBean's object type from its factory method
 				// declaration without instantiating the containing bean at all.
+				// TODO 通过工厂方法名从注册中心beanDefinitionMap中取得工厂bean definition
 				BeanDefinition factoryBeanDefinition = getBeanDefinition(factoryBeanName);
 				Class<?> factoryBeanClass;
 				if (factoryBeanDefinition instanceof AbstractBeanDefinition &&
 						((AbstractBeanDefinition) factoryBeanDefinition).hasBeanClass()) {
+					// TODO 工厂bean definition是AbstractBeanDefinition类型, 且其为class类型时, 直接使用对应的class类型
 					factoryBeanClass = ((AbstractBeanDefinition) factoryBeanDefinition).getBeanClass();
 				}
 				else {
+					// TODO
 					RootBeanDefinition fbmbd = getMergedBeanDefinition(factoryBeanName, factoryBeanDefinition);
 					factoryBeanClass = determineTargetType(factoryBeanName, fbmbd);
 				}
@@ -1121,16 +1144,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
 		// TODO Spring的一个扩展点, 允许我们在bean实例化前, 和实例化后做一些处理, 这里主要是为bean生成代理
 		Object bean = null;
-		// TODO beforeInstantiationResolved是用来确定bean是否需要进行前置处理, 在不需要进行前置处理的情况下, 还有个机会可以改变这种情况
+		// TODO beforeInstantiationResolved是用来确定bean是否已经解析过了:
+		//  true: 表示bean已经解析过了, 不需要再进行前置处理
+		//  false: 表示bean还没有被解析过, 这时会在实例化前对bean definition中的属性做前置处理
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
+			// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现
+			//  InstantiationAwareBeanPostProcessor接口的主要作用是处理目标对象实例化, 包括实例化对象的前后过程以及实例的属性设置
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-				// TODO 当这个合并过的bean definition不是由application容器自身创建的, 并且容器注册过初始化感知后处理器
-				//  InstantiationAwareBeanPostProcessor时, 拿到最终的目标类型
-				//  InstantiationAwareBeanPostProcessor接口的主要作用是处理目标对象实例化, 包括实例化对象的前后过程以及实例的属性设置
+				// TODO 当这个合并过的bean definition是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的
+				//  InstantiationAwareBeanPostProcessor类型后处理器时, 尝试从合并过的bean definition中拿到bean的类型
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-					// TODO 目标类型存在时, 在bean实例化前, 用后处理器对其进行处理, 如果没有处理结果, 也不需要再进行实例化后的后处理器了
+					// TODO 有对应的目标类型时, 在bean实例化前, 用后处理器对其进行处理, 如果没有处理结果, 也不需要再进行实例化后的后处理器了
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
 						// TODO 如果有处理结果, 则在bean实例化后, 用后处理器对其进行处理.
@@ -1273,7 +1299,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				this.currentlyCreatedBean.remove();
 			}
 		}
-
+		//
 		if (instance == null) {
 			instance = new NullBean();
 		}

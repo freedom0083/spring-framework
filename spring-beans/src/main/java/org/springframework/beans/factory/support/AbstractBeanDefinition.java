@@ -451,14 +451,15 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	@Nullable
 	public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
-		// TODO 从beanClass中取得当前bean的名字
+		// TODO 从bean definition中的beanClass属性中取得bean对应的class对象或是类的全限定名
 		String className = getBeanClassName();
 		if (className == null) {
-			// TODO 没有名字时, 表示bean没有对应的class引用或是全限定名, 直接返回null
+			// TODO bean definition中没有设置bean对应的class时, 即bean没有对应的class引用或是全限定名, 直接返回null
 			return null;
 		}
-		// TODO 有名字时, 委托给ClassUtils对指定名字的类进行加载, 然后把加载的类赋给beanClass
+		// TODO 有名字时, 委托给ClassUtils使用传入的类加载器对指定名字的类进行加载
 		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
+		// TODO 加载的类赋给beanClass(合并后的bean definition的beanClass)
 		this.beanClass = resolvedClass;
 		return resolvedClass;
 	}
@@ -1140,7 +1141,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		}
 		else if (count == 1) {
 			// Mark override as not overloaded, to avoid the overhead of arg type checking.
-			// TODO 没有其他方法覆盖过本方法时, 将当前方法覆盖状态设置为false
+			// TODO 没有被覆盖过时, 将当前方法覆盖状态设置为false, 避免后续的参数类型检查
 			mo.setOverloaded(false);
 		}
 	}
