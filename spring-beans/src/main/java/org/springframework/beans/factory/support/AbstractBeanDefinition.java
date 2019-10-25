@@ -454,12 +454,12 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		// TODO 从bean definition中的beanClass属性中取得bean对应的class对象或是类的全限定名
 		String className = getBeanClassName();
 		if (className == null) {
-			// TODO bean definition中没有设置bean对应的class时, 即bean没有对应的class引用或是全限定名, 直接返回null
+			// TODO 没有设置bean对应的class时, 即bean没有对应的class引用或是全限定名, 直接返回null
 			return null;
 		}
 		// TODO 有名字时, 委托给ClassUtils使用传入的类加载器对指定名字的类进行加载
 		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
-		// TODO 加载的类赋给beanClass(合并后的bean definition的beanClass)
+		// TODO 加载的类赋给beanClass(合并后的bd的beanClass)
 		this.beanClass = resolvedClass;
 		return resolvedClass;
 	}

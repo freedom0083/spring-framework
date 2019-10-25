@@ -38,9 +38,9 @@ public abstract class DecoratingClassLoader extends ClassLoader {
 		ClassLoader.registerAsParallelCapable();
 	}
 
-
+	// TODO 排除不需要自定义ClassLoader进行加载处理的包
 	private final Set<String> excludedPackages = Collections.newSetFromMap(new ConcurrentHashMap<>(8));
-
+	// TODO 排除不需要自定义ClassLoad进行加载的类
 	private final Set<String> excludedClasses = Collections.newSetFromMap(new ConcurrentHashMap<>(8));
 
 
@@ -91,6 +91,8 @@ public abstract class DecoratingClassLoader extends ClassLoader {
 	 * @see #excludeClass
 	 */
 	protected boolean isExcluded(String className) {
+		// TODO 返回true时, 使用JDK默认的ClassLoad进行加载处理
+		//  false表示使用自定义ClassLoad进行加载处理
 		if (this.excludedClasses.contains(className)) {
 			return true;
 		}
