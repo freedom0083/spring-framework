@@ -437,7 +437,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @see #resolveBeanClass(ClassLoader)
 	 */
 	public boolean hasBeanClass() {
-		// TODO bean definition对应的是class(true), 还是全限定名(false)
+		// TODO 设置的'class'属性是class(true), 还是全限定名(false)
 		return (this.beanClass instanceof Class);
 	}
 
@@ -451,10 +451,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	@Nullable
 	public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
-		// TODO 从bean definition中的beanClass属性中取得bean对应的class对象或是类的全限定名
+		// TODO 从bd中的beanClass属性中取得bean对应的class对象或是类的全限定名
 		String className = getBeanClassName();
 		if (className == null) {
-			// TODO 没有设置bean对应的class时, 即bean没有对应的class引用或是全限定名, 直接返回null
+			// TODO 没有设置bean对应的'class'属性时, 即bean没有对应的class引用或是全限定名, 直接返回null
 			return null;
 		}
 		// TODO 有名字时, 委托给ClassUtils使用传入的类加载器对指定名字的类进行加载
@@ -1105,7 +1105,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 					"the factory method must create the concrete bean instance.");
 		}
 		if (hasBeanClass()) {
-			// TODO 如果bean definition是class类型, 处理一下方法覆盖
+			// TODO 如果配置中包含'class'属性, 且其为class类型时, 处理方法覆盖
 			prepareMethodOverrides();
 		}
 	}

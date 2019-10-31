@@ -58,15 +58,20 @@ public abstract class BeanDefinitionReaderUtils {
 			@Nullable String parentName, @Nullable String className, @Nullable ClassLoader classLoader) throws ClassNotFoundException {
 
 		GenericBeanDefinition bd = new GenericBeanDefinition();
+		// TODO 设置双亲bd
 		bd.setParentName(parentName);
 		if (className != null) {
+			// TODO 设置了class属性时
 			if (classLoader != null) {
+				// TODO 如果设置了类加载器, 则对指定类名进行加载, 将加载后的实例放到bd的beanClass属性中
 				bd.setBeanClass(ClassUtils.forName(className, classLoader));
 			}
 			else {
+				// TODO 如果没有类加载器, 直接将字符串做为beanClass属性
 				bd.setBeanClassName(className);
 			}
 		}
+		// TODO 如果bean的配置中没有设置'class'属性, 则返回的bd的beanClass属性为null
 		return bd;
 	}
 
@@ -103,17 +108,25 @@ public abstract class BeanDefinitionReaderUtils {
 	public static String generateBeanName(
 			BeanDefinition definition, BeanDefinitionRegistry registry, boolean isInnerBean)
 			throws BeanDefinitionStoreException {
-
+		// TODO 通过BeanDefinition的beanClass属性来取得bean的名字. 根据前面所述, beanClass是由配置文件中'class'属性指定的class
+		//  或字符串名, 这里的getBeanClassName()会根据beanClass类型的不同来取得beanName
+		//  1. class: 取得class对应的name
+		//  2. 字符串: 直接取得
 		String generatedBeanName = definition.getBeanClassName();
 		if (generatedBeanName == null) {
+			// TODO 为空时表示没有设置'class'属性, 这时看一下是否有'parent'属性
 			if (definition.getParentName() != null) {
+				// TODO 如果配置了'parent'属性, 则命名为: 'parent'对应的名字+'$child'
 				generatedBeanName = definition.getParentName() + "$child";
 			}
+			// TODO 在没设置'parent'属性时, 看'factory-bean'属性
 			else if (definition.getFactoryBeanName() != null) {
+				// TODO 如果配置了'factory-bean'属性, 则命名为: 'factory-bean'对应的名字+'$created'
 				generatedBeanName = definition.getFactoryBeanName() + "$created";
 			}
 		}
 		if (!StringUtils.hasText(generatedBeanName)) {
+			// TODO 还不能生成名字, 就抛异常了
 			throw new BeanDefinitionStoreException("Unnamed bean definition specifies neither " +
 					"'class' nor 'parent' nor 'factory-bean' - can't generate bean name");
 		}
@@ -121,10 +134,12 @@ public abstract class BeanDefinitionReaderUtils {
 		String id = generatedBeanName;
 		if (isInnerBean) {
 			// Inner bean: generate identity hashcode suffix.
+			// TODO 如果是内部类, 重新命名为: 刚才生成的bean名+'#'+bd转化的16进制字符串
 			id = generatedBeanName + GENERATED_BEAN_NAME_SEPARATOR + ObjectUtils.getIdentityHexString(definition);
 		}
 		else {
 			// Top-level bean: use plain class name with unique suffix if necessary.
+			// TODO 用刚才生成的bean名生成一个容器中唯一的名字, 即刚才生成的bean名+0开始的序列号
 			return uniqueBeanName(generatedBeanName, registry);
 		}
 		return id;
@@ -146,6 +161,7 @@ public abstract class BeanDefinitionReaderUtils {
 		// Increase counter until the id is unique.
 		while (counter == -1 || registry.containsBeanDefinition(id)) {
 			counter++;
+			// TODO 生成一个容器中全局唯一的名字: beanName+'#'+自增的号
 			id = beanName + GENERATED_BEAN_NAME_SEPARATOR + counter;
 		}
 		return id;
@@ -163,6 +179,7 @@ public abstract class BeanDefinitionReaderUtils {
 
 		// Register bean definition under primary name.
 		String beanName = definitionHolder.getBeanName();
+		// TODO 委托给BeanDefinitionRegistry进行注册
 		registry.registerBeanDefinition(beanName, definitionHolder.getBeanDefinition());
 
 		// Register aliases for bean name, if any.

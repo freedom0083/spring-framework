@@ -127,7 +127,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
 		BeanDefinitionParserDelegate parent = this.delegate;
-		// TODO 很根据xml的元素生成一个带有默认属性的代理
+		// TODO 很根据xml的元素生成一个带有默认属性的BeanDefinitionParserDelegate代理
 		this.delegate = createDelegate(getReaderContext(), root, parent);
 
 		if (this.delegate.isDefaultNamespace(root)) {
@@ -326,14 +326,14 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * and registering it with the registry.
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
-		// TODO 对元素进行解析
+		// TODO 对元素进行解析, 得到一个包含bd, 名字和别名表的holder
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
 		if (bdHolder != null) {
 			// TODO 解析成功的话开始解析自定义属性
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
-				// TODO 使用DefaultListableBeanFactory#registerBeanDefinition()将beanDefinition注册到容器中(beanDefinitionMap)
+				// TODO 使用DefaultListableBeanFactory#registerBeanDefinition()将bd注册到注册中心beanDefinitionMap
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			}
 			catch (BeanDefinitionStoreException ex) {

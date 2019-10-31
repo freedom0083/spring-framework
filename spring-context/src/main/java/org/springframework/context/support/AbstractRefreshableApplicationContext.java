@@ -147,6 +147,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			//  这一步实际上和使用AnnotationConfigApplicationContext完全相同
 			loadBeanDefinitions(beanFactory);
 			synchronized (this.beanFactoryMonitor) {
+				// TODO 同步的更新容器
 				this.beanFactory = beanFactory;
 			}
 		}

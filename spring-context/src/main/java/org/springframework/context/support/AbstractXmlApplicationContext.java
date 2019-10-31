@@ -80,6 +80,7 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 	@Override
 	protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
 		// Create a new XmlBeanDefinitionReader for the given BeanFactory.
+		// TODO 为传入的DefaultListableBeanFactory容器创建一个用于解析xml的reader
 		XmlBeanDefinitionReader beanDefinitionReader = new XmlBeanDefinitionReader(beanFactory);
 
 		// Configure the bean definition reader with this context's
@@ -90,7 +91,9 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 
 		// Allow a subclass to provide custom initialization of the reader,
 		// then proceed with actually loading the bean definitions.
+		// TODO 初始化并开始解析xml文件, 然后注册到容器中
 		initBeanDefinitionReader(beanDefinitionReader);
+		// TODO 解析xml文件, 然后注册到容器中
 		loadBeanDefinitions(beanDefinitionReader);
 	}
 

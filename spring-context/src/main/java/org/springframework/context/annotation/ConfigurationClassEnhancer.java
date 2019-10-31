@@ -104,8 +104,10 @@ class ConfigurationClassEnhancer {
 						"want check your configuration and remove one CCPP if possible",
 						configClass.getName()));
 			}
+			// TODO 已经是增加后的类型时, 直接返回
 			return configClass;
 		}
+		// TODO 先用要增加的配置类创建一个CGLIB实例, 然后再用CGLIB实例创建一个增强后的配置类返回
 		Class<?> enhancedClass = createClass(newEnhancer(configClass, classLoader));
 		if (logger.isTraceEnabled()) {
 			logger.trace(String.format("Successfully enhanced %s; enhanced class name is: %s",
@@ -118,6 +120,7 @@ class ConfigurationClassEnhancer {
 	 * Creates a new CGLIB {@link Enhancer} instance.
 	 */
 	private Enhancer newEnhancer(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
+		// TODO 创建一个CGLIB的实例, 并进行设置
 		Enhancer enhancer = new Enhancer();
 		enhancer.setSuperclass(configSuperClass);
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});

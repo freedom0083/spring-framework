@@ -57,11 +57,11 @@ final class PostProcessorRegistrationDelegate {
 
 		// Invoke BeanDefinitionRegistryPostProcessors first, if any.
 		Set<String> processedBeans = new HashSet<>();
-
-		// TODO 判断beanFactory是否为BeanDefinitionRegistry，beanFactory为DefaultListableBeanFactory,
-		//  而DefaultListableBeanFactory实现了BeanDefinitionRegistry接口，因此这边为true
+		// TODO 判断beanFactory是否为BeanDefinitionRegistry类型
 		if (beanFactory instanceof BeanDefinitionRegistry) {
-			// TODO 处理BeanDefinitionRegistry类型的bean factory, 这里都是BeanDefinition
+			// TODO 在容器进行初始化过程时, AbstractApplicationContext#refresh()方法中调用了obtainFreshBeanFactory()方法生成
+			//  了一个DefaultListableBeanFactory类型的BeanFactory放到容器的beanFactory属性中. 由于DefaultListableBeanFactory
+			//  实现了BeanDefinitionRegistry接口, 因此在初始化过程中会直接进入到这里.
 			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 			// TODO 存放普通BeanFactoryPostProcessor的缓存
 			List<BeanFactoryPostProcessor> regularPostProcessors = new ArrayList<>();
@@ -70,6 +70,8 @@ final class PostProcessorRegistrationDelegate {
 			// TODO beanFactoryPostProcessors中所有的对象都是在ApplicationContext#addBeanFactoryPostProcessor()手动注册进去的
 			//  如果没有进行过手动注册, beanFactoryPostProcessors一般情况下都是空的, 这里区分了BeanDefinitionRegistryPostProcessor
 			//  和普通BeanFactoryPostProcessor
+			//    1. BeanDefinitionRegistryPostProcessor: 通过postProcessBeanDefinitionRegistry()方法实现自定义类加载
+			//    2. BeanFactoryPostProcessor: 普通的容器级后处理器
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
 					// TODO 处理手动注册的BeanFactoryPostProcessor后处理器是BeanDefinitionRegistryPostProcessor类型的情况
@@ -94,18 +96,19 @@ final class PostProcessorRegistrationDelegate {
 
 			// First, invoke the BeanDefinitionRegistryPostProcessors that implement PriorityOrdered.
 			// TODO 拿到所有通过配置文件注册到容器中, 并且实现了BeanDefinitionRegistryPostProcessor接口的, 支持优先级排序的后处理器.
-			//  如果没有自定义的实现类时, 这里只包括AnnotationConfigApplicationContext初始化reader时由
-			//  AnnotationConfigUtils#registerAnnotationConfigProcessors()注册的后处理器ConfigurationClassPostProcessor,
+			//  如果没有自定义的实现类时, 这里只包括AnnotationConfigApplicationContext初始化reader时,
+			//  由AnnotationConfigUtils#registerAnnotationConfigProcessors()方法注册的后处理器ConfigurationClassPostProcessor,
 			//  及其内部类ImportAwareBeanPostProcessor:
-			//  1. ConfigurationClassPostProcessor: 解析@Configuraton配置类,并将解析结果(@Bean方法等)注册到容器
-			//  2. ImportAwareBeanPostProcessor: ConfigurationClassPostProcessor的内部类, 处理ImportRegistry的情况
+			//    1. ConfigurationClassPostProcessor: 解析@Configuraton配置类,并将解析结果(@Bean方法等)注册到容器
+			//    2. ImportAwareBeanPostProcessor: ConfigurationClassPostProcessor的内部类, 处理ImportRegistry的情况
 			String[] postProcessorNames =
 					beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
 			for (String ppName : postProcessorNames) {
 				// TODO 首先看一下这些后处理器有没有支持优先级排序的
 				if (beanFactory.isTypeMatch(ppName, PriorityOrdered.class)) {
 					// TODO 通过beanFactory#getBean()实例化支持优先级排序的BeanDefinitionRegistryPostProcessor后处理器
-					//  并将其放到记录当前注册的后处理器缓存中
+					//  并将其放到记录当前注册的后处理器缓存中. 这步执行完成后, 每个执行的后处理器就全部被实例化过了.
+					//  后处理器不可能是一个工厂类??? Mark
 					currentRegistryProcessors.add(beanFactory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class));
 					// TODO 放入'已处理的bean'集合的缓存中, 防止重复处理
 					processedBeans.add(ppName);
@@ -162,9 +165,9 @@ final class PostProcessorRegistrationDelegate {
 			}
 
 			// Now, invoke the postProcessBeanFactory callback of all processors handled so far.
-			// TODO 调用BeanDefinitionRegistryPostProcessor缓存中所有后处理器的postProcessBeanFactory()方法
+			// TODO 调用缓存中所有BeanDefinitionRegistryPostProcessor后处理器的postProcessBeanFactory()方法
 			invokeBeanFactoryPostProcessors(registryProcessors, beanFactory);
-			// TODO 调用BeanFactoryPostProcessor缓存中所有普通的后处理器的postProcessBeanFactory()方法
+			// TODO 调用缓存中所有普通的后处理器的postProcessBeanFactory()方法
 			invokeBeanFactoryPostProcessors(regularPostProcessors, beanFactory);
 		}
 
@@ -338,6 +341,7 @@ final class PostProcessorRegistrationDelegate {
 			Collection<? extends BeanFactoryPostProcessor> postProcessors, ConfigurableListableBeanFactory beanFactory) {
 
 		for (BeanFactoryPostProcessor postProcessor : postProcessors) {
+			// TODO 挨个儿执行每个后处理器
 			postProcessor.postProcessBeanFactory(beanFactory);
 		}
 	}

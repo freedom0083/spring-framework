@@ -115,15 +115,20 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 	@Override
 	@Nullable
 	public NamespaceHandler resolve(String namespaceUri) {
+		// TODO 取得自定义的NamespaceHandler map
 		Map<String, Object> handlerMappings = getHandlerMappings();
+		// TODO 从缓存中获取handler
 		Object handlerOrClassName = handlerMappings.get(namespaceUri);
 		if (handlerOrClassName == null) {
+			// TODO 没有返回Null
 			return null;
 		}
 		else if (handlerOrClassName instanceof NamespaceHandler) {
+			// TODO 是NamespaceHandler类型直接返回
 			return (NamespaceHandler) handlerOrClassName;
 		}
 		else {
+			// TODO 其他情况需要加载一下
 			String className = (String) handlerOrClassName;
 			try {
 				Class<?> handlerClass = ClassUtils.forName(className, this.classLoader);
@@ -131,6 +136,7 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 					throw new FatalBeanException("Class [" + className + "] for namespace [" + namespaceUri +
 							"] does not implement the [" + NamespaceHandler.class.getName() + "] interface");
 				}
+				// TODO 实例化handlerClass, 并进行初始化, 然后入到缓存中
 				NamespaceHandler namespaceHandler = (NamespaceHandler) BeanUtils.instantiateClass(handlerClass);
 				namespaceHandler.init();
 				handlerMappings.put(namespaceUri, namespaceHandler);
@@ -156,10 +162,12 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 			synchronized (this) {
 				handlerMappings = this.handlerMappings;
 				if (handlerMappings == null) {
+					// TODO 当handlerMappings缓存没东西时, 需要同步构建内容, 这时还需要double check一下
 					if (logger.isTraceEnabled()) {
 						logger.trace("Loading NamespaceHandler mappings from [" + this.handlerMappingsLocation + "]");
 					}
 					try {
+						// TODO 解析properties文件, 生成对应的handlerMapping
 						Properties mappings =
 								PropertiesLoaderUtils.loadAllProperties(this.handlerMappingsLocation, this.classLoader);
 						if (logger.isTraceEnabled()) {

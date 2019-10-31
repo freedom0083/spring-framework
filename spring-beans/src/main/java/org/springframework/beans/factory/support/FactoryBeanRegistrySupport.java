@@ -95,13 +95,13 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
 		if (factory.isSingleton() && containsSingleton(beanName)) {
-			// TODO factoryBean是单例, 并且要找的bean已经存在于singletonObjects缓存中时,
-			//  下面的步骤需要对singletonObjects进行加锁来保证线程安全问题
+			// TODO 工厂类是单例, 并且要找的bean已经存在于singletonObjects缓存中时, 获取bean的动作需要对
+			//  singletonObjects进行加锁来保证线程安全问题
 			synchronized (getSingletonMutex()) {
-				// TODO 从FactoryBeans创建的bean缓存中尝试直接取得对应的FactoryBean, 如果得到直接返回
+				// TODO 首先从factoryBeanObjectCache缓存取得对应的bean, 如果得到直接返回
 				Object object = this.factoryBeanObjectCache.get(beanName);
 				if (object == null) {
-					// TODO 没取到时, 在指定的FactoryBean中通过getObject()方法取得对象
+					// TODO 如果没有取到, 就通过getObject()从工厂类中取
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
 					// (e.g. because of circular reference processing triggered by custom getBean calls)
@@ -111,15 +111,15 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 						object = alreadyThere;
 					}
 					else {
-						// TODO 如果不在缓存中, 就要看是不是允许进行后处理了
+						// TODO 缓存中没有时, 就准备开始对bean进行后处理了
 						if (shouldPostProcess) {
-							// TODO 在允许对bean进行后处理加工的情况下, 判断一下指定的bean是否正在进行创建
+							// TODO 在允许对bean进行后处理时, 判断一下指定的bean是否正在进行创建
 							if (isSingletonCurrentlyInCreation(beanName)) {
 								// Temporarily return non-post-processed object, not storing it yet..
 								// TODO 如果正在创建, 则直接返回
 								return object;
 							}
-							// TODO 回调函数, 目前缺省实现是: 将bean注册到要正在创建缓存singletonsCurrentlyInCreation中
+							// TODO 回调函数, 目前缺省实现是: 将bean注册到正在创建缓存singletonsCurrentlyInCreation中
 							//  如果注册失败, 并且还不在排除列表里时, 抛出BeanCurrentlyInCreationException异常
 							beforeSingletonCreation(beanName);
 							try {
@@ -150,7 +150,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 			}
 		}
 		else {
-			// TODO bean factory是非单例, 或要找的bean不在singletonObjects缓存中时, 就直接从FactoryBean中拿原始bean对象
+			// TODO 工厂类是非单例, 或要找的bean不在singletonObjects缓存中时, 就直接从工厂类中拿原始bean对象
 			Object object = doGetObjectFromFactoryBean(factory, beanName);
 			if (shouldPostProcess) {
 				try {
@@ -188,8 +188,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 				}
 			}
 			else {
-				// TODO 权限验证没问题时, 直接调用FactoryBean的getObject()取得原始bean了
-				//  如果存在于缓存singletonInstance或earlySingletonInstance中, 直接从缓存获取, 否则创建一个实例
+				// TODO 权限验证没问题时, 直接调用工厂类的getObject()取得原始bean. 如果存在于缓存singletonInstance
+				//  或earlySingletonInstance中, 直接从缓存获取, 否则创建一个实例
 				object = factory.getObject();
 			}
 		}

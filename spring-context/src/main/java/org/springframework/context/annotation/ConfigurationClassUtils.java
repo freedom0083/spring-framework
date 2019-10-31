@@ -86,6 +86,7 @@ abstract class ConfigurationClassUtils {
 
 		String className = beanDef.getBeanClassName();
 		if (className == null || beanDef.getFactoryMethodName() != null) {
+			// TODO bean没有'class'属性, 或为一个工厂方法时不会是一个配置类, 不用加到配置类队列中
 			return false;
 		}
 
@@ -93,22 +94,26 @@ abstract class ConfigurationClassUtils {
 		if (beanDef instanceof AnnotatedBeanDefinition &&
 				className.equals(((AnnotatedBeanDefinition) beanDef).getMetadata().getClassName())) {
 			// Can reuse the pre-parsed metadata from the given BeanDefinition...
+			// TODO 对于AnnotatedBeanDefinition类型的bd来说, 如果其元数据中的'class'与bd的'class'相同, 则直接使用bd的元数据
 			metadata = ((AnnotatedBeanDefinition) beanDef).getMetadata();
 		}
 		else if (beanDef instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) beanDef).hasBeanClass()) {
 			// Check already loaded Class if present...
 			// since we possibly can't even load the class file for this Class.
+			// TODO 否则bd是AbstractBeanDefinition, 同时其'class'为一个引用时, 取得'class'指向的引用
 			Class<?> beanClass = ((AbstractBeanDefinition) beanDef).getBeanClass();
-			// TODO 属于以下任何一个类型的后处理器时, 都不是一个配置类
+			// TODO 如果引用属于以下任何一个类型的后处理器时, 都不是一个配置类
 			if (BeanFactoryPostProcessor.class.isAssignableFrom(beanClass) ||
 					BeanPostProcessor.class.isAssignableFrom(beanClass) ||
 					AopInfrastructureBean.class.isAssignableFrom(beanClass) ||
 					EventListenerFactory.class.isAssignableFrom(beanClass)) {
 				return false;
 			}
+			// TODO 解析出元数据
 			metadata = AnnotationMetadata.introspect(beanClass);
 		}
 		else {
+			// TODO 以上情况都不是时, 用reader解析出元数据
 			try {
 				MetadataReader metadataReader = metadataReaderFactory.getMetadataReader(className);
 				metadata = metadataReader.getAnnotationMetadata();
@@ -121,7 +126,7 @@ abstract class ConfigurationClassUtils {
 				return false;
 			}
 		}
-
+		// TODO 拿出@Configuration的内容
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			// TODO 带有@Configuration注解, 并且不是代理方法时, 设置configurationClass为full类型
@@ -155,18 +160,21 @@ abstract class ConfigurationClassUtils {
 	public static boolean isConfigurationCandidate(AnnotationMetadata metadata) {
 		// Do not consider an interface or an annotation...
 		if (metadata.isInterface()) {
+			// TODO 元数据为接口或注解时排除
 			return false;
 		}
 
 		// Any of the typical annotations found?
 		for (String indicator : candidateIndicators) {
 			if (metadata.isAnnotated(indicator)) {
+				// TODO 在候选名单里, 就算配置类
 				return true;
 			}
 		}
 
 		// Finally, let's look for @Bean methods...
 		try {
+			// TODO 元数据里带@Bean的, 就算配置类
 			return metadata.hasAnnotatedMethods(Bean.class.getName());
 		}
 		catch (Throwable ex) {

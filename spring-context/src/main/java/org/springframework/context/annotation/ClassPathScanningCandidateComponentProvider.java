@@ -377,12 +377,12 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 		Set<BeanDefinition> candidates = new LinkedHashSet<>();
 		try {
 			// TODO types包含了TypeFilter指定的所有类型, 比如annotationTypeFilter时
-			//  包含Componet, Service等定义在stereotype包内的annotation类名
+			//  包含Component, Service等定义在stereotype包内的annotation类名
 			Set<String> types = new HashSet<>();
 			for (TypeFilter filter : this.includeFilters) {
 				// TODO 提取TypeFilter的类型
-				//  1. annotation：annotation名，比如Component
-				//  2. 直接指定的类型：指定类的类名
+				//  1. annotation: annotation名, 比如Component
+				//  2. 直接指定的类型: 指定类的类名
 				String stereotype = extractStereotype(filter);
 				if (stereotype == null) {
 					throw new IllegalArgumentException("Failed to extract stereotype from " + filter);
@@ -393,10 +393,10 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 			boolean debugEnabled = logger.isDebugEnabled();
 			for (String type : types) {
 				MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(type);
-				// TODO 看一下元数据的类型是否的可解析的类型中
+				// TODO 看一下元数据的类型是否在可解析的类型中
 				if (isCandidateComponent(metadataReader)) {
-					// TODO 把符合条件的元数据加载到一个支持注解的beanDefinition中
-					//  AnnotatedGenericBeanDefinition是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
+					// TODO 把符合条件的元数据加载到一个支持注解的bd中, AnnotatedGenericBeanDefinition是GenericBeanDefinition的子类,
+					//  并且实现了AnnotatedBeanDefinition接口
 					AnnotatedGenericBeanDefinition sbd = new AnnotatedGenericBeanDefinition(
 							metadataReader.getAnnotationMetadata());
 					// TODO 判断beanDefinition是否为一个可以实例化的具体类
@@ -447,7 +447,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
 						// TODO 根据includeFilters过滤器和元数据信息来来判断取类是否是可以成为一个侯选类(比如就否有@Component等)
 						if (isCandidateComponent(metadataReader)) {
-							// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 这里创建的是
+							// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 其beanClass属性为元数据中class属性的值, 这里创建的是
 							//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作
 							//  是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
 							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);

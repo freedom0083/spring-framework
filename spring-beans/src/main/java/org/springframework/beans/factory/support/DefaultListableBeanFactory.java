@@ -856,6 +856,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		for (String beanName : beanNames) {
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+				// TODO 判断当前处理的bean是否是工厂类
 				if (isFactoryBean(beanName)) {
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					if (bean instanceof FactoryBean) {
@@ -913,7 +914,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
-				// TODO 注册前的验证beanDefinition的正确性, 有两种可能会抛出异常:
+				// TODO 注册前验证AbstractBeanDefinition类型的bd的正确性, 有两种可能会抛出异常:
 				//  1. methodOverrides与工厂方法同时存在
 				//  2. beanDefinition中没有覆盖的方法
 				((AbstractBeanDefinition) beanDefinition).validate();
@@ -959,8 +960,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		else {
 			if (hasBeanCreationStarted()) {
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
-				// TODO 如果开始了bean初始化了动作, 即alreadyCreate看已经有元素时, 需要锁map来安全的进行注册
+				// TODO 如果开始了bean初始化了动作, 即alreadyCreate已经有元素时, 需要锁map来安全的进行注册
 				synchronized (this.beanDefinitionMap) {
+					// TODO 先放到缓存中
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
 					updatedDefinitions.addAll(this.beanDefinitionNames);

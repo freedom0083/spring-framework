@@ -490,11 +490,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
 		// TODO 解析类, 通过ClassLoader.loadClass()或Class.ForName()对指定名字的类进行加载, 得到对应的引用. 根据类属性或类名加载
-		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 用来生成特定类型的ClassLoader, 根据代码来看, 主要是为了支持AspectJ
+		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 用来指定特定类型的ClassLoader, 根据代码来看, 主要是为了支持AspectJ
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
-			// TODO 类加载后, 如果合并后的bean definition依然没有对应的bean引用时(没有对应的class引用或是全限定名)
-			//  这时用其创建一个root bean definition, 并把加载后的类引用做为其bean class属性
+			// TODO 类加载后, 如果合并后的bd依然没有对应的bean引用时(没有'class'属性, 或'class'设置的是全限定名)
+			//  这时用其创建一个RootBeanDefinition, 并把加载后的类引用做为其beanClass属性
 			mbdToUse = new RootBeanDefinition(mbd);
 			mbdToUse.setBeanClass(resolvedClass);
 		}
@@ -511,7 +511,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
-			// TODO Spring允许容器在实例化前用后处理器对bean做一些处理. 其中包括生成代理. 这里有可能会返回一个代理对象
+			// TODO Spring允许容器在实例化前对bean做一些处理. 其中包括生成代理. 这里有可能会返回一个代理对象
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				// TODO 如果返回的是代理对象, 则创建结束, 直接返回
@@ -2033,7 +2033,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Override
 	protected Object postProcessObjectFromFactoryBean(Object object, String beanName) {
-		// TODO 挨个调用BeanPostProcessor.postProcessAfterInitialization()对从Factory bean来的bean进行处理并返回加工后的bean对象
+		// TODO 挨个调用BeanPostProcessor.postProcessAfterInitialization()对从工厂类得到的bean进行处理并返回, 这是初始化后的动作
 		return applyBeanPostProcessorsAfterInitialization(object, beanName);
 	}
 

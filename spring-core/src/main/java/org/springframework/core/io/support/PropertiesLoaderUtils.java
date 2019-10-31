@@ -173,8 +173,10 @@ public abstract class PropertiesLoaderUtils {
 		Assert.notNull(resourceName, "Resource name must not be null");
 		ClassLoader classLoaderToUse = classLoader;
 		if (classLoaderToUse == null) {
+			// TODO 没有设置类加载器时, 给一个默认的类加载器
 			classLoaderToUse = ClassUtils.getDefaultClassLoader();
 		}
+		// TODO 加载资源, 如果还是没有类加载器, 就直接得到系统级的资源
 		Enumeration<URL> urls = (classLoaderToUse != null ? classLoaderToUse.getResources(resourceName) :
 				ClassLoader.getSystemResources(resourceName));
 		Properties props = new Properties();
@@ -184,6 +186,7 @@ public abstract class PropertiesLoaderUtils {
 			ResourceUtils.useCachesIfNecessary(con);
 			InputStream is = con.getInputStream();
 			try {
+				// TODO 挨个儿load所有的properties
 				if (resourceName.endsWith(XML_FILE_EXTENSION)) {
 					props.loadFromXML(is);
 				}
