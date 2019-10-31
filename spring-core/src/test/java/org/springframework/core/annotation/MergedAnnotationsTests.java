@@ -587,6 +587,24 @@ class MergedAnnotationsTests {
 		assertThat(synthesizedAnnotation.qualifier()).isEqualTo(qualifier);
 	}
 
+	@Test // gh-23767
+	void getWithTypeHierarchyFromClassWithComposedMetaTransactionalAnnotation() {
+		MergedAnnotation<AliasedTransactional> mergedAnnotation = MergedAnnotations.from(
+				ComposedTransactionalClass.class, SearchStrategy.TYPE_HIERARCHY).get(
+						AliasedTransactional.class);
+		assertThat(mergedAnnotation.getString("value")).isEqualTo("anotherTransactionManager");
+		assertThat(mergedAnnotation.getString("qualifier")).isEqualTo("anotherTransactionManager");
+	}
+
+	@Test // gh-23767
+	void getWithTypeHierarchyFromClassWithMetaMetaAliasedTransactional() {
+		MergedAnnotation<AliasedTransactional> mergedAnnotation = MergedAnnotations.from(
+				MetaMetaAliasedTransactionalClass.class, SearchStrategy.TYPE_HIERARCHY).get(
+						AliasedTransactional.class);
+		assertThat(mergedAnnotation.getString("value")).isEqualTo("meta");
+		assertThat(mergedAnnotation.getString("qualifier")).isEqualTo("meta");
+	}
+
 	@Test
 	void getWithTypeHierarchyFromClassWithAttributeAliasInComposedAnnotationAndNestedAnnotationsInTargetAnnotation() {
 		MergedAnnotation<?> annotation = testGetWithTypeHierarchy(
@@ -1291,18 +1309,6 @@ class MergedAnnotationsTests {
 	}
 
 	@Test
-	void getRepeatableDeclaredOnClassWithMissingAttributeAliasDeclaration() {
-		RepeatableContainers containers = RepeatableContainers.of(
-				BrokenContextConfiguration.class, BrokenHierarchy.class);
-		assertThatExceptionOfType(AnnotationConfigurationException.class).isThrownBy(() ->
-				MergedAnnotations.from(BrokenHierarchyClass.class, SearchStrategy.TYPE_HIERARCHY, containers,
-						AnnotationFilter.PLAIN).get(BrokenHierarchy.class))
-			.withMessageStartingWith("Attribute 'value' in")
-			.withMessageContaining(BrokenContextConfiguration.class.getName())
-			.withMessageContaining("@AliasFor 'location'");
-	}
-
-	@Test
 	void getRepeatableDeclaredOnClassWithAttributeAliases() {
 		assertThat(MergedAnnotations.from(HierarchyClass.class).stream(
 				TestConfiguration.class)).isEmpty();
@@ -1311,8 +1317,7 @@ class MergedAnnotationsTests {
 		MergedAnnotations annotations = MergedAnnotations.from(HierarchyClass.class,
 				SearchStrategy.DIRECT, containers, AnnotationFilter.NONE);
 		assertThat(annotations.stream(TestConfiguration.class).map(
-				annotation -> annotation.getString("location"))).containsExactly("A",
-						"B");
+				annotation -> annotation.getString("location"))).containsExactly("A", "B");
 		assertThat(annotations.stream(TestConfiguration.class).map(
 				annotation -> annotation.getString("value"))).containsExactly("A", "B");
 	}
@@ -1468,17 +1473,6 @@ class MergedAnnotationsTests {
 			.withMessageStartingWith("@AliasFor declaration on attribute 'foo' in annotation")
 			.withMessageContaining(AliasForNonexistentAttribute.class.getName())
 			.withMessageContaining("declares an alias for 'bar' which is not present");
-	}
-
-	@Test
-	void synthesizeWhenAttributeAliasWithoutMirroredAliasFor() throws Exception {
-		AliasForWithoutMirroredAliasFor annotation = AliasForWithoutMirroredAliasForClass.class.getAnnotation(
-				AliasForWithoutMirroredAliasFor.class);
-		assertThatExceptionOfType(AnnotationConfigurationException.class).isThrownBy(() ->
-				MergedAnnotation.from(annotation))
-			.withMessageStartingWith("Attribute 'bar' in")
-			.withMessageContaining(AliasForWithoutMirroredAliasFor.class.getName())
-			.withMessageContaining("@AliasFor 'foo'");
 	}
 
 	@Test
@@ -2198,6 +2192,38 @@ class MergedAnnotationsTests {
 	@Component
 	@Retention(RetentionPolicy.RUNTIME)
 	@interface AliasedTransactionalComponent {
+	}
+
+	@AliasedTransactional
+	@Retention(RetentionPolicy.RUNTIME)
+	@interface MyAliasedTransactional {
+
+		@AliasFor(annotation = AliasedTransactional.class, attribute = "value")
+		String value() default "defaultTransactionManager";
+	}
+
+	@MyAliasedTransactional("anotherTransactionManager")
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.METHOD})
+	@interface ComposedMyAliasedTransactional {
+	}
+
+	@ComposedMyAliasedTransactional
+	static class ComposedTransactionalClass {
+	}
+
+	@AliasedTransactional("meta")
+	@Retention(RetentionPolicy.RUNTIME)
+	@interface MetaAliasedTransactional {
+	}
+
+	@MetaAliasedTransactional
+	@Retention(RetentionPolicy.RUNTIME)
+	@interface MetaMetaAliasedTransactional {
+	}
+
+	@MetaMetaAliasedTransactional
+	static class MetaMetaAliasedTransactionalClass {
 	}
 
 	@TxComposedWithOverride
@@ -3006,15 +3032,6 @@ class MergedAnnotationsTests {
 	}
 
 	@Retention(RetentionPolicy.RUNTIME)
-	@interface BrokenContextConfiguration {
-
-		String value() default "";
-
-		@AliasFor("value")
-		String location() default "";
-	}
-
-	@Retention(RetentionPolicy.RUNTIME)
 	@interface TestConfiguration {
 
 		@AliasFor("location")
@@ -3032,18 +3049,8 @@ class MergedAnnotationsTests {
 		TestConfiguration[] value();
 	}
 
-	@Retention(RetentionPolicy.RUNTIME)
-	@interface BrokenHierarchy {
-
-		BrokenContextConfiguration[] value();
-	}
-
 	@Hierarchy({ @TestConfiguration("A"), @TestConfiguration(location = "B") })
 	static class HierarchyClass {
-	}
-
-	@BrokenHierarchy(@BrokenContextConfiguration)
-	static class BrokenHierarchyClass {
 	}
 
 	@TestConfiguration("simple.xml")
@@ -3494,7 +3501,7 @@ class MergedAnnotationsTests {
 	}
 
 	@Retention(RetentionPolicy.RUNTIME)
-	static @interface ValueAttribute {
+	@interface ValueAttribute {
 
 		String[] value();
 
@@ -3502,7 +3509,7 @@ class MergedAnnotationsTests {
 
 	@Retention(RetentionPolicy.RUNTIME)
 	@ValueAttribute("FromValueAttributeMeta")
-	static @interface ValueAttributeMeta {
+	@interface ValueAttributeMeta {
 
 		String[] value() default {};
 
@@ -3510,7 +3517,7 @@ class MergedAnnotationsTests {
 
 	@Retention(RetentionPolicy.RUNTIME)
 	@ValueAttributeMeta("FromValueAttributeMetaMeta")
-	static @interface ValueAttributeMetaMeta {
+	@interface ValueAttributeMetaMeta {
 
 	}
 

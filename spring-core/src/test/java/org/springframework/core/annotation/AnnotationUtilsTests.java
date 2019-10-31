@@ -557,16 +557,6 @@ class AnnotationUtilsTests {
 	}
 
 	@Test
-	void getRepeatableAnnotationsDeclaredOnClassWithMissingAttributeAliasDeclaration() throws Exception {
-		assertThatExceptionOfType(AnnotationConfigurationException.class).isThrownBy(() ->
-				getRepeatableAnnotations(BrokenConfigHierarchyTestCase.class, BrokenContextConfig.class, BrokenHierarchy.class))
-			.withMessageStartingWith("Attribute 'value' in")
-			.withMessageContaining(BrokenContextConfig.class.getName())
-			.withMessageContaining("@AliasFor 'location'");
-
-	}
-
-	@Test
 	void getRepeatableAnnotationsDeclaredOnClassWithAttributeAliases() {
 		final List<String> expectedLocations = asList("A", "B");
 
@@ -964,6 +954,24 @@ class AnnotationUtilsTests {
 		TestRepeatableContainer.class)).isNotNull();
 	}
 
+	@Test // gh-23856
+	void findAnnotationFindsRepeatableContainerOnComposedAnnotationMetaAnnotatedWithRepeatableAnnotations() {
+		MyRepeatableContainer annotation = AnnotationUtils.findAnnotation(MyRepeatableMeta1And2.class, MyRepeatableContainer.class);
+
+		assertThat(annotation).isNotNull();
+		assertThat(annotation.value()).extracting(MyRepeatable::value).containsExactly("meta1", "meta2");
+	}
+
+	@Test // gh-23856
+	void findAnnotationFindsRepeatableContainerOnComposedAnnotationMetaAnnotatedWithRepeatableAnnotationsOnMethod() throws NoSuchMethodException {
+		Method method = getClass().getDeclaredMethod("methodWithComposedAnnotationMetaAnnotatedWithRepeatableAnnotations");
+		MyRepeatableContainer annotation = AnnotationUtils.findAnnotation(method, MyRepeatableContainer.class);
+
+		assertThat(annotation).isNotNull();
+		assertThat(annotation.value()).extracting(MyRepeatable::value).containsExactly("meta1", "meta2");
+	}
+
+
 	@SafeVarargs
 	static <T> T[] asArray(T... arr) {
 		return arr;
@@ -1262,6 +1270,17 @@ class AnnotationUtilsTests {
 	@interface MyRepeatableMeta2 {
 	}
 
+	@Retention(RetentionPolicy.RUNTIME)
+	@Inherited
+	@MyRepeatable("meta1")
+	@MyRepeatable("meta2")
+	@interface MyRepeatableMeta1And2 {
+	}
+
+	@MyRepeatableMeta1And2
+	void methodWithComposedAnnotationMetaAnnotatedWithRepeatableAnnotations() {
+	}
+
 	interface InterfaceWithRepeated {
 
 		@MyRepeatable("A")
@@ -1386,17 +1405,6 @@ class AnnotationUtilsTests {
 		Class<?> klass() default Object.class;
 	}
 
-	@Retention(RetentionPolicy.RUNTIME)
-	@interface BrokenContextConfig {
-
-		// Intentionally missing:
-		// @AliasFor("location")
-		String value() default "";
-
-		@AliasFor("value")
-		String location() default "";
-	}
-
 	/**
 	 * Mock of {@code org.springframework.test.context.ContextHierarchy}.
 	 */
@@ -1405,17 +1413,8 @@ class AnnotationUtilsTests {
 		ContextConfig[] value();
 	}
 
-	@Retention(RetentionPolicy.RUNTIME)
-	@interface BrokenHierarchy {
-		BrokenContextConfig[] value();
-	}
-
 	@Hierarchy({@ContextConfig("A"), @ContextConfig(location = "B")})
 	static class ConfigHierarchyTestCase {
-	}
-
-	@BrokenHierarchy(@BrokenContextConfig)
-	static class BrokenConfigHierarchyTestCase {
 	}
 
 	@ContextConfig("simple.xml")
@@ -1796,13 +1795,13 @@ class AnnotationUtilsTests {
 
 	@Retention(RetentionPolicy.RUNTIME)
 	@Repeatable(TestRepeatableContainer.class)
-	static @interface TestRepeatable {
+	@interface TestRepeatable {
 
 		String value();
 	}
 
 	@Retention(RetentionPolicy.RUNTIME)
-	static @interface TestRepeatableContainer {
+	@interface TestRepeatableContainer {
 
 		TestRepeatable[] value();
 	}
