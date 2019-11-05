@@ -1206,22 +1206,30 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-
+		// TODO 取得当前容器里方法参数名的解析策略, 然后设置到依赖注入项中(这个依赖注入项可能是工厂方法的参数)
 		descriptor.initParameterNameDiscovery(getParameterNameDiscoverer());
 		if (Optional.class == descriptor.getDependencyType()) {
+			// TODO 被包装的参数或字段类型是Optional类型时, 创建并返回一个Optional类型的依赖,
+			//  比如: private Optional<GenericBean<Object, Object>> objectGenericBean; 类型会变为Optional[GenericBean(t=obj1, w=2)]
 			return createOptionalDependency(descriptor, requestingBeanName);
 		}
 		else if (ObjectFactory.class == descriptor.getDependencyType() ||
 				ObjectProvider.class == descriptor.getDependencyType()) {
+			// TODO 被包装的参数或字段类型是ObjectFactory或ObjectProvider类型时(Spring4.3提供的接口, 工厂类型), 创建一个DependencyObjectProvider对象返回
 			return new DependencyObjectProvider(descriptor, requestingBeanName);
 		}
 		else if (javaxInjectProviderClass == descriptor.getDependencyType()) {
+			// TODO 被包装的参数或字段类型是JSR330的情况, 用JSR330创建一个Provider并返回
 			return new Jsr330Factory().createDependencyProvider(descriptor, requestingBeanName);
 		}
 		else {
+			// TODO 其他情况会根据依赖注入项是否包含@Lazy来做不同的处理(getLazyResolutionProxyIfNecessary()方法):
+			//  1. 包含@Lazy: 表示是一个懒加载, 返回的是一个代理对象
+			//  2. 不包含@Lazy: 返回null
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
+				// TODO 不包含@Lazy时, 开始解析依赖项
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
 			return result;
@@ -1231,11 +1239,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	public Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-
+		// TODO 保存当前注入点的位置
 		InjectionPoint previousInjectionPoint = ConstructorResolver.setCurrentInjectionPoint(descriptor);
 		try {
 			Object shortcut = descriptor.resolveShortcut(this);
 			if (shortcut != null) {
+				// TODO 依赖项是ShortcutDependencyDescriptor类型才能解析出值, 这时直接返回就好
 				return shortcut;
 			}
 
@@ -1744,18 +1753,22 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 */
 	private Optional<?> createOptionalDependency(
 			DependencyDescriptor descriptor, @Nullable String beanName, final Object... args) {
-
+		// TODO Optional类型用于包装其他类型, 所以这里变更为一个可以处理嵌套类的NestedDependencyDescriptor依赖项
 		DependencyDescriptor descriptorToUse = new NestedDependencyDescriptor(descriptor) {
 			@Override
 			public boolean isRequired() {
 				return false;
 			}
 			@Override
+			// TODO 重写了resolveCandidate()方法
 			public Object resolveCandidate(String beanName, Class<?> requiredType, BeanFactory beanFactory) {
+				// TODO 当有参数时, 从容器中取得指定类型参数的依赖项
 				return (!ObjectUtils.isEmpty(args) ? beanFactory.getBean(beanName, args) :
+						// TODO 没有参数时, 直接从容器中取得依赖项
 						super.resolveCandidate(beanName, requiredType, beanFactory));
 			}
 		};
+		// TODO 然后开始解析依赖项, 最后返回一个Optional包装好的, 解析过的依赖对象
 		Object result = doResolveDependency(descriptorToUse, beanName, null, null);
 		return (result instanceof Optional ? (Optional<?>) result : Optional.ofNullable(result));
 	}

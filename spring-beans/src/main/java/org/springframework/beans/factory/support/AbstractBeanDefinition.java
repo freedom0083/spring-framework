@@ -171,9 +171,11 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private boolean lenientConstructorResolution = true;
 
 	@Nullable
+	// TODO 当前bean的工厂类名, 由'factory-bean'设置
 	private String factoryBeanName;
 
 	@Nullable
+	// TODO 当前bean的工厂方法, 由'factory-method'设置
 	private String factoryMethodName;
 
 	@Nullable

@@ -383,58 +383,73 @@ class ConstructorResolver {
 	 */
 	public BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
-
+		// TODO 创建一个BeanWrapperImpl实例, 并由容器来初始化, 初始化时会设置数据转换和属性编辑器
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		this.beanFactory.initBeanWrapper(bw);
-
+		// TODO bd使用的工厂类对象(实现了FactoryBean接口的对象)
 		Object factoryBean;
+		// TODO 工厂类的类型
 		Class<?> factoryClass;
 		boolean isStatic;
-
+		// TODO 获取合并后的bd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类), 这边和AbstractAutowireCapableBeanFactory类似
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
 			if (factoryBeanName.equals(beanName)) {
+				// TODO 工厂类的名字不能和要实例化的bean同名
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
+			// TODO 从容器中取出工厂类所对应的真实对象, 即实例化. 这里执行后, 工厂类就已经初始化完毕, 并且放到容器中了
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
+				// TODO 要取得的单例bean是已经存在于容器中时, 会报一个隐匿创建异常 mark
 				throw new ImplicitlyAppearedSingletonException();
 			}
+			// TODO 取得工厂类的类型, 这时肯定不是一个静态工厂了
 			factoryClass = factoryBean.getClass();
 			isStatic = false;
 		}
 		else {
 			// It's a static factory method on the bean class.
+			// TODO 没有工厂类的名字时, 就是一个静态工厂了, 静态工厂不需要先实例化工厂类
 			if (!mbd.hasBeanClass()) {
+				// TODO 不是工厂类, 且'class'属性设置的不是class引用时, 抛出异常
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"bean definition declares neither a bean class nor a factory-bean reference");
 			}
+			// TODO 静态工厂也不需要指定工厂类对象
 			factoryBean = null;
+			// TODO 合并后的bd的'class'属性指定的就是工厂类的类型
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
-
+		// TODO 准备要用的工厂方法, 参数
 		Method factoryMethodToUse = null;
 		ArgumentsHolder argsHolderToUse = null;
 		Object[] argsToUse = null;
 
 		if (explicitArgs != null) {
+			// TODO 如果取得bean的时候同时定义了赋给bean的参数值时, 获得这些参数值
+			//
 			argsToUse = explicitArgs;
 		}
 		else {
 			Object[] argsToResolve = null;
 			synchronized (mbd.constructorArgumentLock) {
+				// TODO 从缓存中拿出工厂方法
 				factoryMethodToUse = (Method) mbd.resolvedConstructorOrFactoryMethod;
 				if (factoryMethodToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached factory method...
+					// TODO 如果有工厂方法, 且合并后的bd的构造函数的参数已经解析过了, 拿出解析好的构造函数的参数
 					argsToUse = mbd.resolvedConstructorArguments;
 					if (argsToUse == null) {
+						// TODO 如果没有解析好的参数, 拿出准备解析的构造函数的参数
 						argsToResolve = mbd.preparedConstructorArguments;
 					}
 				}
 			}
 			if (argsToResolve != null) {
+				// TODO 解析准备好的参数(这里会进行自动注入的处理)
 				argsToUse = resolvePreparedArguments(beanName, mbd, bw, factoryMethodToUse, argsToResolve, true);
 			}
 		}
@@ -442,14 +457,18 @@ class ConstructorResolver {
 		if (factoryMethodToUse == null || argsToUse == null) {
 			// Need to determine the factory method...
 			// Try all methods with this name to see if they match the given arguments.
+			// TODO 没有工厂方法, 或要使用的参数不存在时, 取得工厂类, 这里会看其是否为CGLIB生成的子类, 即名字包含'$$', 如果是, 返回的会是其超类
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
 			List<Method> candidateList = null;
 			if (mbd.isFactoryMethodUnique) {
+				// TODO 合并后的bd是唯一的工厂方法时
 				if (factoryMethodToUse == null) {
+					// TODO 没有得到工厂方法的情况下, 用合并后的bd中解析过的工厂方法
 					factoryMethodToUse = mbd.getResolvedFactoryMethod();
 				}
 				if (factoryMethodToUse != null) {
+					// TODO 获得一个工厂方法的侯选集合
 					candidateList = Collections.singletonList(factoryMethodToUse);
 				}
 			}
@@ -806,28 +825,36 @@ class ConstructorResolver {
 	 */
 	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
 			Executable executable, Object[] argsToResolve, boolean fallback) {
-
+		// TODO 取得类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
 		TypeConverter converter = (customConverter != null ? customConverter : bw);
+		// TODO 准备bd的解析器
 		BeanDefinitionValueResolver valueResolver =
 				new BeanDefinitionValueResolver(this.beanFactory, beanName, mbd, converter);
+		// TODO 按顺序取得方法的参数类型
 		Class<?>[] paramTypes = executable.getParameterTypes();
 
 		Object[] resolvedArgs = new Object[argsToResolve.length];
 		for (int argIndex = 0; argIndex < argsToResolve.length; argIndex++) {
+			// TODO 按顺序挨个解析参数
 			Object argValue = argsToResolve[argIndex];
+			// TODO 取得方法的参数
 			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
 			if (argValue == autowiredArgumentMarker) {
+				// TODO 参数是要自动装配时(Object), 进行自动装配
 				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, fallback);
 			}
 			else if (argValue instanceof BeanMetadataElement) {
+				// TODO 参数是bean元数据时
 				argValue = valueResolver.resolveValueIfNecessary("constructor argument", argValue);
 			}
 			else if (argValue instanceof String) {
+				// TODO 参数是字符串时
 				argValue = this.beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
 			}
 			Class<?> paramType = paramTypes[argIndex];
 			try {
+				// TODO 进行必要的类型转换(Converter就是从这里起作用的)
 				resolvedArgs[argIndex] = converter.convertIfNecessary(argValue, paramType, methodParam);
 			}
 			catch (TypeMismatchException ex) {
@@ -837,6 +864,7 @@ class ConstructorResolver {
 						"] to required type [" + paramType.getName() + "]: " + ex.getMessage());
 			}
 		}
+		// TODO 全处理完后, 返回解析后的参数数组
 		return resolvedArgs;
 	}
 
@@ -864,6 +892,7 @@ class ConstructorResolver {
 
 		Class<?> paramType = param.getParameterType();
 		if (InjectionPoint.class.isAssignableFrom(paramType)) {
+			// TODO 如果方法的参数类型是InjectionPoint类型, 直接从当前线程中取得注入点返回, 如果没有注入点, 则抛出异常
 			InjectionPoint injectionPoint = currentInjectionPoint.get();
 			if (injectionPoint == null) {
 				throw new IllegalStateException("No current InjectionPoint available for " + param);
@@ -871,6 +900,7 @@ class ConstructorResolver {
 			return injectionPoint;
 		}
 		try {
+			// TODO 先用方法参数创建一个用于注入的依赖注入项(DependencyDescriptor), 然后开始解决依赖关系
 			return this.beanFactory.resolveDependency(
 					new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
 		}

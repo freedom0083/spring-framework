@@ -50,35 +50,41 @@ import org.springframework.util.ObjectUtils;
  * @since 2.5
  */
 @SuppressWarnings("serial")
-// TODO 用来描述一个依赖
+// TODO 用来描述一个用于注入的依赖项
 public class DependencyDescriptor extends InjectionPoint implements Serializable {
-
+	// TODO 保存所包装依赖(成员属性或者成员方法的某个参数)所在的声明类(在 field/methodParameter中已经隐含)
 	private final Class<?> declaringClass;
 
 	@Nullable
+	// TODO 如果所包装依赖是成员方法的某个参数，则这里记录该成员方法的名称
 	private String methodName;
 
 	@Nullable
+	// TODO 如果所包装的是成员方法的某个参数，则这里记录该参数的类型
 	private Class<?>[] parameterTypes;
-
+	// TODO 如果所包装的是成员方法的某个参数，则这里记录该参数在该函数参数列表中的索引
 	private int parameterIndex;
 
 	@Nullable
+	// TODO 如果所包装的是成员属性，则这里记录该成员属性的名称
 	private String fieldName;
-
+	// TODO 标识所包装依赖是否必要依赖
 	private final boolean required;
-
+	// TODO 标识所包装依赖是否需要饥饿加载
 	private final boolean eager;
-
+	// TODO 标识所包装依赖的嵌套级别
 	private int nestingLevel = 1;
 
 	@Nullable
+	// TODO 标识所包装依赖的包含者类，通常和声明类是同一个
 	private Class<?> containingClass;
 
 	@Nullable
+	// TODO 所包装依赖 ResolvableType 的缓存
 	private transient volatile ResolvableType resolvableType;
 
 	@Nullable
+	// TODO 所包装依赖 TypeDescriptor 的缓存
 	private transient volatile TypeDescriptor typeDescriptor;
 
 

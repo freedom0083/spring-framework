@@ -211,15 +211,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public Object getBean(String name, Object... args) throws BeansException {
+		// TODO 按名称获取bean的同时, 使用args参数对bean的属性进行赋值(构造方法和工厂方法属性), 此时bean必须是prototype类型
 		return doGetBean(name, null, args, false);
 	}
 
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
-	 * @param name the name of the bean to retrieve
-	 * @param requiredType the required type of the bean to retrieve
+	 * @param name the name of the bean to retrieve 要取得的bean的名字
+	 * @param requiredType the required type of the bean to retrieve 要取得的bean的类型
 	 * @param args arguments to use when creating a bean instance using explicit arguments
-	 * (only applied when creating a new instance as opposed to retrieving an existing one)
+	 * (only applied when creating a new instance as opposed to retrieving an existing one) 为bean设置的参数值
 	 * @return an instance of the bean
 	 * @throws BeansException if the bean could not be created
 	 */
@@ -234,7 +235,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param name the name of the bean to retrieve 要获取的bean的名字
 	 * @param requiredType the required type of the bean to retrieve 获取的bean的类型
 	 * @param args arguments to use when creating a bean instance using explicit arguments
-	 * (only applied when creating a new instance as opposed to retrieving an existing one)
+	 * (only applied when creating a new instance as opposed to retrieving an existing one) 为bean设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
 	 * @param typeCheckOnly whether the instance is obtained for a type check,
 	 * not for actual use
 	 * @return an instance of the bean
@@ -244,19 +246,22 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredType,
 			@Nullable final Object[] args, boolean typeCheckOnly) throws BeansException {
 		// TODO transformedBeanName()用来规范化要取得的bean的名字, 此方法做了两件事:
-		//  1. 去掉'&': 工厂类的名字会带有'&'前缀, 这个方法会去掉这个前缀
+		//  1. 去掉'&': Spring中工厂类是以'&'开头的(表示为一个引用, 而非bean). 使用getBean("&xxx")方法时, 得到的会是bean工厂, 而
+		//              使用getBean("xxx")方法得到的是bean本身, 或者bean工厂中的对象(最终返回的是beanFactory.getObject()).
+		//             这里去掉'&'后, 后面再取的bean就是bean工厂中的对象了
 		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
 		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
 		final String beanName = transformedBeanName(name);
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
-		// TODO 尝试从缓存中取得对应的单例实例, 按以下顺序:
+		// TODO 按以下顺序尝试从缓存中取得对应的单例实例:
 		//  1. singletonObjects: bean单例缓存, bean名 -> bean实例
 		//  2. earlySingletonObjects: 正在创建过程中的bean单例缓存, 用于做循环引用检测, bean名 -> bean实例
 		//  3. singletonFactories: 存储创建bean的工厂的缓存, bean名 -> ObjectFactory
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
+			// TODO args只有在bean是prototype类型, 同时用构造方式或工厂方法取得bean时才会有值, 所以这里表示的是缓存命中, 且为单例的情况?? mark
 			if (logger.isTraceEnabled()) {
 				if (isSingletonCurrentlyInCreation(beanName)) {
 					logger.trace("Returning eagerly cached instance of singleton bean '" + beanName +
@@ -266,7 +271,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
-			// TODO 缓存命中时, 用从缓存得到的bean实例来创建bean, 如果这个bean实例不是工厂类, 则返回实例本身; 如果bean实例是工厂类,
+			// TODO 从得到的单例实例中取得bean对象, getObjectForBeanInstance()方法的主要是逻辑是:
+			//  1. 如果要取得的bean是工厂类本身, 即, 调用的getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
+			//  2. 如果要得到的bean是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
+			//  3.
+			//  缓存命中时, 用从缓存得到的bean实例来创建bean, 如果这个bean实例不是工厂类, 则返回实例本身; 如果bean实例是工厂类,
 			//   则使用工厂类创建对应的bean, 如果创建出来的bean是由程序本身所创建, 还会再用后处理器对其进行处理
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
@@ -1329,6 +1338,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	protected void initBeanWrapper(BeanWrapper bw) {
 		bw.setConversionService(getConversionService());
+		// TODO 注册属性编辑器, BeanWrapper本身实现了PropertyEditorRegistry接口
 		registerCustomEditors(bw);
 	}
 
@@ -1349,6 +1359,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (!this.propertyEditorRegistrars.isEmpty()) {
 			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) {
 				try {
+					// TODO 注册一遍PropertyEditorRegistrars类型的自定义的属性编辑器
 					registrar.registerCustomEditors(registry);
 				}
 				catch (BeanCreationException ex) {
@@ -1371,6 +1382,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 		if (!this.customEditors.isEmpty()) {
+			// TODO 注册一遍PropertyEditors类型的自定义属性编辑器
 			this.customEditors.forEach((requiredType, editorClass) ->
 					registry.registerCustomEditor(requiredType, BeanUtils.instantiateClass(editorClass)));
 		}
@@ -1973,7 +1985,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
-		// TODO 判断一下要得到的bean是否是工厂类(工厂类的名字前会加上'&'表示其为spring管理的一个引用, 而非bean)
+		// TODO 判断一下要得到的bean是否为工厂类(工厂类的名字前会加上'&'表示其为spring管理的一个引用, 而非bean)
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			// TODO 是工厂类的情况时, 即名字以'&'开头时, 处理一下bean实例
 			if (beanInstance instanceof NullBean) {
@@ -1981,21 +1993,24 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				return beanInstance;
 			}
 			if (!(beanInstance instanceof FactoryBean)) {
-				// TODO 如果不是FactoryBean, 则抛出异常
+				// TODO bean实例不是FactoryBean, 则抛出异常
 				throw new BeanIsNotAFactoryException(beanName, beanInstance.getClass());
 			}
 			if (mbd != null) {
 				// TODO 如果传入了合并了双亲属性的bd, 此bd也应该与实例保持一致, 变为工厂类
 				mbd.isFactoryBean = true;
 			}
+			// TODO bean实例本身即为要取得的工厂类, 即getBean("&xxx")取得的是beanFactory
 			return beanInstance;
 		}
 
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
+		// TODO 能走到这, 就表示要得到的bean并不是工厂类, 这时就要从bean实例中取得对象. 这时bean实例有可能是一个普通的bean,
+		//  也有可能是一个工厂类
 		if (!(beanInstance instanceof FactoryBean)) {
-			// TODO 到这时表示要得到的bean并不是由'&'开头的工厂类, 这时bean实例可以不是FactoryBean类型, 即普通的bean时直接返回
+			// TODO bean实例是普通类时, 直接返回实例本身
 			return beanInstance;
 		}
 		// TODO 走到这就表示要得到的bean不是'&'开头的工厂类, 但其实例是一个工厂类, 下面就开始处理实例. 先创建一个工厂类
