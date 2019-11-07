@@ -515,7 +515,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//  InstantiationAwareBeanPostProcessors实例，都会在此处生效，进行前置处理
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
-				// TODO 如果返回的是代理对象, 则创建结束, 直接返回
+				// TODO 短路操作, 如果返回的是代理对象, 则创建结束, 直接返回
 				return bean;
 			}
 		}
@@ -575,22 +575,24 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		final Object bean = instanceWrapper.getWrappedInstance();
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
-			// TODO bean实例的类型不是NullBean时, 将实例类型设置为确定的类型, 放到合并后的bd的resolvedTargetType属性中
+			// TODO bean实例的类型不是NullBean时, 将其做为解析后的目标类型, 放到合并后的bd的resolvedTargetType属性中
 			mbd.resolvedTargetType = beanType;
 		}
 
 		// Allow post-processors to modify the merged bean definition.
 		synchronized (mbd.postProcessingLock) {
+			// TODO 判断mbd是否被MergedBeanDefinitionPostProcessor类型的后处理器处理过
 			if (!mbd.postProcessed) {
 				try {
-					// TODO 对于没应用过后处理器的bean, 使用后处理器进行处理
+					// TODO 没被处理过, 就用MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition()方法
+					//  对bean进行处理, 经过这里后, 自动注入, 生命周期等注解的方法或字段会被放入缓存, 后面填充属性时就可以使用了
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
 					throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 							"Post-processing of merged bean definition failed", ex);
 				}
-				// TODO 应用后处理器后标识为已处理
+				// TODO 处理完成后, 标识为已处理
 				mbd.postProcessed = true;
 			}
 		}
@@ -632,6 +634,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		if (earlySingletonExposure) {
+			// TODO 支持提前暴露时, 拿出对应的单例bean
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
 				if (exposedObject == bean) {
@@ -1168,6 +1171,25 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
 		for (BeanPostProcessor bp : getBeanPostProcessors()) {
 			if (bp instanceof MergedBeanDefinitionPostProcessor) {
+				// TODO 迭代所有实现了MergedBeanDefinitionPostProcessor接口的后处理器(此接口是个回调接口)的postProcessMergedBeanDefinition()
+				//  方法(此方法提供了修改合并后的bd的属性, 缓存元数据信息的功能). MergedBeanDefinitionPostProcessor接口有以下实现:
+				//  1. ApplicationListenerDetector: 将每个mbd是否为单例缓存到singletonNames中. 此实现在容器初始化时, 由以下两个位置注册到容器中:
+				//     a. AbstractApplicationContext#prepareBeanFactory()方法中注册
+				//     b. AbstractApplicationContext#registerBeanPostProcessors()最后会为探测嵌套bean而再次注入一个到容器中
+				//  2. AutowiredAnnotationBeanPostProcessor: 提供自动装配功能, 处理被@Autowire, @Value, @Inject标注的字段或方法,
+				//     为其生成注入点信息并加入injectionMetadataCache缓存中用于后续自动注入处理. 此实现在AnnotationConfigApplicationContext
+				//     容器初始化时由AnnotatedBeanDefinitionReader创建
+				//  3. InitDestroyAnnotationBeanPostProcessor: 处理bean的生命周期, 对于指定的注解(比如@PostConstruct, 或@PreDestroy)
+				//     进行处理, 如果想自定义一些处理bean生命周期的处理器, 可以使用这个为基类. 其本身没有被Spring实例化, 用的都是其
+				//     子类, 比如下面的CommonAnnotationBeanPostProcessor
+				//  4. CommonAnnotationBeanPostProcessor: InitDestroyAnnotationBeanPostProcessor的子类, 除了设置了处理
+				//     生命周期所支持的注解@PostConstruct和@PreDestroy, 还支持@Resource注解, 以及对@EJB, @WebServiceRef的支持.
+				//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
+				//  5. JmsListenerAnnotationBeanPostProcessor: 什么都没做
+				//  6. PersistenceAnnotationBeanPostProcessor: 处理持久化相关功能(@PersistenceContext和@PersistenceUnit注解),
+				//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
+				//  7. RequiredAnnotationBeanPostProcessor: 已被废弃
+				//  8. ScheduledAnnotationBeanPostProcessor: 什么都没做
 				MergedBeanDefinitionPostProcessor bdp = (MergedBeanDefinitionPostProcessor) bp;
 				bdp.postProcessMergedBeanDefinition(mbd, beanType, beanName);
 			}
@@ -1272,12 +1294,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// TODO 回调函数, 此函数返回一个Supplier, 通过此Supplier创建bean对象
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
-			// TODO 最终返回由obtainFromSupplier包装的BeanWrapper
+			// TODO 如果设置了mbd中的supplier属性, 从supplier中取得实例并包装为BeanWrapper返回
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
 		if (mbd.getFactoryMethodName() != null) {
-			// TODO 有工厂方法时, 用工厂方法进行实例化
+			// TODO 设置了工厂方法时, 用工厂方法进行实例化并返回
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
 

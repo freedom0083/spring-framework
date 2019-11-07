@@ -92,8 +92,10 @@ public class InjectionMetadata {
 	public void checkConfigMembers(RootBeanDefinition beanDefinition) {
 		Set<InjectedElement> checkedElements = new LinkedHashSet<>(this.injectedElements.size());
 		for (InjectedElement element : this.injectedElements) {
+			// TODO 遍历所有被注入的元素, 取得其中的字段或方法
 			Member member = element.getMember();
 			if (!beanDefinition.isExternallyManagedConfigMember(member)) {
+				// TODO 如果不是外部管理的字段或方法, 注册到bd中, 然后加入到已检测元素的集合中
 				beanDefinition.registerExternallyManagedConfigMember(member);
 				checkedElements.add(element);
 				if (logger.isTraceEnabled()) {

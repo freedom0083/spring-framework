@@ -67,16 +67,20 @@ public final class BridgeMethodResolver {
 	 */
 	public static Method findBridgedMethod(Method bridgeMethod) {
 		if (!bridgeMethod.isBridge()) {
+			// TODO 不处理非桥接方法, 直接返回
 			return bridgeMethod;
 		}
+		// TODO 先取缓存, 取到后直接返回
 		Method bridgedMethod = cache.get(bridgeMethod);
 		if (bridgedMethod == null) {
 			// Gather all methods with matching name and parameter size.
 			List<Method> candidateMethods = new ArrayList<>();
+			// TODO 没取到时, 先拿到所有的桥接方法放到缓存中
 			MethodFilter filter = candidateMethod ->
 					isBridgedCandidateFor(candidateMethod, bridgeMethod);
 			ReflectionUtils.doWithMethods(bridgeMethod.getDeclaringClass(), candidateMethods::add, filter);
 			if (!candidateMethods.isEmpty()) {
+				// TODO 然后定位到唯一的方法
 				bridgedMethod = candidateMethods.size() == 1 ?
 						candidateMethods.get(0) :
 						searchCandidates(candidateMethods, bridgeMethod);
@@ -84,8 +88,10 @@ public final class BridgeMethodResolver {
 			if (bridgedMethod == null) {
 				// A bridge method was passed in but we couldn't find the bridged method.
 				// Let's proceed with the passed-in method and hope for the best...
+				// TODO 找不到, 就把传入的方法当做桥接方法
 				bridgedMethod = bridgeMethod;
 			}
+			// TODO 放入缓存, 然后返回
 			cache.put(bridgeMethod, bridgedMethod);
 		}
 		return bridgedMethod;

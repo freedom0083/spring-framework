@@ -68,8 +68,10 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
 		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
 		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
-		//  2. AutowiredAnnotationBeanPostProcessor: 自动
-		//  3. CommonAnnotationBeanPostProcessor:
+		//  2. AutowiredAnnotationBeanPostProcessor: 继承自InstantiationAwareBeanPostProcessorAdapter, 同时实现了
+		//     MergedBeanDefinitionPostProcessor接口(用于自动装配, 可以处理@Autowire, @Value, 以及JSR-330中的@Inject)
+		//  3. CommonAnnotationBeanPostProcessor: 提供生命周期管理(@PostConstruct, @PreDestroy), 以及其他通用处理(@WebServiceRef
+		//     @EJB, @Resource)
 		//  4. PersistenceAnnotationBeanPostProcessor:
 		//  5. EventListenerMethodProcessor:
 		//  6. DefaultEventListenerFactory:

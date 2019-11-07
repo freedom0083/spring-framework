@@ -307,8 +307,11 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// TODO 先对生命周期进行了处理, 设置了@PostConstruct, @PreDestroy
 		super.postProcessMergedBeanDefinition(beanDefinition, beanType, beanName);
+		// TODO 然后取得所有资源相对的元数据
 		InjectionMetadata metadata = findResourceMetadata(beanName, beanType, null);
+		// TODO 将非外部管理的元素加入缓存
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
@@ -369,7 +372,12 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	}
 
 	private InjectionMetadata buildResourceMetadata(final Class<?> clazz) {
+		// TODO 验证一下是否为注解的侯选类, 验证逻辑是:
+		//  false: bean是"java."开头, 或者是Ordered类型
+		//  true: 1. 注解类型是以"java."开头的
+		//        2. 其他false情况
 		if (!AnnotationUtils.isCandidateClass(clazz, resourceAnnotationTypes)) {
+			// TODO bean是"java."开头, 或者是Ordered类型时, 不做注入处理, 返回empty
 			return InjectionMetadata.EMPTY;
 		}
 
@@ -377,58 +385,74 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		Class<?> targetClass = clazz;
 
 		do {
+			// TODO 开始遍历bean的类型, 这里记录所有的注入元素信息
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
-
+			// TODO 开始处理目标类(bean)的字段
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
+				// TODO 取得字段上的注解(@WebServiceRef)
 				if (webServiceRefClass != null && field.isAnnotationPresent(webServiceRefClass)) {
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@WebServiceRef annotation is not supported on static fields");
 					}
+					// TODO 为需要自动注入的字段创建一个WebServiceRefElement对象, 并加入到集合中
 					currElements.add(new WebServiceRefElement(field, field, null));
 				}
+				// TODO 取得字段上的注解(@EJB)
 				else if (ejbRefClass != null && field.isAnnotationPresent(ejbRefClass)) {
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@EJB annotation is not supported on static fields");
 					}
+					// TODO 为需要自动注入的字段创建一个EjbRefElement对象, 并加入到集合中
 					currElements.add(new EjbRefElement(field, field, null));
 				}
+				// TODO 取得字段上的注解(@Resource注解)
 				else if (field.isAnnotationPresent(Resource.class)) {
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@Resource annotation is not supported on static fields");
 					}
 					if (!this.ignoredResourceTypes.contains(field.getType().getName())) {
+						// TODO 除去忽略的类型包, 为需要自动注入的字段创建一个ResourceElement对象, 并加入到集合中
 						currElements.add(new ResourceElement(field, field, null));
 					}
 				}
 			});
-
+			// TODO 开始处理目标类(bean)的方法
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+				// TODO 取得桥接方法(用于支持一些过时的方法)
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
 					return;
 				}
+				// TODO 看一下bean中是否有要处理的方法
 				if (method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
 					if (webServiceRefClass != null && bridgedMethod.isAnnotationPresent(webServiceRefClass)) {
+						// TODO 处理@WebServiceRef注解, 其标注的方法不能是静态的, 参数也必须是1个, 否则会抛异常
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@WebServiceRef annotation is not supported on static methods");
 						}
 						if (method.getParameterCount() != 1) {
 							throw new IllegalStateException("@WebServiceRef annotation requires a single-arg method: " + method);
 						}
+						// TODO 取得方法的属性
 						PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+						// TODO 为需要自动注入的字段创建一个WebServiceRefElement对象, 并加入到集合中
 						currElements.add(new WebServiceRefElement(method, bridgedMethod, pd));
 					}
 					else if (ejbRefClass != null && bridgedMethod.isAnnotationPresent(ejbRefClass)) {
+						// TODO 处理@EJB注解, 其标注的方法不能是静态的, 参数也必须是1个, 否则会抛异常
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@EJB annotation is not supported on static methods");
 						}
 						if (method.getParameterCount() != 1) {
 							throw new IllegalStateException("@EJB annotation requires a single-arg method: " + method);
 						}
+						// TODO 取得方法的属性
 						PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+						// TODO 为需要自动注入的字段创建一个EjbRefElement对象, 并加入到集合中
 						currElements.add(new EjbRefElement(method, bridgedMethod, pd));
 					}
 					else if (bridgedMethod.isAnnotationPresent(Resource.class)) {
+						// TODO 处理@Resource注解, 其标注的方法不能是静态的, 参数也必须是1个, 否则会抛异常
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@Resource annotation is not supported on static methods");
 						}
@@ -437,7 +461,9 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 							throw new IllegalStateException("@Resource annotation requires a single-arg method: " + method);
 						}
 						if (!this.ignoredResourceTypes.contains(paramTypes[0].getName())) {
+							// TODO 跳过忽略的类型, 取得方法的属性
 							PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+							// TODO 为需要自动注入的字段创建一个ResourceElement对象, 并加入到集合中
 							currElements.add(new ResourceElement(method, bridgedMethod, pd));
 						}
 					}
@@ -445,10 +471,11 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			});
 
 			elements.addAll(0, currElements);
+			// TODO 继续深入父类
 			targetClass = targetClass.getSuperclass();
 		}
 		while (targetClass != null && targetClass != Object.class);
-
+		// TODO 返回注入的元数据信息
 		return InjectionMetadata.forElements(elements, clazz);
 	}
 

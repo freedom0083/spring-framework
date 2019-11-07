@@ -44,6 +44,8 @@ public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
 	 * @param beanName the name of the bean
 	 * @see AbstractAutowireCapableBeanFactory#applyMergedBeanDefinitionPostProcessors
 	 */
+	// TODO 此方法用于bean实例化完毕后, 可以用来修改合并后的mbd的属性, 或者用来给后续回调中缓存一些元数据信息使用
+	//  这个算是将合并后的mbd暴露出来的一个回调
 	void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName);
 
 	/**

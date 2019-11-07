@@ -333,7 +333,9 @@ public class PersistenceAnnotationBeanPostProcessor
 
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// TODO 取得所有持久化相关的元数据信息
 		InjectionMetadata metadata = findPersistenceMetadata(beanName, beanType, null);
+		// TODO 将非外部管理的元素加入缓存
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
@@ -398,14 +400,18 @@ public class PersistenceAnnotationBeanPostProcessor
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
 		// Quick check on the concurrent map first, with minimal locking.
+		// TODO 先从缓存拿注入点的元数据
 		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
 		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+			// TODO 当没有对应的注入点的元数据或注入点的元数据发生变化时, 同步更新
 			synchronized (this.injectionMetadataCache) {
 				metadata = this.injectionMetadataCache.get(cacheKey);
 				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
 					if (metadata != null) {
+						// TODO double check还是需要更新元数据时, 先清空之前的元数据内容(如果存在的话)
 						metadata.clear(pvs);
 					}
+					// TODO 然后重新获取持久化相关的元数据, 并放到缓存中
 					metadata = buildPersistenceMetadata(clazz);
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
@@ -415,7 +421,12 @@ public class PersistenceAnnotationBeanPostProcessor
 	}
 
 	private InjectionMetadata buildPersistenceMetadata(final Class<?> clazz) {
+		// TODO 验证一下是否为注解的侯选类, 验证逻辑是:
+		//  false: bean是"java."开头, 或者是Ordered类型
+		//  true: 1. 注解类型是以"java."开头的
+		//        2. 其他false情况
 		if (!AnnotationUtils.isCandidateClass(clazz, Arrays.asList(PersistenceContext.class, PersistenceUnit.class))) {
+			// TODO bean是"java."开头, 或者是Ordered类型时, 不做注入处理, 返回empty
 			return InjectionMetadata.EMPTY;
 		}
 
@@ -424,17 +435,19 @@ public class PersistenceAnnotationBeanPostProcessor
 
 		do {
 			final LinkedList<InjectionMetadata.InjectedElement> currElements = new LinkedList<>();
-
+			// TODO 开始处理目标类(bean)的字段
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
 				if (field.isAnnotationPresent(PersistenceContext.class) ||
 						field.isAnnotationPresent(PersistenceUnit.class)) {
+					// TODO 取得字段上@PersistenceContext和@PersistenceUnit注解, 静态字段无法注入, 抛出异常
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("Persistence annotations are not supported on static fields");
 					}
+					// TODO 为需要自动注入的字段创建一个PersistenceElement对象, 并加入到集合中
 					currElements.add(new PersistenceElement(field, field, null));
 				}
 			});
-
+			// TODO 开始处理目标类(bean)的方法
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
@@ -443,22 +456,26 @@ public class PersistenceAnnotationBeanPostProcessor
 				if ((bridgedMethod.isAnnotationPresent(PersistenceContext.class) ||
 						bridgedMethod.isAnnotationPresent(PersistenceUnit.class)) &&
 						method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
+					// TODO 取得桥接方法上@PersistenceContext和@PersistenceUnit注解, 静态字段无法注入, 抛出异常, 参数不是1个也会抛出异常
 					if (Modifier.isStatic(method.getModifiers())) {
 						throw new IllegalStateException("Persistence annotations are not supported on static methods");
 					}
 					if (method.getParameterCount() != 1) {
 						throw new IllegalStateException("Persistence annotation requires a single-arg method: " + method);
 					}
+					// TODO 取得方法的属性
 					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+					// TODO 为需要自动注入的方法创建一个PersistenceElement对象, 并加入到集合中
 					currElements.add(new PersistenceElement(method, bridgedMethod, pd));
 				}
 			});
 
 			elements.addAll(0, currElements);
+			// TODO 继续深入父类
 			targetClass = targetClass.getSuperclass();
 		}
 		while (targetClass != null && targetClass != Object.class);
-
+		// TODO 返回注入的元数据信息
 		return InjectionMetadata.forElements(elements, clazz);
 	}
 

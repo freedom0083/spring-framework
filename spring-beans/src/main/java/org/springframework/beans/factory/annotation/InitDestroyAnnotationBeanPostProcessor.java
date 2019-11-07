@@ -146,7 +146,9 @@ public class InitDestroyAnnotationBeanPostProcessor
 
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// TODO 取得所有和生命周期相关的元数据
 		LifecycleMetadata metadata = findLifecycleMetadata(beanType);
+		// TODO 将非外部管理的元素加入缓存
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
@@ -199,14 +201,17 @@ public class InitDestroyAnnotationBeanPostProcessor
 	private LifecycleMetadata findLifecycleMetadata(Class<?> clazz) {
 		if (this.lifecycleMetadataCache == null) {
 			// Happens after deserialization, during destruction...
+			// TODO 缓存不存在, 为bean创建生命周期元数据并返回
 			return buildLifecycleMetadata(clazz);
 		}
 		// Quick check on the concurrent map first, with minimal locking.
+		// TODO 缓存中可以找到对应的bean的生命周期时, 直接返回
 		LifecycleMetadata metadata = this.lifecycleMetadataCache.get(clazz);
 		if (metadata == null) {
 			synchronized (this.lifecycleMetadataCache) {
 				metadata = this.lifecycleMetadataCache.get(clazz);
 				if (metadata == null) {
+					// TODO 如果找不到, double check一下, 还是没有, 则为bean创建生命周期元数据并加入到缓存后, 返回
 					metadata = buildLifecycleMetadata(clazz);
 					this.lifecycleMetadataCache.put(clazz, metadata);
 				}
@@ -217,7 +222,12 @@ public class InitDestroyAnnotationBeanPostProcessor
 	}
 
 	private LifecycleMetadata buildLifecycleMetadata(final Class<?> clazz) {
+		// TODO 验证一下是否为注解的侯选类, 验证逻辑是:
+		//  false: bean是"java."开头, 或者是Ordered类型
+		//  true: 1. 注解类型是以"java."开头的
+		//        2. 其他false情况
 		if (!AnnotationUtils.isCandidateClass(clazz, Arrays.asList(this.initAnnotationType, this.destroyAnnotationType))) {
+			// TODO bean是"java."开头, 或者是Ordered类型时, 不做注入处理, 返回empty
 			return this.emptyLifecycleMetadata;
 		}
 
@@ -226,11 +236,13 @@ public class InitDestroyAnnotationBeanPostProcessor
 		Class<?> targetClass = clazz;
 
 		do {
+			// TODO 开始遍历bean的类型, 这里记录所有的处理生命周期的方法, 包括初始化以及销毁方法
 			final List<LifecycleElement> currInitMethods = new ArrayList<>();
 			final List<LifecycleElement> currDestroyMethods = new ArrayList<>();
 
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
 				if (this.initAnnotationType != null && method.isAnnotationPresent(this.initAnnotationType)) {
+					// TODO 处理初始化注解, 并放到集合
 					LifecycleElement element = new LifecycleElement(method);
 					currInitMethods.add(element);
 					if (logger.isTraceEnabled()) {
@@ -238,6 +250,7 @@ public class InitDestroyAnnotationBeanPostProcessor
 					}
 				}
 				if (this.destroyAnnotationType != null && method.isAnnotationPresent(this.destroyAnnotationType)) {
+					// TODO 处理销毁注解, 并放到集合
 					currDestroyMethods.add(new LifecycleElement(method));
 					if (logger.isTraceEnabled()) {
 						logger.trace("Found destroy method on class [" + clazz.getName() + "]: " + method);
@@ -247,10 +260,11 @@ public class InitDestroyAnnotationBeanPostProcessor
 
 			initMethods.addAll(0, currInitMethods);
 			destroyMethods.addAll(currDestroyMethods);
+			// TODO 继续深入父类
 			targetClass = targetClass.getSuperclass();
 		}
 		while (targetClass != null && targetClass != Object.class);
-
+		// TODO 返回注入方法的元数据信息
 		return (initMethods.isEmpty() && destroyMethods.isEmpty() ? this.emptyLifecycleMetadata :
 				new LifecycleMetadata(clazz, initMethods, destroyMethods));
 	}

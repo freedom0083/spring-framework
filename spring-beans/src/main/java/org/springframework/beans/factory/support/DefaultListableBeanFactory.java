@@ -1209,21 +1209,26 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// TODO 取得当前容器里方法参数名的解析策略, 然后设置到依赖注入项中(这个依赖注入项可能是工厂方法的参数)
 		descriptor.initParameterNameDiscovery(getParameterNameDiscoverer());
 		if (Optional.class == descriptor.getDependencyType()) {
-			// TODO 被包装的参数或字段类型是Optional类型时, 创建并返回一个Optional类型的依赖,
+			// TODO 如果依赖注入项(被包装的参数或字段类型)是Optional类型, 创建并返回一个Optional类型的依赖,
 			//  比如: private Optional<GenericBean<Object, Object>> objectGenericBean; 类型会变为Optional[GenericBean(t=obj1, w=2)]
 			return createOptionalDependency(descriptor, requestingBeanName);
 		}
 		else if (ObjectFactory.class == descriptor.getDependencyType() ||
 				ObjectProvider.class == descriptor.getDependencyType()) {
-			// TODO 被包装的参数或字段类型是ObjectFactory或ObjectProvider类型时(Spring4.3提供的接口, 工厂类型), 创建一个DependencyObjectProvider对象返回
+			// TODO 如果依赖注入项(被包装的参数或字段类型)是ObjectFactory或ObjectProvider类型时(Spring4.3提供的接口, 工厂类型),
+			//  创建一个DependencyObjectProvider对象返回
 			return new DependencyObjectProvider(descriptor, requestingBeanName);
 		}
 		else if (javaxInjectProviderClass == descriptor.getDependencyType()) {
-			// TODO 被包装的参数或字段类型是JSR330的情况, 用JSR330创建一个Provider并返回
+			// TODO 如果依赖注入项(被包装的参数或字段类型)是JSR330的情况, 用JSR330创建一个Provider并返回
 			return new Jsr330Factory().createDependencyProvider(descriptor, requestingBeanName);
 		}
 		else {
-			// TODO 其他情况会根据依赖注入项是否包含@Lazy来做不同的处理(getLazyResolutionProxyIfNecessary()方法):
+			// TODO 其他情况会根据解析器的不同进行不同的处理:
+			//  1. SimpleAutowireCandidateResolver: 默认解析器, 什么都不做, 返回null; 实际上AutowireCandidateResolver接口已经将
+			//     getLazyResolutionProxyIfNecessary()方法置为默认方法(Java 8新特性), 直接返回null. 这个实现类是2.5加入的
+			//  2. ContextAnnotationAutowireCandidateResolver:
+			//  依赖注入项是否包含@Lazy来做不同的处理(getLazyResolutionProxyIfNecessary()方法):
 			//  1. 包含@Lazy: 表示是一个懒加载, 返回的是一个代理对象
 			//  2. 不包含@Lazy: 返回null
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
@@ -1753,7 +1758,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 */
 	private Optional<?> createOptionalDependency(
 			DependencyDescriptor descriptor, @Nullable String beanName, final Object... args) {
-		// TODO Optional类型用于包装其他类型, 所以这里变更为一个可以处理嵌套类的NestedDependencyDescriptor依赖项
+		// TODO Optional类型用于包装其他类型, 将依赖注入项包装为处理嵌套类的NestedDependencyDescriptor
 		DependencyDescriptor descriptorToUse = new NestedDependencyDescriptor(descriptor) {
 			@Override
 			public boolean isRequired() {
@@ -1764,7 +1769,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			public Object resolveCandidate(String beanName, Class<?> requiredType, BeanFactory beanFactory) {
 				// TODO 当有参数时, 从容器中取得指定类型参数的依赖项
 				return (!ObjectUtils.isEmpty(args) ? beanFactory.getBean(beanName, args) :
-						// TODO 没有参数时, 直接从容器中取得依赖项
+						// TODO 没有参数时, 调用父类的方法, 直接从容器中取得依赖项
 						super.resolveCandidate(beanName, requiredType, beanFactory));
 			}
 		};
@@ -1896,6 +1901,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		private final String beanName;
 
 		public DependencyObjectProvider(DependencyDescriptor descriptor, @Nullable String beanName) {
+			// TODO 将依赖注入项包装为NestedDependencyDescriptor类型
 			this.descriptor = new NestedDependencyDescriptor(descriptor);
 			this.optional = (this.descriptor.getDependencyType() == Optional.class);
 			this.beanName = beanName;

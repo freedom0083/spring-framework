@@ -95,13 +95,12 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
 		if (factory.isSingleton() && containsSingleton(beanName)) {
-			// TODO 工厂类是单例, 并且要找的bean已经存在于singletonObjects缓存中时, 获取bean的动作需要对
-			//  singletonObjects进行加锁来保证线程安全问题
+			// TODO 工厂类是单例, 并且要找的bean已经存在于singletonObjects缓存中时, 获取bean的动作需要对singletonObjects进行加锁来保证线程安全问题
 			synchronized (getSingletonMutex()) {
 				// TODO 首先从factoryBeanObjectCache缓存取得对应的bean, 如果得到直接返回
 				Object object = this.factoryBeanObjectCache.get(beanName);
 				if (object == null) {
-					// TODO 如果没有取到, 就通过getObject()从工厂类中取
+					// TODO 如果没有取到, 就通过getObject()从工厂类中取, 这里就是前面说的不加'&'时, 实际是取出的FactoryBean内的对象
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
 					// (e.g. because of circular reference processing triggered by custom getBean calls)
@@ -126,7 +125,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 								// TODO 对取得的原始bean对象进行后处理
 								//  1. 默认实现: 不做任何处理, 直接返回原始bean对象
 								//  2. AbstractAutowireCapableBeanFactory实现: 挨个调用BeanPostProcessor.postProcessAfterInitialization()
-								//     对原始bean进行处理并返回加工后的bean对象
+								//     在原始bean初始化后进行处理并返回加工后的bean对象(实现自动注入等功能)
 								object = postProcessObjectFromFactoryBean(object, beanName);
 							}
 							catch (Throwable ex) {
@@ -150,7 +149,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 			}
 		}
 		else {
-			// TODO 工厂类是非单例, 或要找的bean不在singletonObjects缓存中时, 就直接从工厂类中拿原始bean对象
+			// TODO 工厂类不是单例, 或要找的bean不在singletonObjects缓存中时, 就直接从工厂类中拿原始bean对象
 			Object object = doGetObjectFromFactoryBean(factory, beanName);
 			if (shouldPostProcess) {
 				try {

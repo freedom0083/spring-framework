@@ -159,6 +159,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 */
 	@SuppressWarnings("unchecked")
 	public AutowiredAnnotationBeanPostProcessor() {
+		// TODO 标识可以解析的注解, 分别是@Autowired, @Value, 以及JSR-330中的@Inject
 		this.autowiredAnnotationTypes.add(Autowired.class);
 		this.autowiredAnnotationTypes.add(Value.class);
 		try {
@@ -241,7 +242,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// TODO 取得所有自动注入相关的元数据信息
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, beanType, null);
+		// TODO 将非外部管理的元素加入缓存
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
@@ -439,14 +442,18 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
 		// Quick check on the concurrent map first, with minimal locking.
+		// TODO 先从缓存拿注入点的元数据
 		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
 		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+			// TODO 当没有对应的注入点的元数据或注入点的元数据发生变化时, 同步更新
 			synchronized (this.injectionMetadataCache) {
 				metadata = this.injectionMetadataCache.get(cacheKey);
 				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+					// TODO double check还是需要更新元数据时, 先清空之前的元数据内容(如果存在的话)
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
+					// TODO 然后重新获取自动注入相关的元数据, 并放到缓存中
 					metadata = buildAutowiringMetadata(clazz);
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
@@ -456,7 +463,12 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	}
 
 	private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
+		// TODO 验证一下是否为注解的侯选类, 验证逻辑是:
+		//  false: bean是"java."开头, 或者是Ordered类型
+		//  true: 1. 注解类型是以"java."开头的
+		//        2. 其他false情况
 		if (!AnnotationUtils.isCandidateClass(clazz, this.autowiredAnnotationTypes)) {
+			// TODO bean是"java."开头, 或者是Ordered类型时, 不做注入处理, 返回empty
 			return InjectionMetadata.EMPTY;
 		}
 
@@ -464,61 +476,77 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		Class<?> targetClass = clazz;
 
 		do {
+			// TODO 开始遍历目标对象(创建bean时为bean的类型), 这里记录所有的注入元素信息
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
-
+			// TODO 开始处理目标类(bean)的字段
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
+				// TODO 取得字段上的注解(默认的是@Autowire, @Value, @Inject)
 				MergedAnnotation<?> ann = findAutowiredAnnotation(field);
 				if (ann != null) {
+					// TODO 字段包含@Autowire, @Value, @Inject注解时, 表示需要对其进行自动注入
 					if (Modifier.isStatic(field.getModifiers())) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static fields: " + field);
 						}
+						// TODO 静态字段无法注入, 直接返回
 						return;
 					}
+					// TODO 取得字段上注解的required属性
 					boolean required = determineRequiredStatus(ann);
+					// TODO 用需要自动注入的字段, 及其注解的required属性一起包装成AutowiredFieldElement对象放入集合
 					currElements.add(new AutowiredFieldElement(field, required));
 				}
 			});
-
+			// TODO 开始处理目标类(bean)的方法
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+				// TODO 取得桥接方法(用于非泛型方法)
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
 					return;
 				}
+				// TODO 从桥接方法上取得注解(默认的是@Autowire, @Value, @Inject)
 				MergedAnnotation<?> ann = findAutowiredAnnotation(bridgedMethod);
 				if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
 					if (Modifier.isStatic(method.getModifiers())) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static methods: " + method);
 						}
+						// TODO 静态方法无法注入, 直接返回
 						return;
 					}
 					if (method.getParameterCount() == 0) {
+						// TODO 要注入的方法没有参数时, 会报一个log
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation should only be used on methods with parameters: " +
 									method);
 						}
 					}
+					// TODO 取得方法上注解的required属性
 					boolean required = determineRequiredStatus(ann);
+					// TODO 取得桥接方法的属性
 					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+					// TODO 用需要自动注入的方法, 注解上的required属性, 以及桥接方法的属性一起包装成AutowiredFieldElement对象放入集合
 					currElements.add(new AutowiredMethodElement(method, required, pd));
 				}
 			});
 
 			elements.addAll(0, currElements);
+			// TODO 继续深入父类
 			targetClass = targetClass.getSuperclass();
 		}
 		while (targetClass != null && targetClass != Object.class);
-
+		// TODO 返回注入的元数据信息
 		return InjectionMetadata.forElements(elements, clazz);
 	}
 
 	@Nullable
 	private MergedAnnotation<?> findAutowiredAnnotation(AccessibleObject ao) {
+		// TODO 取得目标的所有注解集合
 		MergedAnnotations annotations = MergedAnnotations.from(ao);
 		for (Class<? extends Annotation> type : this.autowiredAnnotationTypes) {
 			MergedAnnotation<?> annotation = annotations.get(type);
 			if (annotation.isPresent()) {
+				// TODO 一但目标中包含@Autowire, @Value, @Inject时, 返回注解信息, 断路操作, 有一个满足就行
 				return annotation;
 			}
 		}
