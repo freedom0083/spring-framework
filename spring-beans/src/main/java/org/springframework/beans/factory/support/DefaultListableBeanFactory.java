@@ -1289,8 +1289,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 			}
 			// TODO @Value没有指定值时
-			//对数组、Collection、Map等类型进行处理，也是支持自动注入的。
-			//因为是数组或容器，Sprng可以直接把符合类型的bean都注入到数组或容器中，处理逻辑是：
+			// 对数组、Collection、Map等类型进行处理，也是支持自动注入的。
+			// 因为是数组或容器，Sprng可以直接把符合类型的bean都注入到数组或容器中，处理逻辑是：
 			//1.确定容器或数组的组件类型 if else 分别对待，分别处理
 			//2.调用findAutowireCandidates（核心方法）方法，获取与组件类型匹配的Map(beanName -> bean实例)
 			//3.将符合beanNames添加到autowiredBeanNames中
