@@ -1227,14 +1227,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// TODO 其他情况会根据解析器的不同进行不同的处理:
 			//  1. SimpleAutowireCandidateResolver: 默认解析器, 什么都不做, 返回null; 实际上AutowireCandidateResolver接口已经将
 			//     getLazyResolutionProxyIfNecessary()方法置为默认方法(Java 8新特性), 直接返回null. 这个实现类是2.5加入的
-			//  2. ContextAnnotationAutowireCandidateResolver:
-			//  依赖注入项是否包含@Lazy来做不同的处理(getLazyResolutionProxyIfNecessary()方法):
-			//  1. 包含@Lazy: 表示是一个懒加载, 返回的是一个代理对象
-			//  2. 不包含@Lazy: 返回null
+			//  2. ContextAnnotationAutowireCandidateResolver: 处理@Lazy注解, 如果字段或方法上包含@Lazy, 表示为一个懒加载, 返回
+			//     一个代理对象. 没有则返回null
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
 			if (result == null) {
-				// TODO 不包含@Lazy时, 开始解析依赖项
+				// TODO 不包含@Lazy时, 开始解析依赖注入项
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
 			return result;
@@ -1252,28 +1250,50 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				// TODO 依赖项是ShortcutDependencyDescriptor类型才能解析出值, 这时直接返回就好
 				return shortcut;
 			}
-
+			// TODO 取得依赖注入项的Class类型(字段或方法的类型)
 			Class<?> type = descriptor.getDependencyType();
+			// TODO AutowireCandidateResolver接口的默认方法getSuggestedValue()用来取得依赖注入项的值:
+			//  1. AutowireCandidateResolver: 提供了默认方法, 返回null
+			//  2. SimpleAutowireCandidateResolver: 是AutowireCandidateResolver接口的实现类, 返回null. Java 8后接口提供了默认
+			//     类特性, 实现类可以不再提供默认实现, 这里是为了向后兼容而保留
+			//  3. QualifierAnnotationAutowireCandidateResolver: 处理@Value注解, 取得其中值, 如果值为null, 再取Method的值
+			//     如果是@Value, 这里返回值肯定是String. @Autowired返回值可能会是对象
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
 			if (value != null) {
 				if (value instanceof String) {
+					// TODO 如果返回的是String类型, 表示其为@Value注解. 这里用StringValueResolver解析@Value中的占位符(${}).
+					//  这里有个要注意的地方, 当没有设置PlaceholderConfigurerSupport的子类时, Spring容器会提供一个支持解析非法字符
+					//  的StringValueResolver类型解析器. 遇到非法占位符时会原样输出.
+					//  * 但是如果手动指定过PlaceholderConfigurerSupport的子类, 并且没有设置明确设置支持非法占位符时, 遇到非法占位
+					//    符时, 会抛出异常. Spring Boot环境下添加的就是不支持非法占位符的PlaceholderConfigurerSupport
 					String strVal = resolveEmbeddedValue((String) value);
+					// TODO 要取得的bean存在于容器中时, 取得bean对应的RootBeanDefinition(有双亲时, 会合并双亲的属性)
 					BeanDefinition bd = (beanName != null && containsBean(beanName) ?
 							getMergedBeanDefinition(beanName) : null);
+					// TODO 上面解析了@Value中的占位符, 解析结果可能是一个字面量, 或SpEL表达式, 或Resource等, 这时再用
+					//  StandardBeanExpressionResolver处理SpEL, 或Resources等非字面量的情况
 					value = evaluateBeanDefinitionString(strVal, bd);
 				}
+				// TODO 取得转换器, 没有自定义转换器时, 此处为SimpleTypeConverter
 				TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
 				try {
+					// TODO 将解析结果转换为依赖注入项所指定的类型
 					return converter.convertIfNecessary(value, type, descriptor.getTypeDescriptor());
 				}
 				catch (UnsupportedOperationException ex) {
 					// A custom TypeConverter which does not support TypeDescriptor resolution...
+					// TODO 转换失败时, 转换为依赖注入项的字段或方法参数的类型
 					return (descriptor.getField() != null ?
 							converter.convertIfNecessary(value, type, descriptor.getField()) :
 							converter.convertIfNecessary(value, type, descriptor.getMethodParameter()));
 				}
 			}
-
+			// TODO @Value没有指定值时
+			//对数组、Collection、Map等类型进行处理，也是支持自动注入的。
+			//因为是数组或容器，Sprng可以直接把符合类型的bean都注入到数组或容器中，处理逻辑是：
+			//1.确定容器或数组的组件类型 if else 分别对待，分别处理
+			//2.调用findAutowireCandidates（核心方法）方法，获取与组件类型匹配的Map(beanName -> bean实例)
+			//3.将符合beanNames添加到autowiredBeanNames中
 			Object multipleBeans = resolveMultipleBeans(descriptor, beanName, autowiredBeanNames, typeConverter);
 			if (multipleBeans != null) {
 				return multipleBeans;

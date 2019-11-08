@@ -132,14 +132,15 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 
 	@Override
 	@Nullable
+	// TODO 解析复杂类型的value, BeanExpressionContext持有当前容器和bean的scope
 	public Object evaluate(@Nullable String value, BeanExpressionContext evalContext) throws BeansException {
 		if (!StringUtils.hasLength(value)) {
 			return value;
 		}
 		try {
-			// TODO 从表达式缓存中取出要分析的值value的Expression表达式,
-			//  Expression是经过解析后的字符串表达式的形式表示. 通过expressionInstance.getValue方法可以获取表示式的值,
-			//  也可以通过调用getValue(EvaluationContext)从评估(evaluation)上下文中获取表达式对于当前上下文的值
+			// TODO 从表达式缓存中取出要分析的值value的Expression表达式, Expression是经过解析后的字符串表达式的形式表示.
+			//  通过expressionInstance.getValue方法可以获取表示式的值, 也可以通过调用getValue(EvaluationContext)从评估(evaluation)
+			//  上下文中获取表达式对于当前上下文的值
 			Expression expr = this.expressionCache.get(value);
 			if (expr == null) {
 				// TODO expressionCache缓存中没有对应的Expression时, 表示之前并没有解析过这个表达式(首次解析),

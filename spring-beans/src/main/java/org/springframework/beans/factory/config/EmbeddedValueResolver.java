@@ -51,8 +51,10 @@ public class EmbeddedValueResolver implements StringValueResolver {
 	@Override
 	@Nullable
 	public String resolveStringValue(String strVal) {
+		// TODO 用BeanExpressionContext持有的容器解析值
 		String value = this.exprContext.getBeanFactory().resolveEmbeddedValue(strVal);
 		if (this.exprResolver != null && value != null) {
+			// TODO 如果有表达式解析器, 可以进一步解析内部的SpEL表达式
 			Object evaluated = this.exprResolver.evaluate(value, this.exprContext);
 			value = (evaluated != null ? evaluated.toString() : null);
 		}

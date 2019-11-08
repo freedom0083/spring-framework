@@ -300,6 +300,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			this.resourceFactory = beanFactory;
 		}
 		if (beanFactory instanceof ConfigurableBeanFactory) {
+			// TODO 容器是ConfigurableBeanFactory(配置容器)时, 添加值解析器
 			this.embeddedValueResolver = new EmbeddedValueResolver((ConfigurableBeanFactory) beanFactory);
 		}
 	}

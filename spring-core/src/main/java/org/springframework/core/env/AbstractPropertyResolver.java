@@ -197,6 +197,7 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 	@Override
 	public String resolvePlaceholders(String text) {
 		if (this.nonStrictHelper == null) {
+			// TODO 如果没有PropertyPlaceholderHelper, 这边会创建一个可以忽略非法占位符的对象(解析失败时会原样输出)
 			this.nonStrictHelper = createPlaceholderHelper(true);
 		}
 		return doResolvePlaceholders(text, this.nonStrictHelper);
@@ -205,6 +206,7 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 	@Override
 	public String resolveRequiredPlaceholders(String text) throws IllegalArgumentException {
 		if (this.strictHelper == null) {
+			// TODO 如果没有PropertyPlaceholderHelper, 这边会创建一个不能忽略非法占位符的对象(解析失败时会抛出异常)
 			this.strictHelper = createPlaceholderHelper(false);
 		}
 		return doResolvePlaceholders(text, this.strictHelper);

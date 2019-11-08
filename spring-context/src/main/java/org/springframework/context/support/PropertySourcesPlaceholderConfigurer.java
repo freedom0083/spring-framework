@@ -168,7 +168,9 @@ public class PropertySourcesPlaceholderConfigurer extends PlaceholderConfigurerS
 		propertyResolver.setPlaceholderPrefix(this.placeholderPrefix);
 		propertyResolver.setPlaceholderSuffix(this.placeholderSuffix);
 		propertyResolver.setValueSeparator(this.valueSeparator);
-
+		// TODO 这里会根据ignoreUnresolvablePlaceholders的值来确定解析器是否支持非法占位符. 默认是不支持, 所以如果手动配置过
+		//  PropertyPlaceholderConfigurer或PropertySourcesPlaceholderConfigurer, 并且ignoreUnresolvablePlaceholders没有设置为true时,
+		//  当遇到非法占位符时, 会抛出异常
 		StringValueResolver valueResolver = strVal -> {
 			String resolved = (this.ignoreUnresolvablePlaceholders ?
 					propertyResolver.resolvePlaceholders(strVal) :

@@ -42,6 +42,7 @@ public interface BeanExpressionResolver {
 	 * @throws BeansException if evaluation failed
 	 */
 	@Nullable
+	// TODO 解析复杂类型的value, BeanExpressionContext持有当前容器和bean的scope
 	Object evaluate(@Nullable String value, BeanExpressionContext evalContext) throws BeansException;
 
 }

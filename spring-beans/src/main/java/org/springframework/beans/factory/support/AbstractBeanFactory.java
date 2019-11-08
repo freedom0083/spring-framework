@@ -485,12 +485,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Override
+	// TODO 判断容器中是否包含指定bean
 	public boolean containsBean(String name) {
 		String beanName = transformedBeanName(name);
 		if (containsSingleton(beanName) || containsBeanDefinition(beanName)) {
+			// TODO 如果存在于当前容器中(单例缓存, 或注册中心中), 工厂类, 或者非工厂引用都算存在
 			return (!BeanFactoryUtils.isFactoryDereference(name) || isFactoryBean(name));
 		}
 		// Not found -> check parent.
+		// TODO 当前容器没有, 则向上找父容器
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		return (parentBeanFactory != null && parentBeanFactory.containsBean(originalBeanName(name)));
 	}
@@ -998,6 +1001,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Override
+	// TODO 增加Value解析器, 有两个地方会调用这个方法添加解析器:
+	//  1. AbstractApplicationContext#finishBeanFactoryInitialization(): 容器初始化时
+	//  2. PropertyPlaceholderConfigurer#processProperties():
 	public void addEmbeddedValueResolver(StringValueResolver valueResolver) {
 		Assert.notNull(valueResolver, "StringValueResolver must not be null");
 		this.embeddedValueResolvers.add(valueResolver);
@@ -1016,6 +1022,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 		String result = value;
 		for (StringValueResolver resolver : this.embeddedValueResolvers) {
+			// TODO 用注册的实现了StringValueResolver接口的解析器挨个儿解析传入的值, 以下实现类实现了解析方法:
+			//  1. EmbeddedValueResolver: 用于解析@Value注解的值, 当配置了表达式解析器时, 还可以解析SpEL表达式
+			//  2. PropertyPlaceholderConfigurer$PlaceholderResolvingStringValueResolver: 用PropertyPlaceholderHelper提供的
+			//     实现处理值, 这里会替换掉${}
+			//  3. PropertyPlaceholderConfigurer#processProperties(): 传入的是一个Lambda表达式, 如果手动配置了PropertyPlaceholderConfigurer
+			//     或PropertySourcesPlaceholderConfigurer, 并且ignoreUnresolvablePlaceholders没有设置为true时, 当遇到非法占位符时, 会抛出异常
+			//  4. AbstractApplicationContext#finishBeanFactoryInitialization(): 在容器初始化时, 如果容器发现没设置解析器,
+			//     则会提供一个默认的, 可以解析非法占位符的解析器(无法解析占位符时, 会原样输出)
 			result = resolver.resolveStringValue(result);
 			if (result == null) {
 				return null;

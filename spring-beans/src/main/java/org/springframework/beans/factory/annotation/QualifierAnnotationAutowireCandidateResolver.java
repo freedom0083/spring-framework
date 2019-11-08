@@ -60,7 +60,7 @@ import org.springframework.util.StringUtils;
 public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwareAutowireCandidateResolver {
 
 	private final Set<Class<? extends Annotation>> qualifierTypes = new LinkedHashSet<>(2);
-	// @Value注解
+	// TODO @Value注解
 	private Class<? extends Annotation> valueAnnotationType = Value.class;
 
 
@@ -356,11 +356,12 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	@Override
 	@Nullable
 	public Object getSuggestedValue(DependencyDescriptor descriptor) {
-		// TODO 先取得依赖项的所有注解, 然后取得其中的value值
+		// TODO 先取得依赖注入项的所有注解, 然后取得其中的@Value的值
 		Object value = findValue(descriptor.getAnnotations());
 		if (value == null) {
 			MethodParameter methodParam = descriptor.getMethodParameter();
 			if (methodParam != null) {
+				// TODO 没取得注解内的值时, 尝试从依赖注入项的方法的参数取得
 				value = findValue(methodParam.getMethodAnnotations());
 			}
 		}

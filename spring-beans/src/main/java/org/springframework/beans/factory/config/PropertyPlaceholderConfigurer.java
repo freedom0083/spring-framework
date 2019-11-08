@@ -227,6 +227,7 @@ public class PropertyPlaceholderConfigurer extends PlaceholderConfigurerSupport 
 		@Override
 		@Nullable
 		public String resolveStringValue(String strVal) throws BeansException {
+			// TODO 使用注册的PropertyPlaceholderHelper解析值. 这里会替换掉Spring定义的占位符, 还会根据需要去空格
 			String resolved = this.helper.replacePlaceholders(strVal, this.resolver);
 			if (trimValues) {
 				resolved = resolved.trim();
