@@ -391,30 +391,42 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 */
 	public Class<?> getDependencyType() {
 		if (this.field != null) {
+			// TODO 对字段的处理逻辑
 			if (this.nestingLevel > 1) {
+				// TODO 如果嵌套等级超过1时, 表示为泛型内包含泛型的嵌套类型, 比如(List<Sample<String>>, 或Sample<Sample2<String>>这种),
+				//  这时首先取得字段的第一层泛型类型(Sample<String>, 或Sample2<String>)
 				Type type = this.field.getGenericType();
 				for (int i = 2; i <= this.nestingLevel; i++) {
+					// TODO 然后再根据指定的层级向内遍历每一层嵌套的泛型
 					if (type instanceof ParameterizedType) {
+						// TODO 如果得到的类型是参数化类型时(使用了'<>', 即例子中Sample<String>), 取得'<>'中的实际类型集合,
+						//  (即例子中的String), 然后拿出第一个实际类型, 这个遍历最终得到的是最内部'<>'操作符中的类型, 即例子中的String
 						Type[] args = ((ParameterizedType) type).getActualTypeArguments();
 						type = args[args.length - 1];
 					}
 				}
 				if (type instanceof Class) {
+					// TODO 如果是Class, 转为Class类型返回
 					return (Class<?>) type;
 				}
 				else if (type instanceof ParameterizedType) {
+					// TODO 如果还是个参数化类型, 取得其原生类型, 即'<>'操作符前的那个类型, 比如Map<K, V>时, 得到的就是Map
 					Type arg = ((ParameterizedType) type).getRawType();
 					if (arg instanceof Class) {
+						// TODO 如果是Class, 转为Class类型返回
 						return (Class<?>) arg;
 					}
 				}
+				// TODO 都不是, 返回Object
 				return Object.class;
 			}
 			else {
+				// TODO 没有嵌套时, 直接返回字段的类型
 				return this.field.getType();
 			}
 		}
 		else {
+			// TODO 依赖是方法时, 取得方法参数的内嵌类型
 			return obtainMethodParameter().getNestedParameterType();
 		}
 	}

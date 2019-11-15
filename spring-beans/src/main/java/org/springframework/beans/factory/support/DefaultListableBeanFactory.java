@@ -1367,17 +1367,17 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	private Object resolveMultipleBeans(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) {
-		// TODO 取得依赖注入项的类型(字段或方法的类型)
+		// TODO 取得依赖注入项的类型(字段或方法的类型, 这里是非泛型类型, 即取得的会是依赖注入项中字段或方法的实际类型)
 		final Class<?> type = descriptor.getDependencyType();
 
 		if (descriptor instanceof StreamDependencyDescriptor) {
-			// TODO 处理依赖注入项为流的情况, 寻找自动注入候选类
+			// TODO 处理依赖注入项为流的情况, 根据依赖注入项的名字, 类型寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (autowiredBeanNames != null) {
-				// TODO 如果传入了需要自动注入的Bean的名字时, 将候选类结果集放进去
+				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
-			// TODO 通过DependencyDescriptor#resolveCandidate()方法挨个实例化注入候选类, 同时过滤掉NullBean
+			// TODO 通过DependencyDescriptor#resolveCandidate()方法, 在当前容器中挨个实例化候选类, 同时过滤掉NullBean
 			Stream<Object> stream = matchingBeans.keySet().stream()
 					.map(name -> descriptor.resolveCandidate(name, type, this))
 					.filter(bean -> !(bean instanceof NullBean));
@@ -1388,8 +1388,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			return stream;
 		}
 		else if (type.isArray()) {
-			// TODO 处理依赖注入项为数组的情况
+			// TODO 处理依赖注入项为数组的情况, 取得数组的组件类型
 			Class<?> componentType = type.getComponentType();
+			// TODO 然后取得依赖注入项的
 			ResolvableType resolvableType = descriptor.getResolvableType();
 			Class<?> resolvedArrayType = resolvableType.resolve(type);
 			if (resolvedArrayType != type) {
@@ -1404,6 +1405,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
+				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
@@ -1428,6 +1430,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
+				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
@@ -1457,6 +1460,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
+				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			return matchingBeans;
