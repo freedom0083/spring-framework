@@ -350,14 +350,19 @@ public abstract class ReflectionUtils {
 	 * @param mf the filter that determines the methods to apply the callback to
 	 * @throws IllegalStateException if introspection fails
 	 */
+	// TODO 主要是执行MethodCallback表示的doWith()回调函数, 然后再用父类或父接口的同名方法对其进行二次包装
 	public static void doWithMethods(Class<?> clazz, MethodCallback mc, @Nullable MethodFilter mf) {
 		// Keep backing up the inheritance hierarchy.
+		// TODO 取得类中的所有方法(包含接口中的default方法)的副本
 		Method[] methods = getDeclaredMethods(clazz, false);
 		for (Method method : methods) {
 			if (mf != null && !mf.matches(method)) {
+				// TODO 根据过滤器, 过滤掉所有非法方法
+				//  1. USER_DECLARED_METHOD: 表示的是非桥接, 非合成的方法. 取反后表示过滤所有非桥接, 非合成的方法
 				continue;
 			}
 			try {
+				// TODO 如果方法是桥接, 或者合成方法, 执行call back的doWith()方法
 				mc.doWith(method);
 			}
 			catch (IllegalAccessException ex) {
@@ -365,9 +370,11 @@ public abstract class ReflectionUtils {
 			}
 		}
 		if (clazz.getSuperclass() != null && (mf != USER_DECLARED_METHODS || clazz.getSuperclass() != Object.class)) {
+			// TODO 在父类存在, 并且不是Object, 且过滤条件也不能是非桥接的非合成方法时, 递归父类
 			doWithMethods(clazz.getSuperclass(), mc, mf);
 		}
 		else if (clazz.isInterface()) {
+			// TODO 没父类时, 如果当前class是个接口, 递归进父接口, 迭代其中的每个方法
 			for (Class<?> superIfc : clazz.getInterfaces()) {
 				doWithMethods(superIfc, mc, mf);
 			}
@@ -453,10 +460,13 @@ public abstract class ReflectionUtils {
 
 	private static Method[] getDeclaredMethods(Class<?> clazz, boolean defensive) {
 		Assert.notNull(clazz, "Class must not be null");
+		// TODO 从缓存中拿出类的方法集合
 		Method[] result = declaredMethodsCache.get(clazz);
 		if (result == null) {
 			try {
+				// TODO 如果没有, 从类中拿出所有定义的方法
 				Method[] declaredMethods = clazz.getDeclaredMethods();
+				// TODO 然后拿出其实现的接口的所有的default方法, 如果接口中有default方法, 将其合并到类的方法集中
 				List<Method> defaultMethods = findConcreteMethodsOnInterfaces(clazz);
 				if (defaultMethods != null) {
 					result = new Method[declaredMethods.length + defaultMethods.size()];
@@ -470,6 +480,7 @@ public abstract class ReflectionUtils {
 				else {
 					result = declaredMethods;
 				}
+				// TODO 放进缓存
 				declaredMethodsCache.put(clazz, (result.length == 0 ? EMPTY_METHOD_ARRAY : result));
 			}
 			catch (Throwable ex) {
@@ -477,15 +488,18 @@ public abstract class ReflectionUtils {
 						"] from ClassLoader [" + clazz.getClassLoader() + "]", ex);
 			}
 		}
+		// TODO 返回方法集合(默认直接返回方法集合, 指定防御标识时, 可以返回一个集合的克隆)
 		return (result.length == 0 || !defensive) ? result : result.clone();
 	}
 
 	@Nullable
+	// TODO 拿出接口中的所有default方法
 	private static List<Method> findConcreteMethodsOnInterfaces(Class<?> clazz) {
 		List<Method> result = null;
 		for (Class<?> ifc : clazz.getInterfaces()) {
 			for (Method ifcMethod : ifc.getMethods()) {
 				if (!Modifier.isAbstract(ifcMethod.getModifiers())) {
+					// TODO Java 8对接口增加了带有实现的非抽象默认方法
 					if (result == null) {
 						result = new ArrayList<>();
 					}

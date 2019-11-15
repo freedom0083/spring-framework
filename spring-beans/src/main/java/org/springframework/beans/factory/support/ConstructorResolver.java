@@ -323,29 +323,37 @@ class ConstructorResolver {
 		Class<?> factoryClass;
 		boolean isStatic;
 		if (mbd.getFactoryBeanName() != null) {
+			// TODO 有工厂类的名字时, 取得工厂类的class类型
 			factoryClass = this.beanFactory.getType(mbd.getFactoryBeanName());
+			// TODO 有工厂类肯定是非静态工厂方法
 			isStatic = false;
 		}
 		else {
+			// TODO 没有工厂类时, 肯定是个静态工厂, 用mbd的类型即可
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
 		Assert.state(factoryClass != null, "Unresolvable factory class");
+		// TODO 取得class, 这边是处理了一下可能存在的由CGLIB增强的类的情况
 		factoryClass = ClassUtils.getUserClass(factoryClass);
-
+		// TODO 获取工厂类的所有公有方法(如果mbd允许访问非公有方法, 则还会包括所有非公有方法)
 		Method[] candidates = getCandidateMethods(factoryClass, mbd);
 		Method uniqueCandidate = null;
 		for (Method candidate : candidates) {
 			if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
+				// TODO 迭代候选方法中的所有静态工厂方法
 				if (uniqueCandidate == null) {
+					// TODO 如果还没有唯一候选方法, 则将其设置为唯一候选方法
 					uniqueCandidate = candidate;
 				}
 				else if (!Arrays.equals(uniqueCandidate.getParameterTypes(), candidate.getParameterTypes())) {
+					// TODO 如果有的话, 根据参数数量来确定是否命中, 只要参数列表长度不同, 则表示末命中, 清空内省方法并退出循环
 					uniqueCandidate = null;
 					break;
 				}
 			}
 		}
+		// TODO 设置mbd的内省的工厂方法
 		mbd.factoryMethodToIntrospect = uniqueCandidate;
 	}
 
@@ -354,6 +362,9 @@ class ConstructorResolver {
 	 * the {@link RootBeanDefinition#isNonPublicAccessAllowed()} flag.
 	 * Called as the starting point for factory method determination.
 	 */
+	// TODO 取得工厂类对象中所有的方法, 根据mbd是否允许访问非公有方法分为两处情况:
+	//  1. 允许非公有方法: 通过ReflectionUtils工具类, 取得所有定义的方法
+	//  2. 不允许非公有方法: 直接调用类对象取得所有公有方法
 	private Method[] getCandidateMethods(Class<?> factoryClass, RootBeanDefinition mbd) {
 		if (System.getSecurityManager() != null) {
 			return AccessController.doPrivileged((PrivilegedAction<Method[]>) () ->
@@ -440,7 +451,7 @@ class ConstructorResolver {
 				factoryMethodToUse = (Method) mbd.resolvedConstructorOrFactoryMethod;
 				if (factoryMethodToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached factory method...
-					// TODO 如果有工厂方法, mbd的构造函数的参数已经解析过了, 拿出解析好的构造函数的参数
+					// TODO 如果有工厂方法, 并且mbd的构造函数的参数已经解析过了, 拿出解析好的构造函数的参数
 					argsToUse = mbd.resolvedConstructorArguments;
 					if (argsToUse == null) {
 						// TODO 如果没有解析好的参数, 拿出准备解析的构造函数的参数
@@ -841,15 +852,15 @@ class ConstructorResolver {
 			// TODO 取得待处理方法(executable)对应位置的方法参数
 			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
 			if (argValue == autowiredArgumentMarker) {
-				// TODO 是解析的参数Object类型时, 进行自动装配处理
+				// TODO 参数值是Object时, 进行自动装配处理
 				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, fallback);
 			}
 			else if (argValue instanceof BeanMetadataElement) {
-				// TODO 参数是bean元数据时
+				// TODO 参数值是bean元数据时
 				argValue = valueResolver.resolveValueIfNecessary("constructor argument", argValue);
 			}
 			else if (argValue instanceof String) {
-				// TODO 参数是字符串时
+				// TODO 参数值是字符串时
 				argValue = this.beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
 			}
 			Class<?> paramType = paramTypes[argIndex];

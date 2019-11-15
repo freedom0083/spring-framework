@@ -83,6 +83,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	volatile ResolvableType factoryMethodReturnType;
 
 	/** Package-visible field for caching a unique factory method candidate for introspection. */
+	// TODO 为内省机制缓存的唯一工厂方法
 	@Nullable
 	volatile Method factoryMethodToIntrospect;
 

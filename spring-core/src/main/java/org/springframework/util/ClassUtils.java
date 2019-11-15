@@ -893,6 +893,7 @@ public abstract class ClassUtils {
 	 */
 	public static Class<?> getUserClass(Class<?> clazz) {
 		if (clazz.getName().contains(CGLIB_CLASS_SEPARATOR)) {
+			// TODO CGLIB生成的类, 则返回其非Object类型的父类类对象
 			Class<?> superclass = clazz.getSuperclass();
 			if (superclass != null && superclass != Object.class) {
 				return superclass;

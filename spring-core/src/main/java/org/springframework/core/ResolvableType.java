@@ -658,12 +658,15 @@ public class ResolvableType implements Serializable {
 	 * @see #resolveGenerics()
 	 */
 	public ResolvableType getGeneric(@Nullable int... indexes) {
+		// TODO 取得当前类型的所有泛型信息, 组成一个ResolvableType数组
 		ResolvableType[] generics = getGenerics();
 		if (indexes == null || indexes.length == 0) {
+			// TODO 没指定索引时, 只返回第一个
 			return (generics.length == 0 ? NONE : generics[0]);
 		}
 		ResolvableType generic = this;
 		for (int index : indexes) {
+			// TODO 指定了索引时, 取出索引位置的类型
 			generics = generic.getGenerics();
 			if (index < 0 || index >= generics.length) {
 				return NONE;
@@ -688,25 +691,31 @@ public class ResolvableType implements Serializable {
 	 */
 	public ResolvableType[] getGenerics() {
 		if (this == NONE) {
+			// TODO 为空时返回空数组
 			return EMPTY_TYPES_ARRAY;
 		}
 		ResolvableType[] generics = this.generics;
 		if (generics == null) {
 			if (this.type instanceof Class) {
+				// TODO 是Class类型时, 返回类上的泛型信息数组
 				Type[] typeParams = ((Class<?>) this.type).getTypeParameters();
 				generics = new ResolvableType[typeParams.length];
 				for (int i = 0; i < generics.length; i++) {
+					// TODO 包装类中泛型信息
 					generics[i] = ResolvableType.forType(typeParams[i], this);
 				}
 			}
 			else if (this.type instanceof ParameterizedType) {
+				// TODO 是参数化类型时(泛型类时，比如List,Map等), 返回其中的实际类型
 				Type[] actualTypeArguments = ((ParameterizedType) this.type).getActualTypeArguments();
 				generics = new ResolvableType[actualTypeArguments.length];
 				for (int i = 0; i < actualTypeArguments.length; i++) {
+					// TODO 包装其中的类型信息
 					generics[i] = forType(actualTypeArguments[i], this.variableResolver);
 				}
 			}
 			else {
+				// TODO type为其他类型时, 解析当前类型, 然后递归取得泛型信息
 				generics = resolveType().getGenerics();
 			}
 			this.generics = generics;
@@ -1316,7 +1325,7 @@ public class ResolvableType implements Serializable {
 	 */
 	static ResolvableType forMethodParameter(
 			MethodParameter methodParameter, @Nullable Type targetType, int nestingLevel) {
-
+		// TODO 返回方法参数的ResolvableType
 		ResolvableType owner = forType(methodParameter.getContainingClass()).as(methodParameter.getDeclaringClass());
 		return forType(targetType, new MethodParameterTypeProvider(methodParameter), owner.asVariableResolver()).
 				getNested(nestingLevel, methodParameter.typeIndexesPerLevel);
@@ -1397,6 +1406,8 @@ public class ResolvableType implements Serializable {
 			@Nullable Type type, @Nullable TypeProvider typeProvider, @Nullable VariableResolver variableResolver) {
 
 		if (type == null && typeProvider != null) {
+			// TODO 源类型不存在, 但是TypeProvider(支持序列化的Type)不为空时, 将TypeProvider内的type包装为支持序列化的type代理.
+			//  如果当前环境无法序列化, 则返回的是原始类型
 			type = SerializableTypeWrapper.forTypeProvider(typeProvider);
 		}
 		if (type == null) {
@@ -1406,16 +1417,20 @@ public class ResolvableType implements Serializable {
 		// For simple Class references, build the wrapper right away -
 		// no expensive resolution necessary, so not worth caching...
 		if (type instanceof Class) {
+			// TODO 类型是Class类型时, 包装成ResolvableType返回
 			return new ResolvableType(type, typeProvider, variableResolver, (ResolvableType) null);
 		}
 
 		// Purge empty entries on access since we don't have a clean-up thread or the like.
+		// TODO 清理一下空的entity
 		cache.purgeUnreferencedEntries();
 
 		// Check the cache - we may have a ResolvableType which has been resolved before...
+		// TODO 将类型包装为一个用于返回的ResolvableType, 然后看一下其是否在缓存中否存在
 		ResolvableType resultType = new ResolvableType(type, typeProvider, variableResolver);
 		ResolvableType cachedType = cache.get(resultType);
 		if (cachedType == null) {
+			// TODO 缓存中没有时, 将类型包装为一个ResolvableType后放入缓存
 			cachedType = new ResolvableType(type, typeProvider, variableResolver, resultType.hash);
 			cache.put(cachedType, cachedType);
 		}

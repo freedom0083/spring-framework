@@ -897,20 +897,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
 		// Check if the bean definition itself has defined the type with an attribute
-		// TODO 从合并过的bean definition的'factoryBeanObjectType'属性中取得类型
+		// TODO 从mbd的'factoryBeanObjectType'属性中取得类型
 		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
 		if (result != ResolvableType.NONE) {
 			// TODO 不是NONE类型时, 直接返回
 			return result;
 		}
-		// TODO 如果合并后的bean definition对应是的class对象, 用bean的类型创建一个ResolvableType, 如果是全限定名, 则返回的是NONE
+		// TODO 如果mbd对应是的class对象, 用bean的类型创建一个ResolvableType, 如果是全限定名, 则返回的是NONE
 		ResolvableType beanType =
 				(mbd.hasBeanClass() ? ResolvableType.forClass(mbd.getBeanClass()) : ResolvableType.NONE);
 
 		// For instance supplied beans try the target type and bean class
 		if (mbd.getInstanceSupplier() != null) {
 			// TODO 如果合并后的bean definition有回调函数, 尝试用两种方式取得类型:
-			//  1. 通过合并后的bean definition的目标类型
+			//  1. 通过mbd的目标类型
 			//  2. 通过上面得到的beanType类型
 			result = getFactoryBeanGeneric(mbd.targetType);
 			if (result.resolve() != null) {
@@ -929,25 +929,29 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Scan the factory bean methods
 		if (factoryBeanName != null) {
+			// TODO 工厂类存在的时的处理
 			if (factoryMethodName != null) {
 				// Try to obtain the FactoryBean's object type from its factory method
 				// declaration without instantiating the containing bean at all.
-				// TODO 通过工厂方法名从注册中心beanDefinitionMap中取得工厂bean definition
+				// TODO 指定了工厂方法时, 通过工厂类名从注册中心beanDefinitionMap中取得工厂bd
 				BeanDefinition factoryBeanDefinition = getBeanDefinition(factoryBeanName);
 				Class<?> factoryBeanClass;
 				if (factoryBeanDefinition instanceof AbstractBeanDefinition &&
 						((AbstractBeanDefinition) factoryBeanDefinition).hasBeanClass()) {
-					// TODO 工厂bean definition是AbstractBeanDefinition类型, 且其为class类型时, 直接使用对应的class类型
+					// TODO 工厂bd是AbstractBeanDefinition类型, 且其为class类型时, 直接使用对应的class类型
 					factoryBeanClass = ((AbstractBeanDefinition) factoryBeanDefinition).getBeanClass();
 				}
 				else {
-					// TODO
+					// TODO 其他情况时, 得到合并了双亲属性的工厂类的mbd
 					RootBeanDefinition fbmbd = getMergedBeanDefinition(factoryBeanName, factoryBeanDefinition);
+					// TODO 然后从工厂类的mbd中确定目标类型
 					factoryBeanClass = determineTargetType(factoryBeanName, fbmbd);
 				}
 				if (factoryBeanClass != null) {
+					// TODO 经过上面的处理后, 如果得到了工厂类的Class类型, 取得工厂类使用的工厂方法的类型
 					result = getTypeForFactoryBeanFromMethod(factoryBeanClass, factoryMethodName);
 					if (result.resolve() != null) {
+						// TODO 如果类型已经解析过了, 直接返回上面取得的工厂类使用的工厂方法的返回类型
 						return result;
 					}
 				}
@@ -956,32 +960,44 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// exit here - we don't want to force the creation of another bean just to
 			// obtain a FactoryBean's object type...
 			if (!isBeanEligibleForMetadataCaching(factoryBeanName)) {
+				// TODO 上面没有解析出工厂方法的返回类型, 且工厂类没被创建过时, 返回NONE
 				return ResolvableType.NONE;
 			}
 		}
 
 		// If we're allowed, we can create the factory bean and call getObjectType() early
 		if (allowInit) {
+			// TODO 允许初始化时, 会根据mbd是否为单例取得工厂类
 			FactoryBean<?> factoryBean = (mbd.isSingleton() ?
 					getSingletonFactoryBeanForTypeCheck(beanName, mbd) :
 					getNonSingletonFactoryBeanForTypeCheck(beanName, mbd));
 			if (factoryBean != null) {
 				// Try to obtain the FactoryBean's object type from this early stage of the instance.
+				// TODO 有工厂类时, 取其类型
 				Class<?> type = getTypeForFactoryBean(factoryBean);
 				if (type != null) {
+					// TODO 类型存在时, 包装为一个ResolvableType返回
 					return ResolvableType.forClass(type);
 				}
 				// No type found for shortcut FactoryBean instance:
 				// fall back to full creation of the FactoryBean instance.
+				// TODO 类型不存在时, 用AbstractBeanFactory#getTypeForFactoryBean()来初始化工厂类, 然后得到其类型后返回
 				return super.getTypeForFactoryBean(beanName, mbd, true);
 			}
 		}
-
+		// TODO mbd有静态工厂方法(没有工厂类名, 有工厂方法名的就是静态工厂方法), 且指定了class属性时
 		if (factoryBeanName == null && mbd.hasBeanClass() && factoryMethodName != null) {
 			// No early bean instantiation possible: determine FactoryBean's type from
 			// static factory method signature or from class inheritance hierarchy...
+			// TODO 根据静态工厂方法的返回类型来确定工厂类的类型
 			return getTypeForFactoryBeanFromMethod(mbd.getBeanClass(), factoryMethodName);
 		}
+		// TODO 到这时, 表示以下情况:
+		//  1. mbd中factoryBeanObjectType属性没有设置值
+		//  2. 没有Supplier回调函数
+		//  3. 没设置工厂类, 且还不是静态工厂方法
+		//  4. 不允许初始化工厂类
+		//  这时尝试用mbd中class属性指定的Class类型来取得类型
 		result = getFactoryBeanGeneric(beanType);
 		if (result.resolve() != null) {
 			return result;
@@ -993,6 +1009,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (type == null) {
 			return ResolvableType.NONE;
 		}
+		// TODO 返回工厂类的泛型信息
 		return type.as(FactoryBean.class).getGeneric();
 	}
 
@@ -1005,8 +1022,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	private ResolvableType getTypeForFactoryBeanFromMethod(Class<?> beanClass, String factoryMethodName) {
 		// CGLIB subclass methods hide generic parameters; look at the original user class.
+		// TODO 取得工厂类的原始Class类型
 		Class<?> factoryBeanClass = ClassUtils.getUserClass(beanClass);
+		// TODO 将要使用的工厂方法包装为FactoryBeanMethodTypeFinder(指定了FactoryBeanMethodTypeFinder的factoryMethodName属性)
+		//  FactoryBeanMethodTypeFinder的doWith()方法封装了获取方法返回类型的逻辑
 		FactoryBeanMethodTypeFinder finder = new FactoryBeanMethodTypeFinder(factoryMethodName);
+		// TODO 过滤所有的非桥接, 和合成方法, 然后调用FactoryBeanMethodTypeFinder的doWith()方法取得方法的返回类型(缓存在find的result中), 并返回
 		ReflectionUtils.doWithMethods(factoryBeanClass, finder, ReflectionUtils.USER_DECLARED_METHODS);
 		return finder.getResult();
 	}
@@ -2155,15 +2176,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		@Override
 		public void doWith(Method method) throws IllegalArgumentException, IllegalAccessException {
 			if (isFactoryBeanMethod(method)) {
+				// TODO 当处理的方法返回的是工厂类, 且与finder记录的工厂方法相同时, 解析出方法的返回类型, 及其泛型
 				ResolvableType returnType = ResolvableType.forMethodReturnType(method);
 				ResolvableType candidate = returnType.as(FactoryBean.class).getGeneric();
 				if (this.result == ResolvableType.NONE) {
+					// TODO result的初始值是ResolvableType.NONE, 所以第一次进来时会被替换为方法返回类型的泛型ResolvableType
 					this.result = candidate;
 				}
 				else {
+					// TODO 后面再进来时就是解析泛型了
 					Class<?> resolvedResult = this.result.resolve();
+					// TODO 然后再确定一下返回类型和其泛型类型的共同父类型
 					Class<?> commonAncestor = ClassUtils.determineCommonAncestor(candidate.resolve(), resolvedResult);
 					if (!ObjectUtils.nullSafeEquals(resolvedResult, commonAncestor)) {
+						// TODO 两个类型不同时, 用共同的父类型替代
 						this.result = ResolvableType.forClass(commonAncestor);
 					}
 				}
@@ -2171,6 +2197,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		private boolean isFactoryBeanMethod(Method method) {
+			// TODO 判断方法的返回类型是否为工厂类, 并且是创建FactoryBeanMethodTypeFinder所指定的那个方法
 			return (method.getName().equals(this.factoryMethodName) &&
 					FactoryBean.class.isAssignableFrom(method.getReturnType()));
 		}
