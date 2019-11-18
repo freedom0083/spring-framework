@@ -313,12 +313,17 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Build a {@link ResolvableType} object for the wrapped parameter/field.
 	 * @since 4.0
 	 */
+	// TODO 为被包装的参数或字段创建一个ResolvableType对象
 	public ResolvableType getResolvableType() {
 		ResolvableType resolvableType = this.resolvableType;
 		if (resolvableType == null) {
+			// TODO 缓存中不存在解析过的resolvableType时, 开始进行解析
 			resolvableType = (this.field != null ?
+					// TODO 解析字段
 					ResolvableType.forField(this.field, this.nestingLevel, this.containingClass) :
+					// TODO 解析方法参数
 					ResolvableType.forMethodParameter(obtainMethodParameter()));
+			// TODO 设置解析结果, 然后返回
 			this.resolvableType = resolvableType;
 		}
 		return resolvableType;
@@ -406,14 +411,14 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 					}
 				}
 				if (type instanceof Class) {
-					// TODO 如果是Class, 转为Class类型返回
+					// TODO 如果是Class, 转为Class类型返回, 这种情况基本和泛型无关
 					return (Class<?>) type;
 				}
 				else if (type instanceof ParameterizedType) {
 					// TODO 如果还是个参数化类型, 取得其原生类型, 即'<>'操作符前的那个类型, 比如Map<K, V>时, 得到的就是Map
 					Type arg = ((ParameterizedType) type).getRawType();
 					if (arg instanceof Class) {
-						// TODO 如果是Class, 转为Class类型返回
+						// TODO 如果是Class, 转为Class类型返回, 这种情况基本和泛型无关
 						return (Class<?>) arg;
 					}
 				}

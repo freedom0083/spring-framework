@@ -104,24 +104,30 @@ final class SerializableTypeWrapper {
 	 */
 	@Nullable
 	static Type forTypeProvider(TypeProvider provider) {
+		// TODO 到得TypeProvider中的type
 		Type providedType = provider.getType();
 		if (providedType == null || providedType instanceof Serializable) {
 			// No serializable type wrapping necessary (e.g. for java.lang.Class)
+			// TODO 没有type或已经是可序列化的type, 直接返回
 			return providedType;
 		}
 		if (GraalDetector.inImageCode() || !Serializable.class.isAssignableFrom(Class.class)) {
 			// Let's skip any wrapping attempts if types are generally not serializable in
 			// the current runtime environment (even java.lang.Class itself, e.g. on Graal)
+			// TODO 跳过当前运行环境中不可序列化的类型(Class自身, 以及Graal)
 			return providedType;
 		}
 
 		// Obtain a serializable type proxy for the given provider...
+		// TODO 从缓存中取得TypeProvider中指定的类型, 如果有就直接返回
 		Type cached = cache.get(providedType);
 		if (cached != null) {
 			return cached;
 		}
 		for (Class<?> type : SUPPORTED_SERIALIZABLE_TYPES) {
+			// TODO 迭代系统支持的4种可序列化的Type: GenericArrayType, ParameterizedType, TypeVariable, WildcardType
 			if (type.isInstance(providedType)) {
+				// TODO 然后是一个断路操作, 只要有一个Type是TypeProvider持有的Type的实例时, 为其创建一个代理, 放入缓存后返回
 				ClassLoader classLoader = provider.getClass().getClassLoader();
 				Class<?>[] interfaces = new Class<?>[] {type, SerializableTypeProxy.class, Serializable.class};
 				InvocationHandler handler = new TypeProxyInvocationHandler(provider);
@@ -150,6 +156,7 @@ final class SerializableTypeWrapper {
 	 * A {@link Serializable} interface providing access to a {@link Type}.
 	 */
 	@SuppressWarnings("serial")
+	// TODO 用于访问Type的可序列化接口
 	interface TypeProvider extends Serializable {
 
 		/**

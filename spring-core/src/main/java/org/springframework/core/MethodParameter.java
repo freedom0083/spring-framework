@@ -465,6 +465,7 @@ public class MethodParameter {
 	 * @see #getDeclaringClass()
 	 */
 	public Class<?> getContainingClass() {
+		// TODO 从缓存中取得包含此方法参数的类, 如果缓存中没有, 则返回声明此方法的类
 		Class<?> containingClass = this.containingClass;
 		return (containingClass != null ? containingClass : getDeclaringClass());
 	}
@@ -482,16 +483,21 @@ public class MethodParameter {
 	 * @return the parameter type (never {@code null})
 	 */
 	public Class<?> getParameterType() {
+		// TODO 先从缓存中取得方法或构造函数的参数的类型, 如果有就直接返回
 		Class<?> paramType = this.parameterType;
 		if (paramType != null) {
 			return paramType;
 		}
+		// TODO 如果没有, 就会判断一下包含些方法的类与声明此方法的类是否相同
 		if (getContainingClass() != getDeclaringClass()) {
+			// TODO 不相同时需要再次重新解析当前方法参数
 			paramType = ResolvableType.forMethodParameter(this, null, 1).resolve();
 		}
 		if (paramType == null) {
+			// TODO 还是没有得到参数类型时, 重新计算参数类型
 			paramType = computeParameterType();
 		}
+		// TODO 设置缓存并返回
 		this.parameterType = paramType;
 		return paramType;
 	}
@@ -531,15 +537,20 @@ public class MethodParameter {
 
 	private Class<?> computeParameterType() {
 		if (this.parameterIndex < 0) {
+			// TODO 参数的位置小于0时, 取得当前处理的方法
 			Method method = getMethod();
 			if (method == null) {
+				// TODO 没有方法时, 返回的是Void
 				return void.class;
 			}
 			if (KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass())) {
+				// TODO 对Kotline的处理
 				return KotlinDelegate.getReturnType(method);
 			}
+			// TODO 返回方法的返回返回类型的Type
 			return method.getReturnType();
 		}
+		// TODO 否则取得对应位置的参数的Type
 		return this.executable.getParameterTypes()[this.parameterIndex];
 	}
 
@@ -551,27 +562,37 @@ public class MethodParameter {
 	 */
 	public Class<?> getNestedParameterType() {
 		if (this.nestingLevel > 1) {
+			// TODO 嵌套等级大于1时, 取得参数的泛型类型
 			Type type = getGenericParameterType();
 			for (int i = 2; i <= this.nestingLevel; i++) {
+				// TODO 然后继续深入, 找他最内部的泛型类型
 				if (type instanceof ParameterizedType) {
+					// TODO 如果是ParameterizedType类型, 表示其为一个泛型类型, 取得'<>'中的Type类型参数集合
 					Type[] args = ((ParameterizedType) type).getActualTypeArguments();
 					Integer index = getTypeIndexForLevel(i);
+					// TODO 根据嵌套等级, 取得对应位置的类型, 最终得到的是最深的类型, 比如List<List<String>>, 最终的Type会是String
 					type = args[index != null ? index : args.length - 1];
 				}
 				// TODO: Object.class if unresolvable
 			}
+			// TODO 然后下面开始判断Type对应的类型
 			if (type instanceof Class) {
+				// TODO 是Class的, 转型后返回
 				return (Class<?>) type;
 			}
 			else if (type instanceof ParameterizedType) {
+				// TODO 是ParameterizedType泛型类型的, 取得其原生类型, 即'<>'前面的类型, 比如List<K>, 返回的就是List, Map<K, V>, 返回的就是Map
 				Type arg = ((ParameterizedType) type).getRawType();
 				if (arg instanceof Class) {
+					// TODO 如果是Class类型, 转型后返回
 					return (Class<?>) arg;
 				}
 			}
+			// TODO 其他情况返回的都是Object
 			return Object.class;
 		}
 		else {
+			// TODO 嵌套等级不大于1时, 直接返回参数的Type
 			return getParameterType();
 		}
 	}

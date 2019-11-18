@@ -1367,11 +1367,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	private Object resolveMultipleBeans(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) {
-		// TODO 取得依赖注入项的类型(字段或方法的类型, 这里是非泛型类型, 即取得的会是依赖注入项中字段或方法的实际类型)
+		// TODO 取得注入项的声明类型(字段或方法的类型, 这里是非泛型类型, 即取得的会是依赖注入项中字段或方法的实际类型),
+		//  Spring支持数组、Collection、Map等类型的自动注入:
+		//  1. 数组类型: 注入项是int[]时, 得到的类型就是int[]
+		//  2. 集合类型: 注入项是List<>时, 得到的是List<>
+		//  3. Map类型: 注入项是Map<>时, 得到的是Map<>
+		//  * 这里只是得到注入项的声明类型, 而不是具体的组件类型, 比如int[], 这里得到的只是int[], 而不是int
 		final Class<?> type = descriptor.getDependencyType();
-
+		// TODO 下面是按依赖注入项的类型进行解析
 		if (descriptor instanceof StreamDependencyDescriptor) {
-			// TODO 处理依赖注入项为流的情况, 根据依赖注入项的名字, 类型寻找自动注入候选类
+			// TODO 要注入的是流的情况, 根据依赖注入项的名字, 类型寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (autowiredBeanNames != null) {
 				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
@@ -1388,20 +1393,25 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			return stream;
 		}
 		else if (type.isArray()) {
-			// TODO 处理依赖注入项为数组的情况, 取得数组的组件类型
+			// TODO 要注入的是数组的情况, 取得注入项的组件类型Class. 比如: int[] field时, 数组的组件类型就是int
 			Class<?> componentType = type.getComponentType();
-			// TODO 然后取得依赖注入项的
+			// TODO 然后再取得解析过的注入项的类型(ResolvableType). 比如: int[] field时, 得到的是包装成ResolvableType的int[]
 			ResolvableType resolvableType = descriptor.getResolvableType();
+			// TODO 解析数组的类型. 这里会做一个判断, 如果注入项的类型无法解析时, 使用数组的组件类型进行替代
 			Class<?> resolvedArrayType = resolvableType.resolve(type);
 			if (resolvedArrayType != type) {
+				// TODO 当解析过的数组类型与依赖注入项的类型不同时, 用依赖注入项的组件类型做为公共类型
 				componentType = resolvableType.getComponentType().resolve();
 			}
 			if (componentType == null) {
+				// TODO 还没有, 返回null
 				return null;
 			}
+			// TODO 根据依赖注入项的名字, 类型, 以及MultiElementDescriptor来寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, componentType,
 					new MultiElementDescriptor(descriptor));
 			if (matchingBeans.isEmpty()) {
+				// TODO 没找到时, 返回null
 				return null;
 			}
 			if (autowiredBeanNames != null) {
@@ -1409,8 +1419,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
+			// TODO 进行必要的类型转换
 			Object result = converter.convertIfNecessary(matchingBeans.values(), resolvedArrayType);
 			if (result instanceof Object[]) {
+				// TODO
 				Comparator<Object> comparator = adaptDependencyComparator(matchingBeans);
 				if (comparator != null) {
 					Arrays.sort((Object[]) result, comparator);
