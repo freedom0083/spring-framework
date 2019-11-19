@@ -679,16 +679,30 @@ public class ResolvableType implements Serializable {
 		// TODO 取得当前类型的所有泛型信息, 组成一个ResolvableType数组
 		ResolvableType[] generics = getGenerics();
 		if (indexes == null || indexes.length == 0) {
-			// TODO 没指定索引时, 只返回第一个
+			// TODO 没指定索引时, 如果有泛型Type, 只返回第一个Type, 否则返回一个空Type
 			return (generics.length == 0 ? NONE : generics[0]);
 		}
+		// TODO 指定了索引时
 		ResolvableType generic = this;
 		for (int index : indexes) {
-			// TODO 指定了索引时, 取出索引位置的类型
+			// TODO 指定了索引时, 取出当前Type的所有泛型信息
 			generics = generic.getGenerics();
 			if (index < 0 || index >= generics.length) {
+				// TODO 没有指定indexes, 或索引位置超出泛型范围时, 返回空Type
 				return NONE;
 			}
+			// TODO 然后根据索引一点一点深入, 取得最终位置的泛型Type
+			//  比如: Map<Integer, List<String>> sample, 调用getGeneric(1, 0)的过程是：
+			//        1. indexes包含2个值, 1和0;
+			//        2. getGenerics()后generics是Map<Integer, List<String>>;
+			//        3. generic = this表示的是当前的Type, 即Map<Integer, List<String>>;
+			//        4. 然后开始遍历可变参数indexes:
+			//           4.1. 第一次遍历时generic.getGenerics()得到的是数组[Integer, List<String>], 即generics值为generics;
+			//           4.2. 然后取得indexes=1位置的泛型, 即List<String>(0 base)做为下次要用的generic;
+			//           4.3. 进入下一个可变参数0;
+			//                4.3.1. 当前generic是List<String>, 所以getGenerics()后得到的是数组[String];
+			//                4.3.2. 取得indexes第二个位置参数0对应的泛型, 即String
+			//        5. 退出循环, 最终返回的就是String
 			generic = generics[index];
 		}
 		return generic;
@@ -715,20 +729,22 @@ public class ResolvableType implements Serializable {
 		ResolvableType[] generics = this.generics;
 		if (generics == null) {
 			if (this.type instanceof Class) {
-				// TODO 是Class类型时, 返回类上的泛型信息数组
+				// TODO 当前Type是Class类型时, 返回Class上的泛型信息数组, 比如:
+				//  1. 单一泛型类型时: Class<E>时, 返回的Type[]数组内只有一个元素, Type[0] = E
+				//  2. 多泛型类型时: Class<E, V>时, 返回的Type[]数组包含两个元素, Type[0] = E, Type[1] = V
 				Type[] typeParams = ((Class<?>) this.type).getTypeParameters();
 				generics = new ResolvableType[typeParams.length];
 				for (int i = 0; i < generics.length; i++) {
-					// TODO 包装类中泛型信息
+					// TODO 包装指定位置的类型参数, 返回一个由当前ResolvableType支持的指定位置参数的ResolvableType
 					generics[i] = ResolvableType.forType(typeParams[i], this);
 				}
 			}
 			else if (this.type instanceof ParameterizedType) {
-				// TODO 是参数化类型时(泛型类时，比如List,Map等), 返回其中的实际类型
+				// TODO 是参数化类型时(泛型类时，比如List,Map等), 返回其中的实际类型, 比如: Map<K, V>, 返回的是K和V
 				Type[] actualTypeArguments = ((ParameterizedType) this.type).getActualTypeArguments();
 				generics = new ResolvableType[actualTypeArguments.length];
 				for (int i = 0; i < actualTypeArguments.length; i++) {
-					// TODO 包装其中的类型信息
+					// TODO 包装每个类型参数, 返回一个由当前Type设置的variableResolver所支持的当前位置参数的ResolvableType
 					generics[i] = forType(actualTypeArguments[i], this.variableResolver);
 				}
 			}
@@ -787,6 +803,7 @@ public class ResolvableType implements Serializable {
 	 */
 	@Nullable
 	public Class<?> resolveGeneric(int... indexes) {
+		// TODO 返回由可变可能indexes所指定位置的泛型, 然后对其进行解析后返回
 		return getGeneric(indexes).resolve();
 	}
 
@@ -975,6 +992,7 @@ public class ResolvableType implements Serializable {
 	 * Adapts this {@link ResolvableType} to a {@link VariableResolver}.
 	 */
 	@Nullable
+	// TODO 用来将ResolvableType适合成默认的VariableResolver(DefaultVariableResolver)
 	VariableResolver asVariableResolver() {
 		if (this == NONE) {
 			return null;
@@ -1404,16 +1422,19 @@ public class ResolvableType implements Serializable {
 	 * Return a {@link ResolvableType} for the specified {@link Type} backed by the given
 	 * owner type.
 	 * <p>Note: The resulting {@link ResolvableType} instance may not be {@link Serializable}.
-	 * @param type the source type or {@code null}
-	 * @param owner the owner type used to resolve variables
+	 * @param type the source type or {@code null} 源类型
+	 * @param owner the owner type used to resolve variables 用来解析变量的所有者类型
 	 * @return a {@link ResolvableType} for the specified {@link Type} and owner
 	 * @see #forType(Type)
 	 */
+	// TODO 返回一个由给定的ResolvableType支持的一个指定Type的ResolvableType
 	public static ResolvableType forType(@Nullable Type type, @Nullable ResolvableType owner) {
 		VariableResolver variableResolver = null;
 		if (owner != null) {
+			// TODO 如果指定了owner, 将其转换为VariableResolver
 			variableResolver = owner.asVariableResolver();
 		}
+		// TODO 然后用适配过VariableResolver(可能为空)支持的一个指定Type的ResolvableType
 		return forType(type, variableResolver);
 	}
 

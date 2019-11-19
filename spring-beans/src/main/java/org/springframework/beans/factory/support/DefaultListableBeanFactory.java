@@ -1419,10 +1419,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
-			// TODO 进行必要的类型转换
+			// TODO 进行必要的类型转换, 会将所有匹配的bean转换成数组类型
 			Object result = converter.convertIfNecessary(matchingBeans.values(), resolvedArrayType);
 			if (result instanceof Object[]) {
-				// TODO
+				// TODO 对于Object[]类型, 取得比较器, 然后根据比较器进行排序, 最后返回处理好的结果
 				Comparator<Object> comparator = adaptDependencyComparator(matchingBeans);
 				if (comparator != null) {
 					Arrays.sort((Object[]) result, comparator);
@@ -1431,14 +1431,19 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			return result;
 		}
 		else if (Collection.class.isAssignableFrom(type) && type.isInterface()) {
-			// TODO 处理依赖注入项为集合接口的情况
+			// TODO 注入的是集合时, 比如:List<String>
+			//  1. 通过getResolvableType()取得注入项(可能是field或方法)对应的ResolvableType
+			//  2. 通过asCollection()将ResolvableType转换成集合类型
+			//  3. 然后通过resolveGeneric()方法解析取得集合, 返回的是集合中第一个参数的类型, 即String, 做为集合类型
 			Class<?> elementType = descriptor.getResolvableType().asCollection().resolveGeneric();
 			if (elementType == null) {
 				return null;
 			}
+			// TODO 然后根据这个类型去找所有配置的候选bean
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, elementType,
 					new MultiElementDescriptor(descriptor));
 			if (matchingBeans.isEmpty()) {
+				// TODO 没找到时, 返回null
 				return null;
 			}
 			if (autowiredBeanNames != null) {
@@ -1446,8 +1451,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
+			// TODO 将匹配的bean转换成需要的Type类型(集合类型)
 			Object result = converter.convertIfNecessary(matchingBeans.values(), type);
 			if (result instanceof List) {
+				// TODO 如果转换成了List, 取得比较器, 并根据比较器进行排序
 				Comparator<Object> comparator = adaptDependencyComparator(matchingBeans);
 				if (comparator != null) {
 					((List<?>) result).sort(comparator);
