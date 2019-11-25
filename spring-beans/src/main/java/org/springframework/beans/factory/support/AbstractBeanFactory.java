@@ -500,38 +500,55 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Override
+	// TODO 判断给定的bean是否为单例
 	public boolean isSingleton(String name) throws NoSuchBeanDefinitionException {
+		// TODO 取得bean的最终使用名
 		String beanName = transformedBeanName(name);
-
+		// TODO 用名字取得容器中的原生单例bean对象
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null) {
 			if (beanInstance instanceof FactoryBean) {
+				// TODO 如果得到的bean对象实例是工厂类(实现了FactoryBean接口)时, 返回值:
+				//  true: 1. 传入的bean是工厂类(参数name以'&'开头);
+				//        2. 或者取得的bean对象所表示的工厂类是单例的(本身不就是单例的了么??)
 				return (BeanFactoryUtils.isFactoryDereference(name) || ((FactoryBean<?>) beanInstance).isSingleton());
 			}
 			else {
+				// TODO bean对象实例不是工厂类时, 就看传入的bean名字是否以'&'开头的工厂类了(非工厂类都为单例):
+				//  true: 参数name不以'&'开头, 表示不是工厂类
+				//  false: 参数name以'&'开头, 表示是工厂类
 				return !BeanFactoryUtils.isFactoryDereference(name);
 			}
 		}
 
 		// No singleton instance found -> check bean definition.
+		// TODO 没有得到bean实例时, 就到父容器中去找, 看其是否为单例
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 			// No bean definition found in this factory -> delegate to parent.
+			// TODO 有父容器, 且当前容器中没有要找的bean时, 就到看其在父容器中是否为单例
 			return parentBeanFactory.isSingleton(originalBeanName(name));
 		}
-
+		// TODO 还没找到, 就用当前bean与双亲进行合并
 		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 
 		// In case of FactoryBean, return singleton status of created object if not a dereference.
+		// TODO 判断合并后的mbd是否单例
 		if (mbd.isSingleton()) {
 			if (isFactoryBean(beanName, mbd)) {
+				// TODO 是单例时, 且mbd是工厂类时
 				if (BeanFactoryUtils.isFactoryDereference(name)) {
+					// TODO 如果传入的名字是工厂类(以'&'开头), 就返回true
 					return true;
 				}
+				// TODO name不是'&'开头的工厂类时, 从容器中取得bean最终名的工厂类('&'+bean最终名), 然后看其是否为单例
 				FactoryBean<?> factoryBean = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
 				return factoryBean.isSingleton();
 			}
 			else {
+				// TODO mbd不是工厂类时, 就看传入的bean名字是否以'&'开头的工厂类了(非工厂类都为单例):
+				//  true: 参数name不以'&'开头, 表示不是工厂类
+				//  false: 参数name以'&'开头, 表示是工厂类
 				return !BeanFactoryUtils.isFactoryDereference(name);
 			}
 		}
@@ -597,73 +614,99 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see #getBean
 	 * @see #getType
 	 */
+	// TODO 判断给定的bean名是否与指定的类型想匹配
 	protected boolean isTypeMatch(String name, ResolvableType typeToMatch, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
-
+		// TODO 取得bean的最终使用名
 		String beanName = transformedBeanName(name);
+		// TODO 判断一下给定的bean是否为工厂类('&'开头)
 		boolean isFactoryDereference = BeanFactoryUtils.isFactoryDereference(name);
 
 		// Check manually registered singletons.
+		// TODO 根据最终名字取得容器中注册的原生的bean单例对象
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null && beanInstance.getClass() != NullBean.class) {
+			// TODO 取到非空的实例对象时会根据是否为工厂类执行不同的判断方法
 			if (beanInstance instanceof FactoryBean) {
+				// TODO bean单例对象为工厂类时(实现了FactoryBean接口)
 				if (!isFactoryDereference) {
+					// TODO 对于传入的bean名不是以'&'开头的工厂类时, 用bean单例对象表示的工厂类的类型做为判断条件
 					Class<?> type = getTypeForFactoryBean((FactoryBean<?>) beanInstance);
+					// TODO 指定的类型与bean单例对象表示的工厂类的类型相同时, 表示匹配成功
 					return (type != null && typeToMatch.isAssignableFrom(type));
 				}
 				else {
+					// TODO 传入的本身就是一个工厂类时(name参数以'&'开头), 实例本身即为工厂类的实例, 直接进行比较即可
 					return typeToMatch.isInstance(beanInstance);
 				}
 			}
 			else if (!isFactoryDereference) {
+				// TODO bean单例对象不是工厂类, 且传入的bean名不是以'&'开头的工厂类时
 				if (typeToMatch.isInstance(beanInstance)) {
 					// Direct match for exposed instance?
+					// TODO 直接比较指定的类型与bean单例对象, 看是否匹配
 					return true;
 				}
+				// TODO 指定的类型与bean单例对象类型不匹配时
 				else if (typeToMatch.hasGenerics() && containsBeanDefinition(beanName)) {
 					// Generics potentially only match on the target class, not on the proxy...
+					// TODO 指定的类型包含泛型, 且容器中存在指定的bean时, 用bean的最终名取得合并了双亲属性的mbd
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+					// TODO 取得mbd代理目标的类型
 					Class<?> targetType = mbd.getTargetType();
 					if (targetType != null && targetType != ClassUtils.getUserClass(beanInstance)) {
 						// Check raw class match as well, making sure it's exposed on the proxy.
+						// TODO mbd是个代理类时(有代理目标类型, 且其与bean实例不同)
 						Class<?> classToMatch = typeToMatch.resolve();
 						if (classToMatch != null && !classToMatch.isInstance(beanInstance)) {
+							// TODO 指定的类型与bean单例对象类型不匹配时返回False
 							return false;
 						}
 						if (typeToMatch.isAssignableFrom(targetType)) {
+							// TODO 指定的类型与mbd代理的目标类的类型相同时, 返回true
 							return true;
 						}
 					}
+					// TODO 用mbd所代理的目标类型做为比较类型
 					ResolvableType resolvableType = mbd.targetType;
 					if (resolvableType == null) {
+						// TODO 没有代理目标类型(非代理类)时, 用工厂方法的返回类型做为比较类型
 						resolvableType = mbd.factoryMethodReturnType;
 					}
+					// TODO 比较是否匹配
 					return (resolvableType != null && typeToMatch.isAssignableFrom(resolvableType));
 				}
 			}
+			// TODO 其他情况(bean实例非工厂类, 但是传入的bean名是'&'开头的工厂类), 返回false
 			return false;
 		}
 		else if (containsSingleton(beanName) && !containsBeanDefinition(beanName)) {
 			// null instance registered
+			// TODO bean是单例, 但并不在注册中心中时, 即空实例, 返回false
 			return false;
 		}
 
 		// No singleton instance found -> check bean definition.
+		// TODO 到这就表示没到找对应的单例实例, 这时需要到可能存在的父容器中查找
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 			// No bean definition found in this factory -> delegate to parent.
+			// TODO 有父容器, 且bean不包含在当前容器中, 委托给父容器进行匹配验证
 			return parentBeanFactory.isTypeMatch(originalBeanName(name), typeToMatch);
 		}
 
 		// Retrieve corresponding bean definition.
+		// TODO 取得bean对应的mbd, 以及可能存在的代理目标的dbd
 		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 
 		// Setup the types that we want to match against
+		// TODO 取得匹配类型的type, 如果不存在, 用FactoryBean表示
 		Class<?> classToMatch = typeToMatch.resolve();
 		if (classToMatch == null) {
 			classToMatch = FactoryBean.class;
 		}
+		// TODO 转化成type数组, 为的是给非工厂类加上FactoryBean type??
 		Class<?>[] typesToMatch = (FactoryBean.class == classToMatch ?
 				new Class<?>[] {classToMatch} : new Class<?>[] {FactoryBean.class, classToMatch});
 
@@ -675,12 +718,19 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// a decorated bean definition. The target bean should be the same type
 		// as FactoryBean would ultimately return.
 		if (!isFactoryDereference && dbd != null && isFactoryBean(beanName, mbd)) {
+			// TODO 传入的bean不是一个工厂类, 但它对应的实例是工厂类, 且是一个代理时(dbd != null)
 			// We should only attempt if the user explicitly set lazy-init to true
 			// and we know the merged bean definition is for a factory bean.
+			// TODO 判断mbd是否为非懒加载, 或者支持工厂类初始化
 			if (!mbd.isLazyInit() || allowFactoryBeanInit) {
+				// TODO 取得代理目标类的bd
 				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
+				// TODO 预测代理目标类tbd的类型:
+				//  1. AbstractBeanFactory: 默认的实现
+				//  2. AbstractAutowireCapableBeanFactory: 用于自动装配
 				Class<?> targetType = predictBeanType(dbd.getBeanName(), tbd, typesToMatch);
 				if (targetType != null && !FactoryBean.class.isAssignableFrom(targetType)) {
+					// TODO 代理类型不是工厂类时, 将其做为预测类型
 					predictedType = targetType;
 				}
 			}
@@ -688,8 +738,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// If we couldn't use the target type, try regular prediction.
 		if (predictedType == null) {
+			// TODO 代理目标无法预测出类型时, 使用常规的mbd进行预测
 			predictedType = predictBeanType(beanName, mbd, typesToMatch);
 			if (predictedType == null) {
+				// TODO 如果还没有, 返回false表示不匹配
 				return false;
 			}
 		}
@@ -698,9 +750,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		ResolvableType beanType = null;
 
 		// If it's a FactoryBean, we want to look at what it creates, not the factory class.
+		// TODO 对预测的类型进行判断
 		if (FactoryBean.class.isAssignableFrom(predictedType)) {
+			// TODO 如果是工厂类型
 			if (beanInstance == null && !isFactoryDereference) {
+				// TODO 没有对应的bean单例实例, 且要得到的bean不是工厂类(不是由'&'开头)时, 取得工厂类的类型
 				beanType = getTypeForFactoryBean(beanName, mbd, allowFactoryBeanInit);
+				// TODO 然后设置到预测类型上, 如果还没有解析到, 返回false表示不匹配
 				predictedType = beanType.resolve();
 				if (predictedType == null) {
 					return false;
@@ -708,9 +764,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 		else if (isFactoryDereference) {
+			// TODO 要得到的bean是工厂类时
 			// Special case: A SmartInstantiationAwareBeanPostProcessor returned a non-FactoryBean
 			// type but we nevertheless are being asked to dereference a FactoryBean...
 			// Let's check the original bean class and proceed with it if it is a FactoryBean.
+			// TODO 预测原始bean是否为工厂类, 不是工厂类, 或无法预测类型时, 返回false表示预测失败
 			predictedType = predictBeanType(beanName, mbd, FactoryBean.class);
 			if (predictedType == null || !FactoryBean.class.isAssignableFrom(predictedType)) {
 				return false;
@@ -719,22 +777,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// We don't have an exact type but if bean definition target type or the factory
 		// method return type matches the predicted type then we can use that.
+		// TODO 如果到这还没有解析出type, 就看mbd的代理目标bean的type, 以及工厂方法的返回类型是否匹配了
 		if (beanType == null) {
+			// TODO 先看代理目标的type
 			ResolvableType definedType = mbd.targetType;
 			if (definedType == null) {
+				// TODO 没有代理目标的type时(不是一个代理类), 看工厂方法返回类型type
 				definedType = mbd.factoryMethodReturnType;
 			}
 			if (definedType != null && definedType.resolve() == predictedType) {
+				// TODO 如果有代理目标type, 或工厂方法的返回类型type, 并且type与预测type一致时, 用他们做为bean的type
 				beanType = definedType;
 			}
 		}
 
 		// If we have a bean type use it so that generics are considered
 		if (beanType != null) {
+			// TODO 得到bean的type时, 判断是否与指定type匹配
 			return typeToMatch.isAssignableFrom(beanType);
 		}
 
 		// If we don't have a bean type, fallback to the predicted type
+		// TODO 如果最后没有bean的type, 则用预测类型进行判断
 		return typeToMatch.isAssignableFrom(predictedType);
 	}
 
@@ -1464,7 +1528,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected RootBeanDefinition getMergedBeanDefinition(
 			String beanName, BeanDefinition bd, @Nullable BeanDefinition containingBd)
 			throws BeanDefinitionStoreException {
-		// TODO 从mergedBeanDefinitions缓存中取得合并了双亲属性的bd时需要进行同步
+		// TODO 从mergedBeanDefinitions缓存中取得mbd时需要进行同步
 		synchronized (this.mergedBeanDefinitions) {
 			// TODO 用于返回的合并了双亲属性的RootBeanDefinition
 			RootBeanDefinition mbd = null;
@@ -1672,6 +1736,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Nullable
+	// TODO 验证类全称类名, 并利用类加载器解析获取class
 	private Class<?> doResolveBeanClass(RootBeanDefinition mbd, Class<?>... typesToMatch)
 			throws ClassNotFoundException {
 		// TODO 取得当前的类加载器, 同时设置为动态加载器
@@ -1682,7 +1747,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (!ObjectUtils.isEmpty(typesToMatch)) {
 			// TODO typesToMatch是个可变长参数:
 			//  1. AbstractAutowireCapableBeanFactory#createBean()方法调用了resolveBeanClass(), 其中在调用doResolveBeanClass()
-			//     时并没有指定这个参数, 所以getBean()创建bean实例时不会走到这里????
+			//     时并没有指定这个参数, 所以getBean()创建bean实例时不会走到这里
+			//  2. 在查找注入项的匹配bean时, 容器使用isTypeMatch(String, ResolvableType, boolean)方法来查找匹配ResolvableType的bean
+			//     这里的ResolvableType就会转化成Class<>[]数组, 然后用于predictBeanType(String, RootBeanDefinition, Class<?>)
+			//     方法来做类型匹配. 这个匹配是针对代理类型的
 			// When just doing type checks (i.e. not creating an actual instance yet),
 			// use the specified temporary class loader (e.g. in a weaving scenario).
 			// TODO tempClassLoader是在容器初始化时, 发现支持Load Time Weaving(LTW, AspectJ的类加载期织入)时添加到beanFactory容器的,
@@ -1820,12 +1888,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param mbd the corresponding bean definition
 	 */
 	protected boolean isFactoryBean(String beanName, RootBeanDefinition mbd) {
-		// TODO 判断合并后的bd是否是一个工厂类
+		// TODO 判断mbd是否是一个工厂类
 		Boolean result = mbd.isFactoryBean;
 		if (result == null) {
-			// TODO 预测合并后的bd的类型
+			// TODO 预测mbd的类型
 			Class<?> beanType = predictBeanType(beanName, mbd, FactoryBean.class);
-			// TODO 看其是否为FactoryBean类型
+			// TODO 看其是否为FactoryBean类型, 即mbd的type是否为FactoryBean本身, 或其子类型
 			result = (beanType != null && FactoryBean.class.isAssignableFrom(beanType));
 			mbd.isFactoryBean = result;
 		}
@@ -1856,7 +1924,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see #getBean(String)
 	 */
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
-		// TODO 从合并过的bd的'factoryBeanObjectType'属性中取得类型
+		// TODO 从mbd的'factoryBeanObjectType'属性中取得类型
 		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
 		if (result != ResolvableType.NONE) {
 			// TODO 不是NONE类型时, 直接返回

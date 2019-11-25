@@ -177,6 +177,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @return the registered singleton object, or {@code null} if none found
 	 */
 	@Nullable
+	// TODO 根据名字取得容器中注册的原生的单例对象
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// TODO 首先从单例缓存里尝试取得bean
 		Object singletonObject = this.singletonObjects.get(beanName);
@@ -304,6 +305,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	@Override
+	// TODO 判断给定的bean是否为单例
 	public boolean containsSingleton(String beanName) {
 		return this.singletonObjects.containsKey(beanName);
 	}

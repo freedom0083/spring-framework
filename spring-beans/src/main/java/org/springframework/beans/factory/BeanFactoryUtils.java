@@ -67,6 +67,7 @@ public abstract class BeanFactoryUtils {
 	 * @return whether the given name is a factory dereference
 	 * @see BeanFactory#FACTORY_BEAN_PREFIX
 	 */
+	// TODO 判断给定的bean是否为工厂类(以'&'开头表示为工厂类, 其只做为指向实际作用类的引用, 否则表示为一个bean)
 	public static boolean isFactoryDereference(@Nullable String name) {
 		// TODO 工厂类解引用(Dereference), 如果名字以'&'开头, 就表示其为一个工厂类的引用, 而非普通bean
 		return (name != null && name.startsWith(BeanFactory.FACTORY_BEAN_PREFIX));
@@ -263,6 +264,10 @@ public abstract class BeanFactoryUtils {
 			ListableBeanFactory lbf, Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
+		// TODO 根据指定的type类型从容器中取得bean的名字集合, 以下容器实现了此方法:
+		//  1. DefaultListableBeanFactory:
+		//  2. AbstractApplicationContext: 使用了DefaultListableBeanFactory的getBeanNamesForType()方法
+		//  3. StaticListableBeanFactory: 从缓存中返回匹配的bean集合
 		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
 		if (lbf instanceof HierarchicalBeanFactory) {
 			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;

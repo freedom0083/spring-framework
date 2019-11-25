@@ -341,24 +341,33 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	@Override
 	public String[] getBeanNamesForType(@Nullable ResolvableType type,
 			boolean includeNonSingletons, boolean allowEagerInit) {
-
+		// TODO 解析传入的类型, 为空时返回null
 		Class<?> resolved = (type != null ? type.resolve() : null);
+		// TODO 如果成功的解析了传入的类型, 且其为工厂类型时, 为true
 		boolean isFactoryType = resolved != null && FactoryBean.class.isAssignableFrom(resolved);
 		List<String> matches = new ArrayList<>();
 
 		for (Map.Entry<String, Object> entry : this.beans.entrySet()) {
+			// TODO 迭代bean实例缓存
 			String beanName = entry.getKey();
 			Object beanInstance = entry.getValue();
 			if (beanInstance instanceof FactoryBean && !isFactoryType) {
+				// TODO 得到的实例是工厂类, 且指定的类型不是工厂类型时(没有实现FactoryBean接口), 先将实例转为工厂类型
 				FactoryBean<?> factoryBean = (FactoryBean<?>) beanInstance;
+				// TODO 然后取得其type
 				Class<?> objectType = factoryBean.getObjectType();
 				if ((includeNonSingletons || factoryBean.isSingleton()) &&
 						objectType != null && (type == null || type.isAssignableFrom(objectType))) {
+					// TODO 以下情况, bean会包含到匹配结果集中:
+					//  1. 允许非单例bean, 或者工厂类是单例;
+					//  2. 并且工厂类有对应的type;
+					//  3. 传入的类型为null, 或者工厂类的type与其相同;
 					matches.add(beanName);
 				}
 			}
 			else {
 				if (type == null || type.isInstance(beanInstance)) {
+					// TODO 不是工厂类时, 如果类型与bean实例类型相同就认为匹配成功
 					matches.add(beanName);
 				}
 			}

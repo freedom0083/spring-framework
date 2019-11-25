@@ -249,6 +249,7 @@ public class ResolvableType implements Serializable {
 	 * @since 4.2
 	 * @see #isAssignableFrom(Class)
 	 */
+	// TODO 判断当前类是否为参数的父类
 	public boolean isInstance(@Nullable Object obj) {
 		return (obj != null && isAssignableFrom(obj.getClass()));
 	}
@@ -721,6 +722,7 @@ public class ResolvableType implements Serializable {
 	 * @see #resolveGeneric(int...)
 	 * @see #resolveGenerics()
 	 */
+	// TODO 返回泛型的参数类型的集合
 	public ResolvableType[] getGenerics() {
 		if (this == NONE) {
 			// TODO 为空时返回空数组

@@ -688,7 +688,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
-					// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来预测目标类型
+					// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来预测目标类型, 以下后处理器实现了predictBeanType()方法:
+					//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了一个默认实现, 返回的是null;
+					//  2. InstantiationAwareBeanPostProcessorAdapter抽象类: 什么也没做, 也是返回null, 其实可以去掉这个方法, 直接使用接口中的默认方法;
+					//  3. AbstractAutoProxyCreator抽象类: 从代理类型中查找
+					//  4. ScriptFactoryPostProcessor类: 用脚本工厂来查找 mark 以后补上
 					Class<?> predicted = ibp.predictBeanType(targetType, beanName);
 					if (predicted != null &&
 							(!matchingOnlyFactoryBean || FactoryBean.class.isAssignableFrom(predicted))) {
@@ -712,7 +716,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Nullable
 	protected Class<?> determineTargetType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 取得合并了双亲属性的bd的代理目标的类型
+		// TODO 取得mbd的代理目标的类型
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType == null) {
 			// TODO 代理目标类型不存在时, 取得对应的目标类型:
