@@ -130,17 +130,20 @@ public class InjectionPoint {
 	/**
 	 * Obtain the annotations associated with the wrapped field or method/constructor parameter.
 	 */
-	// TODO 获取所包装的依赖(方法参数或者成员属性)上的注解信息
+	// TODO 获取被包装的注入项(方法参数或者成员属性)上的所有注解
 	public Annotation[] getAnnotations() {
 		if (this.field != null) {
+			// TODO 注入项是字段时, 先从字段的缓存中拿注解
 			Annotation[] fieldAnnotations = this.fieldAnnotations;
 			if (fieldAnnotations == null) {
+				// TODO 拿不到就直接从字段上拿, 然后设置到缓存中后返回
 				fieldAnnotations = this.field.getAnnotations();
 				this.fieldAnnotations = fieldAnnotations;
 			}
 			return fieldAnnotations;
 		}
 		else {
+			// TODO 是方法时, 取得方法参数的注解
 			return obtainMethodParameter().getParameterAnnotations();
 		}
 	}

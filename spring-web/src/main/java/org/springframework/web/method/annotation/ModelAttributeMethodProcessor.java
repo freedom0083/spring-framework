@@ -486,6 +486,7 @@ public class ModelAttributeMethodProcessor implements HandlerMethodArgumentResol
 		}
 
 		@Override
+		// TODO 取得字段上的注解, 会合并方法/构造器参数的注解
 		public Annotation[] getParameterAnnotations() {
 			Annotation[] anns = this.combinedAnnotations;
 			if (anns == null) {

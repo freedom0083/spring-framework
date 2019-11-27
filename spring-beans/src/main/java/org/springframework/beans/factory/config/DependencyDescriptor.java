@@ -394,6 +394,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Determine the declared (non-generic) type of the wrapped parameter/field.
 	 * @return the declared type (never {@code null})
 	 */
+	// TODO 返回注入项的type类型
 	public Class<?> getDependencyType() {
 		if (this.field != null) {
 			// TODO 对字段的处理逻辑

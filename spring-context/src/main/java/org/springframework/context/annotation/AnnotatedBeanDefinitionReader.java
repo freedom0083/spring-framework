@@ -268,12 +268,15 @@ public class AnnotatedBeanDefinitionReader {
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
+					// TODO 如果包含@Primary注解, 设置abd有首先项
 					abd.setPrimary(true);
 				}
 				else if (Lazy.class == qualifier) {
+					// TODO 如果包含@Lazy注解, 设置abd使用懒加载
 					abd.setLazyInit(true);
 				}
 				else {
+					// TODO 包含@Qualifier时, 将其添加到abd的qualifiers缓存中
 					abd.addQualifier(new AutowireCandidateQualifier(qualifier));
 				}
 			}

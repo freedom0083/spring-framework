@@ -58,7 +58,7 @@ import org.springframework.util.StringUtils;
  * @see Value
  */
 public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwareAutowireCandidateResolver {
-
+	// TODO 可用的限定类型, 初始化时默认指定了@Qualifier和JSR-330的javax.inject.Qualifier(不支持时就没有这个)
 	private final Set<Class<? extends Annotation>> qualifierTypes = new LinkedHashSet<>(2);
 	// TODO @Value注解
 	private Class<? extends Annotation> valueAnnotationType = Value.class;
@@ -151,12 +151,14 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	@Override
 	// TODO 用于判断bean是否可以被自动装配
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
-		// TODO 先用父类检查一下bean是否可以自动装配
+		// TODO 先用父类GenericTypeAwareAutowireCandidateResolver#isAutowireCandidate(BeanDefinitionHolder, DependencyDescriptor)
+		//  检查一下bean是否可以自动装配
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
 		if (match) {
-			// 可以自动装配时, 检查bean与@Qualifier注解是否匹配
+			// TODO 如果可以自动装配, 检查候选bean是否匹配注入项上限定注解所指定的限定条件(descriptor.getAnnotations()会包含注入项上的所有注解)
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
+				// TODO 如果匹配
 				MethodParameter methodParam = descriptor.getMethodParameter();
 				if (methodParam != null) {
 					Method method = methodParam.getMethod();
@@ -171,29 +173,43 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 
 	/**
 	 * Match the given qualifier annotations against the candidate bean definition.
+	 * @param bdHolder 候选bean
+	 * @param annotationsToSearch 注入项上所有的注解, 比如: @Autowire, @Qualifier等
+	 * @return 候选bean是否匹配由限定注解(@Qualifier)所指定的限定条件
 	 */
+	// TODO 检查候选bean是否匹配由限定注解所指定的限定条件
 	protected boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
 		if (ObjectUtils.isEmpty(annotationsToSearch)) {
+			// TODO 注入项没有注解时, 不用处理, 直接返回true
 			return true;
 		}
 		SimpleTypeConverter typeConverter = new SimpleTypeConverter();
 		for (Annotation annotation : annotationsToSearch) {
+			// TODO 遍历所有待查的注解, 取得每个注解的type类型, 比如Autowire, Qualifier这些
 			Class<? extends Annotation> type = annotation.annotationType();
+			// TODO 是否检查元注解
 			boolean checkMeta = true;
+			// TODO 是否要回退到元注解上
 			boolean fallbackToMeta = false;
+			// TODO 判断注解类型是否为支持的限定注解类型, 默认是@Qualifier或JSR-330的javax.inject.Qualifier
 			if (isQualifier(type)) {
+				// TODO 当注入项上的注解是限定条件注解类型时, 验证一下是否满足限定条件
 				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
+					// TODO 不满足时, 回退到元注解上接着验证
 					fallbackToMeta = true;
 				}
 				else {
+					// TODO 满足时, 就不用再到元注解上验证了
 					checkMeta = false;
 				}
 			}
 			if (checkMeta) {
 				boolean foundMeta = false;
 				for (Annotation metaAnn : type.getAnnotations()) {
+					// TODO 遍历注解上所有的元注解, 比如@LoadBalanced会标注了@Documented, @Retention, @Target, @Qualifier等
 					Class<? extends Annotation> metaType = metaAnn.annotationType();
 					if (isQualifier(metaType)) {
+						// TODO 只要找到了@Qualifier注解, 就标识查找成功
 						foundMeta = true;
 						// Only accept fallback match if @Qualifier annotation has a value...
 						// Otherwise it is just a marker for a custom qualifier annotation.
@@ -204,10 +220,12 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 					}
 				}
 				if (fallbackToMeta && !foundMeta) {
+					// TODO 回退到元注解也没找到时, 返回匹配失败
 					return false;
 				}
 			}
 		}
+		// TODO 候选bean完全匹配由限定注解所指定的限定条件时, 表示候选bean是合法的
 		return true;
 	}
 
@@ -225,25 +243,37 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 
 	/**
 	 * Match the given qualifier annotation against the candidate bean definition.
+	 * @param bdHolder 注入候选bean
+	 * @param annotation 注入项中包含的注解, 对于限定条件来说, 是@Qualifier或JSR-330的javax.inject.Qualifier
+	 * @param typeConverter 类型转换器
+	 * @return 候选bean是否匹配由限定注解(@Qualifier)所指定的限定条件
 	 */
+	// TODO 根据候选bean来匹配由Annotation给定的限定注释
 	protected boolean checkQualifier(
 			BeanDefinitionHolder bdHolder, Annotation annotation, TypeConverter typeConverter) {
-
+		// TODO 取得注解的type类型(Spring或JSR-330的Qualifier)
 		Class<? extends Annotation> type = annotation.annotationType();
+		// TODO 拿到候选bean的bd
 		RootBeanDefinition bd = (RootBeanDefinition) bdHolder.getBeanDefinition();
-
+		// TODO AnnotationConfigApplicationContext容器在注册bean时会解析@Qualifier注解, 将其包装为AutowireCandidateQualifier
+		//  放到bd的qualifiers缓存中, 这里先去缓存中用@Qualifier的type类型(全限定名, 即org.springframework.beans.factory.annotation.Qualifier)
+		//  找其对应的AutowireCandidateQualifier
 		AutowireCandidateQualifier qualifier = bd.getQualifier(type.getName());
 		if (qualifier == null) {
+			// TODO 如果用全限定名没找到, 再尝试用类名Qualifier到候选bean的缓存查找
 			qualifier = bd.getQualifier(ClassUtils.getShortName(type));
 		}
 		if (qualifier == null) {
 			// First, check annotation on qualified element, if any
+			// TODO 还没拿到, 看一下候选bean的AnnotatedElement中是否有由Annotation(@Qualifier类型)所指定的注解
 			Annotation targetAnnotation = getQualifiedElementAnnotation(bd, type);
 			// Then, check annotation on factory method, if applicable
 			if (targetAnnotation == null) {
+				// TODO 还没有, 看候选bean的工厂方法中是否有由Annotation(@Qualifier类型)所指定的注解
 				targetAnnotation = getFactoryMethodAnnotation(bd, type);
 			}
 			if (targetAnnotation == null) {
+				// TODO 还没有, 看候选bean是不是一个代理类, 如果是, 看看其目标类的工厂方法中是否有由Annotation(@Qualifier类型)所指定的注解
 				RootBeanDefinition dbd = getResolvedDecoratedDefinition(bd);
 				if (dbd != null) {
 					targetAnnotation = getFactoryMethodAnnotation(dbd, type);
@@ -251,8 +281,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			}
 			if (targetAnnotation == null) {
 				// Look for matching annotation on the target class
+				// TODO 还没有, 就看看容器
 				if (getBeanFactory() != null) {
 					try {
+						// TODO 容器里要是有候选bean对应的类型, 看看这个类型上是否有由Annotation(@Qualifier类型)所指定的注解
 						Class<?> beanType = getBeanFactory().getType(bdHolder.getBeanName());
 						if (beanType != null) {
 							targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(beanType), type);
@@ -263,17 +295,20 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 					}
 				}
 				if (targetAnnotation == null && bd.hasBeanClass()) {
+					// TODO 还没有, 就看一下候选bean的class属性所指定的class上是否有由Annotation(@Qualifier类型)所指定的注解
 					targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(bd.getBeanClass()), type);
 				}
 			}
 			if (targetAnnotation != null && targetAnnotation.equals(annotation)) {
+				// TODO 找到, 并且是指定的注解时(@Qualifier), 返回true
 				return true;
 			}
 		}
-
+		// TODO 依然没有找到@Qualifier候选时, 把注解的属性全拿出来
 		Map<String, Object> attributes = AnnotationUtils.getAnnotationAttributes(annotation);
 		if (attributes.isEmpty() && qualifier == null) {
 			// If no attributes, the qualifier must be present
+			// TODO 没有属性, 也没有@Qualifier候选时, 表示候选bean不是Qualifier候选
 			return false;
 		}
 		for (Map.Entry<String, Object> entry : attributes.entrySet()) {
@@ -281,6 +316,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			Object expectedValue = entry.getValue();
 			Object actualValue = null;
 			// Check qualifier first
+			// TODO 挨个儿检查注解中的属性
 			if (qualifier != null) {
 				actualValue = qualifier.getAttribute(attributeName);
 			}

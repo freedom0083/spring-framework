@@ -523,6 +523,7 @@ public class ResolvableType implements Serializable {
 	 * @see #getGeneric(int...)
 	 * @see #getGenerics()
 	 */
+	// TODO 判断当前的type是否有泛型参数, 只要有就返回true
 	public boolean hasGenerics() {
 		return (getGenerics().length > 0);
 	}
@@ -551,25 +552,32 @@ public class ResolvableType implements Serializable {
 	 * i.e. without substituting that interface's type variables.
 	 * The result will be {@code true} only in those two scenarios.
 	 */
+	// TODO 判断是否有不可解析的泛型
 	public boolean hasUnresolvableGenerics() {
 		if (this == NONE) {
 			return false;
 		}
+		// TODO 取得所有的泛型参数类型的集合
 		ResolvableType[] generics = getGenerics();
 		for (ResolvableType generic : generics) {
 			if (generic.isUnresolvableTypeVariable() || generic.isWildcardWithoutBounds()) {
+				// TODO 只要其中有一个是不可解析的, 或者是没有边界的泛型表达式(没有上下界, 或者上界是Object的情况, 即? extends Object这样的表达式)就返回true
 				return true;
 			}
 		}
 		Class<?> resolved = resolve();
 		if (resolved != null) {
 			for (Type genericInterface : resolved.getGenericInterfaces()) {
+				// TODO 迭代当前type所实现的接口
 				if (genericInterface instanceof Class) {
 					if (forClass((Class<?>) genericInterface).hasGenerics()) {
+						// TODO 只要有一个接口的type是Class类型, 且其还有泛型(通以原始方式实现通用接口，即不替换接口的类型变量),
+						//  就返回true, 表示有不可解析的泛型
 						return true;
 					}
 				}
 			}
+			// TODO 然后再到父类型中去找
 			return getSuperType().hasUnresolvableGenerics();
 		}
 		return false;
@@ -579,17 +587,26 @@ public class ResolvableType implements Serializable {
 	 * Determine whether the underlying type is a type variable that
 	 * cannot be resolved through the associated variable resolver.
 	 */
+	// TODO 判断是否有无法通过解析器解析的类型变量(泛型中的变量, 例如: T, K, V等, 可以表示任何类)
 	private boolean isUnresolvableTypeVariable() {
 		if (this.type instanceof TypeVariable) {
+			// TODO type类型为类型变量TypeVariable时, 如果没有设置泛型变量解析器, 表示其无法解析, 返回true
 			if (this.variableResolver == null) {
 				return true;
 			}
 			TypeVariable<?> variable = (TypeVariable<?>) this.type;
+			// TODO 用关联的解析器对TypeVariable类型的type进行解析:
+			//  1. DefaultVariableResolver: 默认的泛型变量解析器, 使用ResolvableType#resolveVariable(TypeVariable)对泛型变量
+			//                              进行解析.
+			//  2. TypeVariableMapVariableResolver: 从缓存中取得泛型类型对应的ResolvableType的解析器
+			//  3. TypeVariablesVariableResolver: 从解析器保存的泛型类型中, 对指定的泛型类型进行解析
 			ResolvableType resolved = this.variableResolver.resolveVariable(variable);
 			if (resolved == null || resolved.isUnresolvableTypeVariable()) {
+				// TODO 无法解析, 或者解析后的结果无法被解析时, 表示其无法解析, 返回true
 				return true;
 			}
 		}
+		// TODO type类型不是类型变量TypeVariable时, 直接返回false, 表示此类型变量可以解析
 		return false;
 	}
 
@@ -597,12 +614,15 @@ public class ResolvableType implements Serializable {
 	 * Determine whether the underlying type represents a wildcard
 	 * without specific bounds (i.e., equal to {@code ? extends Object}).
 	 */
+	// TODO 判断泛型表达式是否不包含指定的边界
 	private boolean isWildcardWithoutBounds() {
 		if (this.type instanceof WildcardType) {
 			WildcardType wt = (WildcardType) this.type;
 			if (wt.getLowerBounds().length == 0) {
+				// TODO 泛型表达式不包含政界时, 判断其上界
 				Type[] upperBounds = wt.getUpperBounds();
 				if (upperBounds.length == 0 || (upperBounds.length == 1 && Object.class == upperBounds[0])) {
+					// TODO 如果不包含上界, 或者上界是Object时, 返回true, 表示此泛型表达式没有边界
 					return true;
 				}
 			}
@@ -913,31 +933,46 @@ public class ResolvableType implements Serializable {
 	}
 
 	@Nullable
+	// TODO 解析泛型变量(泛型中'<>'中T, V这些用来表示任何类型的参数)
 	private ResolvableType resolveVariable(TypeVariable<?> variable) {
 		if (this.type instanceof TypeVariable) {
+			// TODO 对于泛型变量类型(泛型中'<>'中T, V这些用来表示任何类型的参数), 直接解析
 			return resolveType().resolveVariable(variable);
 		}
 		if (this.type instanceof ParameterizedType) {
+			// TODO 对于ParameterizedType类型(表示泛型本身), 先取得其中的变量类型TypeVariable, 然后再对其进行解析
 			ParameterizedType parameterizedType = (ParameterizedType) this.type;
 			Class<?> resolved = resolve();
 			if (resolved == null) {
+				// TODO 没有解析结果, 返回null
 				return null;
 			}
+			// TODO 取得代表泛型本身的ParameterizedType中的所有参数
 			TypeVariable<?>[] variables = resolved.getTypeParameters();
 			for (int i = 0; i < variables.length; i++) {
 				if (ObjectUtils.nullSafeEquals(variables[i].getName(), variable.getName())) {
+					// TODO 拿出指定的TypeVariable, 通过getActualTypeArguments()取得其'<>'操作符内对应位置的参数类型
 					Type actualType = parameterizedType.getActualTypeArguments()[i];
+					// TODO 将其包装为一个包含当前的解析器的ResolvableType返回
 					return forType(actualType, this.variableResolver);
 				}
 			}
+			// TODO 如果没有取得泛型参数的类型, 则用其所有者的类型, 比如: Map.Entry<Sting, String>, 所有者类型为Map
 			Type ownerType = parameterizedType.getOwnerType();
 			if (ownerType != null) {
+				// TODO 将得到的所有者类型包装为一个包含当前的解析器的ResolvableType返回
 				return forType(ownerType, this.variableResolver).resolveVariable(variable);
 			}
 		}
 		if (this.variableResolver != null) {
+			// TODO 其他类型时, 返回由指定的变量解析器解析后的结果, 以下解析器实现了resolveVariable()方法:
+			//  1. DefaultVariableResolver: 默认的泛型变量解析器, 使用ResolvableType#resolveVariable(TypeVariable)对泛型变量
+			//                              进行解析.
+			//  2. TypeVariableMapVariableResolver: 从缓存中取得泛型类型对应的ResolvableType的解析器
+			//  3. TypeVariablesVariableResolver: 从解析器保存的泛型类型中, 对指定的泛型类型进行解析
 			return this.variableResolver.resolveVariable(variable);
 		}
+		// TODO 解析不出来就返回null
 		return null;
 	}
 
@@ -1273,8 +1308,10 @@ public class ResolvableType implements Serializable {
 	 * @return a {@link ResolvableType} for the specified method return
 	 * @see #forMethodReturnType(Method, Class)
 	 */
+	// TODO 取得给定方法返回的type类型
 	public static ResolvableType forMethodReturnType(Method method) {
 		Assert.notNull(method, "Method must not be null");
+		// TODO 将方法包装为MethodParameter, 然后取得其ResolvableType
 		return forMethodParameter(new MethodParameter(method, -1));
 	}
 
@@ -1553,6 +1590,7 @@ public class ResolvableType implements Serializable {
 		@Override
 		@Nullable
 		public ResolvableType resolveVariable(TypeVariable<?> variable) {
+			// TODO 用设置的ResolvableType解析泛型变量, 即ResolvableType#resolveVariable(TypeVariable)
 			return this.source.resolveVariable(variable);
 		}
 

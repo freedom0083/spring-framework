@@ -571,11 +571,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// TODO 缓存中不存在bean实例时, 创建对应的bean实例
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
-		// TODO 取得bean实例以及bean实例的类型
+		// TODO 取得被包装过的bean实例以及bean实例的类信息
 		final Object bean = instanceWrapper.getWrappedInstance();
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
-			// TODO bean实例的类型不是NullBean时, 将其做为解析后的目标类型, 放到合并后的bd的resolvedTargetType属性中
+			// TODO bean实例的不是NullBean类型时, 将其做为解析后的目标类型, 放到mbd的resolvedTargetType属性中
 			mbd.resolvedTargetType = beanType;
 		}
 

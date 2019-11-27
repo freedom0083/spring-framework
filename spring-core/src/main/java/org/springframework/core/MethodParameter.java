@@ -651,6 +651,7 @@ public class MethodParameter {
 	/**
 	 * Return the annotations associated with the specific method/constructor parameter.
 	 */
+	// TODO 取得指定方法, 构造器参数上的所有注解
 	public Annotation[] getParameterAnnotations() {
 		Annotation[] paramAnns = this.parameterAnnotations;
 		if (paramAnns == null) {

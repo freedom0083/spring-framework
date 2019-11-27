@@ -288,8 +288,11 @@ public final class GenericTypeResolver {
 
 		@Override
 		@Nullable
+		// TODO 从缓存取解析好的泛型类型
 		public ResolvableType resolveVariable(TypeVariable<?> variable) {
+			// TODO 先从缓存中取得泛型变量对应的type类型
 			Type type = this.typeVariableMap.get(variable);
+			// TODO 如果缓存中存在, 则将其包装为一个ResolvableType返回, 否则返回null
 			return (type != null ? ResolvableType.forType(type) : null);
 		}
 

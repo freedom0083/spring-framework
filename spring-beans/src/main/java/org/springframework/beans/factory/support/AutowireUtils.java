@@ -128,13 +128,14 @@ abstract class AutowireUtils {
 	 * @param requiredType the type to assign the result to
 	 * @return the resolved value
 	 */
+	// TODO 根据指定类型解析自动装配的依赖项
 	public static Object resolveAutowiringValue(Object autowiringValue, Class<?> requiredType) {
 		// TODO 处理一下解析过的自动注入的对象, 这里主要是为了对工厂类型, 以及与所需bean类型不同时的转换工作
 		if (autowiringValue instanceof ObjectFactory && !requiredType.isInstance(autowiringValue)) {
-			// TODO 用于自动注入的对象是工厂类型的情况(用于自动注入的对象是工厂类型, 并且与bean所要求的类型不同)
+			// TODO 自动注入的对象是工厂类型时(用于自动注入的对象是工厂类型, 并且与bean所要求的类型不同), 先将自动装配项转化为工厂类型
 			ObjectFactory<?> factory = (ObjectFactory<?>) autowiringValue;
 			if (autowiringValue instanceof Serializable && requiredType.isInterface()) {
-				// TODO 要得到的bean是个接口, 且用于注入的对象可序列化时, 创建一个代理返回
+				// TODO 转化后的自动装配项支持序列化, 且指定的类型是接口类型时, 创建一个代理返回
 				autowiringValue = Proxy.newProxyInstance(requiredType.getClassLoader(),
 						new Class<?>[] {requiredType}, new ObjectFactoryDelegatingInvocationHandler(factory));
 			}

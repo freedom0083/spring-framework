@@ -80,6 +80,7 @@ public abstract class BeanFactoryUtils {
 	 * @return the transformed name
 	 * @see BeanFactory#FACTORY_BEAN_PREFIX
 	 */
+	// TODO 用于转换bean的名字, 去掉其中的'&', 得到一个在容器中使用的bean名
 	public static String transformedBeanName(String name) {
 		Assert.notNull(name, "'name' must not be null");
 		if (!name.startsWith(BeanFactory.FACTORY_BEAN_PREFIX)) {
@@ -260,20 +261,27 @@ public abstract class BeanFactoryUtils {
 	 * @return the array of matching bean names, or an empty array if none
 	 * @see ListableBeanFactory#getBeanNamesForType(Class, boolean, boolean)
 	 */
+	// TODO 根据type类型, 在当前容器, 以及父容器中取得对应的bean名字的集合
 	public static String[] beanNamesForTypeIncludingAncestors(
 			ListableBeanFactory lbf, Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		// TODO 根据指定的type类型从容器中取得bean的名字集合, 以下容器实现了此方法:
-		//  1. DefaultListableBeanFactory:
+		//  1. DefaultListableBeanFactory: 根据指定type类型, 在容器中取得对应type类型的bean的名字的数组, 过程是:
+		//                                 1. 对于不缓存bean definition的元数据信息, 或者没有指定type, 或者不支持急加载情况,
+		//                                    直接用类型去容器中找bean;
+		//                                 2. 其他情况时, 先找缓存, 缓存没有再根据type类型到容器中去找bean
 		//  2. AbstractApplicationContext: 使用了DefaultListableBeanFactory的getBeanNamesForType()方法
 		//  3. StaticListableBeanFactory: 从缓存中返回匹配的bean集合
 		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
 		if (lbf instanceof HierarchicalBeanFactory) {
+			// TODO 如果容器是HierarchicalBeanFactory类型的, 会进到父容器中取得其中相同类型的bean的名字
 			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
+				// TODO 对于容器是HierarchicalBeanFactory类型的情况, 如果其父容器是ListableBeanFactory类型, 则进到父容器去取得相同类型的bean的名字
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);
+				// TODO 把父容器中相同type类型, 且当前容器中不存在的bean的名字合并到一起, 然后返回
 				result = mergeNamesWithParent(result, parentResult, hbf);
 			}
 		}
