@@ -747,10 +747,12 @@ public class BeanDefinitionParserDelegate {
 	 * Parse qualifier sub-elements of the given bean element.
 	 */
 	public void parseQualifierElements(Element beanEle, AbstractBeanDefinition bd) {
+		// TODO 拿到<bean />中配置的所有节点
 		NodeList nl = beanEle.getChildNodes();
 		for (int i = 0; i < nl.getLength(); i++) {
 			Node node = nl.item(i);
 			if (isCandidateElement(node) && nodeNameEquals(node, QUALIFIER_ELEMENT)) {
+				// TODO 对'qualifier'节点进行处理
 				parseQualifierElement((Element) node, bd);
 			}
 		}
@@ -892,6 +894,7 @@ public class BeanDefinitionParserDelegate {
 	 * Parse a qualifier element.
 	 */
 	public void parseQualifierElement(Element ele, AbstractBeanDefinition bd) {
+		// TODO 取得'qualifier'的type属性
 		String typeName = ele.getAttribute(TYPE_ATTRIBUTE);
 		if (!StringUtils.hasLength(typeName)) {
 			error("Tag 'qualifier' must have a 'type' attribute", ele);
@@ -899,14 +902,17 @@ public class BeanDefinitionParserDelegate {
 		}
 		this.parseState.push(new QualifierEntry(typeName));
 		try {
+			// TODO 用type初始化一个AutowireCandidateQualifier
 			AutowireCandidateQualifier qualifier = new AutowireCandidateQualifier(typeName);
 			qualifier.setSource(extractSource(ele));
+			// TODO 取得'qualifier'的value属性, 并设置为qualifier的值
 			String value = ele.getAttribute(VALUE_ATTRIBUTE);
 			if (StringUtils.hasLength(value)) {
 				qualifier.setAttribute(AutowireCandidateQualifier.VALUE_KEY, value);
 			}
 			NodeList nl = ele.getChildNodes();
 			for (int i = 0; i < nl.getLength(); i++) {
+				// TODO 设置qualifier的其他属性
 				Node node = nl.item(i);
 				if (isCandidateElement(node) && nodeNameEquals(node, QUALIFIER_ATTRIBUTE_ELEMENT)) {
 					Element attributeEle = (Element) node;
@@ -923,6 +929,7 @@ public class BeanDefinitionParserDelegate {
 					}
 				}
 			}
+			// TODO 最后把qualifier设置到bean的qualifier属性中. 在自动注入时就可以直接根据bean的qualifier直接找到对应的候选bean了
 			bd.addQualifier(qualifier);
 		}
 		finally {

@@ -493,8 +493,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 用来指定特定类型的ClassLoader, 根据代码来看, 主要是为了支持AspectJ
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
-			// TODO 类加载后, 如果合并后的bd依然没有对应的bean引用时(没有'class'属性, 或'class'设置的是全限定名)
-			//  这时用其创建一个RootBeanDefinition, 并把加载后的类引用做为其beanClass属性
+			// TODO 类加载后, 如果mbd依然没有对应的bean引用时(没有'class'属性, 或'class'设置的是全限定名), 则创建一个RootBeanDefinition,
+			//  并把加载后的类引用做为其beanClass属性
 			mbdToUse = new RootBeanDefinition(mbd);
 			mbdToUse.setBeanClass(resolvedClass);
 		}
@@ -511,8 +511,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
-			// TODO 返回一个代理(用于动态代理等). 如果是普通的bean, 这里返回的会是null. 容器里所有的
-			//  InstantiationAwareBeanPostProcessors实例，都会在此处生效，进行前置处理
+			// TODO 返回一个目标类的代理(用于动态代理等). 如果是普通的bean, 这里返回的会是null. 容器里所有的
+			//  InstantiationAwareBeanPostProcessors实例都会在此处生效, 同时进行前置处理
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				// TODO 短路操作, 如果返回的是代理对象, 则创建结束, 直接返回
@@ -1240,8 +1240,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现
 			//  InstantiationAwareBeanPostProcessor接口的主要作用是在目标实例化前后, 以及实例的属性进行处理
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-				// TODO 当这个合并过的bean definition是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的
-				//  InstantiationAwareBeanPostProcessor类型后处理器时, 尝试从合并双亲属性的bd中拿到bean的类型
+				// TODO 当这个mbd是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
+				//  类型后处理器时, 尝试从mbd中拿到bean的类型
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
 					// TODO 有对应的代理目标类型时, 用后处理器对其进行处理, 生成一个代理对象, 如果没有处理结果, 也不需要再进行实例化的后处理器了

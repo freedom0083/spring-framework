@@ -590,8 +590,8 @@ public class ResolvableType implements Serializable {
 	// TODO 判断是否有无法通过解析器解析的类型变量(泛型中的变量, 例如: T, K, V等, 可以表示任何类)
 	private boolean isUnresolvableTypeVariable() {
 		if (this.type instanceof TypeVariable) {
-			// TODO type类型为类型变量TypeVariable时, 如果没有设置泛型变量解析器, 表示其无法解析, 返回true
 			if (this.variableResolver == null) {
+				// TODO type类型为TypeVariable类型变量时, 需要用指定的解析器进行解析. 如果没有设置解析器, 就表示为无法解析
 				return true;
 			}
 			TypeVariable<?> variable = (TypeVariable<?>) this.type;
@@ -602,7 +602,7 @@ public class ResolvableType implements Serializable {
 			//  3. TypeVariablesVariableResolver: 从解析器保存的泛型类型中, 对指定的泛型类型进行解析
 			ResolvableType resolved = this.variableResolver.resolveVariable(variable);
 			if (resolved == null || resolved.isUnresolvableTypeVariable()) {
-				// TODO 无法解析, 或者解析后的结果无法被解析时, 表示其无法解析, 返回true
+				// TODO 无法解析, 或者解析后的结果无法被解析时, 表示其无法解析
 				return true;
 			}
 		}

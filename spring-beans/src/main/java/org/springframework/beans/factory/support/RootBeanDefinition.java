@@ -58,13 +58,14 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable
+	// TODO 当前rbd是的注解元素
 	private AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */
 	volatile boolean stale;
 
 	boolean allowCaching = true;
-
+	// TODO 指定的工厂方法是否为非重载方法, 即唯一的工厂方法
 	boolean isFactoryMethodUnique = false;
 
 	@Nullable
@@ -337,8 +338,10 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	@Nullable
 	public Class<?> getTargetType() {
 		if (this.resolvedTargetType != null) {
+			// TODO 如果有解析好的代理目标的类型就返回
 			return this.resolvedTargetType;
 		}
+		// TODO 没有的话看是否有代理目标的类型, 如果没有就返回null
 		ResolvableType targetType = this.targetType;
 		return (targetType != null ? targetType.resolve() : null);
 	}

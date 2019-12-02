@@ -248,7 +248,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			@Nullable final Object[] args, boolean typeCheckOnly) throws BeansException {
 		// TODO transformedBeanName()用来规范化要取得的bean的名字, 此方法做了两件事:
 		//  1. 去掉'&': Spring中工厂类是以'&'开头的(表示为一个引用, 而非bean). 使用getBean("&xxx")方法时, 得到的会是bean工厂, 而
-		//              使用getBean("xxx")方法得到的是bean本身, 或者bean工厂中的对象(最终返回的是beanFactory.getObject()).
+		//             使用getBean("xxx")方法得到的是bean本身, 或者bean工厂中的对象(最终返回的是beanFactory.getObject()).
 		//             这里去掉'&'后, 后面再取的bean就是bean工厂中的对象了
 		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
 		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
@@ -273,11 +273,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 			// TODO 从得到的单例实例中取得bean对象, getObjectForBeanInstance()方法的主要是逻辑是:
-			//  1. 如果要取得的bean是工厂类本身, 即, 调用的getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
-			//  2. 如果要得到的bean是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
-			//  3. 是得到的bean不是工厂类, 但其实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例, 如果缓存中没有, 则调用工厂类实例
-			//     的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工(由程序本身创建bean,
-			//     会用后处理器进行处理)
+			//  1. 如果要取得的bean的名字是'&'开头的工厂类本身, 即, getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
+			//  2. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
+			//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
+			//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
+			//     (由程序本身创建bean, 会用后处理器进行处理)
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
@@ -306,7 +306,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				//                                 增加了通过类型查找bean的功能
 				//  3. SimpleJndiBeanFactory: 通过jndi查找bean
 				//  4. StaticListableBeanFactory: 从缓存中查找bean
-				// TODO 先得到一个真实名字(对于工厂类来说originalBeanName()方法会在得到其真实名后, 为其添加'&', 表示其为一个解引用, 而非bean)
+				//  先得到一个真实名字(对于工厂类来说originalBeanName()方法会在得到其真实名后, 为其添加'&', 表示其为一个解引用, 而非bean)
 				String nameToLookup = originalBeanName(name);
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
 					// TODO 如果父容器是AbstractBeanFactory类型, 即: AbstractAutowireCapableBeanFactory,
@@ -388,12 +388,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							throw ex;
 						}
 					});
-					// TODO 从得到的单例实例中取得bean对象, getObjectForBeanInstance()方法的主要是逻辑是:
-					//  1. 如果要取得的bean是工厂类本身, 即, 调用的getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
-					//  2. 如果要得到的bean是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
-					//  3. 是得到的bean不是工厂类, 但其实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例, 如果缓存中没有, 则调用工厂类实例
-					//     的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工(由程序本身创建bean,
-					//     会用后处理器进行处理)
+					// TODO 与上面相同, 从得到的单例实例中取得bean对象, 区别是在实例为工厂类时, 设置mbd也同为工厂类,
+					//  getObjectForBeanInstance()方法的主要是逻辑是:
+					//  1. 如果要取得的bean的名字是'&'开头的工厂类本身, 即, getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
+					//  2. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
+					//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
+					//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
+					//     (由程序本身创建bean, 会用后处理器进行处理)
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
 
@@ -411,12 +412,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						// TODO 创建结束后, 从ThreadLocal中移除当前创建的bean实例
 						afterPrototypeCreation(beanName);
 					}
-					// TODO 和上面一样, 从得到的单例实例中取得bean对象, getObjectForBeanInstance()方法的主要是逻辑是:
-					//  1. 如果要取得的bean是工厂类本身, 即, 调用的getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
-					//  2. 如果要得到的bean是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
-					//  3. 是得到的bean不是工厂类, 但其实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例, 如果缓存中没有, 则调用工厂类实例
-					//     的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工(由程序本身创建bean,
-					//     会用后处理器进行处理)
+					// TODO 与上面相同, 从得到的原型实例中取得bean对象, 区别是在实例为工厂类时, 设置mbd也同为工厂类,
+					//  getObjectForBeanInstance()方法的主要是逻辑是:
+					//  1. 如果要取得的bean的名字是'&'开头的工厂类本身, 即, getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
+					//  2. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
+					//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
+					//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
+					//     (由程序本身创建bean, 会用后处理器进行处理)
 					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
 				}
 
@@ -440,12 +442,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 								afterPrototypeCreation(beanName);
 							}
 						});
-						// TODO 和上面一样, 从得到的单例实例中取得bean对象, getObjectForBeanInstance()方法的主要是逻辑是:
-						//  1. 如果要取得的bean是工厂类本身, 即, 调用的getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
-						//  2. 如果要得到的bean是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
-						//  3. 是得到的bean不是工厂类, 但其实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例, 如果缓存中没有, 则调用工厂类实例
-						//     的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工(由程序本身创建bean,
-						//     会用后处理器进行处理)
+						// TODO 与上面相同, 从得到的scope实例中取得bean对象, 区别是在实例为工厂类时, 设置mbd也同为工厂类,
+						//  getObjectForBeanInstance()方法的主要是逻辑是:
+						//  1. 如果要取得的bean的名字是'&'开头的工厂类本身, 即, getBean("&xxx"), 则前面得到的sharedInstance实例就是工厂类本身, 直接返回即可;
+						//  2. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 则直接返回前面得到的sharedInstance实例;
+						//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
+						//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
+						//     (由程序本身创建bean, 会用后处理器进行处理)
 						bean = getObjectForBeanInstance(scopedInstance, name, beanName, mbd);
 					}
 					catch (IllegalStateException ex) {
@@ -1709,17 +1712,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		try {
 			if (mbd.hasBeanClass()) {
-				// TODO 合并过的bd是class引用, 而不是全限定名时, 直接返回其对应的bean引用
+				// TODO mbd是class引用, 而不是全限定名时, 直接返回其对应的bean引用
 				return mbd.getBeanClass();
 			}
-			// TODO 合并过的bd是全限定名时, 会有下面两种情况
+			// TODO mbd是全限定名时, 会有下面两种情况
 			if (System.getSecurityManager() != null) {
 				// TODO 需要权限的验证
 				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>) () ->
 					doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
 			}
 			else {
-				// TODO 系统中找不到security设置时, 直接根据类型从合并后的bd中取得对应的class
+				// TODO 系统中找不到security设置时, 直接根据类型从mbd中取得对应的class
 				return doResolveBeanClass(mbd, typesToMatch);
 			}
 		}
@@ -1747,7 +1750,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (!ObjectUtils.isEmpty(typesToMatch)) {
 			// TODO typesToMatch是个可变长参数:
 			//  1. AbstractAutowireCapableBeanFactory#createBean()方法调用了resolveBeanClass(), 其中在调用doResolveBeanClass()
-			//     时并没有指定这个参数, 所以getBean()创建bean实例时不会走到这里
+			//     时并没有指定这个参数, 所以对于后处理器初始化时调用的getBean()所创建的bean实例不会走到这里
 			//  2. 在查找注入项的匹配bean时, 容器使用isTypeMatch(String, ResolvableType, boolean)方法来查找匹配ResolvableType的bean
 			//     这里的ResolvableType就会转化成Class<>[]数组, 然后用于predictBeanType(String, RootBeanDefinition, Class<?>)
 			//     方法来做类型匹配. 这个匹配是针对代理类型的
@@ -2089,7 +2092,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				throw new BeanIsNotAFactoryException(beanName, beanInstance.getClass());
 			}
 			if (mbd != null) {
-				// TODO 如果传入了合并了双亲属性的bd, 此bd也应该与实例保持一致, 变为工厂类
+				// TODO 如果传入了mbd, 因为要得到的bean是工厂类, 所以mbd也应该与实例保持一致, 变为工厂类
 				mbd.isFactoryBean = true;
 			}
 			// TODO bean实例本身即为要取得的工厂类, 即getBean("&xxx")取得的是beanFactory
@@ -2099,20 +2102,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
-		// TODO 能走到这, 就表示要得到的bean并不是工厂类, 这时就要从bean实例中取得对象. 这时bean实例有可能是一个普通的bean,
+		// TODO 走到这里表示要得到的bean并不是以'&'开头的工厂类, 这时就要从bean实例中取得对象. 这时bean实例有可能是一个普通的bean,
 		//  也有可能是一个工厂类
 		if (!(beanInstance instanceof FactoryBean)) {
 			// TODO bean实例是普通类时, 直接返回实例本身
 			return beanInstance;
 		}
-		// TODO 走到这就表示要得到的bean不是以'&'开头的工厂类, 但其实例是工厂类型(FactoryBean), 下面就开始处理实例. 先创建一个工厂类
+		// TODO 走到这里表示要得到的bean不是以'&'开头的工厂类, 但其实例是工厂类型(实现了FactoryBean), 下面就开始处理实例. 先创建一个工厂类
 		Object object = null;
 		if (mbd != null) {
-			// TODO 如果传入了合并了双亲属性的bd, 此bd也应该与实例保持一致, 变为工厂类
+			// TODO 如果传入了mbd, 因为要得到的bean的实例是工厂类型, 所以mbd也应该与实例保持一致, 变为工厂类
 			mbd.isFactoryBean = true;
 		}
 		else {
-			// TODO 没有传入合并了双亲属性的bd, 则尝试在factoryBeanObjectCache缓存取得指定的工厂类
+			// TODO 没有传入mbd, 则尝试在factoryBeanObjectCache缓存取得指定的工厂类
 			object = getCachedObjectForFactoryBean(beanName);
 		}
 		if (object == null) {
@@ -2122,7 +2125,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// Caches object obtained from FactoryBean if it is a singleton.
 			// TODO 查看注册中心beanDefinitionMap缓存中是否包含对应的bean definition
 			if (mbd == null && containsBeanDefinition(beanName)) {
-				// TODO 没有bd, 且注册中心包含对应的bean时, 取得bean对应的RootBeanDefinition(有双亲bd时会合并双亲bd的属性)
+				// TODO 没有mbd, 且注册中心包含对应的bean时, 取得bean对应的RootBeanDefinition(有双亲bd时会合并双亲bd的属性)
 				mbd = getMergedLocalBeanDefinition(beanName);
 			}
 			// TODO 确定bean是否由程序本身定义

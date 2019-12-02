@@ -156,9 +156,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	@Nullable
 	private String[] dependsOn;
-
+	// TODO 当前bean是否可以自动装配到其他bean中, 默认都是可以自动装配到其他bean里的
 	private boolean autowireCandidate = true;
-
+	// TODO 当前bean是否为首先项
 	private boolean primary = false;
 
 	private final Map<String, AutowireCandidateQualifier> qualifiers = new LinkedHashMap<>();

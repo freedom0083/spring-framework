@@ -242,7 +242,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * @param supplier a callback for creating an instance of the bean
 	 * (may be {@code null})
 	 * @param qualifiers specific qualifier annotations to consider, if any,
-	 * in addition to qualifiers at the bean class level
+	 * in addition to qualifiers at the bean class level 用于处理@Qualifier的情况, 这个参数好像没用过
 	 * @param customizers one or more callbacks for customizing the factory's
 	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
 	 * @since 5.0
@@ -256,7 +256,7 @@ public class AnnotatedBeanDefinitionReader {
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
-		// TODO 设置callback
+		// TODO 创建bean实例时, 可以通过callback根据Supplier进行创建, 此处就是设置callback的地方
 		abd.setInstanceSupplier(supplier);
 		// TODO 解析@Scope, 默认为singleton
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
@@ -264,7 +264,7 @@ public class AnnotatedBeanDefinitionReader {
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
 		// TODO 根据@Lazy, @Primary, @DependsOn, @Role和@Description这五个注解中的value来设置bean中对应的方法
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
-		// TODO 解析@Qualifier, 优先用@Qualifier指定的值重新对bean进行设置
+		// TODO 解析qualifier指定的注解, 目前Spring中没有地方调用带有此参数的doRegisterBean()方法, 除非手动调用, 否则qualifiers都是null
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
@@ -276,7 +276,7 @@ public class AnnotatedBeanDefinitionReader {
 					abd.setLazyInit(true);
 				}
 				else {
-					// TODO 包含@Qualifier时, 将其添加到abd的qualifiers缓存中
+					// TODO 其他情况, 将其添加到abd的qualifiers缓存中
 					abd.addQualifier(new AutowireCandidateQualifier(qualifier));
 				}
 			}

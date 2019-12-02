@@ -60,50 +60,59 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 	}
 
 
+	/**
+	 * 检查BeanDefinitionHolder指定的类型是否可以自动装配到DependencyDescriptor所描述的注入项中, 支持泛型检查
+	 * @param bdHolder 自动注入的候选bean
+	 * @param descriptor 待注入项(可能是一个filed, 或者一个方法)
+	 * @return
+	 */
 	@Override
-	// TODO 检查BeanDefinitionHolder指定的类型是否可以自动装配到DependencyDescriptor所描述的注入项中, 支持泛型检查
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
+		// TODO 第一步: 检查当前的候选bean是否允许将其注入到其他bean中, 默认情况下就允许的(AbstractBeanDefinition的autowireCandidate属性)
 		if (!super.isAutowireCandidate(bdHolder, descriptor)) {
 			// If explicitly false, do not proceed with any other checks...
-			// TODO 如果SimpleAutowireCandidateResolver#isAutowireCandidate(BeanDefinitionHolder, DependencyDescriptor)
-			//  返回false, 就不再做处理了, 直接返回false就好
+			// TODO 如果候选bean不允许注入到其他bean中, 就不再做处理了, 直接返回false
 			return false;
 		}
-		// TODO 检查一下泛型是否匹配
+		// TODO 第二步: 在当前候选bean可以注入到其他bean时, 检查候选bean的类型是否与待注入的项类型一致, 一致就表示可以进行自动注入
 		return checkGenericTypeMatch(bdHolder, descriptor);
 	}
 
 	/**
 	 * Match the given dependency type with its generic type information against the given
 	 * candidate bean definition.
+	 *
+	 * @param bdHolder 自动注入的候选bean
+	 * @param descriptor 待注入项(可能是一个filed, 或者一个方法)
+	 * @return
 	 */
 	protected boolean checkGenericTypeMatch(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
-		// TODO 取得注入项的type类型, 用于后面泛型检查
+		// TODO 取得待注入项的type类型
 		ResolvableType dependencyType = descriptor.getResolvableType();
 		if (dependencyType.getType() instanceof Class) {
 			// No generic type -> we know it's a Class type-match, so no need to check again.
-			// TODO Class类型时, 不需要做泛型检查, 直接返回true表示匹配成功
+			// TODO Class类型不需要做泛型检查, 直接返回true表示匹配成功
 			return true;
 		}
-
+		// TODO 要检查的目标的类型, 其实就是为根bd的候选bean的类型
 		ResolvableType targetType = null;
 		boolean cacheType = false;
 		RootBeanDefinition rbd = null;
 		if (bdHolder.getBeanDefinition() instanceof RootBeanDefinition) {
-			// TODO 待检查的bean是RootBeanDefinition时, 从holder中拿出RootBeanDefinition
+			// TODO 自动注入的候选bean是根节点时(RootBeanDefinition), 从holder中拿出RootBeanDefinition做为要处理的目标的类型
 			rbd = (RootBeanDefinition) bdHolder.getBeanDefinition();
 		}
 		if (rbd != null) {
-			// TODO 取得待检查的候选bean的type类型
+			// TODO 取得待检查的候选bean的type类型做为检查目标
 			targetType = rbd.targetType;
 			if (targetType == null) {
-				// TODO 待检查的候选bean没有type类型时, 需要解析一下, 并把解析结果进行缓存
 				cacheType = true;
 				// First, check factory method return type, if applicable
-				// TODO 尝试用取得工厂方法的返回类型作为待检查的候选bean的type类型
+				// TODO 检查目标类型不存在时:
+				//  1. 可能是个工厂方法, 尝试取得工厂方法的返回类型作为待检查的候选bean的目标类型
 				targetType = getReturnTypeForFactoryMethod(rbd, descriptor);
 				if (targetType == null) {
-					// TODO 没解析成功时, 再看他的代理目标类(如果有的话)
+					// TODO 2. 不是工厂方法时, 待检查的候选bean有可能是个代理类
 					RootBeanDefinition dbd = getResolvedDecoratedDefinition(rbd);
 					if (dbd != null) {
 						// TODO 如果是个代理类, 用代理目标类的type类型作为待检查的候选bean的type类型
@@ -119,32 +128,33 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 
 		if (targetType == null) {
 			// Regular case: straight bean instance, with BeanFactory available.
-			// TODO 依旧没解析出来, 就直接从容器中找bean实例的type类型
+			// TODO 依旧没解析出来, 就要从容器下手了
 			if (this.beanFactory != null) {
-				// TODO 从容器中拿出待检查的候选bean的type类型
+				// TODO 先尝试从容器中拿出待检查的候选bean的type类型(先从容器中拿到指定的bean, 然后再返回其Class)
 				Class<?> beanType = this.beanFactory.getType(bdHolder.getBeanName());
 				if (beanType != null) {
-					// TODO 取到type类型时, 将其包装为一个ResolvableType做为目标type类型
+					// TODO 如果容器中存在候选bean的type类型, 则将其包装为一个ResolvableType做为要检查的目标的类型
 					targetType = ResolvableType.forClass(ClassUtils.getUserClass(beanType));
 				}
 			}
 			// Fallback: no BeanFactory set, or no type resolvable through it
 			// -> best-effort match against the target class if applicable.
+			// TODO 如果要检查的目标的类型还没找到(targetType == null), 就准备进行最优匹配了
 			if (targetType == null && rbd != null && rbd.hasBeanClass() && rbd.getFactoryMethodName() == null) {
-				// TODO 以下情况发生时, 会用做为RootBeanDefinition的待检查的候选bean的class属性值进行最佳匹配:
-				//  1. 候选bean的type类型没有找到;
+				// TODO 以下情况发生时, 就用做为顶层的候选bean所设置的Class来进行最优匹配:
+				//  1. 要检查的目标的类型(候选bean的type类型)没有找到;
 				//  2. 并且做为RootBeanDefinition的候选bean设置了class属性;
 				//  3. 并且他还不是一个工厂方法
 				Class<?> beanClass = rbd.getBeanClass();
 				if (!FactoryBean.class.isAssignableFrom(beanClass)) {
-					// TODO 做为RootBeanDefinition的待检查的候选bean的class属性不是工厂类型时, 将其包装为ResolvableType
+					// TODO 做为RootBeanDefinition的待检查的候选bean的Class属性不是工厂类型时, 将其包装为一个ResolvableType做为要检查的目标的类型
 					targetType = ResolvableType.forClass(ClassUtils.getUserClass(beanClass));
 				}
 			}
 		}
 
 		if (targetType == null) {
-			// TODO 最后还是没找到, 就表示匹配成功了, 为什么???
+			// TODO 最后还是没找到, 就表示匹配成功了, 为什么??? 因为没有泛型么???
 			return true;
 		}
 		if (cacheType) {
@@ -162,7 +172,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			return true;
 		}
 		// Full check for complex generic type match...
-		// TODO 注入项的type类型与待检查的候选bean的type类型进行比较, 并返回结果:
+		// TODO 待注入项的type类型与待检查的候选bean的type类型进行比较, 并返回结果:
 		//  true: 相同; false: 不同
 		return dependencyType.isAssignableFrom(targetType);
 	}
