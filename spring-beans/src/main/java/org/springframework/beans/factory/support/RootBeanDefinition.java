@@ -69,12 +69,12 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	boolean isFactoryMethodUnique = false;
 
 	@Nullable
-	// TODO RootBeanDefinition所持有的类的type类型, 用于泛型支持
+	// TODO RootBeanDefinition所持有的代理目标的type类型, 用于泛型支持
 	volatile ResolvableType targetType;
 
 	/** Package-visible field for caching the determined Class of a given bean definition. */
 	@Nullable
-	// TODO RootBeanDefinition所持有的类的信息
+	// TODO RootBeanDefinition所持有的解析好的代理目标的Class的信息
 	volatile Class<?> resolvedTargetType;
 
 	/** Package-visible field for caching if the bean is a factory bean. */

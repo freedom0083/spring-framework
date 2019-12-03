@@ -675,15 +675,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	@Override
 	@Nullable
+	// TODO 预测bean的type类型
 	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 取得合并过的bd的目标类型class
+		// TODO mbd可能是个代理类, 先尝试拿mbd代理的目标类的类型
 		Class<?> targetType = determineTargetType(beanName, mbd, typesToMatch);
 		// Apply SmartInstantiationAwareBeanPostProcessors to predict the
 		// eventual type after a before-instantiation shortcut.
 		if (targetType != null && !mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-			// TODO 当有确定的代理类型, 并且这个合并过的bean definition是由容器创建的, 并且容器注册过
-			//  InstantiationAwareBeanPostProcessor类型的初始化后处理器时, 开始类型预测.
-			//  首先看一下要匹配的类型是否只是FactoryBean类型时
+			// TODO 当有确定的代理目标类型, 且这个mbd是由容器创建的, 并且容器注册过InstantiationAwareBeanPostProcessor类型的初始
+			//  化后处理器时, 开始类型预测. 首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
 			boolean matchingOnlyFactoryBean = typesToMatch.length == 1 && typesToMatch[0] == FactoryBean.class;
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
@@ -719,14 +719,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// TODO 取得mbd的代理目标的类型
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType == null) {
-			// TODO 代理目标类型不存在时, 取得对应的目标类型:
+			// TODO 代理目标的类型不存在时, 根据bean的类型来取得对应的代理目标类型:
 			targetType = (mbd.getFactoryMethodName() != null ?
-					// TODO 有工厂方法时, 从工厂方法的返回类型
+					// TODO mbd是工厂方法时, 从工厂方法的返回类型
 					getTypeForFactoryMethod(beanName, mbd, typesToMatch) :
-					// TODO 没有时, 直接取得类类型
+					// TODO 其他情况直接取得bean的类型
 					resolveBeanClass(mbd, beanName, typesToMatch));
 			if (ObjectUtils.isEmpty(typesToMatch) || getTempClassLoader() == null) {
-				// TODO 并没有指定匹配的类型时, 把得到的目标类型做为合并后bd的确定的代理目标的类型
+				// TODO 并没有指定匹配的类型时, 把得到的目标类型做为mbd的确定的代理目标的类型
 				mbd.resolvedTargetType = targetType;
 			}
 		}
@@ -750,7 +750,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	// TODO 用来获得在使用工厂方法时, 工厂方法的类型
 	protected Class<?> getTypeForFactoryMethod(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 从合并了双亲属性的bd的缓存中取出工厂方法的返回类型
+		// TODO 从mbd的缓存中取出工厂方法的返回类型
 		ResolvableType cachedReturnType = mbd.factoryMethodReturnType;
 		if (cachedReturnType != null) {
 			// TODO 找到直接返回
@@ -758,17 +758,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		Class<?> commonType = null;
-		// TODO 从合并后的mdb中拿出用于内省的唯一的工厂方法
+		// TODO 拿出mdb缓存的用于内省的工厂方法
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
 
 		if (uniqueCandidate == null) {
 			Class<?> factoryClass;
-			// TODO 用于内省的唯一的工厂方法不存在时, 假设当前的工厂方法是静态的
+			// TODO 缓存中没有用于内省的工厂方法时, 首先假设当前的工厂方法是静态的
 			boolean isStatic = true;
-			// TODO 获取合并后的bd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类)
+			// TODO 获取mbd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类)
 			String factoryBeanName = mbd.getFactoryBeanName();
 			if (factoryBeanName != null) {
-				// TODO 全并后的bd的工厂类存在时, 表示其为一个非静态工厂方法
+				// TODO mbd指定了工厂类时(配置文件中配置了工厂类), 表示其为一个非静态工厂方法
 				if (factoryBeanName.equals(beanName)) {
 					// TODO 工厂类的名字不能和要实例化的bean同名
 					throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
@@ -789,12 +789,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (factoryClass == null) {
 				return null;
 			}
-			// TODO 取得用户的class, 会处理CGLIB的情况
+			// TODO 取得Class, 会处理CGLIB的情况
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
 			// If all factory methods have the same return type, return that type.
 			// Can't clearly figure out exact method due to type converting / autowiring!
-			// TODO 取得构造函数参数数量
+			// TODO 取得mbd表示的bean的构造函数的参数数量
 			int minNrOfArgs =
 					(mbd.hasConstructorArgumentValues() ? mbd.getConstructorArgumentValues().getArgumentCount() : 0);
 			// TODO 取得所有用户定义的方法, 同时把不在factoryMethodCandidateCache缓存中的方法加入缓存
@@ -806,25 +806,29 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate) &&
 						candidate.getParameterCount() >= minNrOfArgs) {
 					// Declared type variables to inspect?
-					// TODO 取得方法的泛型参数
+					// TODO 当用户定义的方法满足以下条件时, 开始进行匹配尝试:
+					//  1. 该方法由static修饰;
+					//  2. 并且该方法是工厂方法;
+					//  3. 并且该方法的参数数量 >= mbd构造函数参数数量.
 					if (candidate.getTypeParameters().length > 0) {
 						try {
 							// Fully resolve parameter names and argument values.
-							// TODO 方法有泛型参数时, 取得方法所有参数类型
+							// TODO 该方法有类型变量参数(TypeVariable可以表示任何类型的泛型变量, 如：T、K、V等变量. 比如:
+							//  method(T name, V value))时, 取得方法中所有参数的类型
 							Class<?>[] paramTypes = candidate.getParameterTypes();
 							String[] paramNames = null;
-							// TODO 参数名探测器
+							// TODO 参数名探测器, 默认为DefaultParameterNameDiscoverer
 							ParameterNameDiscoverer pnd = getParameterNameDiscoverer();
 							if (pnd != null) {
-								// TODO 用探测器取得方法参数的名字
+								// TODO 用探测器取得方法参数的名字, 有好多实现, 这个得慢慢看, 最后得到的就是参数名
 								paramNames = pnd.getParameterNames(candidate);
 							}
-							// TODO 取得构造器参数
+							// TODO 取得mbd表示的bean的构造器参数
 							ConstructorArgumentValues cav = mbd.getConstructorArgumentValues();
 							Set<ConstructorArgumentValues.ValueHolder> usedValueHolders = new HashSet<>(paramTypes.length);
 							Object[] args = new Object[paramTypes.length];
 							for (int i = 0; i < args.length; i++) {
-								// TODO 按顺序取得构造器参数的值, 并放到一个set中
+								// TODO 按顺序取得构造函数参数的值, 并放到一个set中
 								ConstructorArgumentValues.ValueHolder valueHolder = cav.getArgumentValue(
 										i, paramTypes[i], (paramNames != null ? paramNames[i] : null), usedValueHolders);
 								if (valueHolder == null) {
@@ -835,9 +839,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 									usedValueHolders.add(valueHolder);
 								}
 							}
-							// TODO 取得工厂方法的返回类型
+							// TODO 取得该方法的返回类型, 得到的可能是解析过的代理目标的类型或该方法的返回类型
 							Class<?> returnType = AutowireUtils.resolveReturnTypeForFactoryMethod(
 									candidate, args, getBeanClassLoader());
+							// TODO 在没有通用type类型, 且上面得到的返回类型与该方法的返回类型相同时, 将该方法做为唯一候选方法
 							uniqueCandidate = (commonType == null && returnType == candidate.getReturnType() ?
 									candidate : null);
 							// TODO 取得returnType和commonType的通用类型
@@ -855,7 +860,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						}
 					}
 					else {
-						// TODO 方法没有返回类型时
+						// TODO 方法没有返回类型时, 如果没有通用type, 就用该方法做为唯一候选方法, 否则为null
 						uniqueCandidate = (commonType == null ? candidate : null);
 						// TODO 取得returnType和commonType的通用类型
 						commonType = ClassUtils.determineCommonAncestor(candidate.getReturnType(), commonType);
@@ -867,7 +872,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					}
 				}
 			}
-
+			// TODO 上面的逻辑最终会匹配到一个方法, 然后将其做为mbd用于内省的工厂方法
 			mbd.factoryMethodToIntrospect = uniqueCandidate;
 			if (commonType == null) {
 				// TODO 没有通用类型时的就返回null, 表示不可预测

@@ -169,6 +169,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	@Override
 	@Nullable
+	// TODO 根据名字取得容器中注册的原生的单例对象, 默认支持急加载
 	public Object getSingleton(String beanName) {
 		return getSingleton(beanName, true);
 	}
@@ -182,12 +183,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @return the registered singleton object, or {@code null} if none found
 	 */
 	@Nullable
-	// TODO 根据名字取得容器中注册的原生的单例对象
+	// TODO 根据名字取得容器中注册的原生的单例对象, 提供对急加载的支持
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// TODO 首先从单例缓存里尝试取得bean
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
-			// TODO 如果没有取得bean, 但对应的bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 需要进行同步实例化
+			// TODO 如果没有取得bean, 但bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 后面的操作就需要在单例缓存上进行同步
 			synchronized (this.singletonObjects) {
 				// TODO 允许提前暴露的bean会在创建时进入earlySingletonObjects缓存, 如果缓存中有要取得的bean, 表示其正在加载, 无需处理, 直接返回即可
 				singletonObject = this.earlySingletonObjects.get(beanName);

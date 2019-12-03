@@ -812,26 +812,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	@Nullable
+	// TODO 根据bean名取得对应的Class
 	public Class<?> getType(String name) throws NoSuchBeanDefinitionException {
-		// TODO 取得指定的bean的类型
+		// TODO 根据bean名取得对应的Class, 并且在需要时可以对工厂类进行初始化
 		return getType(name, true);
 	}
 
 	@Override
 	@Nullable
+	// TODO 根据bean名取得对应的Class, 支持工厂类初始化功能
 	public Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
-		// TODO 取得bean的真实名字
+		// TODO 取得bean注册的id, 用于处理别名, '&'开头的工厂方法
 		String beanName = transformedBeanName(name);
 
 		// Check manually registered singletons.
-		// TODO 取得指定的单例实例(不支持提前初始化)
+		// TODO 取得指定bean的单例实例, 这里传入了false表示不支持提前初始化
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null && beanInstance.getClass() != NullBean.class) {
-			// TODO 如果存在对应的单例实例, 且不是NullBean时, 检查一下bean实例的类型
+			// TODO 如果bean存在单例实例, 且不是NullBean时, 检查bean实例的类型
 			if (beanInstance instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
-				// TODO 当得到的bean实例是工厂类(实现了FactoryBean接口), 但bean本身不是工厂类时(传入的要取得的名字不包含'&'),
-				//  通过bean实例的getObjectType()方法取得工厂实例的类型(工厂类的bean需要用getObject()取得bean对象, 直接取得到的
-				//  会是工厂的实例. 对应的取得bean对象的类型也要用getObjectType())
+				// TODO bean实例是工厂类(实现了FactoryBean接口), 但要取得的bean不是由'&'开头的工厂类时, 通过bean实例的getObjectType()
+				//  方法取得工厂实例的类型(工厂类的bean需要用getObject()取得bean对象, 直接取得到的会是工厂的实例. 对应的取得bean
+				//  对象的类型也要用getObjectType())
 				return getTypeForFactoryBean((FactoryBean<?>) beanInstance);
 			}
 			else {
@@ -845,34 +847,33 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 			// No bean definition found in this factory -> delegate to parent.
-			// TODO 有父容器, 且当前容器的注册中心beanDefinitionMap中也没有对应的bd时, 尝试从父容器中取得bean的类型
+			// TODO 有父容器, 且当前容器的没有注册过正在操作的bean时(注册中心beanDefinitionMap中没有对应的bd), 到父容器中去取bean的类型
 			return parentBeanFactory.getType(originalBeanName(name));
 		}
-		// TODO 没有父容器, 或者当前容器的注册中心beanDefinitionMap中有要取得的bean所对应的bd时, 用其与双亲的属性进行合并,
-		//  然后返回合并后的RootBeanDefinition
+		// TODO 到这里就表示当前操作的bean没有单例实例, 并且当前容器没有父容器, 或者当前容器注册过当前操作的bean的情况.
+		//  用当前操作的bean与其双亲的属性进行合并, 生成一个RootBeanDefinition
 		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 
 		// Check decorated bean definition, if any: We assume it'll be easier
 		// to determine the decorated bean's type than the proxy's type.
-		// TODO 从mbd中拿出被包装过的bd(AOP时, 代理bd中会包含目标bd), 即原始的bd??
+		// TODO mbd有可能会是一个代理里, 先看一下mbd是否持有一个被包装过的bd(AOP时, 代理bd中会包含代理目标bd), 即原始的bd??
 		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 		if (dbd != null && !BeanFactoryUtils.isFactoryDereference(name)) {
-			// TODO 被包装过的bd存在, 且要得到的bean不是工厂类的情况下(&开头), 用被包装过的原始bd与其父bd的属性进行合并.
-			//  在这个过程中, 其scope会根据mbd的scope而发生变化: mbd如果不是单例, 且被包装过的bd是单例时,
-			//  会用mbd的scope来替换被包装过的目标bean的scope
+			// TODO 存在被代理的原始bd, 且要得到的bean不是工厂类的情况时('&'开头), 用原始bd与mbd(其父bd)的属性进行合并. 在这个过程中,
+			//  其scope会根据mbd的scope而发生变化: mbd如果不是单例, 且被包装过的bd是单例时, 会用mbd的scope来替换被包装过的目标bean的scope
 			RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
-			// TODO 预测被包装过的bd的类型, 返回第一个匹配的类型, 如果没有, 返回的是null
+			// TODO 预测被代理的原始bd的类型, 返回第一个匹配的类型, 如果没有, 返回的是null
 			Class<?> targetClass = predictBeanType(dbd.getBeanName(), tbd);
 			if (targetClass != null && !FactoryBean.class.isAssignableFrom(targetClass)) {
-				// TODO 一旦取得目标类型, 且其目标类型不是FactoryBean类型时, 直接返回
+				// TODO 一旦取得目标类型, 且其目标类型不是FactoryBean类型时, 直接返回代理目标类
 				return targetClass;
 			}
 		}
 		// TODO 走到这里时, 会有以下几种情况:
-		//  1. 并没有被包装过的源bd;
+		//  1. 并没有被代理的原始bd, 即非代理类;
 		//  2. 或要取得的bean是工厂类;
-		//  3. 或在有被包装过的源bd, 且要取得的bean不是工厂类时, 无法预测被被包装过的源bd类型;
-		//  预测一下合并后的bd的类型(beanClass), 即bean对应的class
+		//  3. 或在有被代理的原始bd, 且要取得的bean不是工厂类时, 无法预测被被包装过的源bd类型;
+		//  预测一下mbd的类型(beanClass), 即bean对应的class
 		Class<?> beanClass = predictBeanType(beanName, mbd);
 
 		// Check bean class whether we're dealing with a FactoryBean.
@@ -890,8 +891,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 		else {
 			// TODO 合并后的bd的类型没得到, 或是一个FactoryBean类型时:
-			//  1. 要取得的bean不是由工厂创建的: 返回合并后的bean definition类型
-			//  2. 要取得的bean是由工厂创建的: 返回null
+			//  1. 要取得的bean不是工厂类: 返回mbd的类型
+			//  2. 要取得的bean是工厂类: 返回null
 			return (!BeanFactoryUtils.isFactoryDereference(name) ? beanClass : null);
 		}
 	}
@@ -1488,15 +1489,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @throws NoSuchBeanDefinitionException if there is no bean with the given name
 	 * @throws BeanDefinitionStoreException in case of an invalid bean definition
 	 */
-	// TODO 取得指定的bean definition
+	// TODO 用给定的bean与其可能存在的双亲进行合并, 生成并返回一个包含了双亲属性的bean的RootBeanDefinition. 支持本地缓存
 	protected RootBeanDefinition getMergedLocalBeanDefinition(String beanName) throws BeansException {
 		// Quick check on the concurrent map first, with minimal locking.
-		// TODO 先尝试从mergedBeanDefinitions缓存中取得对应的bean definition(里面放的都是root bean definition)
+		// TODO 先尝试从缓存中取(里面放的都是RootBeanDefinition), 取到后如果没有过期则直接返回
 		RootBeanDefinition mbd = this.mergedBeanDefinitions.get(beanName);
 		if (mbd != null && !mbd.stale) {
 			return mbd;
 		}
-		// TODO 如果缓存中没有, 或者对应的合并后的bd已经失效时, 重新获取bd, 返回一个合并了双亲属性的RootBeanDefinition, 流程是:
+		// TODO 如果缓存中没有, 或者mbd已经失效时, 重新获取bd, 返回一个合并了双亲属性的RootBeanDefinition, 流程是:
 		//  1. 从注册中心beanDefinitionMap中取得对应的bd
 		//  2. 在当前容器中取得取得对应的bd(可能是合并了双亲bd属性的RootBeanDefinition)
 		return getMergedBeanDefinition(beanName, getBeanDefinition(beanName));
@@ -1511,9 +1512,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return a (potentially merged) RootBeanDefinition for the given bean
 	 * @throws BeanDefinitionStoreException in case of an invalid bean definition
 	 */
+	// TODO 用给定的bean与其可能存在的双亲进行合并, 生成并返回合并双亲属性的顶层RootBeanDefinition
 	protected RootBeanDefinition getMergedBeanDefinition(String beanName, BeanDefinition bd)
 			throws BeanDefinitionStoreException {
-		// TODO 根据指定的bean取得一个合并双亲属性的RootBeanDefinition, 此bean不被其他bd所包含
+		// TODO 根据指定的bean取得一个合并双亲属性的RootBeanDefinition, 此bean为不被其他bd所包含的顶层bd
 		return getMergedBeanDefinition(beanName, bd, null);
 	}
 
@@ -1524,68 +1526,68 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param bd the original bean definition (Root/ChildBeanDefinition) 要取得的bean所对应的原始的bean definition,
 	 *              有可能是一个RootBeanDefinition, 也可能是一个ChildBeanDefinition, 是bean对应的bean definition
 	 * @param containingBd the containing bean definition in case of inner bean,
-	 * or {@code null} in case of a top-level 包含着要取得的bean definition的父bean definition
+	 * or {@code null} in case of a top-level 包含着要取得的bean definition的父bean definition. 顶层bd时, 此参数为null
 	 * @return a (potentially merged) RootBeanDefinition for the given bean
 	 * @throws BeanDefinitionStoreException in case of an invalid bean definition
 	 */
+	// TODO 用给定的bean与其可能存在的双亲进行合并, 生成并返回合并双亲属性的RootBeanDefinition, 支持bd的嵌套
 	protected RootBeanDefinition getMergedBeanDefinition(
 			String beanName, BeanDefinition bd, @Nullable BeanDefinition containingBd)
 			throws BeanDefinitionStoreException {
-		// TODO 从mergedBeanDefinitions缓存中取得mbd时需要进行同步
+		// TODO 从缓存中取得mbd时需要进行同步
 		synchronized (this.mergedBeanDefinitions) {
-			// TODO 用于返回的合并了双亲属性的RootBeanDefinition
+			// TODO 用于返回的合并了双亲属性的mbd
 			RootBeanDefinition mbd = null;
 			// TODO 表示正在处理的RootBeanDefinition的前一个状态(可能是null, 或是保存一个失效的RootBeanDefinition)
 			RootBeanDefinition previous = null;
 
 			// Check with full lock now in order to enforce the same merged instance.
 			if (containingBd == null) {
-				// TODO 当前要取得的bean没有包含在其他bean中时, 表示其为一个顶层bean(RootBeanDefinition), 这时先从
-				//  mergedBeanDefinitions缓存取得对应的bd
+				// TODO 当前要取得的bean没有包含在其他bean中时, 表示其为一个顶层bean(RootBeanDefinition), 先尝试从缓存取得mbd
 				mbd = this.mergedBeanDefinitions.get(beanName);
 			}
 
 			if (mbd == null || mbd.stale) {
-				// TODO 缓存中没有, 或其已失效时, 先保存当前bd, 然后再生成新的RootBeanDefinition
+				// TODO 缓存中没有, 或其已失效时, 先保存当前mbd, 然后再生成新的RootBeanDefinition
 				//  生成RootBeanDefinition时有两种情况:
-				//  1. RootBeanDefinition: 当前的bd没有双亲
-				//  2. ChildBeanDefinition: 当前的bd有双亲
+				//  1. RootBeanDefinition: 当前的bd为没有双亲的顶层bd
+				//  2. ChildBeanDefinition: 当前的bd有双亲的子bd
 				previous = mbd;
 				mbd = null;
 				if (bd.getParentName() == null) {
 					// Use copy of given root bean definition.
-					// TODO 当前bd没有双亲, 即为一个顶层的RootBeanDefinition时. 因为合并动作可以递归进行, 直到找到最内层的bd为止,
-					//  所以这里也会做为递归退出的地方.
+					// TODO 顶层bd是没有双亲的, 因为合并动作会直接递归到最顶层的bd, 所以这里也会做为合并退出的地方.
 					if (bd instanceof RootBeanDefinition) {
-						// TODO 当前的bd是RootBeanDefinition时, 克隆一个副本做为RootBeanDefinition
+						// TODO 当前的bd是RootBeanDefinition时, 克隆一个副本
 						mbd = ((RootBeanDefinition) bd).cloneBeanDefinition();
 					}
 					else {
-						// TODO 其他情况下, bd会是GenericBeanDefinition类型. 用其创建一个用于返回的RootBeanDefinition
+						// TODO 其他情况下, bd会是GenericBeanDefinition类型. 用其创建一个RootBeanDefinition
 						mbd = new RootBeanDefinition(bd);
 					}
 				}
 				else {
 					// Child bean definition: needs to be merged with parent.
-					// TODO 到这里表示bd为ChildBeanDefinition类型, 就需要与双亲进行合并
+					// TODO 到这里表示bd为ChildBeanDefinition类型, 需要与双亲进行合并
 					BeanDefinition pbd;
 					try {
 						// TODO 取得双亲的名字
 						String parentBeanName = transformedBeanName(bd.getParentName());
 						if (!beanName.equals(parentBeanName)) {
-							// TODO 双亲不是要取得的bean时, 在当前容器中取得双亲的RootBeanDefinition. 因为parent也可能是
-							//  ChildBeanDefinition类型, 所以这边会进行递归, 直到上面提到的最内层的RootBeanDefinition
+							// TODO 双亲不是要取得的bean时, 在当前容器中取得双亲的mbd. 因为双亲也可能是ChildBeanDefinition类型,
+							//  所以这边会进行递归, 直到最内层的顶层RootBeanDefinition(上面的分支)
 							pbd = getMergedBeanDefinition(parentBeanName);
 						}
 						else {
-							// TODO 双亲bd就是要找bean时, 取得父容器
+							// TODO 双亲就是要找bean时, 尝试在父容器中取得双亲的bd, 即pdb
 							BeanFactory parent = getParentBeanFactory();
 							if (parent instanceof ConfigurableBeanFactory) {
-								// TODO 如果父容器是ConfigurableBeanFactory时(可配置的bean factory), 则到父容器中取得其双亲.
-								//  这里会一直进入最深层, 直到得到双亲bd, 最终得到的是还上面提到的最内层的RootBeanDefinition
+								// TODO 如果父容器是ConfigurableBeanFactory时(可配置的容器), 则到父容器中取得其双亲.
+								//  这里会一直递归进入最深层, 直到得到pbd, 最终还是进行上面的分支
 								pbd = ((ConfigurableBeanFactory) parent).getMergedBeanDefinition(parentBeanName);
 							}
 							else {
+								// TODO 其他情况会抛NoSuchBeanDefinitionException异常, 无法在没有父抽象容器时解析bean
 								throw new NoSuchBeanDefinitionException(parentBeanName,
 										"Parent name '" + parentBeanName + "' is equal to bean name '" + beanName +
 										"': cannot be resolved without an AbstractBeanFactory parent");
@@ -1706,7 +1708,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @throws CannotLoadBeanClassException if we failed to load the class
 	 */
 	@Nullable
-	// TODO 对bean进行加载
+	// TODO 对bean进行解析加载
 	protected Class<?> resolveBeanClass(final RootBeanDefinition mbd, String beanName, final Class<?>... typesToMatch)
 			throws CannotLoadBeanClassException {
 
@@ -1769,27 +1771,26 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					DecoratingClassLoader dcl = (DecoratingClassLoader) tempClassLoader;
 					for (Class<?> typeToMatch : typesToMatch) {
 						// TODO 如果是DecoratingClassLoader类型的自定义ClassLoader, 这时会将指定的类型加入到排除列表,
-						//  表示Spring自定义ClassLoader不对其进行加载, 交给JDK默认的ClassLoader加载
+						//  即, 指定的类型不使用Spring自定义ClassLoader进行加载, 交由JDK默认的ClassLoader进行加载
 						dcl.excludeClass(typeToMatch.getName());
 					}
 				}
 			}
 		}
-		// TODO 取得当前合并过的bd的beanClass属性所对应的名字('class'属性设置的. 如果是引用, 取得class的name,
-		//  如果是全限定名, 直接返回)
+		// TODO 取得当前mbd的beanClass属性所对应的名字('class'属性设置的. 如果是引用, 取得class的name, 如果是全限定名, 直接返回)
 		String className = mbd.getBeanClassName();
 		if (className != null) {
 			// TODO Spring支持以表达式的方式定义bean, 所以得到的className可能是个SpEL表达式, 也有可能是真实的bean名, 需要解析一下
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
 			if (!className.equals(evaluated)) {
 				// A dynamically resolved expression, supported as of 4.2...
-				// TODO 如果解析出来的类名和传入的类名不同, 表示其已经被AOP代理增强过, 下面会根据解析出的类开进行不同的操作:
+				// TODO 如果解析出来的对象和传入的类名不同时, 表示其已经被AOP代理增强过, 下面会根据解析出的类开进行不同的操作:
 				if (evaluated instanceof Class) {
 					// TODO 如果返回的是一个Class, 直接返回
 					return (Class<?>) evaluated;
 				}
 				else if (evaluated instanceof String) {
-					// TODO 如果返回的是一个字符串, 这时就需要用解析后的名字进行加载
+					// TODO 如果返回的是一个字面量, 这时就需要用解析后的字面量做为类名进行加载
 					className = (String) evaluated;
 					freshResolve = true;
 				}
@@ -1819,19 +1820,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Resolve regularly, caching the result in the BeanDefinition...
-		// TODO 走到这, 表示bean对应的class对象或是类的全限定名是空的. 下面就交给AbstractBeanDefinition根据指定类加载器进行加载了
+		// TODO 走到这, 表示bean的配置文件中没有设置class属性, 只有id. 下面就交给AbstractBeanDefinition根据mbd进行加载了
 		return mbd.resolveBeanClass(beanClassLoader);
 	}
 
 	/**
 	 * Evaluate the given String as contained in a bean definition,
 	 * potentially resolving it as an expression.
-	 * @param value the value to check
-	 * @param beanDefinition the bean definition that the value comes from
+	 * @param value the value to check 待验证的值
+	 * @param beanDefinition the bean definition that the value comes from 待验证值所在的bd
 	 * @return the resolved value
 	 * @see #setBeanExpressionResolver
 	 */
 	@Nullable
+	// TODO 评估解析bd中所给定的值
 	protected Object evaluateBeanDefinitionString(@Nullable String value, @Nullable BeanDefinition beanDefinition) {
 		if (this.beanExpressionResolver == null) {
 			return value;
@@ -1871,14 +1873,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return the type of the bean, or {@code null} if not predictable
 	 */
 	@Nullable
+	// TODO 预测bean的type类型
 	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
+		// TODO 因为mbd可能是个代理类, 所以先尝试取得代理目标类的type类型. 如果取到了, 直接使用代理目标类的type类型即可
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType != null) {
-			// TODO 这个合并后的db有目标类型时, 直接返回
 			return targetType;
 		}
 		if (mbd.getFactoryMethodName() != null) {
-			// TODO 不处理工厂方法
+			// TODO 如果mbd不是一个代理类, 且mbd是个工厂方法时, 返回null
 			return null;
 		}
 		// TODO 加载合并后的bd的class(beanClass属性), 即bean对应的class
