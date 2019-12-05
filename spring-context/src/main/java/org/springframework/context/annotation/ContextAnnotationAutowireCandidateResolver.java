@@ -46,6 +46,12 @@ import org.springframework.util.Assert;
  */
 public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotationAutowireCandidateResolver {
 
+	/**
+	 * 取得一个懒加载的代理
+	 * @param descriptor 依赖描述的待注入项
+	 * @param beanName 待创建实例的bean
+	 * @return
+	 */
 	@Override
 	@Nullable
 	public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
@@ -76,10 +82,17 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 		return false;
 	}
 
+	/**
+	 *
+	 * @param descriptor 依赖描述的待注入项
+	 * @param beanName 要创建实例的bean
+	 * @return
+	 */
 	protected Object buildLazyResolutionProxy(final DependencyDescriptor descriptor, final @Nullable String beanName) {
 		Assert.state(getBeanFactory() instanceof DefaultListableBeanFactory,
 				"BeanFactory needs to be a DefaultListableBeanFactory");
 		final DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) getBeanFactory();
+		// TODO 创建一个用于AOP的代理目标
 		TargetSource ts = new TargetSource() {
 			@Override
 			// TODO 目标的class是被包装的参数或字段的类型

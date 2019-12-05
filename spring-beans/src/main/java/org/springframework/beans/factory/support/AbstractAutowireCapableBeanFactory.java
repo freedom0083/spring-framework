@@ -548,8 +548,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * at this point, e.g. checking {@code postProcessBeforeInstantiation} callbacks.
 	 * <p>Differentiates between default bean instantiation, use of a
 	 * factory method, and autowiring a constructor.
-	 * @param beanName the name of the bean
-	 * @param mbd the merged bean definition for the bean
+	 * @param beanName the name of the bean 要得到的bean
+	 * @param mbd the merged bean definition for the bean 要得到的bean的mbd
 	 * @param args explicit arguments to use for constructor or factory method invocation
 	 * @return a new instance of the bean
 	 * @throws BeanCreationException if the bean could not be created
@@ -782,7 +782,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			else {
 				// Check declared factory method return type on bean class.
-				// TODO 合并后的bd的工厂类不存在时, 从合并后的bd中加载指定类型的实例(这个typesToMatch可能是空的)做为工厂类的类型
+				// TODO mbd的工厂类不存在时, mbd中加载指定类型的实例(这个typesToMatch可能是空的, 在做自动装配时会为FactoryBean)做为工厂类的类型
 				factoryClass = resolveBeanClass(mbd, beanName, typesToMatch);
 			}
 
@@ -1314,14 +1314,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object[] args) {
 		// Make sure bean class is actually resolved at this point.
 		// TODO 解析类, 通过ClassLoader.loadClass()或Class.ForName()对指定名字的类进行加载, 得到对应的引用. 根据类属性或类名加载
-		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 用来生成特定类型的ClassLoader, 根据代码来看, 主要是为了支持AspectJ
+		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 根据代码来看, 主要是为了支持AspectJ. 这些参数会排除在由LTW指定的
+		//  自定义ClassLoader之外, 由JDK进行加载. 在创建实体时并没有指定这个参数
 		Class<?> beanClass = resolveBeanClass(mbd, beanName);
-		// TODO 确保class不为空, 并且访问权限为public. 如果你的class不是public的, Spring无法创建对象, 会抛出BeanCreationException异常
+		// TODO 确保class不为空, 并且访问权限为public. Spring无法创建非public对象, 会抛出BeanCreationException异常
 		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
-		// TODO 回调函数, 此函数返回一个Supplier, 通过此Supplier创建bean对象
+		// TODO 在用注解形式配置bean时, AnnotatedBeanDefinitionReader#registerBean()方法有三个重载设置过Supplier:
+		//  1. registerBean(Class<T>, @Nullable Supplier<T>): Spring中没有调用过
+		//  2. registerBean(Class<T>, @Nullable String, @Nullable Supplier<T>): Spring中没有调用过
+		//  3. registerBean(Class<T>, @Nullable String, @Nullable Supplier<T>, BeanDefinitionCustomizer...): 这个重载被容器
+		//       AnnotationConfigApplicationContext#registerBean(@Nullable String, Class<T>, @Nullable Supplier<T>, BeanDefinitionCustomizer...)
+		//       进行了重载, 可以设置Supplier.
+		//  这三个重载最终都会调用AnnotatedBeanDefinitionReader#doRegisterBean()来设置用于创建bean对象的Supplier
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
 			// TODO 如果设置了mbd中的supplier属性, 从supplier中取得实例并包装为BeanWrapper返回
@@ -1389,11 +1396,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @since 5.0
 	 * @see #getObjectForBeanInstance
 	 */
+	// TODO 从Supplier中创建bean
 	protected BeanWrapper obtainFromSupplier(Supplier<?> instanceSupplier, String beanName) {
 		Object instance;
-		// TODO 拿出当前线程NamedThreadLoad的bean的名字
+		// TODO 拿出当前线程NamedThreadLoad的bean, 然后设置为新的bean
 		String outerBean = this.currentlyCreatedBean.get();
-		// TODO 重新设置一下NamedThreadLoad的值
 		this.currentlyCreatedBean.set(beanName);
 		try {
 			// TODO 通过Supplier函数得到实例
@@ -1409,7 +1416,6 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				this.currentlyCreatedBean.remove();
 			}
 		}
-		//
 		if (instance == null) {
 			instance = new NullBean();
 		}
@@ -1498,8 +1504,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Instantiate the bean using a named factory method. The method may be static, if the
 	 * mbd parameter specifies a class, rather than a factoryBean, or an instance variable
 	 * on a factory object itself configured using Dependency Injection.
-	 * @param beanName the name of the bean
-	 * @param mbd the bean definition for the bean
+	 * @param beanName the name of the bean 要创建实例的bean名
+	 * @param mbd the bean definition for the bean 要创建实例的bean的mbd
 	 * @param explicitArgs argument values passed in programmatically via the getBean method,
 	 * or {@code null} if none (-> use constructor argument values from bean definition)
 	 * @return a BeanWrapper for the new instance
@@ -1507,7 +1513,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
-
+		// TODO ConstructorResolver通过工厂方法来实例化一个bean
 		return new ConstructorResolver(this).instantiateUsingFactoryMethod(beanName, mbd, explicitArgs);
 	}
 

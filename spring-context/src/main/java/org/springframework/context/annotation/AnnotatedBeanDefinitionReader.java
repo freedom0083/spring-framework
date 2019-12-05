@@ -256,7 +256,7 @@ public class AnnotatedBeanDefinitionReader {
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
-		// TODO 创建bean实例时, 可以通过callback根据Supplier进行创建, 此处就是设置callback的地方
+		// TODO 创建bean实例时, 可以通过Supplier进行创建. 会在AbstractAutowireCapableBeanFactory#createBeanInstance()方法中进行调用
 		abd.setInstanceSupplier(supplier);
 		// TODO 解析@Scope, 默认为singleton
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);

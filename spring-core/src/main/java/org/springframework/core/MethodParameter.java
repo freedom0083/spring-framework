@@ -508,15 +508,19 @@ public class MethodParameter {
 	 * @since 3.0
 	 */
 	public Type getGenericParameterType() {
+		// TODO 缓存中如果有当前方法的泛型参数的类型, 直接返回
 		Type paramType = this.genericParameterType;
 		if (paramType == null) {
+			// TODO 缓存中没有时
 			if (this.parameterIndex < 0) {
+				// TODO 如果方法没参数, 尝试用方法的返回类型, 如果当前操作的不是个方法, 则直接返回void
 				Method method = getMethod();
 				paramType = (method != null ?
 						(KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass()) ?
 						KotlinDelegate.getGenericReturnType(method) : method.getGenericReturnType()) : void.class);
 			}
 			else {
+				// TODO 取得当前方法所有的所有泛型参数类型
 				Type[] genericParameterTypes = this.executable.getGenericParameterTypes();
 				int index = this.parameterIndex;
 				if (this.executable instanceof Constructor &&
@@ -527,9 +531,11 @@ public class MethodParameter {
 					// so access it with the actual parameter index lowered by 1
 					index = this.parameterIndex - 1;
 				}
+				// TODO 当前方法有参数数量缓存, 且小于方法上参数数量时, 从当前方法的参数中取对应位置的类型. 否则处理缓存位置的参数类型
 				paramType = (index >= 0 && index < genericParameterTypes.length ?
 						genericParameterTypes[index] : computeParameterType());
 			}
+			// TODO 设置缓存
 			this.genericParameterType = paramType;
 		}
 		return paramType;
@@ -575,7 +581,7 @@ public class MethodParameter {
 				}
 				// TODO: Object.class if unresolvable
 			}
-			// TODO 然后下面开始判断Type对应的类型
+			// TODO 然后下面开始判断类型
 			if (type instanceof Class) {
 				// TODO 是Class的, 转型后返回
 				return (Class<?>) type;

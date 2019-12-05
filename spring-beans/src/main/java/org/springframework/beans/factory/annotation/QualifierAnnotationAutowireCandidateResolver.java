@@ -147,6 +147,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * fallback to match against the bean name or an alias if a qualifier or
 	 * attribute does not match.
 	 * @see Qualifier
+     *
+	 * @param bdHolder 自动注入的候选bean
+	 * @param descriptor 字段, 方法, 或构造函数所表示的依赖描述的待注入项, 对于多值类型, 这里会是被包装过的包含多元素的MultiElementDescriptor
+	 * @return
 	 */
 	@Override
 	// TODO 用于判断bean是否可以被自动装配
@@ -424,13 +428,14 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	@Nullable
+	// TODO 取得依赖描述的待注入项的@Value注解中的value
 	public Object getSuggestedValue(DependencyDescriptor descriptor) {
-		// TODO 先取得依赖注入项的所有注解, 然后取得其中的@Value的值
+		// TODO 先取得依赖描述的待注入项的所有注解, 然后取得其中的@Value的值
 		Object value = findValue(descriptor.getAnnotations());
 		if (value == null) {
 			MethodParameter methodParam = descriptor.getMethodParameter();
 			if (methodParam != null) {
-				// TODO 没取得注解内的值时, 尝试从依赖注入项的方法的参数取得
+				// TODO 没取得注解内的值时, 尝试从依赖描述的待注入项的方法的参数取得
 				value = findValue(methodParam.getMethodAnnotations());
 			}
 		}
@@ -443,9 +448,11 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	@Nullable
 	protected Object findValue(Annotation[] annotationsToSearch) {
 		if (annotationsToSearch.length > 0) {   // qualifier annotations have to be local
+			// TODO 拿到@Value注解
 			AnnotationAttributes attr = AnnotatedElementUtils.getMergedAnnotationAttributes(
 					AnnotatedElementUtils.forAnnotations(annotationsToSearch), this.valueAnnotationType);
 			if (attr != null) {
+				// TODO 提取其中的值
 				return extractValue(attr);
 			}
 		}
@@ -456,6 +463,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * Extract the value attribute from the given annotation.
 	 * @since 4.3
 	 */
+	// TODO 从注解中提取value内容
 	protected Object extractValue(AnnotationAttributes attr) {
 		Object value = attr.get(AnnotationUtils.VALUE);
 		if (value == null) {

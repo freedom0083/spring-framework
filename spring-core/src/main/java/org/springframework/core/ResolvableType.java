@@ -742,7 +742,7 @@ public class ResolvableType implements Serializable {
 	 * @see #resolveGeneric(int...)
 	 * @see #resolveGenerics()
 	 */
-	// TODO 返回泛型的参数类型的集合
+	// TODO 将当前操作类型上的所有泛型参数类型包装为ResolvableType数组后返回
 	public ResolvableType[] getGenerics() {
 		if (this == NONE) {
 			// TODO 为空时返回空数组
@@ -751,7 +751,7 @@ public class ResolvableType implements Serializable {
 		ResolvableType[] generics = this.generics;
 		if (generics == null) {
 			if (this.type instanceof Class) {
-				// TODO 当前Type是Class类型时, 返回Class上的泛型信息数组, 比如:
+				// TODO 当前是Class类型时, 取得Class上所有的泛型类型变量(TypeVariable, 泛型中可以表示任何类型的变量, 如: K, V, T)数组, 比如:
 				//  1. 单一泛型类型时: Class<E>时, 返回的Type[]数组内只有一个元素, Type[0] = E
 				//  2. 多泛型类型时: Class<E, V>时, 返回的Type[]数组包含两个元素, Type[0] = E, Type[1] = V
 				Type[] typeParams = ((Class<?>) this.type).getTypeParameters();
@@ -1452,7 +1452,7 @@ public class ResolvableType implements Serializable {
 	 * @return a {@link ResolvableType} for the specified {@link Type}
 	 * @see #forType(Type, ResolvableType)
 	 */
-	// TODO 返回一个指定Type的ResolvableType, 返回的结果可能不是可序列化的
+	// TODO 将Type类型包装为ResolvableType, 不支持序列化及TypeVariable类型的泛型解析
 	public static ResolvableType forType(@Nullable Type type) {
 		return forType(type, null, null);
 	}
@@ -1466,14 +1466,14 @@ public class ResolvableType implements Serializable {
 	 * @return a {@link ResolvableType} for the specified {@link Type} and owner
 	 * @see #forType(Type)
 	 */
-	// TODO 返回一个由给定的ResolvableType支持的一个指定Type的ResolvableType
+	// TODO 将Type类型包装为ResolvableType, 支持由ResolvableType指定的TypeVariable类型的泛型解析
 	public static ResolvableType forType(@Nullable Type type, @Nullable ResolvableType owner) {
 		VariableResolver variableResolver = null;
 		if (owner != null) {
 			// TODO 如果指定了owner, 将其转换为VariableResolver
 			variableResolver = owner.asVariableResolver();
 		}
-		// TODO 然后用适配过VariableResolver(可能为空)支持的一个指定Type的ResolvableType
+		// TODO 增加TypeVariable类型的泛型解析
 		return forType(type, variableResolver);
 	}
 
@@ -1497,7 +1497,7 @@ public class ResolvableType implements Serializable {
 	 * @param variableResolver the variable resolver or {@code null} 用于解析TypeVariable的策略
 	 * @return a {@link ResolvableType} for the specified {@link Type} and {@link VariableResolver}
 	 */
-	// TODO 返回一个由给定的VariableResolver支持的一个指定Type的ResolvableType
+	// TODO 把Type包装为一个ResolvableType, 支持TypeVariable类型的泛型解析
 	static ResolvableType forType(@Nullable Type type, @Nullable VariableResolver variableResolver) {
 		return forType(type, null, variableResolver);
 	}
@@ -1510,7 +1510,7 @@ public class ResolvableType implements Serializable {
 	 * @param variableResolver the variable resolver or {@code null} 用于解析TypeVariable的策略
 	 * @return a {@link ResolvableType} for the specified {@link Type} and {@link VariableResolver}
 	 */
-	// TODO 返回一个由给定的VariableResolver支持的一个指定Type的ResolvableType
+	// TODO 把Type包装为一个ResolvableType, 支持序列化, 以及TypeVariable类型的泛型解析
 	static ResolvableType forType(
 			@Nullable Type type, @Nullable TypeProvider typeProvider, @Nullable VariableResolver variableResolver) {
 

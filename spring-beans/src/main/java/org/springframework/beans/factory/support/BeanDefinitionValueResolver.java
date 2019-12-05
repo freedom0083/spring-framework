@@ -71,10 +71,10 @@ class BeanDefinitionValueResolver {
 
 	/**
 	 * Create a BeanDefinitionValueResolver for the given BeanFactory and BeanDefinition.
-	 * @param beanFactory the BeanFactory to resolve against
-	 * @param beanName the name of the bean that we work on
-	 * @param beanDefinition the BeanDefinition of the bean that we work on
-	 * @param typeConverter the TypeConverter to use for resolving TypedStringValues
+	 * @param beanFactory the BeanFactory to resolve against 解析时要用到的容器
+	 * @param beanName the name of the bean that we work on 要解析的bean
+	 * @param beanDefinition the BeanDefinition of the bean that we work on 要解析的bean的mbd
+	 * @param typeConverter the TypeConverter to use for resolving TypedStringValues 类型转换器
 	 */
 	public BeanDefinitionValueResolver(AbstractAutowireCapableBeanFactory beanFactory, String beanName,
 			BeanDefinition beanDefinition, TypeConverter typeConverter) {
@@ -100,8 +100,8 @@ class BeanDefinitionValueResolver {
 	 * <li>A ManagedMap. In this case the value may be a RuntimeBeanReference
 	 * or Collection that will need to be resolved.
 	 * <li>An ordinary object or {@code null}, in which case it's left alone.
-	 * @param argName the name of the argument that the value is defined for
-	 * @param value the value object to resolve
+	 * @param argName the name of the argument that the value is defined for 参数名
+	 * @param value the value object to resolve 是解析的propertyValue的值
 	 * @return the resolved object
 	 */
 	@Nullable
@@ -109,7 +109,14 @@ class BeanDefinitionValueResolver {
 		// We must check each value to see whether it requires a runtime reference
 		// to another bean to be resolved.
 		if (value instanceof RuntimeBeanReference) {
+			// TODO RuntimeBeanReference用于在运行时获取BeanDefinition. 因为在我们创建这个BeanDefinition的时候我们只知道他的beanName,
+			//  并不确定是否已经注册了, 这个时候就需要用RuntimeBeanReference.
+			//  RuntimeBeanReference可以理解为一个引用, 需要在解析时对其进行实例化??
+			//  <bean class="foo.bar.xxx">
+			//      <property name="referBeanName" ref="otherBeanName" />
+			//  </bean>
 			RuntimeBeanReference ref = (RuntimeBeanReference) value;
+			// TODO 解析RuntimeBeanReference类型的propertyValues
 			return resolveReference(argName, ref);
 		}
 		else if (value instanceof RuntimeBeanNameReference) {
@@ -302,8 +309,10 @@ class BeanDefinitionValueResolver {
 	private Object resolveReference(Object argName, RuntimeBeanReference ref) {
 		try {
 			Object bean;
+			// TODO 取得引用的bean的类型
 			Class<?> beanType = ref.getBeanType();
 			if (ref.isToParent()) {
+				// TODO 如果这个引用是父容器中的显示引用, 那从父容器中去取
 				BeanFactory parent = this.beanFactory.getParentBeanFactory();
 				if (parent == null) {
 					throw new BeanCreationException(
@@ -315,10 +324,12 @@ class BeanDefinitionValueResolver {
 					bean = parent.getBean(beanType);
 				}
 				else {
+					// TODO 引用无法取得类型时, 就要按引用的bean的名字去取, 因为有可能是个SpEL表达式, 所以需要对名字进行解析
 					bean = parent.getBean(String.valueOf(doEvaluate(ref.getBeanName())));
 				}
 			}
 			else {
+				// TODO 不是父容器中的显示引用时, 就在当前容器中拿
 				String resolvedName;
 				if (beanType != null) {
 					NamedBeanHolder<?> namedBean = this.beanFactory.resolveNamedBean(beanType);
@@ -329,6 +340,7 @@ class BeanDefinitionValueResolver {
 					resolvedName = String.valueOf(doEvaluate(ref.getBeanName()));
 					bean = this.beanFactory.getBean(resolvedName);
 				}
+				// TODO 然后注册到容器中
 				this.beanFactory.registerDependentBean(resolvedName, this.beanName);
 			}
 			if (bean instanceof NullBean) {

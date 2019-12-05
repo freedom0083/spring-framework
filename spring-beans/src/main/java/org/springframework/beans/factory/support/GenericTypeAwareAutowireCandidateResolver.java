@@ -167,7 +167,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			// and pragmatically also java.util.Properties to any Map (since despite formally being a
 			// Map<Object,Object>, java.util.Properties is usually perceived as a Map<String,String>).
 			// TODO 以下情况也表示匹配成功
-			//  1. 注入项允许回退匹配(用于不可解析的泛型);
+			//  1. 注入项允许回退匹配, 即: 放宽了注入条件. 用于容器类型的依赖bean以及同类型的候选bean均无法找到注入候选时;
 			//  2. type类型中有不可解析的泛型, 或者待检查的候选bean的type类型是Properties.
 			return true;
 		}

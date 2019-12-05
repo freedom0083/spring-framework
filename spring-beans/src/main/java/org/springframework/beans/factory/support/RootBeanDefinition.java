@@ -69,7 +69,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	boolean isFactoryMethodUnique = false;
 
 	@Nullable
-	// TODO RootBeanDefinition所持有的代理目标的type类型, 用于泛型支持
+	// TODO RootBeanDefinition所持有的代理目标的type类型, 用于泛型支持, 与下面的区别就是此处为Spring封装过的ResolvableType
 	volatile ResolvableType targetType;
 
 	/** Package-visible field for caching the determined Class of a given bean definition. */

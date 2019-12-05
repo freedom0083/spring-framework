@@ -94,6 +94,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @param methodParameter the MethodParameter to wrap
 	 * @param required whether the dependency is required
 	 */
+	// TODO 创建一个急加载的, 用于描述方法或构造函数参数的依赖描述
 	public DependencyDescriptor(MethodParameter methodParameter, boolean required) {
 		this(methodParameter, required, true);
 	}
@@ -412,7 +413,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 					}
 				}
 				if (type instanceof Class) {
-					// TODO 如果是Class, 转为Class类型返回, 这种情况基本和泛型无关
+					// TODO 如果得到的是Class, 转为Class类型返回, 这种情况基本和泛型无关
 					return (Class<?>) type;
 				}
 				else if (type instanceof ParameterizedType) {

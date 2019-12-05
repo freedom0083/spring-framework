@@ -386,8 +386,8 @@ class ConstructorResolver {
 	 * to match with the parameters. We don't have the types attached to constructor args,
 	 * so trial and error is the only way to go here. The explicitArgs array may contain
 	 * argument values passed in programmatically via the corresponding getBean method.
-	 * @param beanName the name of the bean
-	 * @param mbd the merged bean definition for the bean
+	 * @param beanName the name of the bean 要创建实例的bean名
+	 * @param mbd the merged bean definition for the bean 要创建实例的bean的mbd
 	 * @param explicitArgs argument values passed in programmatically via the getBean
 	 * method, or {@code null} if none (-> use constructor argument values from bean definition)
 	 * @return a BeanWrapper for the new instance
@@ -406,15 +406,16 @@ class ConstructorResolver {
 		// TODO 获取mbd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类), 这边和AbstractAutowireCapableBeanFactory类似
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
+			// TODO 只有非静态工厂才会有名字, 所以后面会把标识是否为静态工厂的flag设置为false
 			if (factoryBeanName.equals(beanName)) {
 				// TODO 工厂类的名字不能和要实例化的bean同名(不能重复创建单例??)
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
-			// TODO 从容器中取出工厂类所对应的真实对象(同时会实例化). 这里执行后, 工厂类就已经初始化完毕, 并且放到容器中了
+			// TODO 从容器中取出工厂类所对应的真实对象(同时会实例化). 这里执行后, 工厂类就已经初始化完毕, 并且注册到容器中了
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
-				// TODO 要取得的单例bean是已经存在于容器中时, 会报一个隐匿创建异常 mark
+				// TODO mbd做为单例bean已经存在于容器中时, 会报一个隐匿创建异常 mark
 				throw new ImplicitlyAppearedSingletonException();
 			}
 			// TODO 取得工厂类的类型(这时肯定不是一个静态工厂)
@@ -423,7 +424,7 @@ class ConstructorResolver {
 		}
 		else {
 			// It's a static factory method on the bean class.
-			// TODO 没有工厂类的名字时, 就是一个静态工厂了, 静态工厂不需要先实例化工厂类
+			// TODO 静态工厂是没有名字的, 不需要先实例化工厂类
 			if (!mbd.hasBeanClass()) {
 				// TODO 不是工厂类, 且'class'属性设置的不是Class类型时, 抛出异常
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
@@ -833,18 +834,26 @@ class ConstructorResolver {
 
 	/**
 	 * Resolve the prepared arguments stored in the given bean definition.
+	 *
+	 * @param beanName 要创建实例的bean名
+	 * @param mbd 要创建实例的bean的mbd
+	 * @param bw 用于返回的, 包装bean实例的的BeanWrapper
+	 * @param executable 解析过的构造函数, 或工厂方法
+	 * @param argsToResolve 准备解析的参数数组
+	 * @param fallback
+	 * @return
 	 */
 	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
 			Executable executable, Object[] argsToResolve, boolean fallback) {
 		// TODO 取得类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
 		TypeConverter converter = (customConverter != null ? customConverter : bw);
-		// TODO 准备mbd的解析器
+		// TODO 为要创建实例的bean创建一个解析propertyValues的值解析器
 		BeanDefinitionValueResolver valueResolver =
 				new BeanDefinitionValueResolver(this.beanFactory, beanName, mbd, converter);
-		// TODO 按顺序取得方法的参数类型(executable可能是factory-method指定的工厂方法)
+		// TODO 按顺序取得构造函数, 或工厂方法的全部参数类型(executable可能是factory-method指定的工厂方法)
 		Class<?>[] paramTypes = executable.getParameterTypes();
-		// TODO 这里是放解析好的参数用的
+		// TODO 这里是用来放解析好的参数用的
 		Object[] resolvedArgs = new Object[argsToResolve.length];
 		for (int argIndex = 0; argIndex < argsToResolve.length; argIndex++) {
 			// TODO 按顺序挨个解析参数, 先取得参数的值
@@ -852,15 +861,15 @@ class ConstructorResolver {
 			// TODO 取得待处理方法(executable)对应位置的方法参数
 			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
 			if (argValue == autowiredArgumentMarker) {
-				// TODO 参数值是Object时, 进行自动装配处理
+				// TODO 参数是Object时, 进行自动装配处理
 				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, fallback);
 			}
 			else if (argValue instanceof BeanMetadataElement) {
-				// TODO 参数值是bean元数据时
+				// TODO 参数是BeanMetadataElement时, 解析propertyValues
 				argValue = valueResolver.resolveValueIfNecessary("constructor argument", argValue);
 			}
 			else if (argValue instanceof String) {
-				// TODO 参数值是字符串时
+				// TODO 参数是字符串时, 有可能是SpEL表达式, 所以对其进行评估解析
 				argValue = this.beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
 			}
 			Class<?> paramType = paramTypes[argIndex];
@@ -896,6 +905,13 @@ class ConstructorResolver {
 
 	/**
 	 * Template method for resolving the specified argument which is supposed to be autowired.
+	 *
+	 * @param param 要注入的方法参数
+	 * @param beanName 要创建实例的bean, 即要得到的bean
+	 * @param autowiredBeanNames 自动装配过的bean集合
+	 * @param typeConverter 类型转换器
+	 * @param fallback
+	 * @return
 	 */
 	@Nullable
 	protected Object resolveAutowiredArgument(MethodParameter param, String beanName,
@@ -911,17 +927,19 @@ class ConstructorResolver {
 			return injectionPoint;
 		}
 		try {
-			// TODO 其他情况, 先用方法参数创建一个用来描述于注入的依赖项, 然后容器开始解析依赖
+			// TODO 其他情况, 先用方法或构造函数的参数创建一个用来描述于依赖的注入项, 然后容器开始解析依赖关系
 			return this.beanFactory.resolveDependency(
 					new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
 		}
 		catch (NoUniqueBeanDefinitionException ex) {
+			// TODO 向外传递解析过程中出现多个候选bean的NoUniqueBeanDefinitionException异常
 			throw ex;
 		}
 		catch (NoSuchBeanDefinitionException ex) {
 			if (fallback) {
 				// Single constructor or factory method -> let's return an empty array/collection
 				// for e.g. a vararg or a non-null List/Set/Map parameter.
+				// TODO 遇到NoSuchBeanDefinitionException异常时, 如果支持回退, 则会为数组, 集合, Map类型创建空对象并返回
 				if (paramType.isArray()) {
 					return Array.newInstance(paramType.getComponentType(), 0);
 				}
@@ -932,6 +950,7 @@ class ConstructorResolver {
 					return CollectionFactory.createMap(paramType, 0);
 				}
 			}
+			// TODO 否则, 向外传递异常
 			throw ex;
 		}
 	}

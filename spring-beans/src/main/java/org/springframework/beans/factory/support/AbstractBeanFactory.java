@@ -620,20 +620,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	// TODO 判断给定的bean名是否与指定的类型想匹配
 	protected boolean isTypeMatch(String name, ResolvableType typeToMatch, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
-		// TODO 取得bean的最终使用名
+		// TODO 取得bean的id
 		String beanName = transformedBeanName(name);
 		// TODO 判断一下给定的bean是否为工厂类('&'开头)
 		boolean isFactoryDereference = BeanFactoryUtils.isFactoryDereference(name);
 
 		// Check manually registered singletons.
-		// TODO 根据最终名字取得容器中注册的原生的bean单例对象
+		// TODO 根据最终名字取得容器中注册的原生的bean实例对象, 不支持提前暴露
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null && beanInstance.getClass() != NullBean.class) {
-			// TODO 取到非空的实例对象时会根据是否为工厂类执行不同的判断方法
+			// TODO 取到bean的实例对象时会根据其是否为工厂类执行不同的判断方法
 			if (beanInstance instanceof FactoryBean) {
-				// TODO bean单例对象为工厂类时(实现了FactoryBean接口)
+				// TODO bean实例对象为工厂类时(实现了FactoryBean接口)
 				if (!isFactoryDereference) {
-					// TODO 对于传入的bean名不是以'&'开头的工厂类时, 用bean单例对象表示的工厂类的类型做为判断条件
+					// TODO 对于传入的bean名不是以'&'开头的工厂类, 用bean实例表示的工厂类的类型做为判断条件
 					Class<?> type = getTypeForFactoryBean((FactoryBean<?>) beanInstance);
 					// TODO 指定的类型与bean单例对象表示的工厂类的类型相同时, 表示匹配成功
 					return (type != null && typeToMatch.isAssignableFrom(type));
@@ -644,29 +644,30 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 			else if (!isFactoryDereference) {
-				// TODO bean单例对象不是工厂类, 且传入的bean名不是以'&'开头的工厂类时
+				// TODO bean实例对象不是工厂类, 且传入的bean名不是以'&'开头的工厂类时
 				if (typeToMatch.isInstance(beanInstance)) {
 					// Direct match for exposed instance?
-					// TODO 直接比较指定的类型与bean单例对象, 看是否匹配
+					// TODO 直接比较指定的类型与bean实例对象, 看是否匹配
 					return true;
 				}
-				// TODO 指定的类型与bean单例对象类型不匹配时
 				else if (typeToMatch.hasGenerics() && containsBeanDefinition(beanName)) {
 					// Generics potentially only match on the target class, not on the proxy...
-					// TODO 指定的类型包含泛型, 且容器中存在指定的bean时, 用bean的最终名取得合并了双亲属性的mbd
+					// TODO 当指定的类型与bean实例对象类型不匹配时, 如果这时要匹配的类型是泛型类型, 而且要匹配的bean已经在容器中注册
+					//  过的情况下, 这个待匹配的bean可能是个代理类, 所以后面要做的是用指定的泛型类型去匹配代理目标的类型.
+					//  先取得bean的mbd
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
-					// TODO 取得mbd代理目标的类型
+					// TODO 然后得到mbd代理目标的类型
 					Class<?> targetType = mbd.getTargetType();
 					if (targetType != null && targetType != ClassUtils.getUserClass(beanInstance)) {
 						// Check raw class match as well, making sure it's exposed on the proxy.
-						// TODO mbd是个代理类时(有代理目标类型, 且其与bean实例不同)
+						// TODO mbd是个代理类时(有代理目标类型, 且其与bean实例不同), 还要验证一下原生类型是否匹配
 						Class<?> classToMatch = typeToMatch.resolve();
 						if (classToMatch != null && !classToMatch.isInstance(beanInstance)) {
-							// TODO 指定的类型与bean单例对象类型不匹配时返回False
+							// TODO 验证原生类型, 当解析后的指定的类型与bean实例对象类型不匹配时返回false
 							return false;
 						}
 						if (typeToMatch.isAssignableFrom(targetType)) {
-							// TODO 指定的类型与mbd代理的目标类的类型相同时, 返回true
+							// TODO 指定的类型与mbd的代理目标类的类型相同时, 返回true
 							return true;
 						}
 					}
@@ -812,7 +813,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	@Nullable
-	// TODO 根据bean名取得对应的Class
+	// TODO 根据bean名取得bean的类型
 	public Class<?> getType(String name) throws NoSuchBeanDefinitionException {
 		// TODO 根据bean名取得对应的Class, 并且在需要时可以对工厂类进行初始化
 		return getType(name, true);
@@ -820,7 +821,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	@Nullable
-	// TODO 根据bean名取得对应的Class, 支持工厂类初始化功能
+	// TODO 根据bean名取得bean的类型, 支持工厂类初始化功能
 	public Class<?> getType(String name, boolean allowFactoryBeanInit) throws NoSuchBeanDefinitionException {
 		// TODO 取得bean注册的id, 用于处理别名, '&'开头的工厂方法
 		String beanName = transformedBeanName(name);
@@ -1058,12 +1059,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public TypeConverter getTypeConverter() {
+		// TODO 取得自定义的类型转换器, 如果有直接返回
 		TypeConverter customConverter = getCustomTypeConverter();
 		if (customConverter != null) {
 			return customConverter;
 		}
 		else {
 			// Build default TypeConverter, registering custom editors.
+			// TODO 如果没有, 就返回一个默认的SimpleTypeConverter解析器
 			SimpleTypeConverter typeConverter = new SimpleTypeConverter();
 			typeConverter.setConversionService(getConversionService());
 			registerCustomEditors(typeConverter);
@@ -1868,7 +1871,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * To be overridden in subclasses, applying more sophisticated type detection.
 	 * @param beanName the name of the bean
 	 * @param mbd the merged bean definition to determine the type for
-	 * @param typesToMatch the types to match in case of internal type matching purposes
+	 * @param typesToMatch the types to match in case of internal type matching purposes 要匹配的类型
 	 * (also signals that the returned {@code Class} will never be exposed to application code)
 	 * @return the type of the bean, or {@code null} if not predictable
 	 */
