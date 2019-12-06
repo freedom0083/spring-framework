@@ -133,6 +133,21 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 		throw new UnsupportedOperationException("Method Injection not supported in SimpleInstantiationStrategy");
 	}
 
+	/**
+	 * Return an instance of the bean with the given name in this factory,
+	 * creating it via the given factory method.
+	 *
+	 * @param bd the bean definition 要创建的bean的bd
+	 * @param beanName the name of the bean when it is created in this context.
+	 * The name can be {@code null} if we are autowiring a bean which doesn't
+	 * belong to the factory. 是创建的bean的名字
+	 * @param owner the owning BeanFactory
+	 * @param factoryBean the factory bean instance to call the factory method on,
+	 * or {@code null} in case of a static factory method 工厂类
+	 * @param factoryMethod the factory method to use 工厂方法
+	 * @param args the factory method arguments to apply
+	 * @return
+	 */
 	@Override
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
 			@Nullable Object factoryBean, final Method factoryMethod, Object... args) {
@@ -145,14 +160,17 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 				});
 			}
 			else {
+				// TODO 工厂方法设置为可进入
 				ReflectionUtils.makeAccessible(factoryMethod);
 			}
 
 			Method priorInvokedFactoryMethod = currentlyInvokedFactoryMethod.get();
 			try {
 				currentlyInvokedFactoryMethod.set(factoryMethod);
+				// TODO 通过反射执行工厂方法, 返回工厂方法创建的bean
 				Object result = factoryMethod.invoke(factoryBean, args);
 				if (result == null) {
+					// TODO 没有时包装为NullBean返回
 					result = new NullBean();
 				}
 				return result;

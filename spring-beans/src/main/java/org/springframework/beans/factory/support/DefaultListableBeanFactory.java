@@ -1233,18 +1233,22 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Override
 	public <T> NamedBeanHolder<T> resolveNamedBean(Class<T> requiredType) throws BeansException {
 		Assert.notNull(requiredType, "Required type must not be null");
-		// TODO 先得到类型的原生类型, 然后再根据原生类型
+		// TODO 先得到类型的原生类型, 然后再根据原生类型, 唯一的bean, 封装为NamedBeanHolder返回. 这个过程会拿出标有@Primary注解的bean,
+		//  没有@Primary注解时, 会拿出同类型下优先级最高的bean. 如果出现多个同级bean, 会抛出NoUniqueBeanDefinitionException异常
 		NamedBeanHolder<T> namedBean = resolveNamedBean(ResolvableType.forRawClass(requiredType), null, false);
 		if (namedBean != null) {
 			return namedBean;
 		}
 		BeanFactory parent = getParentBeanFactory();
 		if (parent instanceof AutowireCapableBeanFactory) {
+			// TODO 如果在当前容器中没有找到需要的类型所对应的bean, 则到父容器去找
 			return ((AutowireCapableBeanFactory) parent).resolveNamedBean(requiredType);
 		}
+		// TODO 还找不到, 就会抛出NoSuchBeanDefinitionException异常了
 		throw new NoSuchBeanDefinitionException(requiredType);
 	}
 
+	// TODO
 	@SuppressWarnings("unchecked")
 	@Nullable
 	private <T> NamedBeanHolder<T> resolveNamedBean(
@@ -1289,20 +1293,24 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// TODO 确定出首选bean
 			String candidateName = determinePrimaryCandidate(candidates, requiredType.toClass());
 			if (candidateName == null) {
+				// TODO 没有的话把候选bean中优先级最高的bean拿出来
 				candidateName = determineHighestPriorityCandidate(candidates, requiredType.toClass());
 			}
 			if (candidateName != null) {
+				// TODO 取得对应的bean实例, 并封装为NamedBeanHolder返回
 				Object beanInstance = candidates.get(candidateName);
 				if (beanInstance == null || beanInstance instanceof Class) {
+					// TODO 没有对应的bean实例, 或bean实例是Class时, 进行初始化
 					beanInstance = getBean(candidateName, requiredType.toClass(), args);
 				}
 				return new NamedBeanHolder<>(candidateName, (T) beanInstance);
 			}
 			if (!nonUniqueAsNull) {
+				// TODO 不支持null实例时, 抛出NoUniqueBeanDefinitionException异常
 				throw new NoUniqueBeanDefinitionException(requiredType, candidates.keySet());
 			}
 		}
-
+		// TODO 没法解析时, 返回null
 		return null;
 	}
 
@@ -1366,7 +1374,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @throws BeansException
 	 */
 	@Nullable
-	// TODO 解析依赖
+	// TODO 解析依赖, 这里会解析@Value, @Autowire这些
 	public Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
 		// TODO 保存当前注入点
@@ -1823,12 +1831,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @return the name of the autowire candidate, or {@code null} if none found
 	 */
 	@Nullable
+	// TODO 从候选集合中确定唯一的自动注入bean, 会找@Primary和Priority注解
 	protected String determineAutowireCandidate(Map<String, Object> candidates, DependencyDescriptor descriptor) {
 		Class<?> requiredType = descriptor.getDependencyType();
+		// TODO 首选去看是否有@Primary注解标注的bean, 如果有直接返回
 		String primaryCandidate = determinePrimaryCandidate(candidates, requiredType);
 		if (primaryCandidate != null) {
 			return primaryCandidate;
 		}
+		// TODO 没有@Primary注解时再看@Priority设置的等级, 找最高等级的返回
 		String priorityCandidate = determineHighestPriorityCandidate(candidates, requiredType);
 		if (priorityCandidate != null) {
 			return priorityCandidate;
@@ -1837,11 +1848,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		for (Map.Entry<String, Object> entry : candidates.entrySet()) {
 			String candidateName = entry.getKey();
 			Object beanInstance = entry.getValue();
+			// TODO 还没找到, 就看候选bean里有没有与要注入的项同名的(包括别名), 有就直接返回.
+			//  TIPS: 注入项如果是字段, descriptor.getDependencyName()会调用this.field.getName()直接使用字段名. 所以@Autowired
+			//        虽然匹配到两个类型的bean, 即使没有使用@Qualifier注解, 也会根据字段名找到一个合适的(若没找到, 就抱错)
 			if ((beanInstance != null && this.resolvableDependencies.containsValue(beanInstance)) ||
 					matchesBeanName(candidateName, descriptor.getDependencyName())) {
 				return candidateName;
 			}
 		}
+		// TODO 真没有的话, 就返回null了
 		return null;
 	}
 
@@ -1887,18 +1902,37 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	/**
+	 * Return whether the bean definition for the given bean name has been
+	 * marked as a primary bean.
+	 * @param beanName the name of the bean 要取得的bean
+	 * @param beanInstance the corresponding bean instance (can be null) 没用过
+	 * @return whether the given bean qualifies as primary
+	 */
+	// TODO 检查要操作的bean是否为首选项, 是否有@Primary注解
+	protected boolean isPrimary(String beanName, Object beanInstance) {
+		String transformedBeanName = transformedBeanName(beanName);
+		if (containsBeanDefinition(transformedBeanName)) {
+			return getMergedLocalBeanDefinition(transformedBeanName).isPrimary();
+		}
+		BeanFactory parent = getParentBeanFactory();
+		return (parent instanceof DefaultListableBeanFactory &&
+				((DefaultListableBeanFactory) parent).isPrimary(transformedBeanName, beanInstance));
+	}
+
+	/**
 	 * Determine the candidate with the highest priority in the given set of beans.
 	 * <p>Based on {@code @javax.annotation.Priority}. As defined by the related
 	 * {@link org.springframework.core.Ordered} interface, the lowest value has
 	 * the highest priority.
 	 * @param candidates a Map of candidate names and candidate instances
-	 * (or candidate classes if not created yet) that match the required type
-	 * @param requiredType the target dependency type to match against
+	 * (or candidate classes if not created yet) that match the required type 所有候选bean
+	 * @param requiredType the target dependency type to match against 要匹配的类型
 	 * @return the name of the candidate with the highest priority,
 	 * or {@code null} if none found
 	 * @see #getPriority(Object)
 	 */
 	@Nullable
+	// TODO 取得所有候选bean中优先级最高的bean, @Priority注解
 	protected String determineHighestPriorityCandidate(Map<String, Object> candidates, Class<?> requiredType) {
 		String highestPriorityBeanName = null;
 		Integer highestPriority = null;
@@ -1910,9 +1944,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				if (candidatePriority != null) {
 					if (highestPriorityBeanName != null) {
 						if (candidatePriority.equals(highestPriority)) {
+							// TODO 出现相同优先级时, 会抛出NoUniqueBeanDefinitionException异常
 							throw new NoUniqueBeanDefinitionException(requiredType, candidates.size(),
 									"Multiple beans found with the same priority ('" + highestPriority +
-									"') among candidates: " + candidates.keySet());
+											"') among candidates: " + candidates.keySet());
 						}
 						else if (candidatePriority < highestPriority) {
 							highestPriorityBeanName = candidateBeanName;
@@ -1930,24 +1965,6 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	/**
-	 * Return whether the bean definition for the given bean name has been
-	 * marked as a primary bean.
-	 * @param beanName the name of the bean 要取得的bean
-	 * @param beanInstance the corresponding bean instance (can be null) 没用过
-	 * @return whether the given bean qualifies as primary
-	 */
-	// TODO 检查要操作的bean是否为首选项
-	protected boolean isPrimary(String beanName, Object beanInstance) {
-		String transformedBeanName = transformedBeanName(beanName);
-		if (containsBeanDefinition(transformedBeanName)) {
-			return getMergedLocalBeanDefinition(transformedBeanName).isPrimary();
-		}
-		BeanFactory parent = getParentBeanFactory();
-		return (parent instanceof DefaultListableBeanFactory &&
-				((DefaultListableBeanFactory) parent).isPrimary(transformedBeanName, beanInstance));
-	}
-
-	/**
 	 * Return the priority assigned for the given bean instance by
 	 * the {@code javax.annotation.Priority} annotation.
 	 * <p>The default implementation delegates to the specified
@@ -1959,6 +1976,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @param beanInstance the bean instance to check (can be {@code null})
 	 * @return the priority assigned to that bean or {@code null} if none is set
 	 */
+	// TODO 取得bean实例的优先级
 	@Nullable
 	protected Integer getPriority(Object beanInstance) {
 		Comparator<Object> comparator = getDependencyComparator();
@@ -1972,6 +1990,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * Determine whether the given candidate name matches the bean name or the aliases
 	 * stored in this bean definition.
 	 */
+	// TODO 候选bean的名字是否与要得到的bean名相同, 包含所有的别名
 	protected boolean matchesBeanName(String beanName, @Nullable String candidateName) {
 		return (candidateName != null &&
 				(candidateName.equals(beanName) || ObjectUtils.containsElement(getAliases(beanName), candidateName)));

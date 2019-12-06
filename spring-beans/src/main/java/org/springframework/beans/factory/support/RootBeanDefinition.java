@@ -52,13 +52,14 @@ import org.springframework.util.Assert;
  * @see ChildBeanDefinition
  */
 @SuppressWarnings("serial")
+// TODO 代表一个xml, java Config来的BeanDefinition
 public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable
-	// TODO 当前rbd是的注解元素
+	// TODO 当前RootBeanDefinition的注解元素
 	private AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */

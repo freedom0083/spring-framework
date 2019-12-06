@@ -476,6 +476,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
+	 *
+	 * @param beanName the name of the bean
+	 * @param mbd the merged bean definition for the bean
+	 * @param args explicit arguments to use for constructor or factory method invocation 为bean设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
+	 * @return
+	 * @throws BeanCreationException
 	 */
 	@Override
 	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
@@ -548,9 +555,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * at this point, e.g. checking {@code postProcessBeforeInstantiation} callbacks.
 	 * <p>Differentiates between default bean instantiation, use of a
 	 * factory method, and autowiring a constructor.
+	 *
 	 * @param beanName the name of the bean 要得到的bean
 	 * @param mbd the merged bean definition for the bean 要得到的bean的mbd
-	 * @param args explicit arguments to use for constructor or factory method invocation
+	 * @param args explicit arguments to use for constructor or factory method invocation 为bean设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
 	 * @return a new instance of the bean
 	 * @throws BeanCreationException if the bean could not be created
 	 * @see #instantiateBean
@@ -1304,7 +1313,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * factory method, constructor autowiring, or simple instantiation.
 	 * @param beanName the name of the bean
 	 * @param mbd the bean definition for the bean
-	 * @param args explicit arguments to use for constructor or factory method invocation
+	 * @param args explicit arguments to use for constructor or factory method invocation 为bean设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
 	 * @return a BeanWrapper for the new instance
 	 * @see #obtainFromSupplier
 	 * @see #instantiateUsingFactoryMethod
@@ -1507,7 +1517,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param beanName the name of the bean 要创建实例的bean名
 	 * @param mbd the bean definition for the bean 要创建实例的bean的mbd
 	 * @param explicitArgs argument values passed in programmatically via the getBean method,
-	 * or {@code null} if none (-> use constructor argument values from bean definition)
+	 * or {@code null} if none (-> use constructor argument values from bean definition) 为bean设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
 	 * @return a BeanWrapper for the new instance
 	 * @see #getBean(String, Object[])
 	 */

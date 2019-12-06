@@ -25,6 +25,7 @@ import org.springframework.lang.Nullable;
  * @author Juergen Hoeller
  * @since 2.0
  */
+// TODO BeanDefinition元数据, 返回该Bean的来源
 public interface BeanMetadataElement {
 
 	/**

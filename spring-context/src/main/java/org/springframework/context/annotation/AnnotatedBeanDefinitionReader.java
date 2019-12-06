@@ -46,6 +46,7 @@ import org.springframework.util.Assert;
  * @since 3.0
  * @see AnnotationConfigApplicationContext#register
  */
+// TODO 对带有注解的BeanDefinition进行注册
 public class AnnotatedBeanDefinitionReader {
 
 	private final BeanDefinitionRegistry registry;

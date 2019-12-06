@@ -38,6 +38,7 @@ import org.springframework.util.ObjectUtils;
  * @see ChildBeanDefinition
  */
 @SuppressWarnings("serial")
+// TODO spring2.5后注册bean的首选, 允许动态的设置父bean. 可以作为RootBeanDefinition与ChildBeanDefinition的替代品
 public class GenericBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable

@@ -44,6 +44,7 @@ import org.springframework.util.ObjectUtils;
  * @see RootBeanDefinition
  */
 @SuppressWarnings("serial")
+// TODO 可以让子BeanDefinition定义拥有从父母哪里继承配置的能力
 public class ChildBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
