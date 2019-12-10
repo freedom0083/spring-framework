@@ -392,11 +392,27 @@ class ConstructorResolver {
 	 * argument values passed in programmatically via the corresponding getBean method.
 	 * @param beanName the name of the bean 要创建实例的bean名
 	 * @param mbd the merged bean definition for the bean 要创建实例的bean的mbd
-	 * @param explicitArgs argument values passed in programmatically via the getBean 为bean设置的参数值, 只有构造方法
-	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
-	 * method, or {@code null} if none (-> use constructor argument values from bean definition)
+	 * @param explicitArgs argument values passed in programmatically via the getBean
+	 * method, or {@code null} if none (-> use constructor argument values from bean definition) 创建bean时用户指定的参数值,
+	 *                     只有构造方法和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型. 如果传入了此值,
+	 *                     可以通过这个参数直接确定用于初始化的构造函数
 	 * @return a BeanWrapper for the new instance
 	 */
+	// TODO 用工厂方法实例化对应的bean. 工厂方法有两种类型:
+	//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
+	//     1.1 'class'属性: 指向的是静态工厂方法的全限定名, 即: 下例中的'factory.StaticCarFactory'
+	//     1.2 'factory-method'属性: 指向静态工厂方法的名字, 即: 下例中的'getCar'
+	//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'Audio'. 会保存在参数explicitArgs中
+	//     <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
+	//         <constructor-arg value="Audio" />
+	//     </bean>
+	//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
+	//     2.1 'factory-bean'属性: 指向实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 下例中的'carFactory'
+	//     2.2 'factory-method'属性: 指向实例工厂方法的名字, 即: 下例中的'getCar'
+	//     2.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'BMW'. 会保存在参数explicitArgs中
+	//     <bean id="car" factory-bean="carFactory" factory-method="getCar">
+	//         <constructor-arg value="BMW"></constructor-arg>
+	//     </bean>
 	public BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
 		// TODO 创建一个用于返回的BeanWrapperImpl实例
@@ -408,28 +424,44 @@ class ConstructorResolver {
 		// TODO 工厂类
 		Class<?> factoryClass;
 		boolean isStatic;
-		// TODO 获取mbd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类), 这边和AbstractAutowireCapableBeanFactory类似
+		// TODO 配置bean时会指定工厂类, 从要创建实例的bean的mbd中获取配置的工厂类的名字. 这边和AbstractAutowireCapableBeanFactory类似
+		//  1. 静态工厂: 在配置文件中不需要指定工厂类, 所以不会有工厂类的名字.
+		//  2. 实例工厂: 在配置文件中指定对应的工厂类, 所以会有名字. 必须先实例化该工厂类后才能使用其指定的工厂方法.
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
-			// TODO 只有非静态工厂才会有名字, 所以后面会把标识是否为静态工厂的flag设置为false
+			// TODO 实例工厂在配置时需要指定一个工厂类, 所以才会有工厂类
+			//      <bean id="carFactory" class="xxx.CarFactory">
+			//      <bean id="car" factory-bean="carFactory" factory-method="getCar">
+			//          <constructor-arg value="BMW" />
+			//      </bean>
+			//      1. 工厂类是由'factory-bean'属性指定的'carFactory', 即: factoryBeanName='carFactory'; 其类型为该类所引用的
+			//         bean的类型, 即: 'xxx.CarFactory'
+			//      2. 工厂方法是由'factory-method'属性指定的'getCar'
+			//      3. 参数是由'constructor-arg'标签指定的'BMW', 即: explicitArgs='[BMW]'
 			if (factoryBeanName.equals(beanName)) {
-				// TODO 工厂类的名字不能和要实例化的bean同名(不能重复创建单例??)
+				// TODO 工厂类的名字不能和要实例化的bean同名(不能自己创建自己)
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
-			// TODO 从容器中取出工厂类所对应的真实对象(同时会实例化). 这里执行后, 工厂类就已经初始化完毕, 并且注册到容器中了
+			// TODO 实例工厂在使用前需要先进行实例化. 从容器中取出工厂类实例(如果没有实例化, 会进行实例化)
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
-				// TODO mbd做为单例bean已经存在于容器中时, 会报一个隐匿创建异常 mark
+				// TODO 要创建实例的bean是单例, 并且已经存在于容器中时, 会报一个隐匿创建异常 mark
 				throw new ImplicitlyAppearedSingletonException();
 			}
-			// TODO 取得工厂类的类型(这时肯定不是一个静态工厂)
+			// TODO 取得工厂类的类型(xxx.CarFactory)
 			factoryClass = factoryBean.getClass();
 			isStatic = false;
 		}
 		else {
 			// It's a static factory method on the bean class.
-			// TODO 静态工厂是没有名字的, 不需要先实例化工厂类
+			// TODO 没有名字的就是静态工厂, 静态工厂的工厂方法可以直接使用不需要先实例化工厂类
+			//      <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
+			//          <constructor-arg value="Audio" />
+			//      </bean>
+			//      1. 静态工厂方法的类型是由'class'属性指定的全限定名'factory.StaticCarFactory', 即: factoryClass='factory.StaticCarFactory'
+			//      2. 工厂方法是由'factory-method'属性指定的'getCar'
+			//      3. 参数是由'constructor-arg'标签指定的'Audio', 即: explicitArgs='[Audio]'
 			if (!mbd.hasBeanClass()) {
 				// TODO 不是工厂类, 且'class'属性设置的不是Class类型时, 抛出异常
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
@@ -437,7 +469,7 @@ class ConstructorResolver {
 			}
 			// TODO 静态工厂也不需要指定工厂类
 			factoryBean = null;
-			// TODO mbd的'class'属性指定的就是工厂类的类型
+			// TODO mbd的'class'属性指定的就是工厂类的类型(factory.StaticCarFactory)
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
@@ -524,8 +556,10 @@ class ConstructorResolver {
 
 			ConstructorArgumentValues resolvedValues = null;
 			// TODO 看mbd是否支持自动装配, 对于构造函数来说, mbd的自动装配模式为AUTOWIRE_AUTODETECT, 且没有无参构造函数时才允许自动装配
+			//  工厂方法构造，这里autowiring=false
 			boolean autowiring = (mbd.getResolvedAutowireMode() == AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR);
 			int minTypeDiffWeight = Integer.MAX_VALUE;
+			// TODO 会引起歧义的方法列表
 			Set<Method> ambiguousFactoryMethods = null;
 
 			int minNrOfArgs;
@@ -536,6 +570,7 @@ class ConstructorResolver {
 				// We don't have arguments passed in programmatically, so we need to resolve the
 				// arguments specified in the constructor arguments held in the bean definition.
 				if (mbd.hasConstructorArgumentValues()) {
+					// TODO 提取配置文件中定义的构造函数参数(constructor-arg)
 					ConstructorArgumentValues cargs = mbd.getConstructorArgumentValues();
 					resolvedValues = new ConstructorArgumentValues();
 					// TODO 解析构造器参数, resolvedValues中会得到解析结果. 也会返回解析参数的数量
@@ -549,17 +584,18 @@ class ConstructorResolver {
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
 			for (Method candidate : candidates) {
-				// TODO 遍历这些工厂方法, 拿出每个方法参数的类型数组
+				// TODO 遍历所有工厂方法, 进行匹配. 先拿出每个方法参数的类型数组
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 
 				if (paramTypes.length >= minNrOfArgs) {
-					// TODO 要找最接近的方法, 参数数量比构造器少的肯定不是, 所以这里只看参数数量>=构造器参数数量的方法
+					// TODO 要找最接近的方法, 参数数量比构造器少的肯定不是, 所以这里只看参数数量 >= 构造器参数数量的方法
 					//  这个是用于保存参数的holder
 					ArgumentsHolder argsHolder;
 
 					if (explicitArgs != null) {
 						// Explicit arguments given -> arguments length must match exactly.
 						if (paramTypes.length != explicitArgs.length) {
+							// TODO 参数数量与赋给bean的参数数量不匹配的也不要
 							continue;
 						}
 						argsHolder = new ArgumentsHolder(explicitArgs);
@@ -568,17 +604,19 @@ class ConstructorResolver {
 						// Resolved constructor arguments: type conversion and/or autowiring necessary.
 						try {
 							String[] paramNames = null;
-							// TODO 拿容器的参数名发现器, 默认是DefaultParameterNameDiscoverer. 在getTypeForFactoryMethod()
+							// TODO 从容器中拿出参数名发现器, 默认是DefaultParameterNameDiscoverer. 在getTypeForFactoryMethod()
 							//  方法中也有同样的逻辑
 							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
 							if (pnd != null) {
 								// TODO 用探测器取得方法参数的名字, 有好多实现, 这个得慢慢看, 最后得到的就是参数名
 								paramNames = pnd.getParameterNames(candidate);
 							}
+							// TODO 用工厂方法的参数名, 参数类型来创建参数
 							argsHolder = createArgumentArray(beanName, mbd, resolvedValues, bw,
 									paramTypes, paramNames, candidate, autowiring, candidates.length == 1);
 						}
 						catch (UnsatisfiedDependencyException ex) {
+							// TODO 忽略无法创建的依赖
 							if (logger.isTraceEnabled()) {
 								logger.trace("Ignoring factory method [" + candidate + "] of bean '" + beanName + "': " + ex);
 							}
@@ -590,14 +628,22 @@ class ConstructorResolver {
 							continue;
 						}
 					}
-
+					// TODO 根据要实例化的bean的mbd的构造函数是宽松模式还是严格模式来分别计算权重:
+					//  1. 宽松模式: 工厂方法参数类型与解析后的构造函数的参数的类型, 及解析后的构造函数的参数的原生类型的最小权重值
+					//  2. 严格模式: 工厂方法参数类型与解析后的构造函数的参数的类型, 及解析后的构造函数的参数的原生类型直接比较
 					int typeDiffWeight = (mbd.isLenientConstructorResolution() ?
 							argsHolder.getTypeDifferenceWeight(paramTypes) : argsHolder.getAssignabilityWeight(paramTypes));
 					// Choose this factory method if it represents the closest match.
+					// TODO 匹配最接近工厂方法
+					//这里注意minTypeDiffWeight是在for循环外部定义，一旦差异权重比最小差异权重小，则更新相关属性
+					//包括：将使用的工厂方法，argsHolderToUse ，argsToUse ，minTypeDiffWeight
+
 					if (typeDiffWeight < minTypeDiffWeight) {
+						// TODO 权重小于最小预期的方法做为要用的工厂方法, 同时赋值参数, 构造函数参数
 						factoryMethodToUse = candidate;
 						argsHolderToUse = argsHolder;
 						argsToUse = argsHolder.arguments;
+						// TODO 更新最小预期值
 						minTypeDiffWeight = typeDiffWeight;
 						ambiguousFactoryMethods = null;
 					}
@@ -606,10 +652,17 @@ class ConstructorResolver {
 					// and eventually raise an ambiguity exception.
 					// However, only perform that check in non-lenient constructor resolution mode,
 					// and explicitly ignore overridden methods (with the same parameter signature).
+					// 如果具有相同参数数量的方法具有相同的类型差异权重，则收集此类型选项
+					// 但是，仅在非宽松构造函数解析模式下执行该检查，并显式忽略重写方法（具有相同的参数签名）
+
+					//通过原始注释可以了解到在非宽松的情况下将收集歧义方法，并最终抛出异常
+
 					else if (factoryMethodToUse != null && typeDiffWeight == minTypeDiffWeight &&
 							!mbd.isLenientConstructorResolution() &&
 							paramTypes.length == factoryMethodToUse.getParameterCount() &&
 							!Arrays.equals(paramTypes, factoryMethodToUse.getParameterTypes())) {
+						// TODO 对于严格模式来说, 如果出现相同权重, 参数数量, 但参数类型不同的工厂方法时, 表示出现歧义方法, 这些
+						//  歧义方法都会被加到缓存中
 						if (ambiguousFactoryMethods == null) {
 							ambiguousFactoryMethods = new LinkedHashSet<>();
 							ambiguousFactoryMethods.add(factoryMethodToUse);
@@ -618,31 +671,38 @@ class ConstructorResolver {
 					}
 				}
 			}
-
+			// TODO 下面都是一些可能的异常处理
 			if (factoryMethodToUse == null || argsToUse == null) {
+				// TODO 还是没有确定要使用的工厂方法时
 				if (causes != null) {
+					// TODO 要是有异常发生, 记录一下异常, 然后抛出
 					UnsatisfiedDependencyException ex = causes.removeLast();
 					for (Exception cause : causes) {
 						this.beanFactory.onSuppressedException(cause);
 					}
 					throw ex;
 				}
+				// TODO 没有异常时
 				List<String> argTypes = new ArrayList<>(minNrOfArgs);
 				if (explicitArgs != null) {
+					// TODO 如果指定了创建bean所需要的参数, 将其类型加入到参数类型缓存中
 					for (Object arg : explicitArgs) {
 						argTypes.add(arg != null ? arg.getClass().getSimpleName() : "null");
 					}
 				}
 				else if (resolvedValues != null) {
+					// TODO 没指定创建bean所需要的参数, 但是已经有了解析好的值时, 把解析好的值的索引参数, 以及泛型参数全部加到Set<ValueHolder>中
 					Set<ValueHolder> valueHolders = new LinkedHashSet<>(resolvedValues.getArgumentCount());
 					valueHolders.addAll(resolvedValues.getIndexedArgumentValues().values());
 					valueHolders.addAll(resolvedValues.getGenericArgumentValues());
 					for (ValueHolder value : valueHolders) {
+						// TODO 然后将其中的参数类型全部加到参数类型缓存中
 						String argType = (value.getType() != null ? ClassUtils.getShortName(value.getType()) :
 								(value.getValue() != null ? value.getValue().getClass().getSimpleName() : "null"));
 						argTypes.add(argType);
 					}
 				}
+				// TODO 把最终的参数类型缓存转化为','分割的字符串, 然后抛出'No matching factory method found: '的BeanCreationException异常
 				String argDesc = StringUtils.collectionToCommaDelimitedString(argTypes);
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"No matching factory method found: " +
@@ -655,27 +715,42 @@ class ConstructorResolver {
 						(isStatic ? "static" : "non-static") + ".");
 			}
 			else if (void.class == factoryMethodToUse.getReturnType()) {
+				// TODO 找到的工厂方法的返回类型是void时, 抛出'Invalid factory method'的BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Invalid factory method '" + mbd.getFactoryMethodName() +
 						"': needs to have a non-void return type!");
 			}
 			else if (ambiguousFactoryMethods != null) {
+				// TODO 严格模式下出现有歧义的工厂方法时, 抛出'Ambiguous factory method matches found'的BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Ambiguous factory method matches found in bean '" + beanName + "' " +
 						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities): " +
 						ambiguousFactoryMethods);
 			}
-
+			// TODO 没有异常发生时
 			if (explicitArgs == null && argsHolderToUse != null) {
+				// TODO 没指定创建bean时的参数, 且已经解析好构造函数的参数时, 把找到的工厂方法做为内省方法
 				mbd.factoryMethodToIntrospect = factoryMethodToUse;
+				// TODO 用解析好构造函数的参数以及找到的工厂方法来更新要实例化的bean的mbd的resolvedConstructorOrFactoryMethod,
+				//  preparedConstructorArguments, 以及resolvedConstructorArguments缓存
 				argsHolderToUse.storeCache(mbd, factoryMethodToUse);
 			}
 		}
-
+		// TODO 开始进行实例化, 然后把实例化的结果更新到用于返回的BeanWrapperImpl中返回
 		bw.setBeanInstance(instantiate(beanName, mbd, factoryBean, factoryMethodToUse, argsToUse));
 		return bw;
 	}
 
+	/**
+	 *
+	 * @param beanName 要实例化的bean
+	 * @param mbd 要实例化的bean的mbd
+	 * @param factoryBean 用于实例化bean的工厂类
+	 * @param factoryMethod 用于实例化bean的工厂方法
+	 * @param args 用于实例化bean的参数
+	 * @return
+	 */
+	// TODO 通过容器的实例化策略调用工厂方法对bean进行实例化, 默认的实例化策略是SimpleInstantiationStrategy
 	private Object instantiate(String beanName, RootBeanDefinition mbd,
 			@Nullable Object factoryBean, Method factoryMethod, Object[] args) {
 
@@ -771,46 +846,69 @@ class ConstructorResolver {
 	/**
 	 * Create an array of arguments to invoke a constructor or factory method,
 	 * given the resolved constructor argument values.
+	 *
+	 * @param beanName 要实例化的bean
+	 * @param mbd 要实例化的bean的mbd
+	 * @param resolvedValues 解析好的构造函数的参数
+	 * @param bw 封装了用于返回的实例化的bean的BeanWrapper
+	 * @param paramTypes 当前操作的工厂方法的参数类型数组
+	 * @param paramNames 当前操作的工厂方法的参数名数组
+	 * @param executable 当前操作的工厂方法
+	 * @param autowiring 要实例化的bean是否可以自动装配
+	 * @param fallback 回退标志
+	 * @return
+	 * @throws UnsatisfiedDependencyException
 	 */
 	private ArgumentsHolder createArgumentArray(
 			String beanName, RootBeanDefinition mbd, @Nullable ConstructorArgumentValues resolvedValues,
 			BeanWrapper bw, Class<?>[] paramTypes, @Nullable String[] paramNames, Executable executable,
 			boolean autowiring, boolean fallback) throws UnsatisfiedDependencyException {
-
+		// TODO 取得容器中的自定义类型转换器, 如果没有就用用于返回的bw做为类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
 		TypeConverter converter = (customConverter != null ? customConverter : bw);
-
+		// TODO 用于返回的参数
 		ArgumentsHolder args = new ArgumentsHolder(paramTypes.length);
+		// TODO 已经解析过的参数
 		Set<ConstructorArgumentValues.ValueHolder> usedValueHolders = new HashSet<>(paramTypes.length);
+		// TODO 自动装配过的bean
 		Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
 
+		// TODO 遍历方法的每个参数
 		for (int paramIndex = 0; paramIndex < paramTypes.length; paramIndex++) {
+			// TODO 取得对应位置上的参数类型
 			Class<?> paramType = paramTypes[paramIndex];
+			// TODO 取得对应位置上的参数名, 如果没有就是""空字符串
 			String paramName = (paramNames != null ? paramNames[paramIndex] : "");
 			// Try to find matching constructor argument value, either indexed or generic.
 			ConstructorArgumentValues.ValueHolder valueHolder = null;
 			if (resolvedValues != null) {
+				// TODO 从解析好的构造函数参数中拿出对应位置的值
 				valueHolder = resolvedValues.getArgumentValue(paramIndex, paramType, paramName, usedValueHolders);
 				// If we couldn't find a direct match and are not supposed to autowire,
 				// let's try the next generic, untyped argument value as fallback:
 				// it could match after type conversion (for example, String -> int).
 				if (valueHolder == null && (!autowiring || paramTypes.length == resolvedValues.getArgumentCount())) {
+					// TODO 没有找到直接匹配的对应的参数值, 同时还不支持自动装配时, 做为回退方式, 尝试下一个泛型, 以及元类型的参数值
+					//  即, 不匹配类型以及名字
 					valueHolder = resolvedValues.getGenericArgumentValue(null, null, usedValueHolders);
 				}
 			}
 			if (valueHolder != null) {
 				// We found a potential match - let's give it a try.
 				// Do not consider the same value definition multiple times!
+				// TODO 把找到的值加入到已使用值的集合中, 之后再出现同样的参数就不用解析了
 				usedValueHolders.add(valueHolder);
 				Object originalValue = valueHolder.getValue();
 				Object convertedValue;
 				if (valueHolder.isConverted()) {
+					// TODO 对于已经转换过的参数值来说, 把他加入到preparedArguments已准备好的参数缓存中
 					convertedValue = valueHolder.getConvertedValue();
 					args.preparedArguments[paramIndex] = convertedValue;
 				}
 				else {
 					MethodParameter methodParam = MethodParameter.forExecutable(executable, paramIndex);
 					try {
+						// TODO 对于没转换过的, 从方法(工厂方法)中取出对应位置的方法参数, 然后转换为参数对应的类型
 						convertedValue = converter.convertIfNecessary(originalValue, paramType, methodParam);
 					}
 					catch (TypeMismatchException ex) {
@@ -822,29 +920,36 @@ class ConstructorResolver {
 					}
 					Object sourceHolder = valueHolder.getSource();
 					if (sourceHolder instanceof ConstructorArgumentValues.ValueHolder) {
+						// TODO 如果参数的值是ValueHolder, 将其来源放到preparedArguments已准备好的参数缓存中, 并且标识需要解析
 						Object sourceValue = ((ConstructorArgumentValues.ValueHolder) sourceHolder).getValue();
 						args.resolveNecessary = true;
 						args.preparedArguments[paramIndex] = sourceValue;
 					}
 				}
+				// TODO 把转换后的值, 以及原始值都放到用于返回的结果中
 				args.arguments[paramIndex] = convertedValue;
 				args.rawArguments[paramIndex] = originalValue;
 			}
 			else {
+				// TODO 没找到参数值时, 先拿出对应位置的方法参数
 				MethodParameter methodParam = MethodParameter.forExecutable(executable, paramIndex);
 				// No explicit match found: we're either supposed to autowire or
 				// have to fail creating an argument array for the given constructor.
 				if (!autowiring) {
+					// TODO 如果不支持自动装配, 抛出UnsatisfiedDependencyException异常
 					throw new UnsatisfiedDependencyException(
 							mbd.getResourceDescription(), beanName, new InjectionPoint(methodParam),
 							"Ambiguous argument values for parameter of type [" + paramType.getName() +
 							"] - did you specify the correct bean references as arguments?");
 				}
 				try {
+					// TODO 支持自动装配时, 会进行自动装配处理
 					Object autowiredArgument = resolveAutowiredArgument(
 							methodParam, beanName, autowiredBeanNames, converter, fallback);
+					// TODO 原生参数, 以及参数都设置为自动装配解析后的参数
 					args.rawArguments[paramIndex] = autowiredArgument;
 					args.arguments[paramIndex] = autowiredArgument;
+					// TODO 设置自动装配参数标示
 					args.preparedArguments[paramIndex] = autowiredArgumentMarker;
 					args.resolveNecessary = true;
 				}
@@ -856,6 +961,9 @@ class ConstructorResolver {
 		}
 
 		for (String autowiredBeanName : autowiredBeanNames) {
+			// TODO 注册一下要实例化的bean与自动装配项之前的关系:
+			//  1. dependentBeanMap: 自动装配项被要实例化的bean所依赖
+			//  2. dependenciesForBeanMap: 要实例化的bean依赖哪些自动装配项
 			this.beanFactory.registerDependentBean(autowiredBeanName, beanName);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Autowiring by type from bean name '" + beanName +
@@ -1031,27 +1139,45 @@ class ConstructorResolver {
 			this.preparedArguments = args;
 		}
 
+		/**
+		 * 取得方法参数类型的权重, 这里会衡量方法参数类型与参数的类型, 及参数的原生类型之前的最小权重值
+		 *
+		 * @param paramTypes 方法的所有参数类型的数组
+		 * @return 方法参数的类型以及参数的类型, 和原生参数类型之前的权重最小值
+		 */
 		public int getTypeDifferenceWeight(Class<?>[] paramTypes) {
 			// If valid arguments found, determine type difference weight.
 			// Try type difference weight on both the converted arguments and
 			// the raw arguments. If the raw weight is better, use it.
 			// Decrease raw weight by 1024 to prefer it over equal converted weight.
+			// TODO 先与转换后的参数做计算
 			int typeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.arguments);
+			// TODO 再与原始参数做计算, 对于原始参数类型的权重会-1024
 			int rawTypeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.rawArguments) - 1024;
+			// TODO 然后返回两个权重的最小值, 值越小越接近本身的类型
 			return Math.min(rawTypeDiffWeight, typeDiffWeight);
 		}
 
+		/**
+		 *
+		 * @param paramTypes  方法的所有参数类型的数组
+		 * @return
+		 */
 		public int getAssignabilityWeight(Class<?>[] paramTypes) {
 			for (int i = 0; i < paramTypes.length; i++) {
 				if (!ClassUtils.isAssignableValue(paramTypes[i], this.arguments[i])) {
+					// TODO 比较每一个方法参数的类型与构造函数参数的类型, 只要不相同, 就返回int最大值
 					return Integer.MAX_VALUE;
 				}
 			}
 			for (int i = 0; i < paramTypes.length; i++) {
 				if (!ClassUtils.isAssignableValue(paramTypes[i], this.rawArguments[i])) {
+					// TODO 比较每一个方法参数的类型与构造函数参数的类型, 只要不相同, 就返回int最大值 - 512
 					return Integer.MAX_VALUE - 512;
 				}
 			}
+			// TODO 全匹配时, 意味着这个函数在多个构造函数参数为父子类或实现类的关系时, 全部返回相同的值, Integer.MAX_VALUE - 1024.
+			//  这样返回统一的数字相等，spring就会认为存在有歧义的函数，不能确定使用哪一个。
 			return Integer.MAX_VALUE - 1024;
 		}
 

@@ -168,6 +168,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	private boolean nonPublicAccessAllowed = true;
 
+	// TODO 标识当前BeanDefinition的构造函数是宽松模式(true), 还是严格模式(false), 默认为宽松模式
 	private boolean lenientConstructorResolution = true;
 
 	@Nullable
@@ -179,6 +180,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private String factoryMethodName;
 
 	@Nullable
+	// TODO 配置文件中定义的构造函数参数, 由'constructor-arg'设置
 	private ConstructorArgumentValues constructorArgumentValues;
 
 	@Nullable
@@ -799,6 +801,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	/**
 	 * Return whether to resolve constructors in lenient mode or in strict mode.
 	 */
+	// TODO 判断当前BeanDefinition的构造函数是宽松模式还是严格模式:
+	//  1. 宽松模式: 使用Spring构造的参数数组的类型和获取到的构造方法的参数类型进行对比
+	//  2. 严格模式: 还需要检查能否将构造方法的参数复制到对应的属性中
 	public boolean isLenientConstructorResolution() {
 		return this.lenientConstructorResolution;
 	}

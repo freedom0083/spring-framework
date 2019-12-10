@@ -300,33 +300,43 @@ public class MethodInvoker {
 	 * <p>Note: This is the algorithm used by MethodInvoker itself and also the algorithm
 	 * used for constructor and factory method selection in Spring's bean container (in case
 	 * of lenient constructor resolution which is the default for regular bean definitions).
-	 * @param paramTypes the parameter types to match
-	 * @param args the arguments to match
+	 * @param paramTypes the parameter types to match 方法的所有参数类型的数组, 是要进行匹配的类型数组
+	 * @param args the arguments to match 解析好的构造函数的所有参数, 是要进行匹配的参数数组
 	 * @return the accumulated weight for all arguments
 	 */
 	public static int getTypeDifferenceWeight(Class<?>[] paramTypes, Object[] args) {
 		int result = 0;
 		for (int i = 0; i < paramTypes.length; i++) {
+			// TODO 遍历所有的参数类型
 			if (!ClassUtils.isAssignableValue(paramTypes[i], args[i])) {
+				// TODO 类型不匹配时, 返回int最大值
 				return Integer.MAX_VALUE;
 			}
 			if (args[i] != null) {
+				// TODO 开始准备对比相同索引位置的方法参数类型和参数
 				Class<?> paramType = paramTypes[i];
 				Class<?> superClass = args[i].getClass().getSuperclass();
 				while (superClass != null) {
 					if (paramType.equals(superClass)) {
+						// TODO 如果方法的参数的类型与参数的父类型相同, 权重+2.
+						//  比如: Object与Integer比较时, 因为Integer的父类为Object, 所以权重+2
 						result = result + 2;
 						superClass = null;
 					}
 					else if (ClassUtils.isAssignable(paramType, superClass)) {
+						// TODO 为父类, 接口实现类的关系, 则权重+2. 然后再继续深入到其父类型
+						//  比如: LinkedHashMap与Map比较时, 因为LinkedHashMap的父类是HashMap, 而HashMap可以转化为Map,
+						//  所以权重+2. 然后再深入到父类型, 即: HashMap
 						result = result + 2;
 						superClass = superClass.getSuperclass();
 					}
 					else {
+						// TODO 对于Object, 则为null, 即, 不计权重
 						superClass = null;
 					}
 				}
 				if (paramType.isInterface()) {
+					// TODO 如果方法参数的类型是一个接口类型, 则权限再+1
 					result = result + 1;
 				}
 			}

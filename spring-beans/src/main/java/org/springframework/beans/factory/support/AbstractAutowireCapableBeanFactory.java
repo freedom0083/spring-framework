@@ -1346,7 +1346,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		if (mbd.getFactoryMethodName() != null) {
-			// TODO 设置了工厂方法时, 用工厂方法进行实例化并返回
+			// TODO 设置了工厂方法时, 用工厂方法实例化对应的bean并返回, 工厂方法有两种类型:
+			//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
+			//     1.1 'class'属性: 指向的是静态工厂方法的全限定名, 即: 下例中的'factory.StaticCarFactory'
+			//     1.2 'factory-method'属性: 指向静态工厂方法的名字, 即: 下例中的'getCar'
+			//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'Audio'. 会保存在参数args中
+			//     <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
+			//         <constructor-arg value="Audio" />
+			//     </bean>
+			//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
+			//     2.1 'factory-bean'属性: 指向实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 下例中的'carFactory'
+			//     2.1 'factory-method'属性: 指向实例工厂方法的名字, 即: 下例中的'getCar'
+			//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'BMW'. 会保存在参数args中
+			//     <bean id="car" factory-bean="carFactory" factory-method="getCar">
+			//         <constructor-arg value="BMW"></constructor-arg>
+			//     </bean>
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
 
@@ -1522,6 +1536,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @return a BeanWrapper for the new instance
 	 * @see #getBean(String, Object[])
 	 */
+	// TODO 用工厂方法实例化对应的bean并返回, 工厂方法有两种类型:
+	//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
+	//     1.1 'class'属性: 指向的是静态工厂方法的全限定名, 即: 下例中的'factory.StaticCarFactory'
+	//     1.2 'factory-method'属性: 指向静态工厂方法的名字, 即: 下例中的'getCar'
+	//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'Audio'. 会保存在参数explicitArgs中
+	//     <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
+	//         <constructor-arg value="Audio" />
+	//     </bean>
+	//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
+	//     2.1 'factory-bean'属性: 指向实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 下例中的'carFactory'
+	//     2.1 'factory-method'属性: 指向实例工厂方法的名字, 即: 下例中的'getCar'
+	//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'BMW'. 会保存在参数explicitArgs中
+	//     <bean id="car" factory-bean="carFactory" factory-method="getCar">
+	//         <constructor-arg value="BMW"></constructor-arg>
+	//     </bean>
 	protected BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
 		// TODO ConstructorResolver通过工厂方法来实例化一个bean

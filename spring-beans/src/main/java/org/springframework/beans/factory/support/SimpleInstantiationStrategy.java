@@ -149,6 +149,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	 * @return
 	 */
 	@Override
+	// TODO 通过工厂方法来实例化指定的bean
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
 			@Nullable Object factoryBean, final Method factoryMethod, Object... args) {
 
