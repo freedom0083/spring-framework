@@ -554,7 +554,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// TODO 遍历注册中心中所有的beanDefinition, 这里不关注别名
 			if (!isAlias(beanName)) {
 				try {
-					// TODO 取得当前bean的mbd
+					// TODO 取得当前操作的bean的mbd
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 					// Only check bean definition if it is complete.
 					if (!mbd.isAbstract() && (allowEagerInit ||
@@ -805,8 +805,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 	}
 
+	/**
+	 *
+	 * @param beanName the name of the bean to check 自动装配候选项
+	 * @param descriptor the descriptor of the dependency to resolve 字段, 方法, 或构造函数所表示的依赖描述的待注入项, 对于多值
+	 *                   类型, 这里会是被包装过的包含多元素的MultiElementDescriptor
+	 * @return
+	 * @throws NoSuchBeanDefinitionException
+	 */
 	@Override
-	// TODO 判断给定的bean是否为注入项的自动装配候选
+	// TODO 判断给定的bean是否为注入项的自动装配候选(可以自动装配到注入项中)
 	public boolean isAutowireCandidate(String beanName, DependencyDescriptor descriptor)
 			throws NoSuchBeanDefinitionException {
 		// TODO 根据getAutowireCandidateResolver()得到的解析器(默认是SimpleAutowireCandidateResolver)进行check, 判断指定的bean
@@ -825,7 +833,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 *                    SimpleAutowireCandidateResolver
 	 * @return whether the bean should be considered as autowire candidate
 	 */
-	// TODO 用AutowireCandidateResolver所指定的解析器来判断给定的bean是否为注入项的自动装配候选
+	// TODO 用AutowireCandidateResolver所指定的解析器来判断给定的bean是否为注入项的自动装配候选(可以自动装配到注入项中)
 	protected boolean isAutowireCandidate(String beanName, DependencyDescriptor descriptor, AutowireCandidateResolver resolver)
 			throws NoSuchBeanDefinitionException {
 		// TODO 取得自动装配候选项的名字(去掉其中的'&')
@@ -860,6 +868,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	/**
 	 * Determine whether the specified bean definition qualifies as an autowire candidate,
 	 * to be injected into other beans which declare a dependency of matching type.
+	 *
 	 * @param beanName the name of the bean definition to check 自动装配候选项
 	 * @param mbd the merged bean definition to check 待验证的自动装配候选项的mbd:
 	 *            1. 对于待验证的自动装配候选项存在于注册中心的情况, 这里是自动装配候选项所对应的mbd
@@ -869,6 +878,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @param resolver the AutowireCandidateResolver to use for the actual resolution algorithm
 	 * @return whether the bean should be considered as autowire candidate
 	 */
+	// TODO 用AutowireCandidateResolver所指定的解析器来判断给定的bean是否为注入项的自动装配候选(可以自动装配到注入项中)
 	protected boolean isAutowireCandidate(String beanName, RootBeanDefinition mbd,
 			DependencyDescriptor descriptor, AutowireCandidateResolver resolver) {
 		// TODO 取得自动装配候选项的名字(去掉其中的'&')
@@ -876,8 +886,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// TODO 解析mbd的class
 		resolveBeanClass(mbd, beanDefinitionName);
 		if (mbd.isFactoryMethodUnique && mbd.factoryMethodToIntrospect == null) {
-			// TODO mbd是非重载方法(唯一的工厂方法), 且没有缓存的内省工厂方法时, 用当前容器创建一个构造解析器ConstructorResolver来解析注入项
-			//  生成的mbd的工厂方法, 解析后会填充factoryMethodToIntrospect缓存
+			// TODO 自动装配候选项没有被@Bean标注的同名方法(唯一的方法), 且没有缓存的内省工厂方法时, 用当前容器创建一个构造解析器
+			//  ConstructorResolver来解析注入项生成的mbd的工厂方法, 解析后会填充factoryMethodToIntrospect缓存
 			new ConstructorResolver(this).resolveFactoryMethodIfPossible(mbd);
 		}
 		// TODO 将待验证的自动装配候选项包装为一个bd, 然后将其与注入项一起交给解析器去进行判断. 以下解析器实现了isAutowireCandidate()方法:
@@ -1316,7 +1326,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	/**
 	 *
-	 * @param descriptor the descriptor for the dependency (field/method/constructor) 字段, 方法, 或构造函数所表示的依赖描述的待注入项
+	 * @param descriptor the descriptor for the dependency (field/method/constructor) 字段, 方法, 或构造函数所表示的, 用来
+	 *                      描述一个用于注入的依赖项
 	 * @param requestingBeanName the name of the bean which declares the given dependency 要创建实例的bean, 即, 要得到的bean
 	 * @param autowiredBeanNames a Set that all names of autowired beans (used for
 	 * resolving the given dependency) are supposed to be added to 自动装配过的bean集合
@@ -1329,28 +1340,30 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	// TODO 解决依赖关系
 	public Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-		// TODO 取得当前容器里方法参数名的解析策略, 并设置到依赖描述的待注入项中(这个依赖描述待注入项可能是字段, 方法, 工厂方法, 或构造函数的参数)
+		// TODO 将当前容器里方法参数名的解析策略设置到依赖描述的待注入项中(这个待注入项可能是字段, 方法参数(工厂方法, 或构造函数的参数))
 		//  AbstractAutowireCapableBeanFactory容器默认解析策略是DefaultParameterNameDiscoverer
 		descriptor.initParameterNameDiscovery(getParameterNameDiscoverer());
 		if (Optional.class == descriptor.getDependencyType()) {
-			// TODO 如果依赖描述的待注入项(被包装的参数或字段类型)是Optional类型, 创建并返回一个Optional类型的依赖,
+			// TODO 如果依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))是Optional类型, 将依赖描述的待注入项重新包装为一个
+			//  NestedDependencyDescriptor, 然后再调用doResolveDependency(DependencyDescriptor, @Nullable String, @Nullable Set<String>, @Nullable TypeConverter)
+			//  解析. 解析结果会被包装为一个Optional返回.
 			//  比如: private Optional<GenericBean<Object, Object>> objectGenericBean; 类型会变为Optional[GenericBean(t=obj1, w=2)]
 			return createOptionalDependency(descriptor, requestingBeanName);
 		}
 		else if (ObjectFactory.class == descriptor.getDependencyType() ||
 				ObjectProvider.class == descriptor.getDependencyType()) {
-			// TODO 如果依赖描述的待注入项(被包装的参数或字段类型)是ObjectFactory或ObjectProvider类型时(Spring4.3提供的接口, 工厂类型),
-			//  创建一个DependencyObjectProvider对象返回
+			// TODO 如果依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))是ObjectFactory或ObjectProvider类型时(Spring4.3
+			//  提供的接口, 工厂类型), 创建一个DependencyObjectProvider对象返回
 			return new DependencyObjectProvider(descriptor, requestingBeanName);
 		}
 		else if (javaxInjectProviderClass == descriptor.getDependencyType()) {
-			// TODO 如果依赖描述的待注入项(被包装的参数或字段类型)是JSR330的情况, 用JSR330创建一个Provider并返回
+			// TODO 如果依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))是JSR330的情况, 用JSR330创建一个Provider并返回
 			return new Jsr330Factory().createDependencyProvider(descriptor, requestingBeanName);
 		}
 		else {
 			// TODO 其他情况会根据解析器的不同进行不同的处理:
-			//  1. SimpleAutowireCandidateResolver: 默认解析器, 什么都不做, 返回null; 实际上AutowireCandidateResolver接口已经将
-			//     getLazyResolutionProxyIfNecessary()方法置为默认方法(Java 8新特性), 直接返回null. 这个实现类是2.5加入的
+			//  1. SimpleAutowireCandidateResolver: 默认解析器, 什么都不做, 返回null. Spring 2.5加入的; 实际上
+			//     AutowireCandidateResolver接口已经将getLazyResolutionProxyIfNecessary()方法置为默认方法(Java 8新特性), 直接返回null.
 			//  2. ContextAnnotationAutowireCandidateResolver: 处理@Lazy注解, 如果字段或方法上包含@Lazy, 表示为一个懒加载,
 			//     Spring不会立即创建注入属性的实例, 而是生成代理对象来代替实例返回. 没有@Lazy注解则返回null
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
@@ -1377,7 +1390,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	// TODO 解析依赖, 这里会解析@Value, @Autowire这些
 	public Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
-		// TODO 保存当前注入点
+		// TODO 保存当前注入点, 用于处理结束后恢复现场
 		InjectionPoint previousInjectionPoint = ConstructorResolver.setCurrentInjectionPoint(descriptor);
 		try {
 			Object shortcut = descriptor.resolveShortcut(this);
@@ -1385,18 +1398,20 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				// TODO 依赖项是ShortcutDependencyDescriptor类型才能解析出值, 这时直接返回就好
 				return shortcut;
 			}
-			// TODO 取得依赖描述的待注入项的类型(字段或方法的类型)
+			// TODO 取得依赖描述的待注入项的类型(字段类型, 方法参数(工厂方法, 或构造函数的参数)类型), 这里会处理泛型
 			Class<?> type = descriptor.getDependencyType();
-			// TODO AutowireCandidateResolver接口的默认方法getSuggestedValue()用来取得依赖描述的待注入项上@Value注解中的value值:
+			// TODO 下面开始处理@Value注解. AutowireCandidateResolver接口的默认方法getSuggestedValue()用来取得依赖描述的待注入项
+			//  上@Value注解中的value值:
 			//  1. AutowireCandidateResolver: 提供了默认方法, 返回null
 			//  2. SimpleAutowireCandidateResolver: 是AutowireCandidateResolver接口的实现类, 返回null. Java 8后接口提供了默认
 			//     类特性, 实现类可以不再提供默认实现, 这里是为了向后兼容而保留
-			//  3. QualifierAnnotationAutowireCandidateResolver: 处理@Value注解, 取得其中值, 如果值为null, 再取依赖描述的待注入项
-			//     的方法的参数上@Value的value值.
+			//  3. QualifierAnnotationAutowireCandidateResolver: 处理@Value注解, 取得其中值, 如果值为null, 再取使用方法参数
+			//     (工厂方法, 或构造函数的参数)的方法上的@Value的值
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
 			if (value != null) {
+				// TODO 解析出了@Value值, 就要对其中的属性进行解析了
 				if (value instanceof String) {
-					// TODO 如果返回的是String类型, 用StringValueResolver解析@Value中的占位符(${}).
+					// TODO 如果是String类型, 用StringValueResolver解析@Value中的占位符(${}).
 					//  TIPS: 这里有个要注意的地方, 当没有设置PlaceholderConfigurerSupport的子类时, Spring容器会提供一个支持解析
 					//        非法字符的StringValueResolver类型解析器. 遇到非法占位符时会原样输出.
 					//        但是如果手动指定过PlaceholderConfigurerSupport的子类, 并且没有设置明确设置支持非法占位符时, 遇到
@@ -1417,7 +1432,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 				catch (UnsupportedOperationException ex) {
 					// A custom TypeConverter which does not support TypeDescriptor resolution...
-					// TODO 转换失败时, 转换为依赖描述的待注入项的字段或方法参数的类型
+					// TODO 转换失败时, 转换为依赖描述的待注入项的字段, 或方法参数(工厂方法, 或构造函数的参数)的类型
 					return (descriptor.getField() != null ?
 							converter.convertIfNecessary(value, type, descriptor.getField()) :
 							converter.convertIfNecessary(value, type, descriptor.getMethodParameter()));
@@ -1508,6 +1523,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	/**
 	 * 用来对集合, 数组, 或Map这种多值类型的注入
+	 *
 	 * @param descriptor 字段, 方法, 或构造函数所表示的依赖描述的待注入项
 	 * @param beanName 要创建实例的bean, 即, 要得到的bean
 	 * @param autowiredBeanNames 自动装配过的bean集合
@@ -1517,7 +1533,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	@Nullable
 	private Object resolveMultipleBeans(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) {
-		// TODO 取得依赖描述的待注入项的声明类型(字段或方法的类型, 这里是非泛型类型, 即取得的会是依赖注入项中字段或方法的实际类型),
+		// TODO 取得依赖描述的待注入项的类型(字段类型, 方法参数(工厂方法, 或构造函数的参数)类型), 这里会处理泛型.
 		//  Spring支持数组、Collection、Map等类型的自动注入:
 		//    1. 数组类型: int[]时, 得到的类型就是int[]
 		//    2. 集合类型: List<>时, 得到的是List<>
@@ -1529,7 +1545,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// TODO 依赖描述的待注入项是流的情况, 根据依赖注入项的名字, 类型寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, type, descriptor);
 			if (autowiredBeanNames != null) {
-				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
+				// TODO 如果有自动装配过的bean集合时, 将找到的候选bean全部放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			// TODO 通过DependencyDescriptor#resolveCandidate()方法, 在当前容器中挨个实例化候选类, 同时过滤掉NullBean
@@ -1545,19 +1561,19 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		else if (type.isArray()) {
 			// TODO 依赖描述的待注入项是数组的情况, 取得依赖描述的待注入项的组件类型. 比如: int[] field时, 数组的组件类型就是int
 			Class<?> componentType = type.getComponentType();
-			// TODO 然后再取得解析过的依赖描述的待注入项的类型(ResolvableType). 比如: int[] field时, 得到的是包装成ResolvableType的int[]
+			// TODO 然后再取得依赖描述的待注入项的包装类型(ResolvableType). 比如: int[] field时, 得到的是包装成ResolvableType的int[]
 			ResolvableType resolvableType = descriptor.getResolvableType();
-			// TODO 解析数组的类型. 这里会做一个判断, 如果依赖描述的待注入项的类型无法解析时, 使用数组的组件类型进行替代
+			// TODO 解析数组的类型. 这里会做一个判断, 如果依赖描述的待注入项的类型无法解析时, 使用依赖描述的待注入项的声明类型进行替代
 			Class<?> resolvedArrayType = resolvableType.resolve(type);
 			if (resolvedArrayType != type) {
-				// TODO 当解析过的数组类型与依赖描述的待注入项的类型不同时, 用依赖描述的待注入项的组件类型做为公共类型
+				// TODO 当解析过的数组类型与依赖描述的待注入项的类型不同时, 用依赖描述的待注入项的包装类型的组件类型替换组件类型
 				componentType = resolvableType.getComponentType().resolve();
 			}
 			if (componentType == null) {
-				// TODO 还没有, 返回null
+				// TODO 没解析出组件类型, 返回null
 				return null;
 			}
-			// TODO 根据依赖描述的待注入项的名字, 类型, 以及MultiElementDescriptor来寻找自动注入候选类
+			// TODO 根据依赖描述的待注入项的名字, 组件类型, 以及MultiElementDescriptor来寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, componentType,
 					new MultiElementDescriptor(descriptor));
 			if (matchingBeans.isEmpty()) {
@@ -1565,7 +1581,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
-				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
+				// TODO 如果有自动装配过的bean集合时, 将找到的候选bean全部放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
@@ -1598,7 +1614,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
-				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
+				// TODO 如果有自动装配过的bean集合时, 将找到的候选bean全部放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
@@ -1639,7 +1655,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return null;
 			}
 			if (autowiredBeanNames != null) {
-				// TODO 如果传入了需要自动注入的Bean的名字集合时, 将候选类结果集放进去
+				// TODO 如果有自动装配过的bean集合时, 将找到的候选bean全部放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
 			// TODO 返回找到的所有匹配的bean

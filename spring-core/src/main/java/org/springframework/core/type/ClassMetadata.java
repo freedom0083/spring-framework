@@ -28,6 +28,7 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.core.type.classreading.MetadataReader#getClassMetadata()
  * @see AnnotationMetadata
  */
+// TODO 使用时不要求该bean已经被加载
 public interface ClassMetadata {
 
 	/**
@@ -55,6 +56,7 @@ public interface ClassMetadata {
 	 * Return whether the underlying class represents a concrete class,
 	 * i.e. neither an interface nor an abstract class.
 	 */
+	// TODO 默认方法, 该类是否允许创建, 不是接口且不是抽象类时, 这里就返回true了
 	default boolean isConcrete() {
 		return !(isInterface() || isAbstract());
 	}
@@ -107,6 +109,7 @@ public interface ClassMetadata {
 	 * Return the names of all interfaces that the underlying class
 	 * implements, or an empty array if there are none.
 	 */
+	// TODO 会把实现的所有接口名称都返回. 具体依赖于Class#getSuperclass
 	String[] getInterfaceNames();
 
 	/**
@@ -117,6 +120,7 @@ public interface ClassMetadata {
 	 * or interfaces exist.
 	 * @since 3.1
 	 */
+	// TODO 基于Class#getDeclaredClasses. 返回类中定义的公共, 私有, 保护的内部类
 	String[] getMemberClassNames();
 
 }

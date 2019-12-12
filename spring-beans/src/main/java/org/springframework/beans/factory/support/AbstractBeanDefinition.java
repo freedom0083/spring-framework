@@ -176,7 +176,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private String factoryBeanName;
 
 	@Nullable
-	// TODO 当前bean的工厂方法, 由'factory-method'设置
+	// TODO 当前bean的工厂方法. xml配置方式由'factory-method'设置; 配置类方式为@Bean标注的方法的名字
 	private String factoryMethodName;
 
 	@Nullable

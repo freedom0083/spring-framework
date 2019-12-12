@@ -153,29 +153,29 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * @return
 	 */
 	@Override
-	// TODO 用于判断bean是否可以被自动装配
+	// TODO 判断给定的bean(BeanDefinitionHolder)是否为注入项的自动装配候选(可以自动装配到注入项中)
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
 		// TODO 先用父类GenericTypeAwareAutowireCandidateResolver#isAutowireCandidate(BeanDefinitionHolder, DependencyDescriptor)
 		//  检查一下bean是否可以自动装配
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
 		if (match) {
-			// TODO 如果可以自动装配, 就检查候选bean是否与待注入项可能存在的@Qualifier注解指定value一致了.
+			// TODO 如果可以自动装配, 就检查候选bean是否与待注入项可能存在的@Qualifier注解所指定value一致.
 			//  getAnnotations()方法会取得注入项上所有的注解, 只要能走到这里, 待注入项至少会包含@Autowire注解, 所以这个方法至少会
 			//  包含一个@Autowire
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
-				// TODO 如果匹配上了, 再看一下方法参数是否匹配. 对于Field来说, 其没有methodParam(就是null)
+				// TODO 如果匹配上了, 再看一下依赖描述的待注入项是否为方法参数(工厂方法, 或构造函数的参数)
 				MethodParameter methodParam = descriptor.getMethodParameter();
 				if (methodParam != null) {
-					// TODO 这里是只匹配方法参数的情况, 不再考虑Field
+					// TODO 如果依赖描述的待注入项是方法参数(工厂方法, 或构造函数的参数), 则把使用这个参数的方法拿出来
 					Method method = methodParam.getMethod();
 					if (method == null || void.class == method.getReturnType()) {
-						// TODO method == null表示构造函数, void.class表示方法返回void. 这里是说对于构造函数, 或者无返回值的方法,
-						//  需要再验证一下候选bean是否与构造函数, 或无返回方法上的注解相匹配.
+						// TODO 对于构造函数(method == null), 或无返回值的方法来说, 都需要再验证一次. 原因是方法参数(工厂方法,
+						//  或构造函数的参数)上可能只标注了@Autowire, 还需要再到使用此参数的方法的方法中检查一下是否有@Qualifier属性.
 						//  TIPS: 这里有一点要注意, 因为构造函数, 或方法不一定会标注@Qualifier注解, 所以methodParam.getMethodAnnotations()
-						//  有可能会返回空. checkQualifiers(BeanDefinitionHolder, Annotation[])在做匹配验证时, 如果Annotation[]
-						//  参数为空, 会自动默认为匹配成功(原因是Spring把他当成Field注解的情况了). 所以在方法上使用@Qualifier注解
-						//  时一定要小心
+						//        有可能会返回空. checkQualifiers(BeanDefinitionHolder, Annotation[])在做匹配验证时, 如果Annotation[]
+						//        参数为空, 会自动默认为匹配成功(原因是Spring把他当成Field注解的情况了). 所以在方法上使用@Qualifier注解
+						//        时一定要小心
 						match = checkQualifiers(bdHolder, methodParam.getMethodAnnotations());
 					}
 				}
@@ -195,7 +195,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	protected boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
 		if (ObjectUtils.isEmpty(annotationsToSearch)) {
 			// TODO 待注入项可以是field, 或method其中之一. 如果是filed, 那method就会为空, getMethodAnnotations()方法也不会有值
-			//  处理过field后, 只要filed匹配上了, 就不必再处理method了, 所以直接返回true
+			//  整个流程先处理的field的情况. 只要field匹配上了, 就不必再处理method了, 所以直接返回true
 			return true;
 		}
 		SimpleTypeConverter typeConverter = new SimpleTypeConverter();
@@ -333,7 +333,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				return true;
 			}
 		}
-		// TODO targetAnnotation没有找到时, 把@Qualifier注解的属性全拿出来继续尝试
+		// TODO targetAnnotation没有找到时, 把@Qualifier注解的属性全都拿出来继续尝试
 		Map<String, Object> attributes = AnnotationUtils.getAnnotationAttributes(annotation);
 		if (attributes.isEmpty() && qualifier == null) {
 			// If no attributes, the qualifier must be present
@@ -430,12 +430,13 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	@Nullable
 	// TODO 取得依赖描述的待注入项的@Value注解中的value
 	public Object getSuggestedValue(DependencyDescriptor descriptor) {
-		// TODO 先取得依赖描述的待注入项的所有注解, 然后取得其中的@Value的值
+		// TODO 先取得依赖描述的待注入项(可能是个字段, 或者方法)的所有注解, 然后取得其中的@Value的值
 		Object value = findValue(descriptor.getAnnotations());
 		if (value == null) {
+			// TODO 如果没有取到, 则这个依赖描述的待注入项可能是方法参数(工厂方法, 或构造函数的参数)
 			MethodParameter methodParam = descriptor.getMethodParameter();
 			if (methodParam != null) {
-				// TODO 没取得注解内的值时, 尝试从依赖描述的待注入项的方法的参数取得
+				// TODO 如果真的是方法参数(工厂方法, 或构造函数的参数), 则尝试从其方法(构造函数, 或工厂方法)上的注解入手, 看看有没有@Value注解取得
 				value = findValue(methodParam.getMethodAnnotations());
 			}
 		}

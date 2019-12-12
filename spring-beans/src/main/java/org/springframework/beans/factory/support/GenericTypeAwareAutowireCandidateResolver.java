@@ -87,14 +87,14 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 	 * @return
 	 */
 	protected boolean checkGenericTypeMatch(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
-		// TODO 取得待注入项的type类型
+		// TODO 取得待注入项的包装过的ResolvableType类型
 		ResolvableType dependencyType = descriptor.getResolvableType();
 		if (dependencyType.getType() instanceof Class) {
 			// No generic type -> we know it's a Class type-match, so no need to check again.
 			// TODO Class类型不需要做泛型检查, 直接返回true表示匹配成功
 			return true;
 		}
-		// TODO 要检查的目标的类型, 其实就是为根bd的候选bean的类型
+		// TODO 要检查的目标的类型, 其实就是为根bd的候选bean的类型(如果是一个代理类, 则是其代理目标的类型)
 		ResolvableType targetType = null;
 		boolean cacheType = false;
 		RootBeanDefinition rbd = null;
@@ -103,16 +103,15 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			rbd = (RootBeanDefinition) bdHolder.getBeanDefinition();
 		}
 		if (rbd != null) {
-			// TODO 取得待检查的候选bean的type类型做为检查目标
+			// TODO 对于候选bean是根节点的情况, 看一下待检查的候选bean是否有代理目标. 有表示候选bean为一个代理, 没有则表示为原生bean
 			targetType = rbd.targetType;
 			if (targetType == null) {
 				cacheType = true;
 				// First, check factory method return type, if applicable
-				// TODO 检查目标类型不存在时:
-				//  1. 可能是个工厂方法, 尝试取得工厂方法的返回类型作为待检查的候选bean的目标类型
+				// TODO 1. 对于原生bean来说, 其工厂方法的返回类型就可以做为检查类型
 				targetType = getReturnTypeForFactoryMethod(rbd, descriptor);
 				if (targetType == null) {
-					// TODO 2. 不是工厂方法时, 待检查的候选bean有可能是个代理类
+					// TODO 2. 从工厂方法不能找到候选bean的检查类型时, 表示待检查的候选bean有可能是个代理类
 					RootBeanDefinition dbd = getResolvedDecoratedDefinition(rbd);
 					if (dbd != null) {
 						// TODO 如果是个代理类, 用代理目标类的type类型作为待检查的候选bean的type类型
@@ -166,7 +165,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			// Fallback matches allow unresolvable generics, e.g. plain HashMap to Map<String,String>;
 			// and pragmatically also java.util.Properties to any Map (since despite formally being a
 			// Map<Object,Object>, java.util.Properties is usually perceived as a Map<String,String>).
-			// TODO 以下情况也表示匹配成功
+			// TODO 以下情况也表示匹配成功, 会由后续条件放宽部分继续进行匹配尝试
 			//  1. 注入项允许回退匹配, 即: 放宽了注入条件. 用于容器类型的依赖bean以及同类型的候选bean均无法找到注入候选时;
 			//  2. type类型中有不可解析的泛型, 或者待检查的候选bean的type类型是Properties.
 			return true;
@@ -209,7 +208,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			// TODO 没有取得时, 尝试使用解析过的工厂方法来取得其返回的type类型
 			Method factoryMethod = rbd.getResolvedFactoryMethod();
 			if (factoryMethod != null) {
-				// TODO 取得工厂方法返回的type类型
+				// TODO 有解析过的工厂方法时, 取得工厂方法返回的type类型
 				returnType = ResolvableType.forMethodReturnType(factoryMethod);
 			}
 		}
@@ -219,7 +218,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 				// Only use factory method metadata if the return type is actually expressive enough
 				// for our dependency. Otherwise, the returned instance type may have matched instead
 				// in case of a singleton instance having been registered with the container already.
-				// TODO 返回的type类型与注入项的type类型相同时, 返回工厂方法返回的type类型
+				// TODO 返回的类型与注入项的类型相同时, 返回工厂方法返回的type类型
 				return returnType;
 			}
 		}

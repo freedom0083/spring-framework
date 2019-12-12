@@ -33,6 +33,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
@@ -52,26 +53,30 @@ import org.springframework.util.ObjectUtils;
 @SuppressWarnings("serial")
 // TODO 用来描述一个用于注入的依赖项
 public class DependencyDescriptor extends InjectionPoint implements Serializable {
-	// TODO 保存所包装依赖(成员属性或者成员方法的某个参数)所在的声明类(在 field/methodParameter中已经隐含)
+	// TODO 声明注入项的Class对象, 即: 注入项所在的类或接口的Class对象. (在 field/methodParameter中已经隐含)
 	private final Class<?> declaringClass;
 
 	@Nullable
-	// TODO 如果所包装依赖是成员方法的某个参数，则这里记录该成员方法的名称
+	// TODO 注入项是方法参数时(方法, 或构造函数的参数), 记录使用此参数的方法的名字(构造函数时为null)
 	private String methodName;
 
 	@Nullable
 	// TODO 如果所包装的是成员方法的某个参数，则这里记录该参数的类型
 	private Class<?>[] parameterTypes;
+
 	// TODO 如果所包装的是成员方法的某个参数，则这里记录该参数在该函数参数列表中的索引
 	private int parameterIndex;
 
-	@Nullable
 	// TODO 如果所包装的是成员属性，则这里记录该成员属性的名称
+	@Nullable
 	private String fieldName;
+
 	// TODO 标识所包装依赖是否必要依赖
 	private final boolean required;
+
 	// TODO 标识所包装依赖是否需要饥饿加载
 	private final boolean eager;
+
 	// TODO 标识所包装依赖的嵌套级别
 	private int nestingLevel = 1;
 
@@ -94,7 +99,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @param methodParameter the MethodParameter to wrap
 	 * @param required whether the dependency is required
 	 */
-	// TODO 创建一个急加载的, 用于描述方法或构造函数参数的依赖描述
+	// TODO 创建一个急加载的, 用于描述注入项为方法参数(方法, 或构造函数的参数)的描述符
 	public DependencyDescriptor(MethodParameter methodParameter, boolean required) {
 		this(methodParameter, required, true);
 	}
@@ -108,13 +113,17 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 */
 	public DependencyDescriptor(MethodParameter methodParameter, boolean required, boolean eager) {
 		super(methodParameter);
-
+		// TODO 取得要注入的方法参数的Class对象
 		this.declaringClass = methodParameter.getDeclaringClass();
 		if (methodParameter.getMethod() != null) {
+			// TODO 如果要注入的方法参数是个方法, 取得其方法名
 			this.methodName = methodParameter.getMethod().getName();
 		}
+		// TODO 取得方法参数的类型
 		this.parameterTypes = methodParameter.getExecutable().getParameterTypes();
+		// TODO 取得方法参数所在的索引位置
 		this.parameterIndex = methodParameter.getParameterIndex();
+		// TODO 取得包含此方法参数的Class对象
 		this.containingClass = methodParameter.getContainingClass();
 		this.required = required;
 		this.eager = eager;

@@ -238,7 +238,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			throw new IllegalStateException(
 					"postProcessBeanFactory already called on this post-processor against " + registry);
 		}
-		// TODO 直接放入注册过的后处理器缓存中
+		// TODO 正常的bean都会放入注册过的后处理器缓存中
 		this.registriesPostProcessed.add(registryId);
 		// TODO 然后再开始处理配置文件
 		processConfigBeanDefinitions(registry);
@@ -334,7 +334,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
-			// TODO 开始对每个配置类进行解析, 执行后, 整个@Configuration配置类就解析完毕了
+			// TODO 开始对每个配置类进行解析, 执行后, 整个@Configuration配置类中包含的所有注解就解析完毕了, 但注解内容的解析等
+			//  在下面的loadBeanDefinitions()中实现
 			parser.parse(candidates);
 			// TODO 再查一下解析后的配置类, 注解的方法不能是final类型的, @Bean注解的方法必需可以被覆盖, 违反规则的都会记录错误信息
 			parser.validate();

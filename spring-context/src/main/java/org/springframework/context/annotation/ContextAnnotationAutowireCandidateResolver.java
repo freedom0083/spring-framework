@@ -55,24 +55,25 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 	@Override
 	@Nullable
 	public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
-		// TODO 依赖注入项有@Lazy注解时, 构造一个懒加载的代理对象返回
+		// TODO 依赖描述的待注入项有@Lazy注解时, 构造一个懒加载的代理对象返回; 没有则直接返回null
 		return (isLazy(descriptor) ? buildLazyResolutionProxy(descriptor, beanName) : null);
 	}
 	// TODO 是否支持懒加载
 	protected boolean isLazy(DependencyDescriptor descriptor) {
-		// TODO 先遍历依赖注入项的参数和字段上的注解集合, 如果带有@Lazy, 则表示支持懒加载
+		// TODO 先遍历依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))上的注解集合, 如果带有@Lazy, 则表示支持懒加载
 		for (Annotation ann : descriptor.getAnnotations()) {
 			Lazy lazy = AnnotationUtils.getAnnotation(ann, Lazy.class);
 			if (lazy != null && lazy.value()) {
 				return true;
 			}
 		}
+		// TODO 能走到这里, 表示依赖描述的待注入项可能是个方法中的一个参数(构造函数, 或工厂方法), 这时先把这个方法参数(工厂方法, 或构造函数的参数)拿出来
 		MethodParameter methodParam = descriptor.getMethodParameter();
 		if (methodParam != null) {
-			// TODO 然后再看依赖注入项的方法参数
+			// TODO 如果是方法参数(工厂方法, 或构造函数的参数), 再把此参数对应的方法拿出来
 			Method method = methodParam.getMethod();
 			if (method == null || void.class == method.getReturnType()) {
-				// TODO 没有方法参数中没有方法时, 就要看方法参数的注解是否有@Lazy, 如果有也表示支持懒加载
+				// TODO 如果是构造函数(method == null), 或这个方法是个无返回值类型时, 就要看方法参数的注解是否有@Lazy, 如果有也表示支持懒加载
 				Lazy lazy = AnnotationUtils.getAnnotation(methodParam.getAnnotatedElement(), Lazy.class);
 				if (lazy != null && lazy.value()) {
 					return true;

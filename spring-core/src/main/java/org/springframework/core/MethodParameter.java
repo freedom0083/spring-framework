@@ -59,18 +59,29 @@ import org.springframework.util.ObjectUtils;
  * @since 2.0
  * @see org.springframework.core.annotation.SynthesizingMethodParameter
  */
+// TODO 封装了方法, 或构造函数本体, 与索引所指定的参数, 比如:
+//  Class Person {
+//      public void getPerson(String name, int age, Address address);
+//  }
+//  对于getPerson()方法来说, 因为其有3个参数, 所以可以产生3个MethodParameter对象, 主要属性为:
+//  1. executable = person, parameterIndex = 0, parameter = 参数本身, containingClass = Person, ParameterType = String, parameterName = name
+//  2. executable = person, parameterIndex = 1, parameter = 参数本身, containingClass = Person, ParameterType = int, parameterName = age
+//  3. executable = person, parameterIndex = 2, parameter = 参数本身, containingClass = Person, ParameterType = Address, parameterName = address
 public class MethodParameter {
 
 	private static final Annotation[] EMPTY_ANNOTATION_ARRAY = new Annotation[0];
 
-
+	// TODO 被封装的方法本身
 	private final Executable executable;
 
+    // TODO 参数位置
 	private final int parameterIndex;
 
+	// TODO 参数本身
 	@Nullable
 	private volatile Parameter parameter;
 
+	// TODO 嵌套等级, 比如: List<List>, 外层List等级是1, 内层List等级是2
 	private int nestingLevel;
 
 	/** Map from Integer level to Integer type index. */
@@ -78,24 +89,31 @@ public class MethodParameter {
 	Map<Integer, Integer> typeIndexesPerLevel;
 
 	/** The containing class. Could also be supplied by overriding {@link #getContainingClass()} */
+	// TODO 包含此方法的Class对象
 	@Nullable
 	private volatile Class<?> containingClass;
 
+	// TODO 参数类型
 	@Nullable
 	private volatile Class<?> parameterType;
 
+	// TODO 泛型参数类型
 	@Nullable
 	private volatile Type genericParameterType;
 
+	// TODO 参数上的注解
 	@Nullable
 	private volatile Annotation[] parameterAnnotations;
 
+	// TODO 参数名发现器
 	@Nullable
 	private volatile ParameterNameDiscoverer parameterNameDiscoverer;
 
+	// TODO 参数名
 	@Nullable
 	private volatile String parameterName;
 
+	// TODO 嵌套方法, 表示为参数是一个方法??
 	@Nullable
 	private volatile MethodParameter nestedMethodParameter;
 
@@ -194,6 +212,7 @@ public class MethodParameter {
 	 * <p>Note: Either Method or Constructor is available.
 	 * @return the Method, or {@code null} if none
 	 */
+	// TODO 返回被封装的方法. 如果被封装是构造函数, 则返回null
 	@Nullable
 	public Method getMethod() {
 		return (this.executable instanceof Method ? (Method) this.executable : null);
@@ -494,7 +513,12 @@ public class MethodParameter {
 			paramType = ResolvableType.forMethodParameter(this, null, 1).resolve();
 		}
 		if (paramType == null) {
-			// TODO 还是没有得到参数类型时, 重新计算参数类型
+			// TODO 还是没有得到参数类型时, 重新计算参数类型. 计算过程中根据索引位置有所区别:
+			//  1. 索引位置 < 0: 表示用方法的返回值做为类型, 有三种情况:
+			//     a. 构造函数: getMethod()返回null时, 表示为构造函数, 构造函数没有返回值, 所以直接返回void;
+			//     b. Kotlin方法: 代理给Kotlin取得方法返回类型;
+			//     c. 普通方法: 直接用方法的返回类型做为参数类型
+			//  2. 索引位置 >= 0: 直接使用对应位置的参数的类型
 			paramType = computeParameterType();
 		}
 		// TODO 设置缓存并返回
@@ -511,16 +535,16 @@ public class MethodParameter {
 		// TODO 缓存中如果有当前方法的泛型参数的类型, 直接返回
 		Type paramType = this.genericParameterType;
 		if (paramType == null) {
-			// TODO 缓存中没有时
+			// TODO 缓存中没有时, 会根据参数索引来取
 			if (this.parameterIndex < 0) {
-				// TODO 如果方法没参数, 尝试用方法的返回类型, 如果当前操作的不是个方法, 则直接返回void
+				// TODO 如果指定的是方法的返回值(parameterIndex < 0), 先用getMethod()方法用来区分构造函数与普通方法. 如果当前方法是构造函数, 则会返回null
 				Method method = getMethod();
 				paramType = (method != null ?
 						(KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass()) ?
 						KotlinDelegate.getGenericReturnType(method) : method.getGenericReturnType()) : void.class);
 			}
 			else {
-				// TODO 取得当前方法所有的所有泛型参数类型
+				// TODO 如果指定了参数的索引位置, 就要从指定位置的参数下手. 先取得方法所有的泛型参数类型
 				Type[] genericParameterTypes = this.executable.getGenericParameterTypes();
 				int index = this.parameterIndex;
 				if (this.executable instanceof Constructor &&
@@ -531,7 +555,9 @@ public class MethodParameter {
 					// so access it with the actual parameter index lowered by 1
 					index = this.parameterIndex - 1;
 				}
-				// TODO 当前方法有参数数量缓存, 且小于方法上参数数量时, 从当前方法的参数中取对应位置的类型. 否则处理缓存位置的参数类型
+				// TODO 当前指定的索引位置在泛型参数范围内时, 直接从泛型参数中取对应位置的类型; 超出范围时, 重新计算参数类型:
+				//  能走到这的, 说明parameterIndex >= 0, 即: 不用方法的返回值, 只从参数数组里取. 所以一量在泛型参数数组中找不到时
+				//  就会退到参数数组中去找
 				paramType = (index >= 0 && index < genericParameterTypes.length ?
 						genericParameterTypes[index] : computeParameterType());
 			}
@@ -541,22 +567,28 @@ public class MethodParameter {
 		return paramType;
 	}
 
+	// TODO 计算方法返回类型的算法:
+	//  1. parameterIndex < 0: 表示取方法的返回值, 对于不同类型的方法, 有三种情况:
+	//     a. 构造函数: 没有返回类型, 所以为void;
+	//     b. Kotlin方法: 也是取得返回类型, 交给Kotlin代理去处理;
+	//     c. 普通方法: 直接使用其返回类型做为参数的类型;
+	//  2. parameterIndex >= 0: 直接使用方法中对应位置的参数的类型
 	private Class<?> computeParameterType() {
 		if (this.parameterIndex < 0) {
-			// TODO 参数的位置小于0时, 取得当前处理的方法
+			// TODO 如果指定的是方法的返回值(parameterIndex < 0), 先用getMethod()方法用来区分构造函数与普通方法. 如果当前方法是构造函数, 则会返回null
 			Method method = getMethod();
 			if (method == null) {
-				// TODO 没有方法时, 返回的是Void
+				// TODO 构造函数没有返回类型, 直接返回void
 				return void.class;
 			}
 			if (KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass())) {
-				// TODO 对Kotline的处理
+				// TODO Kotlin的情况也是取得返回类型, 交给Kotlin代理去处理
 				return KotlinDelegate.getReturnType(method);
 			}
-			// TODO 返回方法的返回返回类型的Type
+			// TODO 普通方法直接使用其返回类型做为参数的类型
 			return method.getReturnType();
 		}
-		// TODO 否则取得对应位置的参数的Type
+		// TODO 指定的索引 >= 0时, 取得方法对应索引位置的参数的类型做为参数类型
 		return this.executable.getParameterTypes()[this.parameterIndex];
 	}
 
@@ -567,8 +599,9 @@ public class MethodParameter {
 	 * @see #getNestingLevel()
 	 */
 	public Class<?> getNestedParameterType() {
+		// TODO nestingLevel标识嵌套等级, 比如: List<List>这种, 外层List等级为1, 内层List等级为2
 		if (this.nestingLevel > 1) {
-			// TODO 嵌套等级大于1时, 取得参数的泛型类型
+			// TODO 嵌套等级大于1时, 取得方法参数的泛型类型
 			Type type = getGenericParameterType();
 			for (int i = 2; i <= this.nestingLevel; i++) {
 				// TODO 然后继续深入, 找他最内部的泛型类型
@@ -659,8 +692,10 @@ public class MethodParameter {
 	 */
 	// TODO 取得指定方法, 构造器参数上的所有注解
 	public Annotation[] getParameterAnnotations() {
+		// TODO 先尝试从参数注解缓存中取得方法参数(工厂方法, 或构造函数的参数)上所有的注解
 		Annotation[] paramAnns = this.parameterAnnotations;
 		if (paramAnns == null) {
+			// TODO 缓存中没有时, 取出方法里参数的所有注解
 			Annotation[][] annotationArray = this.executable.getParameterAnnotations();
 			int index = this.parameterIndex;
 			if (this.executable instanceof Constructor &&
@@ -670,8 +705,10 @@ public class MethodParameter {
 				// for inner classes, so access it with the actual parameter index lowered by 1
 				index = this.parameterIndex - 1;
 			}
+			// TODO 当前参数索引位置在注解范围内时, 拿出对应位置的注解; 否则返回一个空数组
 			paramAnns = (index >= 0 && index < annotationArray.length ?
 					adaptAnnotationArray(annotationArray[index]) : EMPTY_ANNOTATION_ARRAY);
+			// TODO 最后设置一下缓存
 			this.parameterAnnotations = paramAnns;
 		}
 		return paramAnns;
@@ -838,6 +875,7 @@ public class MethodParameter {
 	 * @since 5.0
 	 */
 	public static MethodParameter forExecutable(Executable executable, int parameterIndex) {
+		// TODO 对于方法, 和构造函数分别进行封装
 		if (executable instanceof Method) {
 			return new MethodParameter((Method) executable, parameterIndex);
 		}

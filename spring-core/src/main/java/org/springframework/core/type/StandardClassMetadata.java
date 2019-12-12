@@ -31,7 +31,7 @@ import org.springframework.util.StringUtils;
  * @since 2.5
  */
 public class StandardClassMetadata implements ClassMetadata {
-
+	// TODO 类的内省对象
 	private final Class<?> introspectedClass;
 
 
@@ -43,6 +43,7 @@ public class StandardClassMetadata implements ClassMetadata {
 	@Deprecated
 	public StandardClassMetadata(Class<?> introspectedClass) {
 		Assert.notNull(introspectedClass, "Class must not be null");
+		// TODO 设置内省对象
 		this.introspectedClass = introspectedClass;
 	}
 

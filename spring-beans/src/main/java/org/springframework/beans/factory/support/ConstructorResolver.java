@@ -323,13 +323,13 @@ class ConstructorResolver {
 		Class<?> factoryClass;
 		boolean isStatic;
 		if (mbd.getFactoryBeanName() != null) {
-			// TODO 有工厂类的名字时, 取得工厂类的class类型
+			// TODO 有工厂类的名字时, 表示为一个实例工厂. 取得实例工厂类的class类型
 			factoryClass = this.beanFactory.getType(mbd.getFactoryBeanName());
 			// TODO 有工厂类肯定是非静态工厂方法
 			isStatic = false;
 		}
 		else {
-			// TODO 没有工厂类时, 肯定是个静态工厂, 用mbd的类型即可
+			// TODO 没有工厂类时, 表示为一个静态工厂, 用mbd的类型即可
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
@@ -400,19 +400,52 @@ class ConstructorResolver {
 	 */
 	// TODO 用工厂方法实例化对应的bean. 工厂方法有两种类型:
 	//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
-	//     1.1 'class'属性: 指向的是静态工厂方法的全限定名, 即: 下例中的'factory.StaticCarFactory'
-	//     1.2 'factory-method'属性: 指向静态工厂方法的名字, 即: 下例中的'getCar'
-	//     1.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'Audio'. 会保存在参数explicitArgs中
-	//     <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
-	//         <constructor-arg value="Audio" />
-	//     </bean>
+	//     A. XML配置方式:
+	//        <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
+	//            <constructor-arg value="Audio" />
+	//        </bean>
+	//        a. factoryBeanName: null, 静态工厂方法没有工厂
+	//        b. factoryBean: null, 静态工厂方法没有工厂类
+	//        c. factoryClass: 'class'属性, 指向的是静态工厂方法的全限定名, 即: 例子中的'factory.StaticCarFactory'
+	//        d. factoryMethod: 'factory-method'属性, 指向静态工厂方法的名字, 即: 例子中的'getCar'
+	//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
+	//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+	//        package factory
+	//        @Configuration
+	//        Class CarConfiguration {
+	//            @Bean
+	//            public static getCar() {
+	//            }
+	//        }
+	//        a. factoryBeanName: null, 静态工厂方法没有工厂
+	//        b. factoryBean: null, 静态工厂方法没有工厂类
+	//        c. factoryClass: 配置类的全限定名, 即: 例子中的'factory.CarConfiguration'
+	//        d. factoryMethod: @Bean所标注的static方法 mark
+	//        e. explicitArgs: mark
 	//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
-	//     2.1 'factory-bean'属性: 指向实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 下例中的'carFactory'
-	//     2.2 'factory-method'属性: 指向实例工厂方法的名字, 即: 下例中的'getCar'
-	//     2.3 'constructor-arg'标签: 用于调用工厂方法时使用的参数, 即: 下例中的'BMW'. 会保存在参数explicitArgs中
-	//     <bean id="car" factory-bean="carFactory" factory-method="getCar">
-	//         <constructor-arg value="BMW"></constructor-arg>
-	//     </bean>
+	//     A. XML配置方式:
+	//        <bean id="carFactory" class="xxx.CarFactory">
+	//        <bean id="car" factory-bean="carFactory" factory-method="getCar">
+	//            <constructor-arg value="BMW"></constructor-arg>
+	//        </bean>
+	//        a. factoryBeanName: 'factory-bean'属性指定的实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 例子中的'carFactory'
+	//        b. factoryBean: 'factory-bean'属性所指定的bean实例, 即: 例子中的'<bean id="carFactory" class="xxx.CarFactory">'
+	//        c. factoryClass: 'factory-bean'属性所指定的bean实例的Class对象, 即: 例子中的'xxx.CarFactory'
+	//        d. factoryMethod: 'factory-method'属性: 指向实例工厂方法的名字, 即: 例子中的'getCar'
+	//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
+	//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+	//        package factory
+	//        @Configuration
+	//        Class CarConfiguration {
+	//            @Bean
+	//            public static getCar() {
+	//            }
+	//        }
+	//        a. factoryBeanName: 注解方式的工厂类为@Bean所在的类的名字, 即: 例子中的'CarConfiguration'
+	//        a. factoryBean: 注解方式的工厂类为@Bean所在的类, 即, 例子中的'CarConfiguration'
+	//        b. factoryClass: 工厂类的Class对象, 即, 例子中的'CarConfiguration'
+	//        c. factoryMethod: @Bean所标注的方法 mark
+	//        d. explicitArgs: mark
 	public BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
 		// TODO 创建一个用于返回的BeanWrapperImpl实例
@@ -423,21 +456,14 @@ class ConstructorResolver {
 		Object factoryBean;
 		// TODO 工厂类
 		Class<?> factoryClass;
+		// TODO 是否为静态工厂方法
 		boolean isStatic;
 		// TODO 配置bean时会指定工厂类, 从要创建实例的bean的mbd中获取配置的工厂类的名字. 这边和AbstractAutowireCapableBeanFactory类似
 		//  1. 静态工厂: 在配置文件中不需要指定工厂类, 所以不会有工厂类的名字.
-		//  2. 实例工厂: 在配置文件中指定对应的工厂类, 所以会有名字. 必须先实例化该工厂类后才能使用其指定的工厂方法.
+		//  2. 实例工厂: 在xml配置文件中指定对应的工厂类, 如果是注解形式, 则@Bean为所在的类的类名. 必须先实例化该工厂类后才能使用其指定的工厂方法.
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
 			// TODO 实例工厂在配置时需要指定一个工厂类, 所以才会有工厂类
-			//      <bean id="carFactory" class="xxx.CarFactory">
-			//      <bean id="car" factory-bean="carFactory" factory-method="getCar">
-			//          <constructor-arg value="BMW" />
-			//      </bean>
-			//      1. 工厂类是由'factory-bean'属性指定的'carFactory', 即: factoryBeanName='carFactory'; 其类型为该类所引用的
-			//         bean的类型, 即: 'xxx.CarFactory'
-			//      2. 工厂方法是由'factory-method'属性指定的'getCar'
-			//      3. 参数是由'constructor-arg'标签指定的'BMW', 即: explicitArgs='[BMW]'
 			if (factoryBeanName.equals(beanName)) {
 				// TODO 工厂类的名字不能和要实例化的bean同名(不能自己创建自己)
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
@@ -456,50 +482,51 @@ class ConstructorResolver {
 		else {
 			// It's a static factory method on the bean class.
 			// TODO 没有名字的就是静态工厂, 静态工厂的工厂方法可以直接使用不需要先实例化工厂类
-			//      <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
-			//          <constructor-arg value="Audio" />
-			//      </bean>
-			//      1. 静态工厂方法的类型是由'class'属性指定的全限定名'factory.StaticCarFactory', 即: factoryClass='factory.StaticCarFactory'
-			//      2. 工厂方法是由'factory-method'属性指定的'getCar'
-			//      3. 参数是由'constructor-arg'标签指定的'Audio', 即: explicitArgs='[Audio]'
 			if (!mbd.hasBeanClass()) {
-				// TODO 不是工厂类, 且'class'属性设置的不是Class类型时, 抛出异常
+				// TODO 要通过静态工厂实例化的bean必须设置全限定名, 即'class'属性, 否则无法调用静态工厂方法. 因为, 没有指定class属性
+				//  或者设置的不是Class类型时, 会抛出异常
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"bean definition declares neither a bean class nor a factory-bean reference");
 			}
-			// TODO 静态工厂也不需要指定工厂类
+			// TODO 静态工厂没有工厂类
 			factoryBean = null;
-			// TODO mbd的'class'属性指定的就是工厂类的类型(factory.StaticCarFactory)
+			// TODO 要通过静态工厂实例化的bean所配置的'class'属性就是工厂类的类型(factory.StaticCarFactory)
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
-		// TODO 准备要用的工厂方法, 参数
+		// TODO 用于创建实例的工厂方法
 		Method factoryMethodToUse = null;
+		// TODO 创建工厂方法所需要的参数
 		ArgumentsHolder argsHolderToUse = null;
 		// TODO 所有后续要用的参数
 		Object[] argsToUse = null;
 
 		if (explicitArgs != null) {
-			// TODO 如果取得bean的时候同时定义了赋给bean的参数值时(用于工厂方法, 和构造函数), 获得这些参数值待用
+			// TODO 如果通过'constructor-arg'指定了实例化bean所需要的参数时, 直接使用这些参数进行实例化
 			argsToUse = explicitArgs;
 		}
 		else {
+			// TODO 如果没指定实例化bean所需要的参数, 需要先对其进行解析
 			Object[] argsToResolve = null;
+			// TODO 解析参数时需要进行同步
 			synchronized (mbd.constructorArgumentLock) {
-				// TODO 因为当前方法是用工厂方法进行实例化的情况, 所以需要转一下类型, 取得factory-method对应的工厂方法
+				// TODO 先看一下缓存里是否有用于实例化的bean的已经解析好的构造函数, 或工厂方法(不是第一次使用此方法)
 				factoryMethodToUse = (Method) mbd.resolvedConstructorOrFactoryMethod;
 				if (factoryMethodToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached factory method...
-					// TODO 如果有工厂方法, 并且mbd的构造函数的参数已经解析过了, 拿出解析好的构造函数的参数
+					// TODO 如果缓存里有解析好的构造方法或工厂方法, 并且其构造函数的参数已经解析过了, 则表示并不是第一次使用此工厂方法.
+					//  此时缓存中可能存在已经解析过的构造函数, 或工厂方法的参数, 这个参数就可以当做实例化bean的参数
 					argsToUse = mbd.resolvedConstructorArguments;
 					if (argsToUse == null) {
-						// TODO 如果没有解析好的参数, 拿出准备解析的构造函数的参数
+						// TODO 如果缓存中没有解析好的构造函数, 或工厂方法的参数, 则拿出准备好, 但还未解析的构造函数, 或工厂方法的参数做为要解析的值
 						argsToResolve = mbd.preparedConstructorArguments;
 					}
 				}
 			}
 			if (argsToResolve != null) {
-				// TODO 解析准备好的参数(这里会进行@Value, @Autowire自动注入, property解析, 参数的SpEL表达式, 和值的处理)
+				// TODO 如果有还未解析的构造函数, 或工厂方法的参数, 表示其肯定有可用来实例化bean的方法(工厂方法, 或构造函数,
+				//  即: factoryMethodToUse肯定不为null).
+				//  所以这里就开始解析准备好的参数(这里会进行@Value, @Autowire自动注入, property解析, 参数的SpEL表达式, 和值的处理)
 				argsToUse = resolvePreparedArguments(beanName, mbd, bw, factoryMethodToUse, argsToResolve, true);
 			}
 		}
@@ -507,14 +534,20 @@ class ConstructorResolver {
 		if (factoryMethodToUse == null || argsToUse == null) {
 			// Need to determine the factory method...
 			// Try all methods with this name to see if they match the given arguments.
-			// TODO 没有工厂方法, 或要使用的参数不存在时, 取得工厂类, 这里会看其是否为CGLIB生成的子类, 即名字包含'$$', 如果是, 返回的会是其超类
+			// TODO 如果没有解析好的构造方法, 或工厂方法; 或者有解析好的构造方法, 或工厂方法, 但没有用于实例化bean的参数时, 需要
+			//  确定一个用于实例化bean的工厂方法.
+			//  首选, 取得工厂类. 这里会判断其是否为CGLIB生成的子类, 即名字是否包含'$$'. 如果是, 返回的会是其超类
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
 			List<Method> candidateList = null;
+			// TODO isFactoryMethodUnique属性默认为false. 在通过配置类进行配置时, @Bean可以标注同名方法. 当同名方法在相同配置类
+			//  中时, 会通过ConfigurationClassBeanDefinitionReader#isOverriddenByExistingDefinition()方法进行方法重载.
+			//  这时isFactoryMethodUnique就会被设置为true.
 			if (mbd.isFactoryMethodUnique) {
-				// TODO 合并后的bd是唯一的工厂方法时
+				// TODO 如果要实例化的bean被重载过(同一个配置类中有被@Bean标注的同名方法)
 				if (factoryMethodToUse == null) {
-					// TODO 没有得到工厂方法的情况下, 用mbd中解析过的工厂方法替代
+					// TODO 没有用于实例化bean的工厂方法时
+					//  的情况下, 用mbd中解析过的工厂方法替代
 					factoryMethodToUse = mbd.getResolvedFactoryMethod();
 				}
 				if (factoryMethodToUse != null) {
@@ -981,7 +1014,7 @@ class ConstructorResolver {
 	 * @param beanName 要创建实例的bean名
 	 * @param mbd 要创建实例的bean的mbd
 	 * @param bw 用于返回的, 包装bean实例的的BeanWrapper
-	 * @param executable 解析过的构造函数, 或工厂方法
+	 * @param executable 解析过的用于实例化bean的构造函数, 或工厂方法
 	 * @param argsToResolve 准备解析的参数数组
 	 * @param fallback
 	 * @return 解析好的参数
@@ -992,20 +1025,22 @@ class ConstructorResolver {
 	// TODO 按顺序解析参数
 	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
 			Executable executable, Object[] argsToResolve, boolean fallback) {
-		// TODO 取得类型转换器
+		// TODO 取得容器中的自定义类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
+		// TODO 如果容器中没有自定义的类型转换器, 使用包装bean实例的BeanWrapper做为类型转换器
 		TypeConverter converter = (customConverter != null ? customConverter : bw);
 		// TODO 为要创建实例的bean创建一个解析propertyValues的值解析器
 		BeanDefinitionValueResolver valueResolver =
 				new BeanDefinitionValueResolver(this.beanFactory, beanName, mbd, converter);
-		// TODO 按顺序取得构造函数, 或工厂方法的全部参数类型(executable可能是factory-method指定的工厂方法)
+		// TODO 按顺序取出用于实例化bean的构造函数, 或工厂方法所使用的全部参数的参数类型(executable可能是factory-method指定的工厂方法)
 		Class<?>[] paramTypes = executable.getParameterTypes();
 		// TODO 这里是用来放解析好的参数用的
 		Object[] resolvedArgs = new Object[argsToResolve.length];
 		for (int argIndex = 0; argIndex < argsToResolve.length; argIndex++) {
-			// TODO 按顺序挨个解析参数, 先取得参数的值
+			// TODO 按顺序挨个解析参数, 先取得要解析的参数的值
 			Object argValue = argsToResolve[argIndex];
-			// TODO 取得待处理方法(executable)对应位置的方法参数
+			// TODO 用待处理方法(executable)加当前处理的参数的位置一同封装为MethodParameter. MethodParameter封装了当前方法,
+			//  包含此方法的类, 指定位置上的参数的信息(参数名, 参数类型, 参数的泛型类型, 参数上的注解信息, 参数的索引位置)
 			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
 			if (argValue == autowiredArgumentMarker) {
 				// TODO 参数是Object时, 进行自动装配处理
@@ -1019,9 +1054,10 @@ class ConstructorResolver {
 				// TODO 参数是字符串时, 有可能是SpEL表达式, 所以对其进行评估解析
 				argValue = this.beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
 			}
+			// TODO 取得用于实例化bean的构造函数, 或工厂方法对应位置的参数类型
 			Class<?> paramType = paramTypes[argIndex];
 			try {
-				// TODO 进行必要的类型转换(Converter就是从这里起作用的)
+				// TODO 对要解析的参数的值进行必要的类型转换(转换为方法对应位置的参数的类型. Converter就是从这里起作用的)
 				resolvedArgs[argIndex] = converter.convertIfNecessary(argValue, paramType, methodParam);
 			}
 			catch (TypeMismatchException ex) {
@@ -1053,7 +1089,8 @@ class ConstructorResolver {
 	/**
 	 * Template method for resolving the specified argument which is supposed to be autowired.
 	 *
-	 * @param param 要注入的方法参数
+	 * @param param 用于实例化bean的方法(工厂方法, 或构造函数)参数, 封装了当前方法, 包含此方法的类, 指定位置上的参数的信息
+	 *                 (参数名, 参数类型, 参数的泛型类型, 参数上的注解信息, 参数的索引位置)
 	 * @param beanName 要创建实例的bean, 即要得到的bean
 	 * @param autowiredBeanNames 自动装配过的bean集合
 	 * @param typeConverter 类型转换器
@@ -1063,7 +1100,7 @@ class ConstructorResolver {
 	@Nullable
 	protected Object resolveAutowiredArgument(MethodParameter param, String beanName,
 			@Nullable Set<String> autowiredBeanNames, TypeConverter typeConverter, boolean fallback) {
-		// TODO 取得方法参数的Class类型
+		// TODO 取得用于实例化bean的方法参数(工厂方法, 或构造函数的参数)的类型
 		Class<?> paramType = param.getParameterType();
 		if (InjectionPoint.class.isAssignableFrom(paramType)) {
 			// TODO 如果方法的参数类型是InjectionPoint类型, 直接从当前线程中取得注入点返回, 如果没有注入点, 则抛出异常
@@ -1074,7 +1111,14 @@ class ConstructorResolver {
 			return injectionPoint;
 		}
 		try {
-			// TODO 其他情况, 先用方法或构造函数的参数创建一个用来描述于依赖的注入项, 然后容器开始解析依赖关系
+			// TODO 其他情况就需要解析一下依赖:
+			//  1. 将方法参数(用于实例化bean的方法参数)封装为一个DependencyDescriptor. DependencyDescriptor是InjectionPoint的子类,
+			//     用于描述一个用于注入的依赖项的描述符, 比如: 字段(成员属性), 或方法(普通方法, 构造函数). 对于DependencyDescriptor
+			//     描述的项来说, 可以对其进行自动装配, 即: 方法的参数也可以使用@Autowaire, @Value这些注解来进行自动注入.
+			//     TIPS: 因为这里要处理的是方法(工厂方法, 构造函数), 所以使用的是DependencyDescriptor(MethodParameter, boolean)
+			//           构造函数. 因此用于实例化bean的方法参数(工厂方法, 或构造函数的参数)会设置到父类InjectionPoint$methodParameter的属性中.
+			//           而与字段(成员属性)相关的属性(DependencyDescriptor$fieldName, InjectionPoint$field), 则会是null
+			//  2. 在当前容器中解析依赖关系
 			return this.beanFactory.resolveDependency(
 					new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
 		}

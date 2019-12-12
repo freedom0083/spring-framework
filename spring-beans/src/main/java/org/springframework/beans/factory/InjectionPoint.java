@@ -37,27 +37,27 @@ import org.springframework.util.ObjectUtils;
  * @see UnsatisfiedDependencyException#getInjectionPoint()
  * @see org.springframework.beans.factory.config.DependencyDescriptor
  */
-// TODO 用来描述注入点的信息
+// TODO 用来描述注入点信息的描述符
 public class InjectionPoint {
 
 	@Nullable
-	// TODO 包装方法参数时用于保存所包装的函数参数，内含该参数的注解信息
+	// TODO 表示注入项为一个方法参数(方法, 或构造函数的参数), 其中会包含该参数的详细信息, 比如: 参数名, 在方法中的位置, 类型,
+	//  泛型类型, 注解信息等. 如果注入项是一个Field字段(成员属性), 则此值为null
 	protected MethodParameter methodParameter;
 
 	@Nullable
-	// TODO 包装成员属性时用于保存所包装的成员属性
+	// TODO 表示注入项为一个字段(成员属性). 如果注入项是一个MethodParameter方法参数, 则此值为null
 	protected Field field;
 
 	@Nullable
-	// TODO 包装成员属性时用于保存所包装的成员属性的注解信息
+	// TODO 注入项为字段(成员属性)时, 该字段上标注的所有注解会放到这个属性
 	private volatile Annotation[] fieldAnnotations;
-
 
 	/**
 	 * Create an injection point descriptor for a method or constructor parameter.
 	 * @param methodParameter the MethodParameter to wrap
 	 */
-	// TODO 用于包装一个方法参数
+	// TODO 构造一个针对方法参数(方法, 或构造函数的参数)的描述符
 	public InjectionPoint(MethodParameter methodParameter) {
 		Assert.notNull(methodParameter, "MethodParameter must not be null");
 		this.methodParameter = methodParameter;
@@ -67,7 +67,7 @@ public class InjectionPoint {
 	 * Create an injection point descriptor for a field.
 	 * @param field the field to wrap
 	 */
-	// TODO 用于包装一个成员属性
+	// TODO 构造一个针对字段(成员属性)的描述符
 	public InjectionPoint(Field field) {
 		Assert.notNull(field, "Field must not be null");
 		this.field = field;
@@ -99,7 +99,7 @@ public class InjectionPoint {
 	 * @return the MethodParameter, or {@code null} if none
 	 */
 	@Nullable
-	// TODO 返回所包装的方法参数，仅在当前对象用于包装函数参数时返回非null
+	// TODO 返回描述符所包装的方法参数(方法, 或构造函数的参数), 仅在当前描述的是方法参数时有值, 如果描述的是字段(成员属性), 则返回null
 	public MethodParameter getMethodParameter() {
 		return this.methodParameter;
 	}
@@ -110,7 +110,7 @@ public class InjectionPoint {
 	 * @return the Field, or {@code null} if none
 	 */
 	@Nullable
-	// TODO 返回所包装的成员属性，仅在当前对象用于包装成员属性时返回非null
+	// TODO 返回描述符所包装的字段(成员属性), 仅在当前描述的是字段(成员属性)时有值, 如果描述的是方法参数(方法, 或构造函数的参数), 则返回null
 	public Field getField() {
 		return this.field;
 	}
@@ -121,7 +121,8 @@ public class InjectionPoint {
 	 * @throws IllegalStateException if no MethodParameter is available 如果当前对象包装的不是方法参数则抛出异常IllegalStateException
 	 * @since 5.0
 	 */
-	// TODO 获取所包装的函数参数，不会为null
+	// TODO 获取描述符所包装的方法参数(方法, 或构造函数的参数), 肯定不为null. 如果描述符所包装的不是方法参数(方法, 或构造函数的参数),
+	//  则抛出IllegalStateException异常
 	protected final MethodParameter obtainMethodParameter() {
 		Assert.state(this.methodParameter != null, "Neither Field nor MethodParameter");
 		return this.methodParameter;
@@ -130,7 +131,7 @@ public class InjectionPoint {
 	/**
 	 * Obtain the annotations associated with the wrapped field or method/constructor parameter.
 	 */
-	// TODO 获取被包装的注入项(方法参数或者成员属性)上的所有注解
+	// TODO 获取描述符所描述的注入项, 即: 方法参数(方法, 或构造函数的参数), 或字段(成员属性)上的所有注解
 	public Annotation[] getAnnotations() {
 		if (this.field != null) {
 			// TODO 注入项是字段时, 先从字段的缓存中拿注解
@@ -143,7 +144,7 @@ public class InjectionPoint {
 			return fieldAnnotations;
 		}
 		else {
-			// TODO 是方法时, 取得方法参数的注解
+			// TODO 是方法参数(工厂方法, 或构造函数的参数)时, 取得方法参数(工厂方法, 或构造函数的参数)上的所有注解
 			return obtainMethodParameter().getParameterAnnotations();
 		}
 	}
@@ -155,7 +156,7 @@ public class InjectionPoint {
 	 * @since 4.3.9
 	 */
 	@Nullable
-	// TODO 获取所包装的依赖(方法参数或者成员属性)上的指定类型为annotationType的注解信息, 如果该类型的注解不存在，则返回null
+	// TODO 获取描述符所描述的注入项, 即: 方法参数(方法, 或构造函数的参数), 或字段(成员属性)上的指定类型的注解. 如果该类型的注解不存在, 则返回null
 	public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
 		return (this.field != null ? this.field.getAnnotation(annotationType) :
 				obtainMethodParameter().getParameterAnnotation(annotationType));
@@ -165,7 +166,7 @@ public class InjectionPoint {
 	 * Return the type declared by the underlying field or method/constructor parameter,
 	 * indicating the injection type.
 	 */
-	// TODO 获取所包装的依赖(方法参数或者成员属性)的类型
+	// TODO 获取描述符所描述的注入项, 即: 方法参数(方法, 或构造函数的参数), 或字段(成员属性)的类型
 	public Class<?> getDeclaredType() {
 		return (this.field != null ? this.field.getType() : obtainMethodParameter().getParameterType());
 	}
@@ -174,8 +175,9 @@ public class InjectionPoint {
 	 * Returns the wrapped member, containing the injection point.
 	 * @return the Field / Method / Constructor as Member
 	 */
-	// TODO 1.如果所包装的依赖是成员属性则返回该成员属性，
-	//      2.如果所包装的依赖是成员方法参数,则返回对应的成员方法
+	// TODO 返回描述符所描述的注入项(方法参数(方法, 或构造函数的参数), 或字段(成员属性))的成员:
+	//  1.如果注入项是字段(成员属性), 则返回该字段(成员属性);
+	//  2.如果注入项是方法参数(方法, 或构造函数的参数), 则返回包装为Member的, 包含些方法参数的方法, 或构造函数
 	public Member getMember() {
 		return (this.field != null ? this.field : obtainMethodParameter().getMember());
 	}
@@ -190,9 +192,9 @@ public class InjectionPoint {
 	 *
 	 * @return the Field / Method / Constructor as AnnotatedElement
 	 */
-	// TODO 1.如果所包装的依赖是成员属性则返回该成员属性
-	//      2.如果所包装的依赖是成员方法参数,则返回对应的成员方法
-	//  可以认为该方法和 getMember()等价
+	// TODO 返回描述符所描述的注入项(方法参数(方法, 或构造函数的参数), 或字段(成员属性))的注解元素:
+	//  1.如果注入项是字段(成员属性), 则返回该字段(成员属性);
+	//  2.如果注入项是方法参数(方法, 或构造函数的参数), 则返回包装为AnnotatedElement的, 包含些方法参数的方法, 或构造函数
 	public AnnotatedElement getAnnotatedElement() {
 		return (this.field != null ? this.field : obtainMethodParameter().getAnnotatedElement());
 	}

@@ -183,9 +183,12 @@ class ConfigurationClassBeanDefinitionReader {
 	 * with the BeanDefinitionRegistry based on its contents.
 	 */
 	@SuppressWarnings("deprecation")  // for RequiredAnnotationBeanPostProcessor.SKIP_REQUIRED_CHECK_ATTRIBUTE
+	// TODO 注册@Bean标注的方法
 	private void loadBeanDefinitionsForBeanMethod(BeanMethod beanMethod) {
 		ConfigurationClass configClass = beanMethod.getConfigurationClass();
+		// TODO 取得@Bean的所有元数据
 		MethodMetadata metadata = beanMethod.getMetadata();
+		// TODO 取得@Bean标注的方法的名字
 		String methodName = metadata.getMethodName();
 
 		// Do we need to mark the bean as skipped by its condition?
@@ -216,10 +219,10 @@ class ConfigurationClassBeanDefinitionReader {
 		// Has this effectively been overridden before (e.g. via XML)?
 		// TODO 判断一下当前@Bean方法是否可以覆盖其他的同名@Bean方法, 如果不可以, 会使用第一个注册的@Bean方法
 		//  否则使用当前@Bean方法重新注册, 会检查以下几点:
-		//  1. @Bean方法是否在容器中: 如果不存在, 则返回false表示可以覆盖, 表示可以被覆盖
+		//  1. @Bean方法是否在容器中: 如果不存在, 则返回false表示可以被覆盖
 		//  2. @Bean方法是否在配置类中: 如果@Bean方法出现了同名的情况, 会根据当前@Bean方法所处配置文件的位置进行不同处理:
-		//                             1. 在同一个配置类中, 返回true, 表示当前@Bean方法不可以覆盖之前的@Bean方法;
-		//                             2. 不在同一个配置类中, 返回false, 表示可以对之前的@Bean方法进行覆盖
+		//                            1. 在同一个配置类中, 返回true, 表示当前@Bean方法不可以覆盖之前的@Bean方法;
+		//                            2. 不在同一个配置类中, 返回false, 表示可以对之前的@Bean方法进行覆盖
 		//  3. @Bean方法是否在@Component注解的类中: 返回false, 表示可以对之前的@Bean方法进行覆盖
 		//  4. @Bean方法的角色: 如果当前@Bean方法的角色不是应用级的(BeanDefinition.ROLE_APPLICATION), 即ROLE_SUPPORT
 		//   或ROLE_INFRASTRUCTURE时, 返回false, 表示可以对之前的@Bean方法进行覆盖
@@ -233,33 +236,37 @@ class ConfigurationClassBeanDefinitionReader {
 			}
 			return;
 		}
-		// TODO 使用配置类创建一个严格匹配构造器参数类型的beanDefinition
+		// TODO 使用配置类创建一个严格匹配构造器参数类型的beanDefinition(setLenientConstructorResolution(false)):
+		//  1. 宽松模式: 使用Spring构造的参数数组的类型和获取到的构造方法的参数类型进行对比
+		//  2. 严格模式: 还需要检查能否将构造方法的参数复制到对应的属性中
 		ConfigurationClassBeanDefinition beanDef = new ConfigurationClassBeanDefinition(configClass, metadata);
 		beanDef.setResource(configClass.getResource());
 		beanDef.setSource(this.sourceExtractor.extractSource(metadata, configClass.getResource()));
 
 		if (metadata.isStatic()) {
 			// static @Bean method
+			// TODO 如果@Bean所标注的方法是Static修饰的静态方法, 表示其为一个静态bean方法(静态工厂方法)
 			if (configClass.getMetadata() instanceof StandardAnnotationMetadata) {
-				// TODO @Bean注解的静态方法元数据类型是StandardAnnotationMetadata
-				//  即java标准反向时, 设置反射类对象
+				// TODO @Bean注解的静态方法元数据类型是java标准反射时(StandardAnnotationMetadata), 用其内省类做为bean的全限定名
 				beanDef.setBeanClass(((StandardAnnotationMetadata) configClass.getMetadata()).getIntrospectedClass());
 			}
 			else {
-				// TODO 其他情况设置反射类名
+				// TODO 其他情况, 把@Bean所在的配置文件的名字做bean的全限定名
 				beanDef.setBeanClassName(configClass.getMetadata().getClassName());
 			}
+			// TODO 然后把这个方法做为唯一的工厂方法
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 		else {
 			// instance @Bean method
-			// TODO 实例的@Bean方法需要设置factoryBean名
+			// TODO 如果@Bean所标注的方法没有被Static修饰, 表示其为一个实例bean方法(实例工厂方法). 对于实例bean方法, 将配置类做为其工厂类
 			beanDef.setFactoryBeanName(configClass.getBeanName());
+			// TODO 当前方法做为唯一的工厂方法
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
 		if (metadata instanceof StandardMethodMetadata) {
-			// TODO @Bean方法的元数据是StandardMethodMetadata时, 以内省方式将元数据的方法加入缓存
+			// TODO @Bean标注的方法的元数据是StandardMethodMetadata时, 将其内省对象做为bean的解析过的工厂方法
 			beanDef.setResolvedFactoryMethod(((StandardMethodMetadata) metadata).getIntrospectedMethod());
 		}
 		// TODO 设置自动装配模式的模式, 默认为构造器模式

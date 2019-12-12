@@ -39,7 +39,7 @@ import org.springframework.util.MultiValueMap;
  * @since 3.0
  */
 public class StandardMethodMetadata implements MethodMetadata {
-
+	// TODO 持有方法的引用, 内省方法
 	private final Method introspectedMethod;
 
 	private final boolean nestedAnnotationsAsMap;

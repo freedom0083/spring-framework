@@ -66,7 +66,9 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	volatile boolean stale;
 
 	boolean allowCaching = true;
-	// TODO 指定的工厂方法是否为非重载方法, 即唯一的工厂方法
+	// TODO 指定的工厂方法是否被重载过:
+	//  true: 表示@Bean标注的方法没有被重载过, 即: 唯一的工厂方法. AbstractBeanDefinition$factoryMethodName属性中保存工厂方法名;
+	//  false: 表示配置类中@Bean标注的方法出现同名的情况.
 	boolean isFactoryMethodUnique = false;
 
 	@Nullable

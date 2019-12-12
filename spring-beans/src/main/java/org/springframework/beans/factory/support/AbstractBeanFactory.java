@@ -298,10 +298,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// Not found -> check parent.
 				// TODO 当前容器的注册中心beanDefinitionMap没有要取得到bean时, 从父容器加载bean. 下面几种容器实现了getBean():
 				//  1. AbstractBeanFactory: 实现的是通过名字查找bean的一系列方法:
-				//                             getBean(String),
-				//                             getBean(String, Class<T>)
-				//                             getBean(String, Object...)
-				//                             getBean(String, Class<T>, Object...)
+				//                          getBean(String),
+				//                          getBean(String, Class<T>)
+				//                          getBean(String, Object...)
+				//                          getBean(String, Class<T>, Object...)
 				//  2. AbstractApplicationContext: 通过名字查找bean的getBean()最终调用的还是AbstractBeanFactory#getBean(),
 				//                                 增加了通过类型查找bean的功能
 				//  3. SimpleJndiBeanFactory: 通过jndi查找bean
@@ -653,8 +653,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				else if (typeToMatch.hasGenerics() && containsBeanDefinition(beanName)) {
 					// Generics potentially only match on the target class, not on the proxy...
 					// TODO 当指定的类型与bean实例对象类型不匹配时, 如果这时要匹配的类型是泛型类型, 而且要匹配的bean已经在容器中注册
-					//  过的情况下, 这个待匹配的bean可能是个代理类, 所以后面要做的是用指定的泛型类型去匹配代理目标的类型.
-					//  先取得bean的mbd
+					//  过的情况下, 这个待匹配的bean可能是个代理类, 所以后面要做的是用指定的泛型类型去匹配代理目标的类型. 这里先取得bean的mbd
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 					// TODO 然后得到mbd代理目标的类型
 					Class<?> targetType = mbd.getTargetType();
@@ -705,7 +704,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 
 		// Setup the types that we want to match against
-		// TODO 取得匹配类型的type, 如果不存在, 用FactoryBean表示
+		// TODO 取得匹配类型的type, 不存在时默认为工厂类FactoryBean
 		Class<?> classToMatch = typeToMatch.resolve();
 		if (classToMatch == null) {
 			classToMatch = FactoryBean.class;
@@ -727,7 +726,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// and we know the merged bean definition is for a factory bean.
 			// TODO 判断mbd是否为非懒加载, 或者支持工厂类初始化
 			if (!mbd.isLazyInit() || allowFactoryBeanInit) {
-				// TODO 取得代理目标类的bd
+				// TODO 不是懒加载, 或者支持工厂类初始化时, 取得代理目标类的bd
 				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
 				// TODO 预测代理目标类tbd的类型:
 				//  1. AbstractBeanFactory: 默认的实现
