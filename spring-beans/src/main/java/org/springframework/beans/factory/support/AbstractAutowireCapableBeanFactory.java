@@ -725,17 +725,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Nullable
 	protected Class<?> determineTargetType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 取得mbd的代理目标的类型
+		// TODO 从bean的mbd中取得bean所表示的Class对象
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType == null) {
-			// TODO 代理目标的类型不存在时, 根据bean的类型来取得对应的代理目标类型:
+			// TODO 所表示的Class对象不存在时, 根据bean的不同类型来解析其所表示的Class对象:
 			targetType = (mbd.getFactoryMethodName() != null ?
-					// TODO mbd是工厂方法时, 从工厂方法的返回类型
+					// TODO bean是由工厂方法进行实例化时, 用工厂方法的返回类型做为bean的类型
 					getTypeForFactoryMethod(beanName, mbd, typesToMatch) :
 					// TODO 其他情况直接取得bean的类型
 					resolveBeanClass(mbd, beanName, typesToMatch));
 			if (ObjectUtils.isEmpty(typesToMatch) || getTempClassLoader() == null) {
-				// TODO 并没有指定匹配的类型时, 把得到的目标类型做为mbd的确定的代理目标的类型
+				// TODO 并没有指定匹配的类型时, 把解析后的bean所表示的Class放到resolvedTargetType缓存中
 				mbd.resolvedTargetType = targetType;
 			}
 		}
@@ -759,7 +759,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	// TODO 用来获得在使用工厂方法时, 工厂方法的类型
 	protected Class<?> getTypeForFactoryMethod(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 从mbd的缓存中取出工厂方法的返回类型
+		// TODO 从表示bean的mbd的缓存中取出用于实例化bean的工厂方法的返回类型
 		ResolvableType cachedReturnType = mbd.factoryMethodReturnType;
 		if (cachedReturnType != null) {
 			// TODO 找到直接返回
@@ -767,17 +767,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		Class<?> commonType = null;
-		// TODO 拿出mdb缓存的用于内省的工厂方法
+		// TODO 缓存里没有, 看看内省工厂方法有没有被缓存
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
 
 		if (uniqueCandidate == null) {
+			// TODO 还是没有, 就表示第一次执行, 需要对工厂方法进行解析
 			Class<?> factoryClass;
-			// TODO 缓存中没有用于内省的工厂方法时, 首先假设当前的工厂方法是静态的
+			// TODO 首先假设用于实例化bean的工厂方法是静态的
 			boolean isStatic = true;
-			// TODO 获取mbd的工厂类的名字(调用非静态的工厂方法前, 必须先实例化工厂类)
+			// TODO 获取用于实例化bean的工厂类的名字
 			String factoryBeanName = mbd.getFactoryBeanName();
 			if (factoryBeanName != null) {
-				// TODO mbd指定了工厂类时(配置文件中配置了工厂类), 表示其为一个非静态工厂方法
+				// TODO 如果指定了工厂类(配置文件中配置了工厂类), 表示其为一个非静态工厂方法
 				if (factoryBeanName.equals(beanName)) {
 					// TODO 工厂类的名字不能和要实例化的bean同名
 					throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
@@ -791,11 +792,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			else {
 				// Check declared factory method return type on bean class.
-				// TODO mbd的工厂类不存在时, mbd中加载指定类型的实例(这个typesToMatch可能是空的, 在做自动装配时会为FactoryBean)做为工厂类的类型
+				// TODO 如果没有指定工厂类, 根据指定的类型(这个typesToMatch可能是空的, 在做自动装配时会为FactoryBean)来解析bean做为工厂类的类型
 				factoryClass = resolveBeanClass(mbd, beanName, typesToMatch);
 			}
 
 			if (factoryClass == null) {
+				// TODO 还是没解析出来, 返回null
 				return null;
 			}
 			// TODO 取得Class, 会处理CGLIB的情况
@@ -803,24 +805,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 			// If all factory methods have the same return type, return that type.
 			// Can't clearly figure out exact method due to type converting / autowiring!
-			// TODO 取得mbd表示的bean的构造函数的参数数量
+			// TODO 如果配置文件中定义了的构造bean时所需要的参数(由'constructor-arg'设置)时, 取得参数数量做为匹配值, 没有的话为0
 			int minNrOfArgs =
 					(mbd.hasConstructorArgumentValues() ? mbd.getConstructorArgumentValues().getArgumentCount() : 0);
-			// TODO 取得所有用户定义的方法, 同时把不在factoryMethodCandidateCache缓存中的方法加入缓存
+			// TODO 取得工厂类中定义所有的方法, 如果这些方法不在factoryMethodCandidateCache缓存中, 则将其加入缓存
 			Method[] candidates = this.factoryMethodCandidateCache.computeIfAbsent(factoryClass,
 					clazz -> ReflectionUtils.getUniqueDeclaredMethods(clazz, ReflectionUtils.USER_DECLARED_METHODS));
 
 			for (Method candidate : candidates) {
-				// TODO 判断一下方法是否用static修饰, 是否是工厂方法, 以及侯选方法的参数数量是否满足
+				// TODO 遍历所有候选的方法
 				if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate) &&
 						candidate.getParameterCount() >= minNrOfArgs) {
 					// Declared type variables to inspect?
-					// TODO 当用户定义的方法满足以下条件时, 开始进行匹配尝试:
-					//  1. 该方法由static修饰;
-					//  2. 并且该方法是工厂方法;
-					//  3. 并且该方法的参数数量 >= mbd构造函数参数数量.
+					// TODO 找出工厂类中所有参数数量多于配置文件所指定的参数数量的静态工厂方法
 					if (candidate.getTypeParameters().length > 0) {
 						try {
+							// TODO 方法有泛型时, 需要对泛型进行处理
 							// Fully resolve parameter names and argument values.
 							// TODO 该方法有类型变量参数(TypeVariable可以表示任何类型的泛型变量, 如：T、K、V等变量. 比如:
 							//  method(T name, V value))时, 取得方法中所有参数的类型

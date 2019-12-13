@@ -339,7 +339,8 @@ class ConfigurationClassParser {
 		}
 
 		// Process individual @Bean methods
-		// TODO 开始处理@Bean注解的方法, 会得到一个由@Bean注解的方法集合, 并放到configClass的beanMethod集合中
+		// TODO 开始处理@Bean注解的方法, 会得到一个由@Bean注解的方法集合, 并放到configClass的beanMethod集合中. 这里只是得到了所有
+		//  由@Bean标注的方法, 具体解析是在后面由reader注册@Bean方法时做的
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));

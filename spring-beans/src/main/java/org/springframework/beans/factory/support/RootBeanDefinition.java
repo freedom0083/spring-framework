@@ -56,40 +56,47 @@ import org.springframework.util.Assert;
 public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
+	// TODO bean的代理目标. 只有bean是个代理时才会有此值
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable
-	// TODO 当前RootBeanDefinition的注解元素
+	// TODO bean上的注解元素
 	private AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */
 	volatile boolean stale;
 
 	boolean allowCaching = true;
-	// TODO 指定的工厂方法是否被重载过:
+	// TODO 实例化bean所使用的工厂方法是否被重载过:
 	//  true: 表示@Bean标注的方法没有被重载过, 即: 唯一的工厂方法. AbstractBeanDefinition$factoryMethodName属性中保存工厂方法名;
 	//  false: 表示配置类中@Bean标注的方法出现同名的情况.
 	boolean isFactoryMethodUnique = false;
 
 	@Nullable
-	// TODO RootBeanDefinition所持有的代理目标的type类型, 用于泛型支持, 与下面的区别就是此处为Spring封装过的ResolvableType
+	// TODO bean的ResolvableType类型. 封装了java.lang.reflect.Type, 提供了更多的与类型相关的操作, 比如: 泛型相关的操作等
 	volatile ResolvableType targetType;
 
 	/** Package-visible field for caching the determined Class of a given bean definition. */
 	@Nullable
-	// TODO RootBeanDefinition所持有的解析好的代理目标的Class的信息
+	// TODO bean的实际Class对象
 	volatile Class<?> resolvedTargetType;
 
 	/** Package-visible field for caching if the bean is a factory bean. */
 	@Nullable
+	// TODO bean是否为工厂类
 	volatile Boolean isFactoryBean;
 
 	/** Package-visible field for caching the return type of a generically typed factory method. */
 	@Nullable
+	// TODO 用来实例化bean的工厂方法的返回类型
 	volatile ResolvableType factoryMethodReturnType;
 
 	/** Package-visible field for caching a unique factory method candidate for introspection. */
-	// TODO 为内省机制缓存的唯一工厂方法
+	// TODO 为内省机制缓存的唯一工厂方法, 以下几个地方会对其进行设置:
+	//  1. 创建bean时: 在通过AbstractAutowireCapableBeanFactory#create()创建bean的过程中, 通过resolveBeforeInstantiation()方法
+	//     有机会为bean返回一个代理. 在这个方法中, 如果容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor类型的
+	//     后处理器, 并且要创建的bean的mbd是由Spring容器创建的的情况下,
+	//  2.
 	@Nullable
 	volatile Method factoryMethodToIntrospect;
 
@@ -97,21 +104,21 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	final Object constructorArgumentLock = new Object();
 
 	/** Package-visible field for caching the resolved constructor or factory method. */
-	// TODO 解析完毕的构造器或工厂方法
 	@Nullable
+	// TODO	解析好的, 用于实例化bean的构造器或工厂方法
 	Executable resolvedConstructorOrFactoryMethod;
 
 	/** Package-visible field that marks the constructor arguments as resolved. */
-	// TODO 标识构造函数参数是否解析完毕
+	// TODO 标识用于实例化bean所需要的参数是否解析完毕
 	boolean constructorArgumentsResolved = false;
 
 	/** Package-visible field for caching fully resolved constructor arguments. */
-	// TODO 解析完毕的构造函数参数
+	// TODO 实例化bean时需要的解析好的参数
 	@Nullable
 	Object[] resolvedConstructorArguments;
 
 	/** Package-visible field for caching partly prepared constructor arguments. */
-	// TODO 部分准备好的构造函数参数??? mark
+	// TODO 实例化bean时需要的待解析参数
 	@Nullable
 	Object[] preparedConstructorArguments;
 
@@ -341,10 +348,10 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	@Nullable
 	public Class<?> getTargetType() {
 		if (this.resolvedTargetType != null) {
-			// TODO 如果有解析好的代理目标的类型就返回
+			// TODO 如果bean的Class对象已经解析过了, 直接从缓存中返回bean的类型
 			return this.resolvedTargetType;
 		}
-		// TODO 没有的话看是否有代理目标的类型, 如果没有就返回null
+		// TODO 没解析过的话, 看是bean否有ResolvableType. 如果有, 解析成Class对象返回; 没有, 则返回null
 		ResolvableType targetType = this.targetType;
 		return (targetType != null ? targetType.resolve() : null);
 	}

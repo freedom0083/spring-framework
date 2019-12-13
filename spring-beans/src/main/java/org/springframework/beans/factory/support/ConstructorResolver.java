@@ -534,8 +534,8 @@ class ConstructorResolver {
 		if (factoryMethodToUse == null || argsToUse == null) {
 			// Need to determine the factory method...
 			// Try all methods with this name to see if they match the given arguments.
-			// TODO 如果没有解析好的构造方法, 或工厂方法; 或者有解析好的构造方法, 或工厂方法, 但没有用于实例化bean的参数时, 需要
-			//  确定一个用于实例化bean的工厂方法.
+			// TODO 如果缓存中没有用于实例化的bean的已经解析好的构造函数, 或工厂方法; 或者没有指定实例化bean所需要的参数时, 说明这是
+			//  第一次使用工厂方法. 这时需要重头解析一次工厂方法.
 			//  首选, 取得工厂类. 这里会判断其是否为CGLIB生成的子类, 即名字是否包含'$$'. 如果是, 返回的会是其超类
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
@@ -546,8 +546,8 @@ class ConstructorResolver {
 			if (mbd.isFactoryMethodUnique) {
 				// TODO 如果要实例化的bean被重载过(同一个配置类中有被@Bean标注的同名方法)
 				if (factoryMethodToUse == null) {
-					// TODO 没有用于实例化bean的工厂方法时
-					//  的情况下, 用mbd中解析过的工厂方法替代
+					// TODO 但是目前还找到没有用于实例化bean的工厂方法时(第一次使用此工厂方法时, 属性factoryMethodToUse会为null,
+					//  原因是还没有进行解析), 用取得要实例化的bean的mbd中的内省工厂方法
 					factoryMethodToUse = mbd.getResolvedFactoryMethod();
 				}
 				if (factoryMethodToUse != null) {
@@ -1043,7 +1043,11 @@ class ConstructorResolver {
 			//  包含此方法的类, 指定位置上的参数的信息(参数名, 参数类型, 参数的泛型类型, 参数上的注解信息, 参数的索引位置)
 			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
 			if (argValue == autowiredArgumentMarker) {
-				// TODO 参数是Object时, 进行自动装配处理
+				// TODO 参数是Object时, 表示需要进行自动装配处理. 比如下面这种情况:
+				//  public String getCar(@Autowire Car car) {
+				//  }
+				//  MethodParameter里封装的就是方法(工厂方法, 或构造函数), 以及第一个参数Car的信息. 在解析自动装配时, 会把符合要求
+				//  的bean(Car类型的bean)拿出来做为参数的值argValue. 如果注入的是一个集合, 数组, Map等多值对象, 这里会返回Object[]
 				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, fallback);
 			}
 			else if (argValue instanceof BeanMetadataElement) {
@@ -1057,7 +1061,9 @@ class ConstructorResolver {
 			// TODO 取得用于实例化bean的构造函数, 或工厂方法对应位置的参数类型
 			Class<?> paramType = paramTypes[argIndex];
 			try {
-				// TODO 对要解析的参数的值进行必要的类型转换(转换为方法对应位置的参数的类型. Converter就是从这里起作用的)
+				// TODO 对要解析的参数的值进行必要的类型转换(转换为方法对应位置的参数的类型. Converter就是从这里起作用的):
+				//  1. DataBinder: 取得
+				//  2.
 				resolvedArgs[argIndex] = converter.convertIfNecessary(argValue, paramType, methodParam);
 			}
 			catch (TypeMismatchException ex) {

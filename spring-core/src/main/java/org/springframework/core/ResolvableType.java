@@ -455,7 +455,7 @@ public class ResolvableType implements Serializable {
 		// TODO 从resolved参数中取得解析过的Type
 		Class<?> resolved = resolve();
 		if (resolved == null || resolved == type) {
-			// TODO 这空, 或与要得到的类型相同时, 返回自身
+			// TODO 为空, 或与要得到的类型相同时, 返回自身
 			return this;
 		}
 		// TODO 类型不同时, 迭代当前类型上所有的接口类型
@@ -1029,7 +1029,7 @@ public class ResolvableType implements Serializable {
 	 * Adapts this {@link ResolvableType} to a {@link VariableResolver}.
 	 */
 	@Nullable
-	// TODO 用来将ResolvableType适合成默认的VariableResolver(DefaultVariableResolver)
+	// TODO 用来将ResolvableType适配成默认的VariableResolver(DefaultVariableResolver)
 	VariableResolver asVariableResolver() {
 		if (this == NONE) {
 			return null;
@@ -1311,7 +1311,7 @@ public class ResolvableType implements Serializable {
 	// TODO 取得给定方法返回的type类型
 	public static ResolvableType forMethodReturnType(Method method) {
 		Assert.notNull(method, "Method must not be null");
-		// TODO 将方法包装为MethodParameter, 然后取得其ResolvableType
+		// TODO 将方法包装为MethodParameter, 因为要取得的是返回值, 所以parameterIndex设置为-1. 然后取得其ResolvableType
 		return forMethodParameter(new MethodParameter(method, -1));
 	}
 

@@ -103,15 +103,16 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			rbd = (RootBeanDefinition) bdHolder.getBeanDefinition();
 		}
 		if (rbd != null) {
-			// TODO 对于候选bean是根节点的情况, 看一下待检查的候选bean是否有代理目标. 有表示候选bean为一个代理, 没有则表示为原生bean
+			// TODO 对于候选bean是根节点的情况, 看一下待检查的候选bean的代理目标的类型缓存中是否有值
 			targetType = rbd.targetType;
 			if (targetType == null) {
 				cacheType = true;
 				// First, check factory method return type, if applicable
-				// TODO 1. 对于原生bean来说, 其工厂方法的返回类型就可以做为检查类型
+				// TODO 没有值时, 会有两种情况:
+				//  a. 待检查的候选bean是个原生类, 其工厂方法的返回类型就可以做为检查类型
 				targetType = getReturnTypeForFactoryMethod(rbd, descriptor);
 				if (targetType == null) {
-					// TODO 2. 从工厂方法不能找到候选bean的检查类型时, 表示待检查的候选bean有可能是个代理类
+					// TODO b. 还没有匹配到(工厂方法的返回类型与候选bean不同)时, 再验证一下其是否为代理类
 					RootBeanDefinition dbd = getResolvedDecoratedDefinition(rbd);
 					if (dbd != null) {
 						// TODO 如果是个代理类, 用代理目标类的type类型作为待检查的候选bean的type类型
@@ -124,7 +125,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 				}
 			}
 		}
-
+		// TODO 从这开始候选bean有可能不是根节点
 		if (targetType == null) {
 			// Regular case: straight bean instance, with BeanFactory available.
 			// TODO 依旧没解析出来, 就要从容器下手了
@@ -138,12 +139,11 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			}
 			// Fallback: no BeanFactory set, or no type resolvable through it
 			// -> best-effort match against the target class if applicable.
-			// TODO 如果要检查的目标的类型还没找到(targetType == null), 就准备进行最优匹配了
 			if (targetType == null && rbd != null && rbd.hasBeanClass() && rbd.getFactoryMethodName() == null) {
 				// TODO 以下情况发生时, 就用做为顶层的候选bean所设置的Class来进行最优匹配:
-				//  1. 要检查的目标的类型(候选bean的type类型)没有找到;
-				//  2. 并且做为RootBeanDefinition的候选bean设置了class属性;
-				//  3. 并且他还不是一个工厂方法
+				//  1. 要检查的目标的类型(候选bean的type类型)没有找到(容器中没有注册过同类型的bean);
+				//  2. 并且候选bean就个根节点, 并且设置了class属性;
+				//  3. 并且候选bean还不是一个工厂方法
 				Class<?> beanClass = rbd.getBeanClass();
 				if (!FactoryBean.class.isAssignableFrom(beanClass)) {
 					// TODO 做为RootBeanDefinition的待检查的候选bean的Class属性不是工厂类型时, 将其包装为一个ResolvableType做为要检查的目标的类型
@@ -153,7 +153,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 		}
 
 		if (targetType == null) {
-			// TODO 最后还是没找到, 就表示匹配成功了, 为什么??? 因为没有泛型么???
+			// TODO 最后还是没找到, 就返回true, 让子类接着验证(为什么??? 因为没有泛型么???)
 			return true;
 		}
 		if (cacheType) {

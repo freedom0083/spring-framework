@@ -617,7 +617,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see #getBean
 	 * @see #getType
 	 */
-	// TODO 判断给定的bean名是否与指定的类型想匹配
+	// TODO 判断给定的bean名是否与指定的类型相匹配
 	protected boolean isTypeMatch(String name, ResolvableType typeToMatch, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
 		// TODO 取得bean的id
@@ -652,28 +652,30 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 				else if (typeToMatch.hasGenerics() && containsBeanDefinition(beanName)) {
 					// Generics potentially only match on the target class, not on the proxy...
-					// TODO 当指定的类型与bean实例对象类型不匹配时, 如果这时要匹配的类型是泛型类型, 而且要匹配的bean已经在容器中注册
-					//  过的情况下, 这个待匹配的bean可能是个代理类, 所以后面要做的是用指定的泛型类型去匹配代理目标的类型. 这里先取得bean的mbd
+					// TODO bean实例不匹配指定类型时, 如果要匹配的bean已经在容器中注册过时, 就进行泛型类型的匹配. 只对代理目标类
+					//  进行泛型匹配, 不对代理类进行匹配操作
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
-					// TODO 然后得到mbd代理目标的类型
+					// TODO 取得mbd所代表的Class对象
 					Class<?> targetType = mbd.getTargetType();
 					if (targetType != null && targetType != ClassUtils.getUserClass(beanInstance)) {
 						// Check raw class match as well, making sure it's exposed on the proxy.
-						// TODO mbd是个代理类时(有代理目标类型, 且其与bean实例不同), 还要验证一下原生类型是否匹配
+						// TODO mbd所代表的Class对象如果和bean实例不一样时, 需要比较mbd所代表的Class对象与指定类型的Class对象
+						//  是否匹配了(一定要注意, 上面都是ResolvableType间的比较, 这里才是原生Class对象的比较)
 						Class<?> classToMatch = typeToMatch.resolve();
 						if (classToMatch != null && !classToMatch.isInstance(beanInstance)) {
-							// TODO 验证原生类型, 当解析后的指定的类型与bean实例对象类型不匹配时返回false
+							// TODO 如果指定的类型与bean的实例对象不匹配时, 返回false
 							return false;
 						}
 						if (typeToMatch.isAssignableFrom(targetType)) {
-							// TODO 指定的类型与mbd的代理目标类的类型相同时, 返回true
+							// TODO 指定的类型与mbd所代表的Class对象类型相同时, 返回true
 							return true;
 						}
 					}
-					// TODO 用mbd所代理的目标类型做为比较类型
+					// TODO 还是没有比较结果时, 就用mbd持有的bean的ResolvableType进行最终比较
 					ResolvableType resolvableType = mbd.targetType;
 					if (resolvableType == null) {
-						// TODO 没有代理目标类型(非代理类)时, 用工厂方法的返回类型做为比较类型
+						// TODO mbd持有的bean没有ResolvableType属性值时, 其有可能是个工厂方法. 下面会尝试使用可能存在的工厂方法
+						//  的返回类型进行比较
 						resolvableType = mbd.factoryMethodReturnType;
 					}
 					// TODO 比较是否匹配
@@ -699,12 +701,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Retrieve corresponding bean definition.
-		// TODO 取得bean对应的mbd, 以及可能存在的代理目标的dbd
 		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+		// TODO 取得bean的代理目标
 		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 
 		// Setup the types that we want to match against
-		// TODO 取得匹配类型的type, 不存在时默认为工厂类FactoryBean
+		// TODO 看一下待匹配的ResolvableType是否有解析过的type类型, 如果没有, 则默认使用FactoryBean(工厂类)
 		Class<?> classToMatch = typeToMatch.resolve();
 		if (classToMatch == null) {
 			classToMatch = FactoryBean.class;
@@ -721,10 +723,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// a decorated bean definition. The target bean should be the same type
 		// as FactoryBean would ultimately return.
 		if (!isFactoryDereference && dbd != null && isFactoryBean(beanName, mbd)) {
-			// TODO 传入的bean不是一个工厂类, 但它对应的实例是工厂类, 且是一个代理时(dbd != null)
+			// TODO 传入的bean本身是一个代理类, 且实例为工厂类, 但其本身不是工厂类(不以'&'开头)时, 准备用代理目标类进行类型匹配验证
 			// We should only attempt if the user explicitly set lazy-init to true
 			// and we know the merged bean definition is for a factory bean.
-			// TODO 判断mbd是否为非懒加载, 或者支持工厂类初始化
+			// TODO 判断bean是否为非懒加载, 或者支持工厂类初始化
 			if (!mbd.isLazyInit() || allowFactoryBeanInit) {
 				// TODO 不是懒加载, 或者支持工厂类初始化时, 取得代理目标类的bd
 				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
@@ -1757,7 +1759,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			//     时并没有指定这个参数, 所以对于后处理器初始化时调用的getBean()所创建的bean实例不会走到这里
 			//  2. 在查找注入项的匹配bean时, 容器使用isTypeMatch(String, ResolvableType, boolean)方法来查找匹配ResolvableType的bean
 			//     这里的ResolvableType就会转化成Class<>[]数组, 然后用于predictBeanType(String, RootBeanDefinition, Class<?>)
-			//     方法来做类型匹配. 这个匹配是针对代理类型的
+			//     方法来做类型匹配.
 			// When just doing type checks (i.e. not creating an actual instance yet),
 			// use the specified temporary class loader (e.g. in a weaving scenario).
 			// TODO tempClassLoader是在容器初始化时, 发现支持Load Time Weaving(LTW, AspectJ的类加载期织入)时添加到beanFactory容器的,
@@ -1877,16 +1879,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@Nullable
 	// TODO 预测bean的type类型
 	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 因为mbd可能是个代理类, 所以先尝试取得代理目标类的type类型. 如果取到了, 直接使用代理目标类的type类型即可
+		// TODO 首先看看这个bean所表示的Class对象. 如果有就直接返回
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType != null) {
 			return targetType;
 		}
 		if (mbd.getFactoryMethodName() != null) {
-			// TODO 如果mbd不是一个代理类, 且mbd是个工厂方法时, 返回null
+			// TODO bean没有所表示的Class对象时, 如果其为一个工厂方法, 则类型会由工厂方法提供, 这里就不再进行预测了, 直接返回null
 			return null;
 		}
-		// TODO 加载合并后的bd的class(beanClass属性), 即bean对应的class
+		// TODO 开始解析加载bean
 		return resolveBeanClass(mbd, beanName, typesToMatch);
 	}
 

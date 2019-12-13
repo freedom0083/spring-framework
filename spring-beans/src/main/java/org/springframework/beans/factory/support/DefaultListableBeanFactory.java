@@ -516,7 +516,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	// TODO 根据指定type类型, 在容器中取得对应type类型的bean
 	public String[] getBeanNamesForType(@Nullable Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 		if (!isConfigurationFrozen() || type == null || !allowEagerInit) {
-			// TODO 以下情况发生时, 会取得指定type类型的bean名字的集合:
+			// TODO 以下情况发生时, 会根据包装为ResolvableType的type类型来取得bean名字的集合:
 			//  1. 不缓存bean definition的元数据信息;
 			//  2. 或者没有指定type;
 			//  3. 或者不支持急加载;
@@ -567,7 +567,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						//     2.2 并且工厂类不需要急加载来确定类型
 						// TODO 判断一下当前mbd是否为工厂类
 						boolean isFactoryBean = isFactoryBean(beanName, mbd);
-						// TODO 取得当前mbd所修饰(代理)的目标holder
+						// TODO 取得当前mbd的代理的目标
 						BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 						boolean matchFound = false;
 						boolean allowFactoryBeanInit = allowEagerInit || containsSingleton(beanName);
@@ -1463,7 +1463,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object instanceCandidate;
 
 			if (matchingBeans.size() > 1) {
-				// TODO Spring注入时只能注入唯一的bean. 如果找到了多个候选bean, 确定一个唯一候选bean
+				// TODO 对于集合, 数组类的多值自动装配在上面已经处理完并返回了. 能到这里已经全部是单值注入的情况了. 这种情况下,
+				//  Spring注入时只能注入唯一的bean. 如果找到了多个候选bean, 确定一个唯一候选bean
 				autowiredBeanName = determineAutowireCandidate(matchingBeans, descriptor);
 				if (autowiredBeanName == null) {
 					// TODO 没找到候选bean时
@@ -1866,7 +1867,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			Object beanInstance = entry.getValue();
 			// TODO 还没找到, 就看候选bean里有没有与要注入的项同名的(包括别名), 有就直接返回.
 			//  TIPS: 注入项如果是字段, descriptor.getDependencyName()会调用this.field.getName()直接使用字段名. 所以@Autowired
-			//        虽然匹配到两个类型的bean, 即使没有使用@Qualifier注解, 也会根据字段名找到一个合适的(若没找到, 就抱错)
+			//        虽然匹配到两个类型的bean, 即使没有使用@Qualifier注解, 也会根据字段名找到一个合适的(若没找到, 就报错)
 			if ((beanInstance != null && this.resolvableDependencies.containsValue(beanInstance)) ||
 					matchesBeanName(candidateName, descriptor.getDependencyName())) {
 				return candidateName;

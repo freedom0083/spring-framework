@@ -159,9 +159,9 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 		//  检查一下bean是否可以自动装配
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
 		if (match) {
-			// TODO 如果可以自动装配, 就检查候选bean是否与待注入项可能存在的@Qualifier注解所指定value一致.
-			//  getAnnotations()方法会取得注入项上所有的注解, 只要能走到这里, 待注入项至少会包含@Autowire注解, 所以这个方法至少会
-			//  包含一个@Autowire
+			// TODO 初步验证完发现类型相同, 或者放宽了验证条件时, 就会掉到这里. 这里会检查候选bean是否与待注入项可能存在的@Qualifier
+			//  注解所指定value一致. getAnnotations()方法会取得注入项上所有的注解, 只要能走到这里, 待注入项至少会包含@Autowire注解,
+			//  所以这个方法至少会 包含一个@Autowire
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
 				// TODO 如果匹配上了, 再看一下依赖描述的待注入项是否为方法参数(工厂方法, 或构造函数的参数)
