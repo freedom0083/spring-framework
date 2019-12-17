@@ -199,18 +199,21 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	//---------------------------------------------------------------------
 
 	@Override
+	// TODO 按名称获取Bean
 	public Object getBean(String name) throws BeansException {
-		// TODO 按名称获取Bean
+		// TODO 默认不需要类型, 参数, 以及类型检查
 		return doGetBean(name, null, null, false);
 	}
 
 	@Override
+	// TODO 按名称获取指定类型的Bean
 	public <T> T getBean(String name, Class<T> requiredType) throws BeansException {
-		// TODO 按名称获取指定类型的Bean
+		// TODO 默认不需要参数, 以及类型检查
 		return doGetBean(name, requiredType, null, false);
 	}
 
 	@Override
+	// TODO 按名称获取指定的bean, 设置了获取bean时要用的参数
 	public Object getBean(String name, Object... args) throws BeansException {
 		// TODO 按名称获取bean的同时, 使用args参数对bean的属性进行赋值(构造方法和工厂方法属性), 此时bean必须是prototype类型
 		return doGetBean(name, null, args, false);
@@ -338,7 +341,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 
 			try {
-				// TODO 为bean生成一个RootBeanDefinition(如果有双亲bd, 会合并双亲bd的属性)
+				// TODO 为要取得的bean生成RootBeanDefinition类型的mbd(如果有双亲bd, 会合并双亲bd的属性)
 				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				// TODO 合并后的bd不能是抽象类, 这里做一下查检, 如果是抽象类则抛出BeanIsAbstractException异常
 				checkMergedBeanDefinition(mbd, beanName, args);
@@ -371,7 +374,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				if (mbd.isSingleton()) {
-					// TODO 开始创建单例bean实例, 这里创建的是原始的bean实例
+					// TODO 创建单例bean实例, 这里创建的是原始的bean实例
 					//  getSingleton(String, ObjectFactory<?>)的第二个参数ObjectFactory是个函数接口, 提供了一个getObject()方法
 					//  用来实现获取bean的主逻辑, 在这里传入的是createBean()方法, 最终会由此方法来为bean创建实例
 					sharedInstance = getSingleton(beanName, () -> {
@@ -607,9 +610,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * Internal extended variant of {@link #isTypeMatch(String, ResolvableType)}
 	 * to check whether the bean with the given name matches the specified type. Allow
 	 * additional constraints to be applied to ensure that beans are not created early.
-	 * @param name the name of the bean to query
+	 * @param name the name of the bean to query 要匹配的候选bean
 	 * @param typeToMatch the type to match against (as a
-	 * {@code ResolvableType})
+	 * {@code ResolvableType}) 要匹配的类型
 	 * @return {@code true} if the bean type matches, {@code false} if it
 	 * doesn't match or cannot be determined yet
 	 * @throws NoSuchBeanDefinitionException if there is no bean with the given name
@@ -723,19 +726,19 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// a decorated bean definition. The target bean should be the same type
 		// as FactoryBean would ultimately return.
 		if (!isFactoryDereference && dbd != null && isFactoryBean(beanName, mbd)) {
-			// TODO 传入的bean本身是一个代理类, 且实例为工厂类, 但其本身不是工厂类(不以'&'开头)时, 准备用代理目标类进行类型匹配验证
+			// TODO 要得到的bean不是一个以'&'开头的工厂类, 但bean本身是个工厂且, 且还是一个代理时, 下面就准备用代理目标类进行类型匹配验证
 			// We should only attempt if the user explicitly set lazy-init to true
 			// and we know the merged bean definition is for a factory bean.
 			// TODO 判断bean是否为非懒加载, 或者支持工厂类初始化
 			if (!mbd.isLazyInit() || allowFactoryBeanInit) {
-				// TODO 不是懒加载, 或者支持工厂类初始化时, 取得代理目标类的bd
+				// TODO 不是懒加载, 或者支持工厂类初始化时, 取得代理目标类的mbd
 				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
 				// TODO 预测代理目标类tbd的类型:
 				//  1. AbstractBeanFactory: 默认的实现
 				//  2. AbstractAutowireCapableBeanFactory: 用于自动装配
 				Class<?> targetType = predictBeanType(dbd.getBeanName(), tbd, typesToMatch);
 				if (targetType != null && !FactoryBean.class.isAssignableFrom(targetType)) {
-					// TODO 代理类型不是工厂类时, 将其做为预测类型
+					// TODO 代理目标的类型不是工厂类时, 将其做为预测类型
 					predictedType = targetType;
 				}
 			}
@@ -743,7 +746,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// If we couldn't use the target type, try regular prediction.
 		if (predictedType == null) {
-			// TODO 代理目标无法预测出类型时, 使用常规的mbd进行预测
+			// TODO 代理目标无法预测出类型时, 表示一个常规情况, 这时使用候选bean进行预测
 			predictedType = predictBeanType(beanName, mbd, typesToMatch);
 			if (predictedType == null) {
 				// TODO 如果还没有, 返回false表示不匹配
@@ -773,7 +776,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// Special case: A SmartInstantiationAwareBeanPostProcessor returned a non-FactoryBean
 			// type but we nevertheless are being asked to dereference a FactoryBean...
 			// Let's check the original bean class and proceed with it if it is a FactoryBean.
-			// TODO 预测原始bean是否为工厂类, 不是工厂类, 或无法预测类型时, 返回false表示预测失败
+			// TODO 预测要匹配的bean是否为工厂类. 如果不是工厂类, 或无法预测类型时, 返回false表示预测失败
 			predictedType = predictBeanType(beanName, mbd, FactoryBean.class);
 			if (predictedType == null || !FactoryBean.class.isAssignableFrom(predictedType)) {
 				return false;
@@ -782,28 +785,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// We don't have an exact type but if bean definition target type or the factory
 		// method return type matches the predicted type then we can use that.
-		// TODO 如果到这还没有解析出type, 就看mbd的代理目标bean的type, 以及工厂方法的返回类型是否匹配了
+		// TODO 如果到这还没有解析出type, 就看候选bean所引用的Class对象, 以及工厂方法的返回类型是否匹配了
 		if (beanType == null) {
-			// TODO 先看代理目标的type
+			// TODO 先看候选bean所引用的Class对象
 			ResolvableType definedType = mbd.targetType;
 			if (definedType == null) {
-				// TODO 没有代理目标的type时(不是一个代理类), 看工厂方法返回类型type
+				// TODO 候选bean所引用的Class对象不存在时(有可能是还没解析), 看工厂方法返回类型type
 				definedType = mbd.factoryMethodReturnType;
 			}
 			if (definedType != null && definedType.resolve() == predictedType) {
-				// TODO 如果有代理目标type, 或工厂方法的返回类型type, 并且type与预测type一致时, 用他们做为bean的type
+				// TODO 如果存在候选bean所引用的Class对象, 或工厂方法的返回类型, 并且该类型与要预测的类型一致时, 用此类型做为bean的类型
 				beanType = definedType;
 			}
 		}
 
 		// If we have a bean type use it so that generics are considered
 		if (beanType != null) {
-			// TODO 得到bean的type时, 判断是否与指定type匹配
+			// TODO 得到bean了的实际, 判断是否与指定type匹配
 			return typeToMatch.isAssignableFrom(beanType);
 		}
 
 		// If we don't have a bean type, fallback to the predicted type
-		// TODO 如果最后没有bean的type, 则用预测类型进行判断
+		// TODO 如果最后还是没有bean的实际类型, 则用前面得到的预测类型进行判断
 		return typeToMatch.isAssignableFrom(predictedType);
 	}
 

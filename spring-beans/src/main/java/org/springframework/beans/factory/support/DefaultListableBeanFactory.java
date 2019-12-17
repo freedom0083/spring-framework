@@ -582,7 +582,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							}
 						}
 						else  {
-							// TODO 当前mbd是工厂类时, 除了验证bean实例外, 还会考虑bean本身是工厂类的情况
+							// TODO 当前操作的bean是工厂类时, 除了验证bean实例外, 还会考虑bean本身是工厂类的情况
 							if (includeNonSingletons || isNonLazyDecorated ||
 									(allowFactoryBeanInit && isSingleton(beanName, mbd, dbd))) {
 								// TODO 满足以下情况时, 判断bean是否与要取得的类型相匹配:

@@ -170,9 +170,9 @@ abstract class AutowireUtils {
 	 * Method#getGenericParameterTypes() formal argument list} for the given
 	 * method</li>
 	 * </ul>
-	 * @param method the method to introspect (never {@code null})
+	 * @param method the method to introspect (never {@code null}) 要解析的方法
 	 * @param args the arguments that will be supplied to the method when it is
-	 * invoked (never {@code null})
+	 * invoked (never {@code null}) 方法要用的参数
 	 * @param classLoader the ClassLoader to resolve class names against,
 	 * if necessary (never {@code null})
 	 * @return the resolved target return type or the standard method return type
@@ -183,9 +183,17 @@ abstract class AutowireUtils {
 
 		Assert.notNull(method, "Method must not be null");
 		Assert.notNull(args, "Argument array must not be null");
-
+		// TODO 取得方法所有的泛型类型参数(TypeVariable数组)
+		//  public <T> T typeParameters(T list, String name) {
+		//        return (T)new Object();
+		//  }
+		//  对于例子来说, 这里得到的只有方法中的一个泛型类型参数, 即: T所表示的参数
 		TypeVariable<Method>[] declaredTypeVariables = method.getTypeParameters();
+		// TODO 取得方法的泛型返回类型. 如果有实际类型, 则返回的是实际类型
+		//  对于例子来说, 这里得到的是方法的返回类型, 即: T. 如果上面的例子的返回类型是String, 则返回的就是String的全限定名
 		Type genericReturnType = method.getGenericReturnType();
+		// TODO 取得方法所拥有的所有参数的类型, 包括泛型与非泛型
+		//  对于例子来说, 这里得到的是方法中的所有参数的Type数组, 即: T与String表示的参数的Type数组
 		Type[] methodParameterTypes = method.getGenericParameterTypes();
 		Assert.isTrue(args.length == methodParameterTypes.length, "Argument array does not match parameter count");
 
@@ -193,25 +201,32 @@ abstract class AutowireUtils {
 		// itself (e.g., via <T>), not on the enclosing class or interface.
 		boolean locallyDeclaredTypeVariableMatchesReturnType = false;
 		for (TypeVariable<Method> currentTypeVariable : declaredTypeVariables) {
+			// TODO 遍历方法中所有的泛型类型参数, 只要有一个与返回类型相同, 就退出
 			if (currentTypeVariable.equals(genericReturnType)) {
 				locallyDeclaredTypeVariableMatchesReturnType = true;
 				break;
 			}
 		}
-
 		if (locallyDeclaredTypeVariableMatchesReturnType) {
+			// TODO 如果有声明的参数与返回类型相同
 			for (int i = 0; i < methodParameterTypes.length; i++) {
+				// TODO 遍历方法所拥有的所有参数的类型
 				Type methodParameterType = methodParameterTypes[i];
 				Object arg = args[i];
 				if (methodParameterType.equals(genericReturnType)) {
+					// TODO 找出与返回类型相同的那个参数
 					if (arg instanceof TypedStringValue) {
+						// TODO 如果当前索引位置的参数类型是TypedStringValue类型时, 对其进行解析
 						TypedStringValue typedValue = ((TypedStringValue) arg);
 						if (typedValue.hasTargetType()) {
+							// TODO 有解析结果, 直接返回
 							return typedValue.getTargetType();
 						}
 						try {
+							// TODO 没有的话就开始解析参数
 							Class<?> resolvedType = typedValue.resolveTargetType(classLoader);
 							if (resolvedType != null) {
+								// TODO 成功解析则返回
 								return resolvedType;
 							}
 						}
@@ -222,32 +237,45 @@ abstract class AutowireUtils {
 					}
 					else if (arg != null && !(arg instanceof BeanMetadataElement)) {
 						// Only consider argument type if it is a simple value...
+						// TODO 参数不是BeanMetadataElement类型时, 返回参数所引用的Class对象
 						return arg.getClass();
 					}
+					// TODO 其他情况都返回方法的返回类型
 					return method.getReturnType();
 				}
 				else if (methodParameterType instanceof ParameterizedType) {
+					// TODO 如果方法的参数类型是参数化类型ParameterizedType,, 即泛型. 例如: List<T>, Map<K,V>等带有参数化的对象,
+					//  就看其中的每个参数是否与返回类型相匹配
 					ParameterizedType parameterizedType = (ParameterizedType) methodParameterType;
+					// TODO 获取<>中实际的类型参数, 返回一个Type数组
 					Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 					for (Type typeArg : actualTypeArguments) {
+						// TODO 开始遍历<>中所有的参数类型
 						if (typeArg.equals(genericReturnType)) {
+							// TODO 如果有与返回类型相同的, 则进行如下判断
 							if (arg instanceof Class) {
+								// TODO 如果是Class类型, 直接返回
 								return (Class<?>) arg;
 							}
 							else {
 								String className = null;
 								if (arg instanceof String) {
+									// TODO 如果是String类型, 则表示为一个Class对象的名
 									className = (String) arg;
 								}
 								else if (arg instanceof TypedStringValue) {
+									// TODO 如果是TypedStringValue类型
 									TypedStringValue typedValue = ((TypedStringValue) arg);
+									// TODO 则取得其持有的目标类型的名字
 									String targetTypeName = typedValue.getTargetTypeName();
 									if (targetTypeName == null || Class.class.getName().equals(targetTypeName)) {
+										// TODO 参数没有目标类型名, 或者目标类型名是Class时, 用目标值做为Class对象的值
 										className = typedValue.getValue();
 									}
 								}
 								if (className != null) {
 									try {
+										// TODO 对取得的Class对象进行加载
 										return ClassUtils.forName(className, classLoader);
 									}
 									catch (ClassNotFoundException ex) {
@@ -257,6 +285,7 @@ abstract class AutowireUtils {
 								}
 								// Consider adding logic to determine the class of the typeArg, if possible.
 								// For now, just fall back...
+								// TODO 如果没有能得到Class对象的名字, 则回退到方法的返回类型并返回
 								return method.getReturnType();
 							}
 						}
@@ -266,6 +295,7 @@ abstract class AutowireUtils {
 		}
 
 		// Fall back...
+		// TODO 如果没有任何一个声明的参数与方法的返回类型相同, 则直接使用方法的返回类型
 		return method.getReturnType();
 	}
 

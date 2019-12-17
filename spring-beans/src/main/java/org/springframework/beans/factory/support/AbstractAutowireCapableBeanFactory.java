@@ -428,7 +428,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		Object result = existingBean;
 		for (BeanPostProcessor processor : getBeanPostProcessors()) {
-			// TODO 挨个执行所有后处理器的postProcessAfterInitialization方法, 对初始化后的bean进行处理.
+			// TODO 挨个执行所有后处理器的postProcessAfterInitialization方法, 对初始化后的bean进行处理. 这是个很重要的方法, AOP,
+			//  JNDI, 等实现都是基于后处理器的此方法
 			Object current = processor.postProcessAfterInitialization(result, beanName);
 			if (current == null) {
 				// TODO 如果处理后返回的是null, 直接返回传入的bean对象
@@ -686,13 +687,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	// TODO 预测bean的type类型
 	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO mbd可能是个代理类, 先尝试拿mbd代理的目标类的类型
+		// TODO 确定bean的类型, 即: bean所引用的Class对象
 		Class<?> targetType = determineTargetType(beanName, mbd, typesToMatch);
 		// Apply SmartInstantiationAwareBeanPostProcessors to predict the
 		// eventual type after a before-instantiation shortcut.
 		if (targetType != null && !mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-			// TODO 当有确定的代理目标类型, 且这个mbd是由容器创建的, 并且容器注册过InstantiationAwareBeanPostProcessor类型的初始
-			//  化后处理器时, 开始类型预测. 首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
+			// TODO 在有明确了的bean的类型, 且这个bean是由容器创建, 并且容器注册过InstantiationAwareBeanPostProcessor类型的初始
+			//  化后处理器时, 开始类型预测.
+			//  首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
 			boolean matchingOnlyFactoryBean = typesToMatch.length == 1 && typesToMatch[0] == FactoryBean.class;
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
@@ -711,7 +713,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				}
 			}
 		}
-		// TODO 其他情况直接返回代理目标的类型
+		// TODO 其他情况直接返回确定了的bean的类型, 即: bean所引用的Class对象
 		return targetType;
 	}
 
@@ -765,7 +767,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// TODO 找到直接返回
 			return cachedReturnType.resolve();
 		}
-
+		// TODO 工厂类中所有的用于实例化bean的工厂方法返回的类型都是一样的
 		Class<?> commonType = null;
 		// TODO 缓存里没有, 看看内省工厂方法有没有被缓存
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
@@ -820,35 +822,44 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					// TODO 找出工厂类中所有参数数量多于配置文件所指定的参数数量的静态工厂方法
 					if (candidate.getTypeParameters().length > 0) {
 						try {
-							// TODO 方法有泛型时, 需要对泛型进行处理
 							// Fully resolve parameter names and argument values.
-							// TODO 该方法有类型变量参数(TypeVariable可以表示任何类型的泛型变量, 如：T、K、V等变量. 比如:
-							//  method(T name, V value))时, 取得方法中所有参数的类型
+							// TODO 方法有泛型类型的参数时时, 需要对泛型进行处理. 取出该方法有类型变量参数(TypeVariable可以表示任
+							//  何类型的泛型变量, 如：T、K、V等变量. 比如: method(T name, V value))时, 取得方法中所有参数的类型, T和V
 							Class<?>[] paramTypes = candidate.getParameterTypes();
 							String[] paramNames = null;
 							// TODO 参数名探测器, 默认为DefaultParameterNameDiscoverer
 							ParameterNameDiscoverer pnd = getParameterNameDiscoverer();
 							if (pnd != null) {
-								// TODO 用探测器取得方法参数的名字, 有好多实现, 这个得慢慢看, 最后得到的就是参数名
+								// TODO 用探测器取得方法所有参数的名字. 有好多实现, 这个得慢慢看, 最后得到的就是参数名数组, name和value
 								paramNames = pnd.getParameterNames(candidate);
 							}
-							// TODO 取得mbd表示的bean的构造器参数
+							// TODO 取得bean的构造器的参数. 如果没有, 则会创建一个ConstructorArgumentValues
 							ConstructorArgumentValues cav = mbd.getConstructorArgumentValues();
+							// TODO 这里是所有使用过的参数值
 							Set<ConstructorArgumentValues.ValueHolder> usedValueHolders = new HashSet<>(paramTypes.length);
 							Object[] args = new Object[paramTypes.length];
 							for (int i = 0; i < args.length; i++) {
-								// TODO 按顺序取得构造函数参数的值, 并放到一个set中
+								// TODO 按顺序根据候选方法的参数值, 和参数名与要实例化bean所用的方法(工厂方法, 构造器)对应位置所使
+								//  用的参数进行匹配. 如果完全一致, 就返回要实例化bean所使用的方法(工厂方法, 构造器)对应位置的参数值.
+								//  如果不一致, 会用参数类型及参数名进行一次泛型类型参数的判断. 如果有一致的, 就返回. 没有就返回空.
+								//  比如: 例子中就是用index = 0, paramType = T, paramName = name与要实例化bean所使用的方法
+								//  (工厂方法, 构造器)的index = 0的位置的参数进行类型及类型名的匹配. 找不到的话, 就用这些到实例化
+								//  bean所使用的方法(工厂方法, 构造器)的所有泛型参数中进行匹配.
+								//  取得构造器的参数的值(先T, 后V), 并放到一个set中
 								ConstructorArgumentValues.ValueHolder valueHolder = cav.getArgumentValue(
 										i, paramTypes[i], (paramNames != null ? paramNames[i] : null), usedValueHolders);
 								if (valueHolder == null) {
+									// TODO 如果没匹配上, 就放宽类型及名字的要求, 再次尝试从要实例化bean所使用的方法(工厂方法, 构造器)
+									//  的泛型类型参数中进行匹配.
 									valueHolder = cav.getGenericArgumentValue(null, null, usedValueHolders);
 								}
 								if (valueHolder != null) {
+									// TODO 找到的话, 就将其放到参数数组, 以及使用过的参数集合中
 									args[i] = valueHolder.getValue();
 									usedValueHolders.add(valueHolder);
 								}
 							}
-							// TODO 取得该方法的返回类型, 得到的可能是解析过的代理目标的类型或该方法的返回类型
+							// TODO 取得该方法的返回类型
 							Class<?> returnType = AutowireUtils.resolveReturnTypeForFactoryMethod(
 									candidate, args, getBeanClassLoader());
 							// TODO 在没有通用type类型, 且上面得到的返回类型与该方法的返回类型相同时, 将该方法做为唯一候选方法
@@ -858,7 +869,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 							commonType = ClassUtils.determineCommonAncestor(returnType, commonType);
 							if (commonType == null) {
 								// Ambiguous return types found: return null to indicate "not determinable".
-								// TODO 没有就返回null, 表示不可预测
+								// TODO returnType与commonType没有通用类型时, 表示不可预测, 返回null
 								return null;
 							}
 						}
@@ -869,34 +880,36 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						}
 					}
 					else {
-						// TODO 方法没有返回类型时, 如果没有通用type, 就用该方法做为唯一候选方法, 否则为null
+						// TODO 方法没有泛型类型的参数时, 如果没有通用type, 就用该方法做为唯一候选方法, 否则为null
 						uniqueCandidate = (commonType == null ? candidate : null);
-						// TODO 取得returnType和commonType的通用类型
+						// TODO 和上面一样, 取得returnType和commonType的通用类型
 						commonType = ClassUtils.determineCommonAncestor(candidate.getReturnType(), commonType);
 						if (commonType == null) {
 							// Ambiguous return types found: return null to indicate "not determinable".
-							// TODO 没有就返回null, 表示不可预测
+							// TODO returnType与commonType没有通用类型时, 表示不可预测, 返回null
 							return null;
 						}
 					}
 				}
 			}
-			// TODO 上面的逻辑最终会匹配到一个方法, 然后将其做为mbd用于内省的工厂方法
+			// TODO 能走到这的会有两种情况:
+			//  1. 上面的逻辑最终会匹配到一个方法, 然后将其做为mbd用于内省的工厂方法
+			//  2. 工厂类里没有工厂方法, 这时uniqueCandidate为null, 然后mbd用于内省的工厂方法也就为null了
 			mbd.factoryMethodToIntrospect = uniqueCandidate;
 			if (commonType == null) {
-				// TODO 没有通用类型时的就返回null, 表示不可预测
+				// TODO 对于情况1来说, 肯定不会走到这里. 只有情况2才会走到这里, 表示不可预测, 直接返回null
 				return null;
 			}
 		}
 
 		// Common return type found: all factory methods return same type. For a non-parameterized
 		// unique candidate, cache the full type declaration context of the target factory method.
-		// TODO 有唯一的侯选工厂方法时, 使用唯一工厂方法的返回类型, 没有时使用通用类型
+		// TODO 有唯一的侯选工厂方法时, 使用唯一工厂方法的返回类型, 没有时使用通用类型(工厂类中所有的工厂方法返回的类型都是一样的)
 		cachedReturnType = (uniqueCandidate != null ?
 				ResolvableType.forMethodReturnType(uniqueCandidate) : ResolvableType.forClass(commonType));
-		// TODO 缓存合并后的bd的工厂方法的返回类型
+		// TODO 设置用于实例化bean的工厂方法的返回类型
 		mbd.factoryMethodReturnType = cachedReturnType;
-		// TODO 返回返回类型的class
+		// TODO 返回工厂类型的返回类型引用的Class对象
 		return cachedReturnType.resolve();
 	}
 
@@ -1258,7 +1271,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				//  类型后处理器时, 尝试从mbd中拿到bean的类型
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-					// TODO 有对应的代理目标类型时, 用后处理器对其进行处理, 生成一个代理对象, 如果没有处理结果, 也不需要再进行实例化的后处理器了
+					// TODO 拿到了bean所表示的Class对象时, 用后处理器对其进行处理, 生成一个代理对象, 如果没有处理结果, 也不需要再进行实例化的后处理器了
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
 						// TODO resolveBeforeInstantiation是个短路方法, 一旦生成了代理对象, 调用他的外层方法就会直接返回代理对象,
@@ -1398,14 +1411,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Shortcut when re-creating the same bean...
-		// TODO bean是否解析完成标志位, 对于已经解析过的bean, 提供一个快速断路操作
+		// TODO 下面就是用其他方式实例化bean了. 这里设置了2个标志位. bean是否解析完成标志位, 对于已经解析过的bean, 提供一个快速断路操作
 		boolean resolved = false;
+		// TODO 是否需要自动注入. 这是由bean的构造参数是否解析完毕来决定的
 		boolean autowireNecessary = false;
 		if (args == null) {
 			// TODO 没有为创建的bean指定属性参数时
 			synchronized (mbd.constructorArgumentLock) {
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
-					// TODO 如果构造器或工厂方法已经解析完了, 设置标识flag
+					// TODO 如果构造器或工厂方法已经解析完了, 即, 非第一次调用创建bean的方法时, 设置标识flag
 					resolved = true;
 					// TODO 根据构造器参数是否解析完毕来设置是否需要自动注入
 					autowireNecessary = mbd.constructorArgumentsResolved;
@@ -1413,12 +1427,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 		if (resolved) {
+			// TODO 对于非第一次调用创建bean的方法来说, 一切都是从缓存中取已经解析好的参数, 以及构造器或方法等来实例化bean
 			if (autowireNecessary) {
-				// TODO 解析完毕, 且需要自动注入时
+				// TODO 需要自动注入时对构造器进行自动注入, 同时完成实例化. 这时是不需要构造器或工厂方法的的, mbd里已经有解析好的构造器或工厂方法了
 				return autowireConstructor(beanName, mbd, null, null);
 			}
 			else {
-				// TODO 解析完毕, 但不需要自动注入
+				// TODO 不需要自动注入时, 直接实例化bean
 				return instantiateBean(beanName, mbd);
 			}
 		}
@@ -1630,11 +1645,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * <p>This corresponds to constructor injection: In this mode, a Spring
 	 * bean factory is able to host components that expect constructor-based
 	 * dependency resolution.
-	 * @param beanName the name of the bean
-	 * @param mbd the bean definition for the bean
-	 * @param ctors the chosen candidate constructors
+	 * @param beanName the name of the bean 要实例化的bean
+	 * @param mbd the bean definition for the bean 要实例化的bean的mbd
+	 * @param ctors the chosen candidate constructors 候选构造器
 	 * @param explicitArgs argument values passed in programmatically via the getBean method,
-	 * or {@code null} if none (-> use constructor argument values from bean definition)
+	 * or {@code null} if none (-> use constructor argument values from bean definition) 实例化bean时, 指定的参数
 	 * @return a BeanWrapper for the new instance
 	 */
 	protected BeanWrapper autowireConstructor(

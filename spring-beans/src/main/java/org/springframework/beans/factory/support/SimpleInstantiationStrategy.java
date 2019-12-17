@@ -107,6 +107,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 			final Constructor<?> ctor, Object... args) {
 
 		if (!bd.hasMethodOverrides()) {
+			// TODO 是实例化的bean没有方法被覆盖过时, 如果没有开启Java安全机制, 直接使用BeanUtils对bean进行实例化
 			if (System.getSecurityManager() != null) {
 				// use own privileged to change accessibility (when security is on)
 				AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
@@ -117,6 +118,9 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 			return BeanUtils.instantiateClass(ctor, args);
 		}
 		else {
+			// TODO 否则用注入的方法进行实例化:
+			//  1. SimpleInstantiationStrategy: 并不支持此方法, 会抛出UnsupportedOperationException. 留给子类实现用的
+			//  2. CglibSubclassingInstantiationStrategy: 用cglib进行实例化
 			return instantiateWithMethodInjection(bd, beanName, owner, ctor, args);
 		}
 	}

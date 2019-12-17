@@ -98,7 +98,7 @@ final class PostProcessorRegistrationDelegate {
 			// TODO 拿到所有通过配置文件注册到容器中, 并且实现了BeanDefinitionRegistryPostProcessor接口的, 支持优先级排序的后处理器.
 			//  如果没有自定义的实现类时, 这里只包括AnnotationConfigApplicationContext初始化reader时,
 			//  由AnnotationConfigUtils#registerAnnotationConfigProcessors()方法注册的后处理器ConfigurationClassPostProcessor,
-			//  及其内部类ImportAwareBeanPostProcessor:
+			//  及其内部类ImportAwareBeanPostProcessor. 注意, 这里是包括非单例实例, 以及支持急加载的:
 			//    1. ConfigurationClassPostProcessor: 解析@Configuraton配置类,并将解析结果(@Bean方法等)注册到容器
 			//    2. ImportAwareBeanPostProcessor: ConfigurationClassPostProcessor的内部类, 处理ImportRegistry的情况
 			String[] postProcessorNames =
