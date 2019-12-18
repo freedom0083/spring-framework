@@ -260,19 +260,27 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			throws BeanCreationException {
 
 		// Let's check for lookup methods here...
+		// TODO 处理@Lookup注解, 或<lookup-method />标签. 用于单例bean依赖原型bean时, 为单例bean提供动态实现.
 		if (!this.lookupMethodsChecked.contains(beanName)) {
+			// TODO 当lookup缓存中没有对应的bean时, 就要解析一下可能存在的@Lookup注解了(<lookup-method />标签是在XML解析时做的)
 			if (AnnotationUtils.isCandidateClass(beanClass, Lookup.class)) {
+				// TODO 只处理可以使用@Lookup注解的Class引用
 				try {
 					Class<?> targetClass = beanClass;
 					do {
+						// TODO 执行bean引用的Class对象中的所有方法
 						ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+							// TODO 取得当前操作方法的@Lookup注解
 							Lookup lookup = method.getAnnotation(Lookup.class);
 							if (lookup != null) {
 								Assert.state(this.beanFactory != null, "No BeanFactory available");
+								// TODO 为了实现动态依赖原型bean, 这里每次都要新建一个新的, 用于覆盖的LookupOverride对象
 								LookupOverride override = new LookupOverride(method, lookup.value());
 								try {
 									RootBeanDefinition mbd = (RootBeanDefinition)
 											this.beanFactory.getMergedBeanDefinition(beanName);
+									// TODO 然后把这个用于覆盖的LookupOverride对象放到要实例化的bean的mbd的overrides缓存中, 这
+									//  个在createBean()方法会用到
 									mbd.getMethodOverrides().addOverride(override);
 								}
 								catch (NoSuchBeanDefinitionException ex) {
@@ -281,6 +289,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						});
+						// TODO 一层一层向上解析, 直到遇到Object, 或再也没有父类时结束
 						targetClass = targetClass.getSuperclass();
 					}
 					while (targetClass != null && targetClass != Object.class);
@@ -290,18 +299,22 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					throw new BeanCreationException(beanName, "Lookup method resolution failed", ex);
 				}
 			}
+			// TODO 然后把进行@Lookup检查过的bean放到缓存中
 			this.lookupMethodsChecked.add(beanName);
 		}
 
 		// Quick check on the concurrent map first, with minimal locking.
+		// TODO 首先看一下缓存里有没有要实例化的bean的候选构造器, 如果是第一次调用, 缓存里是没有的. 如果不是第一次调用, 直接返回缓存里的候选构造器
 		Constructor<?>[] candidateConstructors = this.candidateConstructorsCache.get(beanClass);
 		if (candidateConstructors == null) {
 			// Fully synchronized resolution now...
 			synchronized (this.candidateConstructorsCache) {
+				// TODO 这里会有一个double check来防止其他线程在同步之前处理了查找候选构造器这个逻辑
 				candidateConstructors = this.candidateConstructorsCache.get(beanClass);
 				if (candidateConstructors == null) {
 					Constructor<?>[] rawCandidates;
 					try {
+						// TODO 拿到bean引用的Class对象的所有构造器
 						rawCandidates = beanClass.getDeclaredConstructors();
 					}
 					catch (Throwable ex) {
@@ -312,20 +325,28 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
 					Constructor<?> requiredConstructor = null;
 					Constructor<?> defaultConstructor = null;
+					// TODO 找出首选的构造器, 非Kotlin返回的全是null
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
 					for (Constructor<?> candidate : rawCandidates) {
+						// TODO 遍历所有的候选构造器
 						if (!candidate.isSynthetic()) {
+							// TODO 如果这个构造器不是由Java编译器引入, 则记录非Java编译器引用构造器的数量自增1
 							nonSyntheticConstructors++;
 						}
 						else if (primaryConstructor != null) {
+							// TODO 对于由Java编译器引入的构造器来说, 如果有首选的构造器, 就跳过, 测试下一个构造器. 但这个值在非
+							//  Kotlin情况下全都是null, 所以对于Java来说, 这是进不来的
 							continue;
 						}
+						// TODO 把构造器上可以进行自动装配的注入拿出来(@Autowire)
 						MergedAnnotation<?> ann = findAutowiredAnnotation(candidate);
 						if (ann == null) {
+							// TODO 没拿到的话, 看一下bean引用的Class对象是否被CGLIB增强过, 如果是, 则拿出原始Class对象
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
 							if (userClass != beanClass) {
 								try {
+									// TODO bean引用的Class对象和上面得到的Class对象不同时, 表示被CGLIB增强过. 需要到原始类中进行查找
 									Constructor<?> superCtor =
 											userClass.getDeclaredConstructor(candidate.getParameterTypes());
 									ann = findAutowiredAnnotation(superCtor);
@@ -336,20 +357,31 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							}
 						}
 						if (ann != null) {
+							// TODO 如果找到了可以自动装配的注解(@Autowire)
 							if (requiredConstructor != null) {
+								// TODO Spring只允许每个类有一个可以自动装配的构造器的'required'属性为ture. 如果已经存在了
+								//  'required = true'的构造器, 即: requiredConstructor已经有值时, 则会抛出BeanCreationException异常,
+								//  告诉你已经有了一个'required = true'的构造器, 并指出是哪个
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
+							// TODO 拿到自动装配的注解上的'required'属性, @Autowire默认的'required'值是true
 							boolean required = determineRequiredStatus(ann);
 							if (required) {
+								// TODO 如果'required'属性是true的话, 当找不到合适的bean进行注入时会报错; 并且每个类只能有一个构造
+								//  器的'required'属性为true, 否则也会报错
 								if (!candidates.isEmpty()) {
+									// TODO 如果当前构造器的'required = true', 并且还有其他构造器时, 即: candidates已经有值了,
+									//  则会抛出BeanCreationException异常, 告诉你已经有了一个'required = true'的构造器了
 									throw new BeanCreationException(beanName,
 											"Invalid autowire-marked constructors: " + candidates +
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
+								// TODO 如果当前方法上用于自动装配的注解带有'requred'时, 就将其做为必须实现的构造器. 对于没有标注
+								//  'required'的方法, 在没有bean可以装配时会自动跳过
 								requiredConstructor = candidate;
 							}
 							candidates.add(candidate);

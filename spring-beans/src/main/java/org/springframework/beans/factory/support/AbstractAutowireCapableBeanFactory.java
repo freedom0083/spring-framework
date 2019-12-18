@@ -509,7 +509,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Prepare method overrides.
 		try {
-			// TODO 处理bean的方法重载
+			// TODO 处理bean的方法重载(@Lookup, <lookup-method />, <replace-method />)
 			mbdToUse.prepareMethodOverrides();
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1433,14 +1433,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				return autowireConstructor(beanName, mbd, null, null);
 			}
 			else {
-				// TODO 不需要自动注入时, 直接实例化bean
+				// TODO 不需要自动注入时, 用默认构造器直接实例化bean
 				return instantiateBean(beanName, mbd);
 			}
 		}
 
 		// Candidate constructors for autowiring?
-		// TODO 开始解析没解析完毕的bean
-		// TODO 先拿到bean的构造器集合
+		// TODO 第一次调用时会走到下面的逻辑, 即: 解析出用于实例化bean所需要的构造器. 首先拿出bean所有的构造器
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
@@ -1449,14 +1448,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Preferred constructors for default construction?
-		// TODO 没有构造器时
+		// TODO 没有构造器时就选一个优先的构造器做为实例化bean的构造器, 有以下两个实现:
+		//  1. GenericApplicationContext$ClassDerivedBeanDefinition: 针对Kotlin有实现. 其他情况返回的是bean引用的Class对象的全部public构造器
+		//  2. RootBeanDefinition: 并不支持此操作, 直接返回null, 后面用无参构造器来进行实例化
 		ctors = mbd.getPreferredConstructors();
 		if (ctors != null) {
+			// TODO 用支持自动装配的构造器进行实例化
 			return autowireConstructor(beanName, mbd, ctors, null);
 		}
 
 		// No special handling: simply use no-arg constructor.
-		// TODO 最后是普通bean的处理(无参数构造器)
+		// TODO 如果还是没找到, 最后就用无参构造器来实例化bean了
 		return instantiateBean(beanName, mbd);
 	}
 
@@ -1531,9 +1533,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throws BeansException {
 
 		if (beanClass != null && hasInstantiationAwareBeanPostProcessors()) {
+			// TODO 在有明确了的bean的类型, 并且容器注册过InstantiationAwareBeanPostProcessor类型的初始化后处理器时, 开始类型预测.
+			//  首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+					// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来确定构造器, 以下后处理器实现了此方法:
+					//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了默认方法, 直接返回null;
+					//  2. AbstractAutoProxyCreator抽象类: 直接返回null. 实际上Java 8后可以移除此方法了;
+					//  3. InstantiationAwareBeanPostProcessorAdapter抽象类: 同上;
+					//  4. AutowiredAnnotationBeanPostProcessor类: InstantiationAwareBeanPostProcessorAdapter的实现类,
 					Constructor<?>[] ctors = ibp.determineCandidateConstructors(beanClass, beanName);
 					if (ctors != null) {
 						return ctors;
@@ -1550,6 +1559,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param mbd the bean definition for the bean
 	 * @return a BeanWrapper for the new instance
 	 */
+	// TODO 用默认构造器实例化bean
 	protected BeanWrapper instantiateBean(final String beanName, final RootBeanDefinition mbd) {
 		try {
 			Object beanInstance;
@@ -1560,8 +1570,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getAccessControlContext());
 			}
 			else {
+				// TODO 根据容器指定的实例化策略来实例化bean, 默认策略为SimpleInstantiationStrategy. CGLIB增强过的bean会使用
+				//  CglibSubclassInstantiationStrategy策略来进行实例化
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
+			// TODO 将实例化后的bean包装为一个BeanWrapper, 初始化后返回
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);
 			initBeanWrapper(bw);
 			return bw;

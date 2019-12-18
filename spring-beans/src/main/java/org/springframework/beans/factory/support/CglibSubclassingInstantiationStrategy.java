@@ -81,6 +81,7 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			@Nullable Constructor<?> ctor, Object... args) {
 
 		// Must generate CGLIB subclass...
+		// TODO 为bean创建一个CBLIG的子类, 然后实例化子类
 		return new CglibSubclassCreator(bd, owner).instantiate(ctor, args);
 	}
 
@@ -113,13 +114,16 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		 * @return new instance of the dynamically generated subclass
 		 */
 		public Object instantiate(@Nullable Constructor<?> ctor, Object... args) {
+			// TODO 为要实例化的bean创建增强类
 			Class<?> subclass = createEnhancedSubclass(this.beanDefinition);
 			Object instance;
 			if (ctor == null) {
+				// TODO 没有指定实例化bean所需要的构造器时, 直接创建由CGLIB增强后的bean
 				instance = BeanUtils.instantiateClass(subclass);
 			}
 			else {
 				try {
+					// TODO 如果指定了实例化bean所需要的构造器, 则用CGLIB增强后的bean的同类型构造器来实例化bean
 					Constructor<?> enhancedSubclassConstructor = subclass.getConstructor(ctor.getParameterTypes());
 					instance = enhancedSubclassConstructor.newInstance(args);
 				}

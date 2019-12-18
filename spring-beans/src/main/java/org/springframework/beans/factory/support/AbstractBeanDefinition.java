@@ -1123,11 +1123,12 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
-		// TODO Spring支持lookup-method, replace-method两个依赖注入的方式, 比如: <lookup-method name="getFruit" bean="bananer"/>
-		//  相当于调用指定类里面的指定方法进行注入, 所以需要处理方法重载
+		// TODO Spring支持lookup-method(一般用于单例bean依赖原型bean的情况, 可以实现依赖动态原型bean),
+		//  replace-method(用于替换目标bean的方法)两个依赖注入的方式, 比如: <lookup-method name="getFruit" bean="bananer"/>
+		//  相当于调用指定类里面的指定方法进行注入, 所以需要处理方法覆盖
 		// Check that lookup methods exists.
 		if (hasMethodOverrides()) {
-			// TODO 从缓存中取得所有被覆盖的方法, 对每个方法进行查检
+			// TODO 如果有被覆盖的方法, 从缓存中取得所有被覆盖的方法, 对每个方法进行查检, 以确定其是否被覆盖过
 			getMethodOverrides().getOverrides().forEach(this::prepareMethodOverride);
 		}
 	}

@@ -314,10 +314,13 @@ public abstract class ReflectionUtils {
 	 * @since 4.2
 	 * @see #doWithMethods
 	 */
+	// TODO 用给定的回调函数去执行Class对象中定义的所有方法
 	public static void doWithLocalMethods(Class<?> clazz, MethodCallback mc) {
+		// TODO 拿到Class对象中所有定义的方法
 		Method[] methods = getDeclaredMethods(clazz, false);
 		for (Method method : methods) {
 			try {
+				// TODO 用回调函数挨个调用这些方法
 				mc.doWith(method);
 			}
 			catch (IllegalAccessException ex) {

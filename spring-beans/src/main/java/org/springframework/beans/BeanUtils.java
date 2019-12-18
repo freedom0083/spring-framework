@@ -178,6 +178,7 @@ public abstract class BeanUtils {
 	 * @throws BeanInstantiationException if the bean cannot be instantiated
 	 * @see Constructor#newInstance
 	 */
+	// TODO 使用指定的构造器来实例化bean
 	public static <T> T instantiateClass(Constructor<T> ctor, Object... args) throws BeanInstantiationException {
 		Assert.notNull(ctor, "Constructor must not be null");
 		try {
@@ -230,6 +231,7 @@ public abstract class BeanUtils {
 	 */
 	@SuppressWarnings("unchecked")
 	@Nullable
+	// TODO 找出首选的构造器, 这里只是针对Kotlin有实现, 非Kotlin不支持找首选构造器, 返回的全是null
 	public static <T> Constructor<T> findPrimaryConstructor(Class<T> clazz) {
 		Assert.notNull(clazz, "Class must not be null");
 		if (KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(clazz)) {

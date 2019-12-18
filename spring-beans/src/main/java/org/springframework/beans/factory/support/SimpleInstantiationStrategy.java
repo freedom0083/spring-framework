@@ -61,10 +61,13 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner) {
 		// Don't override the class with CGLIB if no overrides.
 		if (!bd.hasMethodOverrides()) {
+			// TODO 要实例化的bean的所有方法都没有被重载过的情况下, 可以直接实例化
 			Constructor<?> constructorToUse;
 			synchronized (bd.constructorArgumentLock) {
+				// TODO 先从缓存中拿出解析好的, 用于实例化bean的构造器或工厂方法
 				constructorToUse = (Constructor<?>) bd.resolvedConstructorOrFactoryMethod;
 				if (constructorToUse == null) {
+					// TODO 没有确定的用于实例化bean的构造器或工厂方法时, 就用bean引用的Class对象的默认构造器来实例化bean
 					final Class<?> clazz = bd.getBeanClass();
 					if (clazz.isInterface()) {
 						throw new BeanInstantiationException(clazz, "Specified class is an interface");
@@ -77,6 +80,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 						else {
 							constructorToUse = clazz.getDeclaredConstructor();
 						}
+						// TODO 然后把默认的构造器做为解析过的构造器或工厂方法, 放到bean表示的mbd的缓存中
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
 					catch (Throwable ex) {
@@ -84,10 +88,12 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					}
 				}
 			}
+			// TODO 使用指定的构造器来实例化bean
 			return BeanUtils.instantiateClass(constructorToUse);
 		}
 		else {
 			// Must generate CGLIB subclass.
+			// TODO bean的方法被重载过了, 应该是由CGLIB增强过了, 所以创建一个CGLIB子类, 并对其进行实例化
 			return instantiateWithMethodInjection(bd, beanName, owner);
 		}
 	}

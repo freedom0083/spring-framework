@@ -489,12 +489,16 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 
 		@Override
 		@Nullable
+		// TODO 返回首选的构造器
 		public Constructor<?>[] getPreferredConstructors() {
+			// TODO 取得当前bean引用的Class对象
 			Class<?> clazz = getBeanClass();
+			// TODO 找一个首要的构造器, 这里只针对了Kotlin, 其他情况返回的会是null
 			Constructor<?> primaryCtor = BeanUtils.findPrimaryConstructor(clazz);
 			if (primaryCtor != null) {
 				return new Constructor<?>[] {primaryCtor};
 			}
+			// TODO 返回所有的public的构造器, 如果没有就返回null
 			Constructor<?>[] publicCtors = clazz.getConstructors();
 			if (publicCtors.length > 0) {
 				return publicCtors;
