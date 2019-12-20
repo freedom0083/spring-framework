@@ -339,7 +339,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							//  Kotlin情况下全都是null, 所以对于Java来说, 这是进不来的
 							continue;
 						}
-						// TODO 把构造器上可以进行自动装配的注入拿出来(@Autowire)
+						// TODO 把构造器上可以进行自动装配的注解拿出来(这里默认会拿出@Autowire, @Value, 或@Inject, 但其实只有@Autowire
+						//  和@Inject, 因为@Value无法加到构造器上)
 						MergedAnnotation<?> ann = findAutowiredAnnotation(candidate);
 						if (ann == null) {
 							// TODO 没拿到的话, 看一下bean引用的Class对象是否被CGLIB增强过, 如果是, 则拿出原始Class对象
@@ -357,36 +358,39 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							}
 						}
 						if (ann != null) {
-							// TODO 如果找到了可以自动装配的注解(@Autowire)
+							// TODO 如果在构造器上有@Autowire, 或@Inject注解, 开始进行自动装配
 							if (requiredConstructor != null) {
-								// TODO Spring只允许每个类有一个可以自动装配的构造器的'required'属性为ture. 如果已经存在了
-								//  'required = true'的构造器, 即: requiredConstructor已经有值时, 则会抛出BeanCreationException异常,
-								//  告诉你已经有了一个'required = true'的构造器, 并指出是哪个
+								// TODO Spring可以进行构造器注入. 但对于同一个类, 只允许一个构造器的上的注解的'required'属性为true
+								//  (@Autowire默认值为true. @Inject无法设置此属性值, 永远为true). 在检测到当前构造器时,
+								//  如果已经有了'required = true'的构造器(requiredConstructor已经有值), 则会抛出
+								//  BeanCreationException异常, 告诉你已经有了一个'required = true'的构造器, 并指出是哪个
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
-							// TODO 拿到自动装配的注解上的'required'属性, @Autowire默认的'required'值是true
+							// TODO 拿到注解上的'required'属性, @Autowire默认值为true. @Inject无法设置此属性值, 永远为true
 							boolean required = determineRequiredStatus(ann);
 							if (required) {
 								// TODO 如果'required'属性是true的话, 当找不到合适的bean进行注入时会报错; 并且每个类只能有一个构造
 								//  器的'required'属性为true, 否则也会报错
 								if (!candidates.isEmpty()) {
 									// TODO 如果当前构造器的'required = true', 并且还有其他构造器时, 即: candidates已经有值了,
-									//  则会抛出BeanCreationException异常, 告诉你已经有了一个'required = true'的构造器了
+									//  则会抛出BeanCreationException异常, 告诉你因为当前构造器是'required = true', 所以之前
+									//  那此候选构造器都是无效的
 									throw new BeanCreationException(beanName,
 											"Invalid autowire-marked constructors: " + candidates +
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
-								// TODO 如果当前方法上用于自动装配的注解带有'requred'时, 就将其做为必须实现的构造器. 对于没有标注
-								//  'required'的方法, 在没有bean可以装配时会自动跳过
+								// TODO 将'required = true'的构造器做为必需要注入的构造器
 								requiredConstructor = candidate;
 							}
+							// TODO 这里会把所有的满足条件的构造器都放到候选集合里, 并不只局限于'required = true'的构造器
 							candidates.add(candidate);
 						}
 						else if (candidate.getParameterCount() == 0) {
+							// TODO 对于没有注解, 且没参数的构造器, 会被做为默认构造器
 							defaultConstructor = candidate;
 						}
 					}
@@ -394,30 +398,40 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						// Add default constructor to list of optional constructors, as fallback.
 						if (requiredConstructor == null) {
 							if (defaultConstructor != null) {
+								// TODO 在没有明确的必需要注入的构造器时, 将默认构造器也加入到候选集合中
 								candidates.add(defaultConstructor);
 							}
 							else if (candidates.size() == 1 && logger.isInfoEnabled()) {
+								// TODO 如果只有一个非默认构造器时, 会通知这个唯一的构造器被标记为'required', 因为没有可以用来回
+								//  退的默认构造器
 								logger.info("Inconsistent constructor declaration on bean with name '" + beanName +
 										"': single autowire-marked constructor flagged as optional - " +
 										"this constructor is effectively required since there is no " +
 										"default constructor to fall back to: " + candidates.get(0));
 							}
 						}
+						// TODO 转化成构造器数组
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
+						// TODO 对于原生的唯一一个多参数构造器来说, 将其包装成Constructor数组
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}
 					else if (nonSyntheticConstructors == 2 && primaryConstructor != null &&
 							defaultConstructor != null && !primaryConstructor.equals(defaultConstructor)) {
+						// TODO 如果有2个不是由Java编译器引入的构造器, 且首选构造器与默认构造器不同时, 将这两个构造器包装成Constructor
+						//  数组. 如果不用Kotlin, 这里是进不来的. 原因前面说了, primaryConstructor只有在Kotlin时才可能不为null
 						candidateConstructors = new Constructor<?>[] {primaryConstructor, defaultConstructor};
 					}
 					else if (nonSyntheticConstructors == 1 && primaryConstructor != null) {
+						// TODO 如果只有1构造器不是由Java编译器引入, 且首选构造器有值时, 将这两个构造器包装成Constructor数组.
+						//  如果不用Kotlin, 这里是进不来的. 原因前面说了, primaryConstructor只有在Kotlin时才可能不为null
 						candidateConstructors = new Constructor<?>[] {primaryConstructor};
 					}
 					else {
 						candidateConstructors = new Constructor<?>[0];
 					}
+					// TODO 缓存构造器
 					this.candidateConstructorsCache.put(beanClass, candidateConstructors);
 				}
 			}
@@ -594,6 +608,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 * @return whether the annotation indicates that a dependency is required
 	 */
 	@SuppressWarnings({"deprecation", "cast"})
+	// TODO 判断注解是否包含'required'属性. 默认会判断@Autowire, @Inject这两个注解. 对于@Autowire来说, 需要'required'
+	//  属性明确设置为true. 对于@Inject注解, 则直接返回true
 	protected boolean determineRequiredStatus(MergedAnnotation<?> ann) {
 		// The following (AnnotationAttributes) cast is required on JDK 9+.
 		return determineRequiredStatus((AnnotationAttributes)
@@ -610,7 +626,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 * @deprecated since 5.2, in favor of {@link #determineRequiredStatus(MergedAnnotation)}
 	 */
 	@Deprecated
+	// TODO 判断注解是否包含'required'属性. 默认会判断@Autowire, @Inject这两个注解. 对于@Autowire来说, 需要'required'
+	//  属性明确设置为true. 对于@Inject注解, 则直接返回true
 	protected boolean determineRequiredStatus(AnnotationAttributes ann) {
+		// TODO 这里默认会判断@Autowire, @Inject这两个注解. 对于@Autowire来说, 需要'required'属性明确设置为true. 对于@Inject注解, 则直接返回true
 		return (!ann.containsKey(this.requiredParameterName) ||
 				this.requiredParameterValue == ann.getBoolean(this.requiredParameterName));
 	}

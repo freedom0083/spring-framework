@@ -1529,6 +1529,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostProcessor#determineCandidateConstructors
 	 */
 	@Nullable
+	// TODO 用SmartInstantiationAwareBeanPostProcessor后处理器来确定要实例化bean时所需要的构造器
 	protected Constructor<?>[] determineConstructorsFromBeanPostProcessors(@Nullable Class<?> beanClass, String beanName)
 			throws BeansException {
 
@@ -1542,9 +1543,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了默认方法, 直接返回null;
 					//  2. AbstractAutoProxyCreator抽象类: 直接返回null. 实际上Java 8后可以移除此方法了;
 					//  3. InstantiationAwareBeanPostProcessorAdapter抽象类: 同上;
-					//  4. AutowiredAnnotationBeanPostProcessor类: InstantiationAwareBeanPostProcessorAdapter的实现类,
+					//  4. AutowiredAnnotationBeanPostProcessor类: InstantiationAwareBeanPostProcessorAdapter的实现类, 用来
+					//     确定要实例化的bean有哪些满足要求的构造器. 这里会处理@Lookup注解. 还会处理@Autowire, @Inject这些用来
+					//     自动注入的注解. 这2个注解的'required'属性默认都为true, 只是@Inject没有设置此属性的地方. Spring只允许
+					//     一个类中有一个构造器的'required'属性为true(@Autowire需要明确设置'required = false'), 否则会抛出异常.
 					Constructor<?>[] ctors = ibp.determineCandidateConstructors(beanClass, beanName);
 					if (ctors != null) {
+						// TODO 这也是个断路操作, 只要有一个后处理器找到了候选构造器, 直接返回
 						return ctors;
 					}
 				}
