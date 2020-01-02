@@ -717,7 +717,7 @@ class ConstructorResolver {
 							}
 							// TODO 用工厂方法的参数名, 参数类型来创建参数
 							argsHolder = createArgumentArray(beanName, mbd, resolvedValues, bw,
-									paramTypes, paramNames, candidate, autowiring, candidates.length == 1);
+									paramTypes, paramNames, candidate, autowiring, candidates.size() == 1);
 						}
 						catch (UnsatisfiedDependencyException ex) {
 							// TODO 忽略无法创建的依赖
