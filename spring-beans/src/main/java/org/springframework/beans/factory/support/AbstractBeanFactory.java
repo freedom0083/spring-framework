@@ -1560,7 +1560,6 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				//  1. RootBeanDefinition: 当前的bd为没有双亲的顶层bd
 				//  2. ChildBeanDefinition: 当前的bd有双亲的子bd
 				previous = mbd;
-				mbd = null;
 				if (bd.getParentName() == null) {
 					// Use copy of given root bean definition.
 					// TODO 顶层bd是没有双亲的, 因为合并动作会直接递归到最顶层的bd, 所以这里也会做为合并退出的地方.
@@ -1616,7 +1615,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// Set default singleton scope, if not configured before.
 				if (!StringUtils.hasLength(mbd.getScope())) {
 					// TODO scope没设置时, 自动设置默认值为单例
-					mbd.setScope(RootBeanDefinition.SCOPE_SINGLETON);
+					mbd.setScope(SCOPE_SINGLETON);
 				}
 
 				// A bean contained in a non-singleton bean cannot be a singleton itself.

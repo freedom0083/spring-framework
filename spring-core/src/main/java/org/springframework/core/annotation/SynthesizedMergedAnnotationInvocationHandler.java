@@ -61,9 +61,6 @@ final class SynthesizedMergedAnnotationInvocationHandler<A extends Annotation> i
 		this.annotation = annotation;
 		this.type = type;
 		this.attributes = AttributeMethods.forAnnotationType(type);
-		for (int i = 0; i < this.attributes.size(); i++) {
-			getAttributeValue(this.attributes.get(i));
-		}
 	}
 
 
@@ -137,8 +134,8 @@ final class SynthesizedMergedAnnotationInvocationHandler<A extends Annotation> i
 	}
 
 	private int getValueHashCode(Object value) {
-		// Use Arrays.hashCode since ObjectUtils doesn't comply to to
-		// Annotation#hashCode()
+		// Use Arrays.hashCode(...) since Spring's ObjectUtils doesn't comply
+		// with the requirements specified in Annotation#hashCode().
 		if (value instanceof boolean[]) {
 			return Arrays.hashCode((boolean[]) value);
 		}

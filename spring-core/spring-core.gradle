@@ -1,7 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-	id "com.github.johnrengelman.shadow" version "5.1.0"
+	id "com.github.johnrengelman.shadow" version "5.2.0"
 }
 
 description = "Spring Core"
@@ -53,7 +53,7 @@ dependencies {
 	optional("io.reactivex.rxjava2:rxjava")
 	optional("io.netty:netty-buffer")
 	testCompile("io.projectreactor:reactor-test")
-	testCompile("org.apache.tomcat.embed:tomcat-embed-core")
+	testCompile("javax.annotation:javax.annotation-api")
 	testCompile("com.google.code.findbugs:jsr305")
 	testCompile("org.xmlunit:xmlunit-assertj")
 	testCompile("org.xmlunit:xmlunit-matchers")

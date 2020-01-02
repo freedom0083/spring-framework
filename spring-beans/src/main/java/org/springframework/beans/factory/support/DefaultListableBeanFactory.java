@@ -499,11 +499,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		Class<?> resolved = type.resolve();
 		if (resolved != null && !type.hasGenerics()) {
 			// TODO 要取得的不是泛型时, 通过getBeanNamesForType()方法取
-			return getBeanNamesForType(resolved, includeNonSingletons, includeNonSingletons);
+			return getBeanNamesForType(resolved, includeNonSingletons, allowEagerInit);
 		}
 		else {
 			// TODO 其他情况直接调用doGetBeanNamesForType()方法取
-			return doGetBeanNamesForType(type, includeNonSingletons, includeNonSingletons);
+			return doGetBeanNamesForType(type, includeNonSingletons, allowEagerInit);
 		}
 	}
 

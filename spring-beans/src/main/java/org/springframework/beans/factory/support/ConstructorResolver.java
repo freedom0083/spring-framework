@@ -223,27 +223,29 @@ class ConstructorResolver {
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
 			for (Constructor<?> candidate : candidates) {
-				// TODO 遍历所有的构造器, 先拿出每个方法参数的类型数组
-				Class<?>[] paramTypes = candidate.getParameterTypes();
+				// TODO 遍历所有的构造器, 拿出每个构造器的参数数量
+				int parameterCount = candidate.getParameterCount();
 
-				if (constructorToUse != null && argsToUse != null && argsToUse.length > paramTypes.length) {
+				if (constructorToUse != null && argsToUse != null && argsToUse.length > parameterCount) {
 					// Already found greedy constructor that can be satisfied ->
 					// do not look any further, there are only less greedy constructors left.
 					// TODO 只要找到了匹配的构造器, 直接退出匹配过程
 					break;
 				}
-				if (paramTypes.length < minNrOfArgs) {
+				if (parameterCount < minNrOfArgs) {
 					// TODO 把指定的参数数量少的构造器也不需要
 					continue;
 				}
 
 				ArgumentsHolder argsHolder;
+				// TODO 取得构造器的类型数组
+				Class<?>[] paramTypes = candidate.getParameterTypes();
 				if (resolvedValues != null) {
 					try {
 						// TODO 只有在没有指定实例化bean所需要的参数时才会进行参数解析, resolvedValues才会有值. 这时, 首选要
 						//  评估一下候选构造器@ConstructorProperties注解的value内容. 如果没有, 返回的是null. 数量少于要求的
 						//  参数数量时, 会抛出IllegalStateException异常
-						String[] paramNames = ConstructorPropertiesChecker.evaluate(candidate, paramTypes.length);
+						String[] paramNames = ConstructorPropertiesChecker.evaluate(candidate, parameterCount);
 						if (paramNames == null) {
 							// TODO 没有@ConstructorProperties注解时, 就要用参数名发现器来解析参数名了
 							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
@@ -271,7 +273,7 @@ class ConstructorResolver {
 				else {
 					// Explicit arguments given -> arguments length must match exactly.
 					// TODO 对于指定了实例化bean时需要的参数的情况
-					if (paramTypes.length != explicitArgs.length) {
+					if (parameterCount != explicitArgs.length) {
 						// TODO 跳过参数数量与指定的参数数量不匹配的构造器
 						continue;
 					}
@@ -404,8 +406,8 @@ class ConstructorResolver {
 					// TODO 如果还没有唯一候选方法, 则将其设置为唯一候选方法
 					uniqueCandidate = candidate;
 				}
-				else if (!Arrays.equals(uniqueCandidate.getParameterTypes(), candidate.getParameterTypes())) {
-					// TODO 如果有的话, 根据参数数量来确定是否命中, 只要参数列表长度不同, 则表示末命中, 清空内省方法并退出循环
+				else if (isParamMismatch(uniqueCandidate, candidate)) {
+					// TODO 当内省方法与候选方法参数数量, 或者类型不相同时, 表示末命中, 清空内省方法并退出循环
 					uniqueCandidate = null;
 					break;
 				}
@@ -413,6 +415,15 @@ class ConstructorResolver {
 		}
 		// TODO 设置mbd的内省的工厂方法
 		mbd.factoryMethodToIntrospect = uniqueCandidate;
+	}
+
+	// TODO 判断参数是否不匹配
+	private boolean isParamMismatch(Method uniqueCandidate, Method candidate) {
+		int uniqueCandidateParameterCount = uniqueCandidate.getParameterCount();
+		int candidateParameterCount = candidate.getParameterCount();
+		// TODO 判断的标准是内省方法与候选方法参数数量是否不相同, 或者参数列表是否不相同
+		return (uniqueCandidateParameterCount != candidateParameterCount ||
+				!Arrays.equals(uniqueCandidate.getParameterTypes(), candidate.getParameterTypes()));
 	}
 
 	/**
@@ -596,7 +607,7 @@ class ConstructorResolver {
 			//  如果是, 返回的会是其超类(由CGLIB所代理的原始类)
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
-			List<Method> candidateList = null;
+			List<Method> candidates = null;
 			// TODO isFactoryMethodUnique属性默认为false. 在通过配置类进行配置时, @Bean可以标注同名方法. 当同名方法在相同配置类
 			//  中时, 会通过ConfigurationClassBeanDefinitionReader#isOverriddenByExistingDefinition()方法进行方法重载.
 			//  这时isFactoryMethodUnique就会被设置为true.
@@ -609,24 +620,24 @@ class ConstructorResolver {
 				}
 				if (factoryMethodToUse != null) {
 					// TODO 如果解析到了工厂方法, 将其包装为只包含一个元素的List做为要检查的候选集合
-					candidateList = Collections.singletonList(factoryMethodToUse);
+					candidates = Collections.singletonList(factoryMethodToUse);
 				}
 			}
-			if (candidateList == null) {
-				candidateList = new ArrayList<>();
+			if (candidates == null) {
+				candidates = new ArrayList<>();
 				// TODO 没有任何候选的工厂方法时, 就要自己找了. 先取得工厂类中所有的方法
 				Method[] rawCandidates = getCandidateMethods(factoryClass, mbd);
 				for (Method candidate : rawCandidates) {
 					if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
 						// TODO 把其中的静态工厂方法加入到要检查的候选集合中
-						candidateList.add(candidate);
+						candidates.add(candidate);
 					}
 				}
 			}
 
-			if (candidateList.size() == 1 && explicitArgs == null && !mbd.hasConstructorArgumentValues()) {
+			if (candidates.size() == 1 && explicitArgs == null && !mbd.hasConstructorArgumentValues()) {
 				// TODO 候选集合只有唯一的工厂方法, 且正在创建的bean的构造函数没有参数, 且在getBean()并没有传入参数为取得的为bean赋值过时
-				Method uniqueCandidate = candidateList.get(0);
+				Method uniqueCandidate = candidates.get(0);
 				if (uniqueCandidate.getParameterCount() == 0) {
 					// TODO 无参工厂方法会被做为自省方法, 然后在加锁的情况下, 设置mbd的缓存
 					mbd.factoryMethodToIntrospect = uniqueCandidate;
@@ -640,9 +651,11 @@ class ConstructorResolver {
 					return bw;
 				}
 			}
-			Method[] candidates = candidateList.toArray(new Method[0]);
-			// TODO 当有多个工厂方法时, 对工厂方法按照参数数量进行排序
-			AutowireUtils.sortFactoryMethods(candidates);
+
+			if (candidates.size() > 1) {  // explicitly skip immutable singletonList
+				// TODO 当有多个工厂方法时, 对工厂方法按照参数数量进行排序
+				candidates.sort(AutowireUtils.EXECUTABLE_COMPARATOR);
+			}
 
 			ConstructorArgumentValues resolvedValues = null;
 			// TODO 看mbd是否支持自动装配, 对于构造函数来说, mbd的自动装配模式为AUTOWIRE_AUTODETECT, 且没有无参构造函数时才允许自动装配
@@ -674,14 +687,15 @@ class ConstructorResolver {
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
 			for (Method candidate : candidates) {
-				// TODO 遍历所有工厂方法, 进行匹配. 先拿出每个方法参数的类型数组
-				Class<?>[] paramTypes = candidate.getParameterTypes();
 
-				if (paramTypes.length >= minNrOfArgs) {
+				int parameterCount = candidate.getParameterCount();
+				if (parameterCount >= minNrOfArgs) {
 					// TODO 要找最接近的方法, 参数数量比工厂方法少的肯定不是, 所以这里只看参数数量 >= 工厂方法参数数量的方法
 					//  这个是用于保存参数的holder
 					ArgumentsHolder argsHolder;
 
+					// TODO 拿出每个方法参数的类型数组
+					Class<?>[] paramTypes = candidate.getParameterTypes();
 					if (explicitArgs != null) {
 						// Explicit arguments given -> arguments length must match exactly.
 						if (paramTypes.length != explicitArgs.length) {

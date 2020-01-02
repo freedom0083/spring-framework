@@ -240,10 +240,11 @@ public class AnnotatedBeanDefinitionReader {
 	 * class-declared annotations.
 	 * @param beanClass the class of the bean
 	 * @param name an explicit name for the bean
-	 * @param supplier a callback for creating an instance of the bean
-	 * (may be {@code null})
 	 * @param qualifiers specific qualifier annotations to consider, if any,
 	 * in addition to qualifiers at the bean class level 用于处理@Qualifier的情况, 这个参数好像没用过
+	 * in addition to qualifiers at the bean class level
+	 * @param supplier a callback for creating an instance of the bean
+	 * (may be {@code null})
 	 * @param customizers one or more callbacks for customizing the factory's
 	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
 	 * @since 5.0
