@@ -130,6 +130,7 @@ public abstract class AutoProxyUtils {
 				beanClass.getName().length() + AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX.length()) {
 			return false;
 		}
+		// TODO 如果bean是以'.ORIGINAL'结尾, 则表示其为一个原始bean实例, 这时会返回true. 其他情况全返回false
 		return (beanName.startsWith(beanClass.getName()) &&
 				beanName.endsWith(AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX));
 	}

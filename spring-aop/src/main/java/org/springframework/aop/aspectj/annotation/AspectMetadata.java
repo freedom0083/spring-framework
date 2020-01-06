@@ -70,6 +70,8 @@ public class AspectMetadata implements Serializable {
 	 * aspect. Will be the Pointcut.TRUE canonical instance in the
 	 * case of a singleton, otherwise an AspectJExpressionPointcut.
 	 */
+	// TODO 解析切入点表达式用的, 但是真正的解析工作为委托给'org.aspectj.weaver.tools.PointcutExpression'来解析的
+	//  若是单例: 则是Pointcut.TRUE, 否则为AspectJExpressionPointcut
 	private final Pointcut perClausePointcut;
 
 
@@ -84,24 +86,31 @@ public class AspectMetadata implements Serializable {
 		Class<?> currClass = aspectClass;
 		AjType<?> ajType = null;
 		while (currClass != Object.class) {
+			// TODO 把类包装成一个AspectJ特有的AjType
 			AjType<?> ajTypeToCheck = AjTypeSystem.getAjType(currClass);
 			if (ajTypeToCheck.isAspect()) {
+				// TODO 判断一下要处理的类是否被@Aspect注解过. 如果是, 得到类型后直接跳出
 				ajType = ajTypeToCheck;
 				break;
 			}
+			// TODO 如果不是, 深入其父类进行查找
 			currClass = currClass.getSuperclass();
 		}
 		if (ajType == null) {
+			// TODO 经过上面步骤后没有找到带@Aspect注解的类, 抛出异常
 			throw new IllegalArgumentException("Class '" + aspectClass.getName() + "' is not an @AspectJ aspect");
 		}
 		if (ajType.getDeclarePrecedence().length > 0) {
+			// TODO Spring AOP不支持优先声明, 所以要抛出异常
 			throw new IllegalArgumentException("DeclarePrecedence not presently supported in Spring AOP");
 		}
+		// TODO 这里把元数据的aspectClass属性设置成被@Aspect注解的类的Class
 		this.aspectClass = ajType.getJavaClass();
 		this.ajType = ajType;
-
+		// TODO 下面就是对切面的实例类型进行处理了
 		switch (this.ajType.getPerClause().getKind()) {
 			case SINGLETON:
+				// TODO SINGLETON表示切面只有一个实例, 所以其切点表达式perClausePointcut设置为TruePointcut.INSTANCE
 				this.perClausePointcut = Pointcut.TRUE;
 				return;
 			case PERTARGET:

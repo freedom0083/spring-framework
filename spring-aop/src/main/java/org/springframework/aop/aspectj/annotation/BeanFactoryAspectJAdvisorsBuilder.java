@@ -81,18 +81,22 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	 * @see #isEligibleBean
 	 */
 	public List<Advisor> buildAspectJAdvisors() {
+		// TODO 先从容器中拿所有被@Aspect注解的Bean
 		List<String> aspectNames = this.aspectBeanNames;
-
+		// TODO 如果没有, 需要在同步的情况下重新取得一下
 		if (aspectNames == null) {
 			synchronized (this) {
 				aspectNames = this.aspectBeanNames;
 				if (aspectNames == null) {
 					List<Advisor> advisors = new ArrayList<>();
 					aspectNames = new ArrayList<>();
+					// TODO 取容器中所有的Object类型的Bean, 包括非单例, 但不支持急加载
 					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 							this.beanFactory, Object.class, true, false);
 					for (String beanName : beanNames) {
+						// TODO 遍历容器中所有的Object
 						if (!isEligibleBean(beanName)) {
+							// TODO 跳过所有不符合AspectJ命名规范的bean
 							continue;
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
@@ -102,29 +106,38 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 							continue;
 						}
 						if (this.advisorFactory.isAspect(beanType)) {
+							// TODO 只处理被@Aspect注解过, 但没有被AspectJ编译过的bean
 							aspectNames.add(beanName);
+							// TODO 创建元数据实例
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+								// TODO 对于SINGLETON类型来说, 会创建一个MetadataAwareAspectInstanceFactory
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
 								if (this.beanFactory.isSingleton(beanName)) {
+									// TODO 单例bean放到advisorsCache缓存
 									this.advisorsCache.put(beanName, classAdvisors);
 								}
 								else {
+									// TODO 非单例bean则把上面的工厂与bean组合放到aspectFactoryCache缓存中
 									this.aspectFactoryCache.put(beanName, factory);
 								}
+								// TODO 然后把这些Advisor全部放到候选结果集中
 								advisors.addAll(classAdvisors);
 							}
 							else {
 								// Per target or per this.
 								if (this.beanFactory.isSingleton(beanName)) {
+									// TODO 如果@Aspect中没有用SINGLETON, 但这个Advisor是单例时, 会抛出异常
 									throw new IllegalArgumentException("Bean with name '" + beanName +
 											"' is a singleton, but aspect instantiation model is not singleton");
 								}
 								MetadataAwareAspectInstanceFactory factory =
 										new PrototypeAspectInstanceFactory(this.beanFactory, beanName);
+								// TODO 对于非单例bean, 直接创建MetadataAwareAspectInstanceFactory放到aspectFactoryCache缓存中
 								this.aspectFactoryCache.put(beanName, factory);
+								// TODO 然后再把工厂中的Advisor放到结果集中
 								advisors.addAll(this.advisorFactory.getAdvisors(factory));
 							}
 						}
@@ -134,14 +147,17 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 				}
 			}
 		}
-
+		// TODO 下面就是缓存中有的情况了
 		if (aspectNames.isEmpty()) {
+			// TODO 这个判断需要么??
 			return Collections.emptyList();
 		}
 		List<Advisor> advisors = new ArrayList<>();
 		for (String aspectName : aspectNames) {
+			// TODO 从单例缓存中拿出所有
 			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
 			if (cachedAdvisors != null) {
+				// TODO
 				advisors.addAll(cachedAdvisors);
 			}
 			else {

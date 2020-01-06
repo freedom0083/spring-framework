@@ -47,6 +47,7 @@ import org.springframework.util.ClassUtils;
  * @since 2.5
  * @see org.springframework.beans.factory.annotation.Qualifier
  */
+// TODO 用于注册自定义的自动装配的Qualifier类型的后处理器
 public class CustomAutowireConfigurer implements BeanFactoryPostProcessor, BeanClassLoaderAware, Ordered {
 
 	private int order = Ordered.LOWEST_PRECEDENCE;  // default: same as non-Ordered
@@ -118,6 +119,7 @@ public class CustomAutowireConfigurer implements BeanFactoryPostProcessor, BeanC
 					throw new IllegalArgumentException(
 							"Qualifier type [" + customType.getName() + "] needs to be annotation type");
 				}
+				// TODO 解析得到的自动定义的Qualifier类型
 				resolver.addQualifierType(customType);
 			}
 		}

@@ -198,6 +198,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	private boolean enforceDestroyMethod = true;
 
+	// TODO 用于标识BeanDefinition是否由程序所创建
+	//  1. true: 不是由程序创建的. 对于这种bean是不需要用后处理器进行处理
+	//  2. false: 由程序创建的. 对于这种bean, 需要用后处理器进行处理
 	private boolean synthetic = false;
 
 	private int role = BeanDefinition.ROLE_APPLICATION;
@@ -1009,6 +1012,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * Return whether this bean definition is 'synthetic', that is,
 	 * not defined by the application itself.
 	 */
+	// TODO 当前bean是否为程序所创建
+	//  1. true: 不是由程序创建的. 对于这种bean是不需要用后处理器进行处理
+	//  2. false: 由程序创建的. 对于这种bean, 需要用后处理器进行处理
 	public boolean isSynthetic() {
 		return this.synthetic;
 	}

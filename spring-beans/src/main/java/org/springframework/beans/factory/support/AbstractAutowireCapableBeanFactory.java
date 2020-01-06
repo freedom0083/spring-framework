@@ -626,6 +626,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Initialize the bean instance.
+		// TODO 到这为止, bean的实例化已经完成, 下面开始准备对实例化的bean进行初始化
 		Object exposedObject = bean;
 		try {
 			// TODO 开始给bean填充属性
@@ -1091,10 +1092,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
 		Object exposedObject = bean;
+		// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现
+		//  InstantiationAwareBeanPostProcessor接口的主要作用是在目标实例化前后, 以及实例的属性进行处理
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+			// TODO 当这个mbd是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
+			//  类型后处理器时,
+			//  尝试从mbd中拿到bean的类型
+			// TODO 对于由当前容器所创建的bean, 且注册过并且容器注册过InstantiationAwareBeanPostProcessor类型的初始
+			//  化后处理器时, 开始类型预测.
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+					// TODO 有三个地方实现了SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference(Object, String)方法:
+					//  1. SmartInstantiationAwareBeanPostProcessor: 接口提供了一个默认实现方法, 直接返回当前bean做为要暴露的bean
+					//  2. InstantiationAwareBeanPostProcessorAdapter: 抽象类, 实现与接口默认方法相同, Java 8后可以去掉了
+					//  3. AbstractAutoProxyCreator: 抽象类
 					exposedObject = ibp.getEarlyBeanReference(exposedObject, beanName);
 				}
 			}

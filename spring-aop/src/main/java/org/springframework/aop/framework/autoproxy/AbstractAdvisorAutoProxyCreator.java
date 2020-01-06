@@ -72,7 +72,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
-
+		// TODO
 		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
 		if (advisors.isEmpty()) {
 			return DO_NOT_PROXY;
@@ -91,6 +91,9 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		// TODO
+		//  1. AbstractAdvisorAutoProxyCreator: 抽象类, 从缓存里直接取得所有用于自动代理的候选Advisor
+		//  2. AnnotationAwareAspectJAutoProxyCreator: 子类, 用于处理容器中的AspectJ注解
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
 		extendAdvisors(eligibleAdvisors);
@@ -104,8 +107,10 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * Find all candidate Advisors to use in auto-proxying.
 	 * @return the List of candidate Advisors
 	 */
+	// TODO 取得所有用于自动代理的候选Advisor
 	protected List<Advisor> findCandidateAdvisors() {
 		Assert.state(this.advisorRetrievalHelper != null, "No BeanFactoryAdvisorRetrievalHelper available");
+		// TODO 委托BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans()来取得容器中所有可以使用的Advisor
 		return this.advisorRetrievalHelper.findAdvisorBeans();
 	}
 
@@ -187,6 +192,11 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 
 		@Override
 		protected boolean isEligibleBean(String beanName) {
+			// TODO 委托给自己的isEligibleAdvisorBean()方法:
+			//   1. AbstractAdvisorAutoProxyCreator: 抽象类, 同样默认所有的Advisor全是合格的;
+			//   2. InfrastructureAdvisorAutoProxyCreator: AbstractAdvisorAutoProxyCreator的子类, 判断Advisor在当前容器
+			//      中的role是否为2(ROLE_INFRASTRUCTURE)
+			//   3. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor设置的前缀相同时, 表示合格
 			return AbstractAdvisorAutoProxyCreator.this.isEligibleAdvisorBean(beanName);
 		}
 	}

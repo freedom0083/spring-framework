@@ -298,6 +298,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	public void setAutowireCandidateResolver(final AutowireCandidateResolver autowireCandidateResolver) {
 		Assert.notNull(autowireCandidateResolver, "AutowireCandidateResolver must not be null");
 		if (autowireCandidateResolver instanceof BeanFactoryAware) {
+			// TODO 支持容器感知时, 通过setBeanFactory()方法为Resolver设置容器环境的同时会创建用于操作Advisor的
+			//  BeanFactoryAspectJAdvisorsBuilderAdapter, 主要提供AspectJ的支持
 			if (System.getSecurityManager() != null) {
 				AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
 					((BeanFactoryAware) autowireCandidateResolver).setBeanFactory(DefaultListableBeanFactory.this);

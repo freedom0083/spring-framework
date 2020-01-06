@@ -78,6 +78,12 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	@Override
 	protected void initBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		super.initBeanFactory(beanFactory);
+		// TODO 容器可以设置用于自动装配的Resolver, DefaultListableBeanFactory#setAutowireCandidateResolver()方法会为支持容器
+		//  感知的后处理器通过setBeanFactory()方法设置容器环境. 最终会走到这里, 创建用于支持AOP的ReflectiveAspectJAdvisorFactory以及
+		//  BeanFactoryAspectJAdvisorsBuilderAdapter, 提供对AspectJ的支持.
+		//  1. 注解配置时, 容器启动时会在容器没有提供ContextAnnotationAutowireCandidateResolver类型的Resolver时为容器创建一个默认的
+		//     ContextAnnotationAutowireCandidateResolver, 这时就会走上面说的流程
+		//  2. CustomAutowireConfigurer后处理器初始化时也会进行同样的操作
 		if (this.aspectJAdvisorFactory == null) {
 			this.aspectJAdvisorFactory = new ReflectiveAspectJAdvisorFactory(beanFactory);
 		}
@@ -89,9 +95,11 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	@Override
 	protected List<Advisor> findCandidateAdvisors() {
 		// Add all the Spring advisors found according to superclass rules.
+		// TODO 先拿出容器内所有可用的Advisor
 		List<Advisor> advisors = super.findCandidateAdvisors();
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		if (this.aspectJAdvisorsBuilder != null) {
+			// TODO 如果有支持容器感知的后处理器(BeanFactoryAware), 再创建用于AspectJ的Advisor加入到结果集中
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;

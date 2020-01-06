@@ -130,9 +130,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	@Nullable
 	private BeanFactory beanFactory;
-
+	// TODO 代理目标bean缓存
 	private final Set<String> targetSourcedBeans = Collections.newSetFromMap(new ConcurrentHashMap<>(16));
-
+	// TODO 提前暴露的代理bean缓存
 	private final Map<Object, Object> earlyProxyReferences = new ConcurrentHashMap<>(16);
 
 	private final Map<Object, Class<?>> proxyTypes = new ConcurrentHashMap<>(16);
@@ -236,6 +236,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Override
 	public Object getEarlyBeanReference(Object bean, String beanName) {
 		Object cacheKey = getCacheKey(bean.getClass(), beanName);
+		// TODO 放到提前暴露bean的代理缓存中
 		this.earlyProxyReferences.put(cacheKey, bean);
 		return wrapIfNecessary(bean, beanName, cacheKey);
 	}
@@ -316,6 +317,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 */
 	protected Object getCacheKey(Class<?> beanClass, @Nullable String beanName) {
 		if (StringUtils.hasLength(beanName)) {
+			// TODO 提供了名字时, 如果当前的bean是个工厂类, 则为其加上'&'前缀
 			return (FactoryBean.class.isAssignableFrom(beanClass) ?
 					BeanFactory.FACTORY_BEAN_PREFIX + beanName : beanName);
 		}
@@ -333,17 +335,22 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 */
 	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
+			// TODO 如果缓存里有, 直接返回
 			return bean;
 		}
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
+			// TODO 如果当前bean没被代理过, 直接返回
 			return bean;
 		}
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
+			// TODO 所有的基础设施类(Advice, Pointcut, Advisor, AopInfrastructureBean), 或者当前bean为'.ORIGINAL'结尾的原始bean
+			//  时, 是不需要进行代理的, 也直接返回
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;
 		}
 
 		// Create proxy if we have advice.
+		// TODO 下面这些就是可能需要进行代理的bean了
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
@@ -352,7 +359,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			this.proxyTypes.put(cacheKey, proxy.getClass());
 			return proxy;
 		}
-
+		// TODO 需要代理的bean上面已经全都返回了, 省下的就是不需要的了
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
 		return bean;
 	}
@@ -369,6 +376,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @see org.springframework.aop.framework.AopInfrastructureBean
 	 * @see #shouldSkip
 	 */
+	// TODO Advice, Pointcut, Advisor, AopInfrastructureBean都是AOP要用的基础设施类, 不需要进行代理
 	protected boolean isInfrastructureClass(Class<?> beanClass) {
 		boolean retVal = Advice.class.isAssignableFrom(beanClass) ||
 				Pointcut.class.isAssignableFrom(beanClass) ||
@@ -392,7 +400,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @return whether to skip the given bean
 	 * @see org.springframework.beans.factory.config.AutowireCapableBeanFactory#ORIGINAL_INSTANCE_SUFFIX
 	 */
+	// TODO 标识出要跳过的bean. 如果后处理器不需要对bean进行自动代理操作, 则直接返回true即可.
 	protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+		// TODO 跳过所有原始bean实例
 		return AutoProxyUtils.isOriginalInstance(beanName, beanClass);
 	}
 

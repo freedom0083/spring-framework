@@ -66,28 +66,42 @@ public class BeanFactoryAdvisorRetrievalHelper {
 	 */
 	public List<Advisor> findAdvisorBeans() {
 		// Determine list of advisor bean names, if not cached already.
+		// TODO 先从缓存中拿出所有的Advisor
 		String[] advisorNames = this.cachedAdvisorBeanNames;
 		if (advisorNames == null) {
 			// Do not initialize FactoryBeans here: We need to leave all regular beans
 			// uninitialized to let the auto-proxy creator apply to them!
+			// TODO 缓存没有时, 就需要重新加载当前容器中所有的Advisor, 这里会得到非单例Advisor, 同时不支持急加载
 			advisorNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 					this.beanFactory, Advisor.class, true, false);
+			// TODO 将结果设置到缓存中
 			this.cachedAdvisorBeanNames = advisorNames;
 		}
 		if (advisorNames.length == 0) {
+			// TODO 没有找到任何Advisor时, 返回一个空的List
 			return new ArrayList<>();
 		}
 
 		List<Advisor> advisors = new ArrayList<>();
 		for (String name : advisorNames) {
+			// TODO 遍历所有的Advisor, 只处理合格的Advisor. isEligibleBean()方法有以下实现:
+			//  1. BeanFactoryAdvisorRetrievalHelper: 默认所有的Advisor全是合格的;
+			//  2. AbstractAdvisorAutoProxyCreator$BeanFactoryAdvisorRetrievalHelperAdapter: BeanFactoryAdvisorRetrievalHelper
+			//     的子类, 将具体操作代理给AbstractAdvisorAutoProxyCreator#isEligibleAdvisorBean():
+			//     A. AbstractAdvisorAutoProxyCreator: 抽象类, 同样默认所有的Advisor全是合格的;
+			//     B. InfrastructureAdvisorAutoProxyCreator: AbstractAdvisorAutoProxyCreator的子类, 判断Advisor在当前容器
+			//        中的role是否为2(ROLE_INFRASTRUCTURE)
+			//     C. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor设置的前缀相同时, 表示合格
 			if (isEligibleBean(name)) {
 				if (this.beanFactory.isCurrentlyInCreation(name)) {
 					if (logger.isTraceEnabled()) {
+						// TODO 当前Advisor正在创建时, 在允许追踪的前提下(debug), 会记个日志
 						logger.trace("Skipping currently created advisor '" + name + "'");
 					}
 				}
 				else {
 					try {
+						// TODO 还没创建的话, 就从容器里对其进行实例化, 然后放到返回的Advisor结果集中
 						advisors.add(this.beanFactory.getBean(name, Advisor.class));
 					}
 					catch (BeanCreationException ex) {
@@ -102,9 +116,12 @@ public class BeanFactoryAdvisorRetrievalHelper {
 								}
 								// Ignore: indicates a reference back to the bean we're trying to advise.
 								// We want to find advisors other than the currently created bean itself.
+								// TODO 如果创建Advisor实例时出现异常, 对于BeanCurrentlyInCreationException这种循环依赖异常来说,
+								//  会打个log, 告诉你出现了循环依赖问题, 跳过当前正在创建的Advisor
 								continue;
 							}
 						}
+						// TODO 其他情况, 直接抛出异常
 						throw ex;
 					}
 				}

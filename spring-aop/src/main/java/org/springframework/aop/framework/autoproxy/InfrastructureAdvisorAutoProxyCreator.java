@@ -42,6 +42,7 @@ public class InfrastructureAdvisorAutoProxyCreator extends AbstractAdvisorAutoPr
 
 	@Override
 	protected boolean isEligibleAdvisorBean(String beanName) {
+		// TODO 判断Advisor在当前容器中的role是否为2(ROLE_INFRASTRUCTURE)
 		return (this.beanFactory != null && this.beanFactory.containsBeanDefinition(beanName) &&
 				this.beanFactory.getBeanDefinition(beanName).getRole() == BeanDefinition.ROLE_INFRASTRUCTURE);
 	}
