@@ -58,7 +58,7 @@ import org.springframework.lang.Nullable;
 public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFactory {
 
 	private static final String AJC_MAGIC = "ajc$";
-
+	// TODO Spring所支持的AspectJ的所有注解
 	private static final Class<?>[] ASPECTJ_ANNOTATION_CLASSES = new Class<?>[] {
 			Pointcut.class, Around.class, Before.class, After.class, AfterReturning.class, AfterThrowing.class};
 
@@ -106,14 +106,18 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 		// If the parent has the annotation and isn't abstract it's an error
 		if (aspectClass.getSuperclass().getAnnotation(Aspect.class) != null &&
 				!Modifier.isAbstract(aspectClass.getSuperclass().getModifiers())) {
+			// TODO Aspect不允许扩展一个具体的切面, 所以当@Aspect注解的切面的父类也被@Aspect注解, 且其父类不为抽象类时, 就会抛出异常:
+			//  [Subclass] cannot extend concrete aspect [Superclass]
 			throw new AopConfigException("[" + aspectClass.getName() + "] cannot extend concrete aspect [" +
 					aspectClass.getSuperclass().getName() + "]");
 		}
 
 		AjType<?> ajType = AjTypeSystem.getAjType(aspectClass);
 		if (!ajType.isAspect()) {
+			// TODO 切面可能会没有@Aspect注解么??
 			throw new NotAnAtAspectException(aspectClass);
 		}
+		// TODO 目前Spring AOP是不支持AspectJ的PERCFLOW和PERCFLOWBELOW这两种切面实例的
 		if (ajType.getPerClause().getKind() == PerClauseKind.PERCFLOW) {
 			throw new AopConfigException(aspectClass.getName() + " uses percflow instantiation model: " +
 					"This is not supported in Spring AOP.");
@@ -132,8 +136,11 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	@Nullable
 	protected static AspectJAnnotation<?> findAspectJAnnotationOnMethod(Method method) {
 		for (Class<?> clazz : ASPECTJ_ANNOTATION_CLASSES) {
+			// TODO 按顺序遍历Spring AOP所支持的所有用于方法上的注解, 即: @Pointcut, @Around, @Before, @After, @AfterReturning,
+			//  @AfterThrowing. 看方法上是否包含其中一个注解
 			AspectJAnnotation<?> foundAnnotation = findAnnotation(method, (Class<Annotation>) clazz);
 			if (foundAnnotation != null) {
+				// TODO 这是个断路操作, 按顺序找, 只要找到一个就行
 				return foundAnnotation;
 			}
 		}
@@ -144,6 +151,7 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	private static <A extends Annotation> AspectJAnnotation<A> findAnnotation(Method method, Class<A> toLookFor) {
 		A result = AnnotationUtils.findAnnotation(method, toLookFor);
 		if (result != null) {
+			// TODO 如果找到, 则包装成AspectJAnnotation并返回. 这个过程会解析确定注解类型, 解析注解表达式中'pointcut', 'value'属性, 以及设置参数名
 			return new AspectJAnnotation<>(result);
 		}
 		else {
@@ -192,9 +200,12 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 
 		public AspectJAnnotation(A annotation) {
 			this.annotation = annotation;
+			// TODO 确定注解的类型, 只能是@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing其中之一, 否则就抛异常了
 			this.annotationType = determineAnnotationType(annotation);
 			try {
+				// TODO 解析注解中的表达式中的'pointcut', 'value'属性
 				this.pointcutExpression = resolveExpression(annotation);
+				// TODO 取得并设置参数名
 				Object argNames = AnnotationUtils.getValue(annotation, "argNames");
 				this.argumentNames = (argNames instanceof String ? (String) argNames : "");
 			}
@@ -203,7 +214,10 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 			}
 		}
 
+		// TODO 确定注解的类型
 		private AspectJAnnotationType determineAnnotationType(A annotation) {
+			// TODO Spring AOP只支持@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing这些注解, 范围包会抛出
+			//  'Unknown annotation type' 异常
 			AspectJAnnotationType type = annotationTypeMap.get(annotation.annotationType());
 			if (type != null) {
 				return type;
@@ -211,12 +225,14 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 			throw new IllegalStateException("Unknown annotation type: " + annotation);
 		}
 
+		// TODO 解析注解表达式中的'pointcut', 'value'属性
 		private String resolveExpression(A annotation) {
 			for (String attributeName : EXPRESSION_ATTRIBUTES) {
 				Object val = AnnotationUtils.getValue(annotation, attributeName);
 				if (val instanceof String) {
 					String str = (String) val;
 					if (!str.isEmpty()) {
+						// TODO 断路操作, 只要存在一个就把值拿出来
 						return str;
 					}
 				}

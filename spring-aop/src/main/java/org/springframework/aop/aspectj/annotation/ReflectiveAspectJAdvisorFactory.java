@@ -68,7 +68,7 @@ import org.springframework.util.comparator.InstanceComparator;
  */
 @SuppressWarnings("serial")
 public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFactory implements Serializable {
-
+	// TODO 比较器, 先按@Around -> @Before -> @After -> @AfterReturning -> @AfterThrowing排序, 然后再按名字排
 	private static final Comparator<Method> METHOD_COMPARATOR;
 
 	static {
@@ -112,8 +112,10 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 	@Override
 	public List<Advisor> getAdvisors(MetadataAwareAspectInstanceFactory aspectInstanceFactory) {
+		// TODO 先取得@Aspect切面所在的Class, 以及Class的名字
 		Class<?> aspectClass = aspectInstanceFactory.getAspectMetadata().getAspectClass();
 		String aspectName = aspectInstanceFactory.getAspectMetadata().getAspectName();
+		// TODO 对切面进行一下检查, 保证满足AspectJ的要求, 并且还得是Spring AOP所支持的切面实例类型
 		validate(aspectClass);
 
 		// We need to wrap the MetadataAwareAspectInstanceFactory with a decorator
@@ -122,7 +124,10 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				new LazySingletonAspectInstanceFactoryDecorator(aspectInstanceFactory);
 
 		List<Advisor> advisors = new ArrayList<>();
+		// TODO 通过getAdvisorMethods()取得切面中由@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的所有方法
 		for (Method method : getAdvisorMethods(aspectClass)) {
+			// TODO 遍历每个由注解标注的方法, 对注解进行解析, 用解析结果创建一个包含了表达式的Pointcut切点. 然后用切点, 注解类型,
+			//  注解方法等创建Advisor通知, 最后将其加入到结果集中
 			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
 			if (advisor != null) {
 				advisors.add(advisor);
@@ -136,6 +141,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		}
 
 		// Find introduction fields.
+		// TODO 上面是处理方法的, 下面是处理字段的
 		for (Field field : aspectClass.getDeclaredFields()) {
 			Advisor advisor = getDeclareParentsAdvisor(field);
 			if (advisor != null) {
@@ -146,8 +152,13 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		return advisors;
 	}
 
+	// TODO 取得切面里所有被@Pointcut标注的切点方法
 	private List<Method> getAdvisorMethods(Class<?> aspectClass) {
 		final List<Method> methods = new ArrayList<>();
+		// TODO 从@Aspect注解标注的切面中过滤掉所有非桥接, 非合成的方法, 然后再把除了@Pointcut标注的方法以外的其他方法(被@Around,
+		//  @Before, @After, @AfterReturning, @AfterThrowing标注的方法)全部放到切面要使用的方法集合中, 即, 收集全部的被@Around,
+		//  @Before, @After, @AfterReturning, @AfterThrowing标注的方法. 然后再按@Around -> @Before -> @After -> @AfterReturning ->
+		//  @AfterThrowing的顺序, 以及方法名字排序
 		ReflectionUtils.doWithMethods(aspectClass, method -> {
 			// Exclude pointcuts
 			if (AnnotationUtils.getAnnotation(method, Pointcut.class) == null) {
@@ -186,31 +197,36 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	@Nullable
 	public Advisor getAdvisor(Method candidateAdviceMethod, MetadataAwareAspectInstanceFactory aspectInstanceFactory,
 			int declarationOrderInAspect, String aspectName) {
-
+		// TODO 验证一下切面, 保证其满足AspectJ的要求, 并且还得是Spring AOP所支持的切面实例类型
 		validate(aspectInstanceFactory.getAspectMetadata().getAspectClass());
-
+		// TODO 为注解方法创建一个切点, 其中会解析注解中的表达式
 		AspectJExpressionPointcut expressionPointcut = getPointcut(
 				candidateAdviceMethod, aspectInstanceFactory.getAspectMetadata().getAspectClass());
 		if (expressionPointcut == null) {
 			return null;
 		}
-
+		// TODO 用注解方法, 解析后的带表达式的切点, AspectJ的工厂, 排序, 以及@Aspect注解的类名创建一个用于返回的Advisor通知
 		return new InstantiationModelAwarePointcutAdvisorImpl(expressionPointcut, candidateAdviceMethod,
 				this, aspectInstanceFactory, declarationOrderInAspect, aspectName);
 	}
 
 	@Nullable
+	// TODO 为@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing注解创建一个AspectJExpressionPointcut.
+	//  创建过程中会解析注解中的表达式
 	private AspectJExpressionPointcut getPointcut(Method candidateAdviceMethod, Class<?> candidateAspectClass) {
+		// TODO 取得切点按顺序遍历Spring AOP所支持的所有用于方法上的注解, 即: @Pointcut, @Around, @Before, @After, @AfterReturning,
+		//  @AfterThrowing. 看方法上是否包含其中一个注解. 对于@Around, @Before, @After, @AfterReturning来说, 取的是其表达式中'pointcut', 'value'属性值
 		AspectJAnnotation<?> aspectJAnnotation =
 				AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(candidateAdviceMethod);
 		if (aspectJAnnotation == null) {
 			return null;
 		}
-
+		// TODO 创建一个切点, 同时设置解析好的表达式
 		AspectJExpressionPointcut ajexp =
 				new AspectJExpressionPointcut(candidateAspectClass, new String[0], new Class<?>[0]);
 		ajexp.setExpression(aspectJAnnotation.getPointcutExpression());
 		if (this.beanFactory != null) {
+			// TODO 为切点设置容器
 			ajexp.setBeanFactory(this.beanFactory);
 		}
 		return ajexp;

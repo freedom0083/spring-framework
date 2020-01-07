@@ -99,7 +99,7 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 		List<Advisor> advisors = super.findCandidateAdvisors();
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		if (this.aspectJAdvisorsBuilder != null) {
-			// TODO 如果有支持容器感知的后处理器(BeanFactoryAware), 再创建用于AspectJ的Advisor加入到结果集中
+			// TODO 如果有支持容器感知的后处理器(BeanFactoryAware), 再创建AspectJ用的Advisor加入到结果集中
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;
@@ -154,6 +154,7 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 
 		@Override
 		protected boolean isEligibleBean(String beanName) {
+			// TODO 委托给当前AnnotationAwareAspectJAutoProxyCreator实例的isEligibleAspectBean()方法去验证是否与预设的Pattern匹配
 			return AnnotationAwareAspectJAutoProxyCreator.this.isEligibleAspectBean(beanName);
 		}
 	}

@@ -72,7 +72,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
-		// TODO
+		// TODO 找到所有的Advisor通知并返回
 		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
 		if (advisors.isEmpty()) {
 			return DO_NOT_PROXY;
@@ -91,7 +91,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
-		// TODO
+		// TODO 找出容器中所有的候选Advisor通知
 		//  1. AbstractAdvisorAutoProxyCreator: 抽象类, 从缓存里直接取得所有用于自动代理的候选Advisor
 		//  2. AnnotationAwareAspectJAutoProxyCreator: 子类, 用于处理容器中的AspectJ注解
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
@@ -107,10 +107,10 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * Find all candidate Advisors to use in auto-proxying.
 	 * @return the List of candidate Advisors
 	 */
-	// TODO 取得所有用于自动代理的候选Advisor
+	// TODO 取得所有用于自动代理的候选Advisor通知
 	protected List<Advisor> findCandidateAdvisors() {
 		Assert.state(this.advisorRetrievalHelper != null, "No BeanFactoryAdvisorRetrievalHelper available");
-		// TODO 委托BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans()来取得容器中所有可以使用的Advisor
+		// TODO 委托BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans()来取得容器中所有可以使用的Advisor通知
 		return this.advisorRetrievalHelper.findAdvisorBeans();
 	}
 

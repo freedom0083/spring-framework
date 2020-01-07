@@ -96,24 +96,27 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 					for (String beanName : beanNames) {
 						// TODO 遍历容器中所有的Object
 						if (!isEligibleBean(beanName)) {
-							// TODO 跳过所有不符合AspectJ命名规范的bean
+							// TODO 跳过所有不符合AspectJ命名规范的bean, 这里会和预设的Pattern进行正则匹配
 							continue;
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
 						// would be cached by the Spring container but would not have been weaved.
+						// TODO 取得当前Bean的类型, 用来进行后面的AspectJ的类型判断
 						Class<?> beanType = this.beanFactory.getType(beanName);
 						if (beanType == null) {
 							continue;
 						}
 						if (this.advisorFactory.isAspect(beanType)) {
-							// TODO 只处理被@Aspect注解过, 但没有被AspectJ编译过的bean
+							// TODO 只处理被@Aspect注解过, 但没有被AspectJ编译过的bean. 这样的bean名会入到集合中, 稍后会更新到aspectBeanNames缓存中
 							aspectNames.add(beanName);
-							// TODO 创建元数据实例
+							// TODO 为bean创建AspectJ的元数据实例, 这里会设置切面实例类型. 目前Spring AOP只支持AspectJ的
+							//  singleton, perthis, pertarget, pertypewithin四种实例类型, 不支持percflow和percflowbelow类型
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
-								// TODO 对于SINGLETON类型来说, 会创建一个MetadataAwareAspectInstanceFactory
+								// TODO 对于SINGLETON实例类型来说, 会创建用于获取Advisor的BeanFactoryAspectInstanceFactory
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+								// TODO 从
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
 								if (this.beanFactory.isSingleton(beanName)) {
 									// TODO 单例bean放到advisorsCache缓存
@@ -128,11 +131,13 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 							}
 							else {
 								// Per target or per this.
+								// TODO 其他切面实例类型来说
 								if (this.beanFactory.isSingleton(beanName)) {
-									// TODO 如果@Aspect中没有用SINGLETON, 但这个Advisor是单例时, 会抛出异常
+									// TODO 不允许其为单例, 即, 切面实例必需与其在容器中的Scope相同, 要么全是单例, 要么全不是单例
 									throw new IllegalArgumentException("Bean with name '" + beanName +
 											"' is a singleton, but aspect instantiation model is not singleton");
 								}
+								// TODO 其他类型的切面则创建PrototypeAspectInstanceFactory来获取Advisor通知
 								MetadataAwareAspectInstanceFactory factory =
 										new PrototypeAspectInstanceFactory(this.beanFactory, beanName);
 								// TODO 对于非单例bean, 直接创建MetadataAwareAspectInstanceFactory放到aspectFactoryCache缓存中
@@ -142,6 +147,7 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 							}
 						}
 					}
+					// TODO 更新一下缓存, 然后返回所有的切面实例
 					this.aspectBeanNames = aspectNames;
 					return advisors;
 				}
@@ -154,13 +160,16 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 		}
 		List<Advisor> advisors = new ArrayList<>();
 		for (String aspectName : aspectNames) {
-			// TODO 从单例缓存中拿出所有
+			// TODO 从单例缓存中拿出所有Advisor通知
 			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
 			if (cachedAdvisors != null) {
-				// TODO
+				// TODO 拿到的就放到返回的结果集中
 				advisors.addAll(cachedAdvisors);
 			}
 			else {
+				// TODO 没拿到就表示这个Advisor不是单例的, 需要用MetadataAwareAspectInstanceFactory工厂去取, 就是上面创建的两个工厂:
+				//  1. BeanFactoryAspectInstanceFactory: 对应SINGLETON类型切面实例
+				//  2. PrototypeAspectInstanceFactory: 对应其他类型切面实例
 				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);
 				advisors.addAll(this.advisorFactory.getAdvisors(factory));
 			}

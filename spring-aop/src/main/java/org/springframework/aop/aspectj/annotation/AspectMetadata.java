@@ -51,18 +51,21 @@ public class AspectMetadata implements Serializable {
 	 * allows us to determine if two pieces of advice come from the
 	 * same aspect and hence their relative precedence.
 	 */
+	// TODO 被@Aspect注解的切面的Class名
 	private final String aspectName;
 
 	/**
 	 * The aspect class, stored separately for re-resolution of the
 	 * corresponding AjType on deserialization.
 	 */
+	// TODO 被@Aspect注解的切面的Class
 	private final Class<?> aspectClass;
 
 	/**
 	 * AspectJ reflection information (AspectJ 5 / Java 5 specific).
 	 * Re-resolved on deserialization since it isn't serializable itself.
 	 */
+	// TODO 包装了被@Aspect所注解的切面, 其内部封装了关于这个切面的一些数据, 方法(位于org.aspectj下)
 	private transient AjType<?> ajType;
 
 	/**
@@ -89,43 +92,51 @@ public class AspectMetadata implements Serializable {
 			// TODO 把类包装成一个AspectJ特有的AjType
 			AjType<?> ajTypeToCheck = AjTypeSystem.getAjType(currClass);
 			if (ajTypeToCheck.isAspect()) {
-				// TODO 判断一下要处理的类是否被@Aspect注解过. 如果是, 得到类型后直接跳出
+				// TODO 判断一下要处理的类是否为被@Aspect注解过切面. 如果是, 得到类型后直接跳出
 				ajType = ajTypeToCheck;
 				break;
 			}
-			// TODO 如果不是, 深入其父类进行查找
+			// TODO 如果不是, 深入其父类进行查找, 直到Object为止
 			currClass = currClass.getSuperclass();
 		}
 		if (ajType == null) {
-			// TODO 经过上面步骤后没有找到带@Aspect注解的类, 抛出异常
+			// TODO 经过上面步骤后没有找到标有@Aspect的切面时, 抛出异常
 			throw new IllegalArgumentException("Class '" + aspectClass.getName() + "' is not an @AspectJ aspect");
 		}
 		if (ajType.getDeclarePrecedence().length > 0) {
-			// TODO Spring AOP不支持优先声明, 所以要抛出异常
+			// TODO Spring AOP也不支持优先级的声明
 			throw new IllegalArgumentException("DeclarePrecedence not presently supported in Spring AOP");
 		}
 		// TODO 这里把元数据的aspectClass属性设置成被@Aspect注解的类的Class
 		this.aspectClass = ajType.getJavaClass();
 		this.ajType = ajType;
-		// TODO 下面就是对切面的实例类型进行处理了
+		// TODO 下面就是对切面的实例类型进行处理了, 目前只支持下面这四种类型
 		switch (this.ajType.getPerClause().getKind()) {
 			case SINGLETON:
 				// TODO SINGLETON表示切面只有一个实例, 所以其切点表达式perClausePointcut设置为TruePointcut.INSTANCE
 				this.perClausePointcut = Pointcut.TRUE;
 				return;
 			case PERTARGET:
+				// TODO PERTARGET表示每个切点表达式匹配的连接点所对应的目标对象都会创建一个新的切面实例, 比如:
+				//  PERTARGET: @Aspect("pertarget(切点表达式)"), 这里的切点表达式不能是接口
 			case PERTHIS:
+				// TODO PERTHIS表示每个切点表达式匹配的连接点所对应的AOP对象(代理对象)都会创建一个新的切面实例, 比如
+				//  @Aspect("perthis(切点表达式)"), 这里的切点表达式可以是接口
+				//  这两种情况都需要把切面的Scope定义为prototype
 				AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut();
 				ajexp.setLocation(aspectClass.getName());
+				// TODO 从取出@Aspect注解使用的切点表达式, 然后设置给切点
 				ajexp.setExpression(findPerClause(aspectClass));
 				ajexp.setPointcutDeclarationScope(aspectClass);
 				this.perClausePointcut = ajexp;
 				return;
 			case PERTYPEWITHIN:
 				// Works with a type pattern
+				// TODO 组成的、合成得切点表达式
 				this.perClausePointcut = new ComposablePointcut(new TypePatternClassFilter(findPerClause(aspectClass)));
 				return;
 			default:
+				// TODO Aspect的其余实例类型, 目前Spring AOP暂不支持
 				throw new AopConfigException(
 						"PerClause " + ajType.getPerClause().getKind() + " not supported by Spring AOP for " + aspectClass);
 		}
@@ -138,6 +149,7 @@ public class AspectMetadata implements Serializable {
 		String str = aspectClass.getAnnotation(Aspect.class).value();
 		int beginIndex = str.indexOf('(') + 1;
 		int endIndex = str.length() - 1;
+		// TODO 取出@Aspect注解中的切点表达式, 比如: @Aspect(pertarget(切点表达式)), 执行后得到的会是pertarget(切点表达式)
 		return str.substring(beginIndex, endIndex);
 	}
 
