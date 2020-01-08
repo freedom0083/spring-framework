@@ -113,17 +113,22 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 							//  singleton, perthis, pertarget, pertypewithin四种实例类型, 不支持percflow和percflowbelow类型
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
-								// TODO 对于SINGLETON实例类型来说, 会创建用于获取Advisor的BeanFactoryAspectInstanceFactory
+								// TODO 对于SINGLETON实例类型来说, 会创建用于获取Advisor的BeanFactoryAspectInstanceFactory,
+								//  这个工厂在创建时会对切面进行解析, 将结果放到Aspect元数据里. 后面的操作都是基于工厂中缓存的元数据来进行的
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
-								// TODO 从
+								// TODO 开始为切面创建Advisor增强器. 实际上Spring AOP使用ReflectiveAspectJAdvisorFactory来为
+								//  切面中的所有被@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的方法, 以及
+								//  被@DeclareParents标注的字段创建Advisor增强器. 注意的是这里不处理表示切点的@Pointcut注解
+								//  TIPS 这里传进去的工厂会被包装成一个具有懒加载功能的单例工厂, 为的是防止多次实例化
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
 								if (this.beanFactory.isSingleton(beanName)) {
 									// TODO 单例bean放到advisorsCache缓存
 									this.advisorsCache.put(beanName, classAdvisors);
 								}
 								else {
-									// TODO 非单例bean则把上面的工厂与bean组合放到aspectFactoryCache缓存中
+									// TODO 非单例bean则把上面的工厂与bean组合放到aspectFactoryCache缓存中. 非单例bean每次都会
+									//  用工厂取得一个全新的实例
 									this.aspectFactoryCache.put(beanName, factory);
 								}
 								// TODO 然后把这些Advisor全部放到候选结果集中
@@ -133,21 +138,22 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 								// Per target or per this.
 								// TODO 其他切面实例类型来说
 								if (this.beanFactory.isSingleton(beanName)) {
-									// TODO 不允许其为单例, 即, 切面实例必需与其在容器中的Scope相同, 要么全是单例, 要么全不是单例
+									// TODO 不允许其为单例. 即, 切面实例必需与其在容器中的Scope相同, 要么全是单例, 要么全不是单例
 									throw new IllegalArgumentException("Bean with name '" + beanName +
 											"' is a singleton, but aspect instantiation model is not singleton");
 								}
-								// TODO 其他类型的切面则创建PrototypeAspectInstanceFactory来获取Advisor通知
+								// TODO 其他类型的切面则创建PrototypeAspectInstanceFactory来获取Advisor增强器
 								MetadataAwareAspectInstanceFactory factory =
 										new PrototypeAspectInstanceFactory(this.beanFactory, beanName);
-								// TODO 对于非单例bean, 直接创建MetadataAwareAspectInstanceFactory放到aspectFactoryCache缓存中
+								// TODO 对于非单例bean, 直接创建MetadataAwareAspectInstanceFactory放到缓存中, 每次取得切面时
+								//  都会从工厂取得一个全新的实例
 								this.aspectFactoryCache.put(beanName, factory);
-								// TODO 然后再把工厂中的Advisor放到结果集中
+								// TODO 然后再把工厂中的Advisor增强器放到结果集中
 								advisors.addAll(this.advisorFactory.getAdvisors(factory));
 							}
 						}
 					}
-					// TODO 更新一下缓存, 然后返回所有的切面实例
+					// TODO 更新一下缓存, 然后返回所有Advisor增强器
 					this.aspectBeanNames = aspectNames;
 					return advisors;
 				}
@@ -160,14 +166,16 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 		}
 		List<Advisor> advisors = new ArrayList<>();
 		for (String aspectName : aspectNames) {
-			// TODO 从单例缓存中拿出所有Advisor通知
+			// TODO 从单例缓存中拿出所有Advisor增强器
 			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
 			if (cachedAdvisors != null) {
-				// TODO 拿到的就放到返回的结果集中
+				// TODO 拿到的就放到结果集中
 				advisors.addAll(cachedAdvisors);
 			}
 			else {
-				// TODO 没拿到就表示这个Advisor不是单例的, 需要用MetadataAwareAspectInstanceFactory工厂去取, 就是上面创建的两个工厂:
+				// TODO 没拿到就表示这个Advisor增强器不是单例的, 非单例bean在Spring中每次都会创建一个新的实例. 这时就会根据切点的
+				//  Scope选择不同的MetadataAwareAspectInstanceFactory工厂进行创建了(创建这一步来说, 这俩工厂没什么区别, 其实都是
+				//  用工厂中缓存的切面信息进行创建的):
 				//  1. BeanFactoryAspectInstanceFactory: 对应SINGLETON类型切面实例
 				//  2. PrototypeAspectInstanceFactory: 对应其他类型切面实例
 				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);

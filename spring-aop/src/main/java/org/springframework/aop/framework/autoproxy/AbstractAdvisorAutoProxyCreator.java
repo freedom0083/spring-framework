@@ -91,9 +91,11 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
-		// TODO 找出容器中所有的候选Advisor通知
+		// TODO 找出容器中所有的候选Advisor增强器
 		//  1. AbstractAdvisorAutoProxyCreator: 抽象类, 从缓存里直接取得所有用于自动代理的候选Advisor
-		//  2. AnnotationAwareAspectJAutoProxyCreator: 子类, 用于处理容器中的AspectJ注解
+		//  2. AnnotationAwareAspectJAutoProxyCreator: AbstractAdvisorAutoProxyCreator人子类, 用于处理容器中的AspectJ注解.
+		//     除了抽象类中的Advisor增强器外, 还会为被@Aspect所标注的切面中的所有被@Around, @Before, @After, @AfterReturning,
+		//     @AfterThrowing标注的方法, 以及被@DeclareParents标注的字段创建Advisor增强器
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
 		extendAdvisors(eligibleAdvisors);

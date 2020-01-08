@@ -55,7 +55,7 @@ public class BeanFactoryAspectInstanceFactory implements MetadataAwareAspectInst
 	 * Create a BeanFactoryAspectInstanceFactory. AspectJ will be called to
 	 * introspect to create AJType metadata using the type returned for the
 	 * given bean name from the BeanFactory.
-	 * @param beanFactory the BeanFactory to obtain instance(s) from
+	 * @param beanFactory the BeanFactory to obtain instance(s) from 获取实例的容器
 	 * @param name name of the bean
 	 */
 	public BeanFactoryAspectInstanceFactory(BeanFactory beanFactory, String name) {
@@ -78,9 +78,11 @@ public class BeanFactoryAspectInstanceFactory implements MetadataAwareAspectInst
 		this.name = name;
 		Class<?> resolvedType = type;
 		if (type == null) {
+			// TODO 如果没有指定类型, 则会进行解析操作, 过程其实就是直接从容器中获取当前操作的bean的类型
 			resolvedType = beanFactory.getType(name);
 			Assert.notNull(resolvedType, "Unresolvable bean type - explicitly specify the aspect class");
 		}
+		// TODO 然后为当前操作的bean创建Aspect的元数据
 		this.aspectMetadata = new AspectMetadata(resolvedType, name);
 	}
 

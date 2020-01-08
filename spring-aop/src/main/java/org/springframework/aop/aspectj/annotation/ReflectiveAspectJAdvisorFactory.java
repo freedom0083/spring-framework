@@ -110,6 +110,13 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	}
 
 
+	/**
+	 * 这里会为@Aspect切面里由@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的所有方法, 以及被@DeclareParents
+	 * 注解标注的字段创建Advisor增强器
+	 * @param aspectInstanceFactory the aspect instance factory
+	 * (not the aspect instance itself in order to avoid eager instantiation)
+	 * @return 为切面所创建的所有的Advisor增强器
+	 */
 	@Override
 	public List<Advisor> getAdvisors(MetadataAwareAspectInstanceFactory aspectInstanceFactory) {
 		// TODO 先取得@Aspect切面所在的Class, 以及Class的名字
@@ -120,14 +127,16 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 		// We need to wrap the MetadataAwareAspectInstanceFactory with a decorator
 		// so that it will only instantiate once.
+		// TODO 对工厂进行包装, 使其成为一个具有懒加载功能的单例工厂, 为的是让其只实例化一次
 		MetadataAwareAspectInstanceFactory lazySingletonAspectInstanceFactory =
 				new LazySingletonAspectInstanceFactoryDecorator(aspectInstanceFactory);
 
 		List<Advisor> advisors = new ArrayList<>();
-		// TODO 通过getAdvisorMethods()取得切面中由@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的所有方法
+		// TODO 通过getAdvisorMethods()取得@Aspect标注的切面中, 由@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的所有方法
+		//  TIPS 方法中过滤掉了@Pointcut注解
 		for (Method method : getAdvisorMethods(aspectClass)) {
 			// TODO 遍历每个由注解标注的方法, 对注解进行解析, 用解析结果创建一个包含了表达式的Pointcut切点. 然后用切点, 注解类型,
-			//  注解方法等创建Advisor通知, 最后将其加入到结果集中
+			//  注解方法等创建Advisor增强器, 并加入到Advisor增强器结果集中
 			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
 			if (advisor != null) {
 				advisors.add(advisor);
@@ -136,13 +145,16 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 		// If it's a per target aspect, emit the dummy instantiating aspect.
 		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
+			// TODO 对于支持懒加载的情况, 需要在所有的Advisor增强器之前加一个同步实例化Advisor增强器
 			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
 			advisors.add(0, instantiationAdvisor);
 		}
 
 		// Find introduction fields.
-		// TODO 上面是处理方法的, 下面是处理字段的
+		// TODO 上面是处理方法的, 下面开始处理字段上的@DeclareParents注解了. @DeclareParents注解是用来为现在的类增加新方法用的
 		for (Field field : aspectClass.getDeclaredFields()) {
+			// TODO @DeclareParents可以为类增加新的方法, 如果有字段用@DeclareParents进行了注解, 则对其内容进行解析('value'和
+			//  'defaultImpl'属性值), 然后创建一个新的Advisor增强器, 并回到返回结果集中
 			Advisor advisor = getDeclareParentsAdvisor(field);
 			if (advisor != null) {
 				advisors.add(advisor);
@@ -162,6 +174,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		ReflectionUtils.doWithMethods(aspectClass, method -> {
 			// Exclude pointcuts
 			if (AnnotationUtils.getAnnotation(method, Pointcut.class) == null) {
+				// TODO 这里会排除掉@Pointcut注解的方法
 				methods.add(method);
 			}
 		}, ReflectionUtils.USER_DECLARED_METHODS);
@@ -178,6 +191,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	 */
 	@Nullable
 	private Advisor getDeclareParentsAdvisor(Field introductionField) {
+		// TODO 取得字段上的@DeclareParents注解
 		DeclareParents declareParents = introductionField.getAnnotation(DeclareParents.class);
 		if (declareParents == null) {
 			// Not an introduction field
@@ -185,9 +199,10 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		}
 
 		if (DeclareParents.class == declareParents.defaultImpl()) {
+			// TODO 对于@DeclareParents注解来说, 必需要设置'defaultImpl'属性
 			throw new IllegalStateException("'defaultImpl' attribute must be set on DeclareParents");
 		}
-
+		// TODO 然后用@DeclareParents注解的字段的类型, 以及@DeclareParents注解中的value和defaultImpl设置的值创建一个Advisor增强器并返回
 		return new DeclareParentsAdvisor(
 				introductionField.getType(), declareParents.value(), declareParents.defaultImpl());
 	}
@@ -205,14 +220,19 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		if (expressionPointcut == null) {
 			return null;
 		}
-		// TODO 用注解方法, 解析后的带表达式的切点, AspectJ的工厂, 排序, 以及@Aspect注解的类名创建一个用于返回的Advisor通知
+		// TODO 用注解方法, 解析后的带表达式的切点, AspectJ的工厂, 排序, 以及@Aspect注解的类名创建一个用于返回的Advisor增强器
 		return new InstantiationModelAwarePointcutAdvisorImpl(expressionPointcut, candidateAdviceMethod,
 				this, aspectInstanceFactory, declarationOrderInAspect, aspectName);
 	}
 
+	/**
+	 * 为@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing注解创建一个AspectJExpressionPointcut.
+	 * 创建过程中会解析注解中的表达式
+	 * @param candidateAdviceMethod 要进行增强操作的方法
+	 * @param candidateAspectClass 被@Aspect注解的切面Class
+	 * @return 根据注解的方法所创建出来的表达式切点
+	 */
 	@Nullable
-	// TODO 为@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing注解创建一个AspectJExpressionPointcut.
-	//  创建过程中会解析注解中的表达式
 	private AspectJExpressionPointcut getPointcut(Method candidateAdviceMethod, Class<?> candidateAspectClass) {
 		// TODO 取得切点按顺序遍历Spring AOP所支持的所有用于方法上的注解, 即: @Pointcut, @Around, @Before, @After, @AfterReturning,
 		//  @AfterThrowing. 看方法上是否包含其中一个注解. 对于@Around, @Before, @After, @AfterReturning来说, 取的是其表达式中'pointcut', 'value'属性值
