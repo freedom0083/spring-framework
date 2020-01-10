@@ -297,8 +297,8 @@ public abstract class AopUtils {
 	/**
 	 * Determine the sublist of the {@code candidateAdvisors} list
 	 * that is applicable to the given class.
-	 * @param candidateAdvisors the Advisors to evaluate
-	 * @param clazz the target class
+	 * @param candidateAdvisors the Advisors to evaluate 候选的Advisor集合
+	 * @param clazz the target class 要创建代理的目标对象
 	 * @return sublist of Advisors that can apply to an object of the given class
 	 * (may be the incoming List as-is)
 	 */
@@ -308,7 +308,9 @@ public abstract class AopUtils {
 		}
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
 		for (Advisor candidate : candidateAdvisors) {
+			// TODO 遍历所有候选Advisor
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
+				// TODO 把可以应用在代理目标的Advisor加入到合格列表里
 				eligibleAdvisors.add(candidate);
 			}
 		}

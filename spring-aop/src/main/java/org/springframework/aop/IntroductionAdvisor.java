@@ -29,6 +29,10 @@ package org.springframework.aop;
  * @since 04.04.2003
  * @see IntroductionInterceptor
  */
+// TODO 用于处理Introduction(引入)的Advisor的接口. 其实现了IntroductionInfo接口, 可以为目标类添加新的方法或属性. 这个接口不能直接
+//  用. 其实现类必需要提供引入的Advice(通知)的类型. Spring AOP提供两个实现:
+//  1. DeclareParentsAdvisor:
+//  2. DefaultIntroductionAdvisor:
 public interface IntroductionAdvisor extends Advisor, IntroductionInfo {
 
 	/**

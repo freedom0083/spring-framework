@@ -36,7 +36,7 @@ import org.springframework.aop.support.DelegatingIntroductionInterceptor;
 public class DeclareParentsAdvisor implements IntroductionAdvisor {
 
 	private final Advice advice;
-
+	// TODO 为目标类引入的, 需要实现其方法或属性的新接口
 	private final Class<?> introducedInterface;
 
 	private final ClassFilter typePatternClassFilter;
@@ -44,19 +44,20 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 
 	/**
 	 * Create a new advisor for this DeclareParents field.
-	 * @param interfaceType static field defining the introduction
-	 * @param typePattern type pattern the introduction is restricted to
-	 * @param defaultImpl the default implementation class
+	 * @param interfaceType static field defining the introduction 被@DeclareParents注解的字段的类型
+	 * @param typePattern type pattern the introduction is restricted to @DeclareParents注解中的value值
+	 * @param defaultImpl the default implementation class @DeclareParents注解中的defaultImpl, 即, 要增加方法的类
 	 */
 	public DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, Class<?> defaultImpl) {
 		this(interfaceType, typePattern,
+				// TODO 创建一个
 				new DelegatePerTargetObjectIntroductionInterceptor(defaultImpl, interfaceType));
 	}
 
 	/**
 	 * Create a new advisor for this DeclareParents field.
-	 * @param interfaceType static field defining the introduction
-	 * @param typePattern type pattern the introduction is restricted to
+	 * @param interfaceType static field defining the introduction 被@DeclareParents注解的字段的类型
+	 * @param typePattern type pattern the introduction is restricted to @DeclareParents注解中的value值
 	 * @param delegateRef the delegate implementation object
 	 */
 	public DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, Object delegateRef) {
@@ -66,8 +67,8 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	/**
 	 * Private constructor to share common code between impl-based delegate and reference-based delegate
 	 * (cannot use method such as init() to share common code, due the use of final fields).
-	 * @param interfaceType static field defining the introduction
-	 * @param typePattern type pattern the introduction is restricted to
+	 * @param interfaceType static field defining the introduction 被@DeclareParents注解的字段的类型
+	 * @param typePattern type pattern the introduction is restricted to @DeclareParents注解中的value值
 	 * @param interceptor the delegation advice as {@link IntroductionInterceptor}
 	 */
 	private DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, IntroductionInterceptor interceptor) {

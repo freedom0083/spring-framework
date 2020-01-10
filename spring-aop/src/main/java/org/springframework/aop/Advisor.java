@@ -33,6 +33,8 @@ import org.aopalliance.aop.Advice;
  * @author Rod Johnson
  * @author Juergen Hoeller
  */
+// TODO Advisor(名字不够确切)用来管理Advice(通知), 以及确定Advice适用性的过程器(比如: Pointcut切点)的. 这是一个基础接口, 不是给Spring
+//  使用者直接用的, 为的是支持不同类型的通知的通用性
 public interface Advisor {
 
 	/**
@@ -52,6 +54,7 @@ public interface Advisor {
 	 * @see ThrowsAdvice
 	 * @see AfterReturningAdvice
 	 */
+	// TODO Advisor所持有的Advice(通知). 比如: 拦截器, 前置Advice, 后置Advice等
 	Advice getAdvice();
 
 	/**

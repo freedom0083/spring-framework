@@ -91,12 +91,13 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
-		// TODO 找出容器中所有的候选Advisor增强器
+		// TODO 找出容器中所有的候选Advisor
 		//  1. AbstractAdvisorAutoProxyCreator: 抽象类, 从缓存里直接取得所有用于自动代理的候选Advisor
-		//  2. AnnotationAwareAspectJAutoProxyCreator: AbstractAdvisorAutoProxyCreator人子类, 用于处理容器中的AspectJ注解.
-		//     除了抽象类中的Advisor增强器外, 还会为被@Aspect所标注的切面中的所有被@Around, @Before, @After, @AfterReturning,
-		//     @AfterThrowing标注的方法, 以及被@DeclareParents标注的字段创建Advisor增强器
+		//  2. AnnotationAwareAspectJAutoProxyCreator: AbstractAdvisorAutoProxyCreator的子类, 用于处理容器中的AspectJ注解.
+		//     除了抽象类中的Advisor外, 还会为被@Aspect所标注的切面中的所有被@Around, @Before, @After, @AfterReturning,
+		//     @AfterThrowing标注的方法, 以及被@DeclareParents标注的字段创建Advisor
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		// TODO
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
 		extendAdvisors(eligibleAdvisors);
 		if (!eligibleAdvisors.isEmpty()) {
@@ -109,10 +110,10 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * Find all candidate Advisors to use in auto-proxying.
 	 * @return the List of candidate Advisors
 	 */
-	// TODO 取得所有用于自动代理的候选Advisor通知
+	// TODO 取得所有用于自动代理的候选Advisor
 	protected List<Advisor> findCandidateAdvisors() {
 		Assert.state(this.advisorRetrievalHelper != null, "No BeanFactoryAdvisorRetrievalHelper available");
-		// TODO 委托BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans()来取得容器中所有可以使用的Advisor通知
+		// TODO 委托BeanFactoryAdvisorRetrievalHelper#findAdvisorBeans()来取得容器中所有可以使用的Advisor
 		return this.advisorRetrievalHelper.findAdvisorBeans();
 	}
 
@@ -127,12 +128,13 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 */
 	protected List<Advisor> findAdvisorsThatCanApply(
 			List<Advisor> candidateAdvisors, Class<?> beanClass, String beanName) {
-
+		// TODO 这个ProxyCreationContext上下文件中, 用ThreadLocal来保存的要实例化的bean的名字
 		ProxyCreationContext.setCurrentProxiedBeanName(beanName);
 		try {
 			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass);
 		}
 		finally {
+			// TODO 整个创建过程结果后, 清掉ThreadLocal
 			ProxyCreationContext.setCurrentProxiedBeanName(null);
 		}
 	}
@@ -198,7 +200,8 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 			//   1. AbstractAdvisorAutoProxyCreator: 抽象类, 同样默认所有的Advisor全是合格的;
 			//   2. InfrastructureAdvisorAutoProxyCreator: AbstractAdvisorAutoProxyCreator的子类, 判断Advisor在当前容器
 			//      中的role是否为2(ROLE_INFRASTRUCTURE)
-			//   3. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor设置的前缀相同时, 表示合格
+			//   3. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor
+			//      设置的前缀相同时, 表示合格
 			return AbstractAdvisorAutoProxyCreator.this.isEligibleAdvisorBean(beanName);
 		}
 	}
