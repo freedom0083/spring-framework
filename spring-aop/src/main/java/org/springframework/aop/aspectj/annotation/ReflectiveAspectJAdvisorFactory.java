@@ -222,14 +222,14 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 			int declarationOrderInAspect, String aspectName) {
 		// TODO 验证一下切面, 保证其满足AspectJ的要求, 并且还得是Spring AOP所支持的切面实例类型
 		validate(aspectInstanceFactory.getAspectMetadata().getAspectClass());
-		// TODO 为注解方法创建一个切点, 其中会解析注解中的表达式
+		// TODO 为注解方法创建一个解析了注解中表达式的AspectJExpressionPointcut
 		AspectJExpressionPointcut expressionPointcut = getPointcut(
 				candidateAdviceMethod, aspectInstanceFactory.getAspectMetadata().getAspectClass());
 		if (expressionPointcut == null) {
 			return null;
 		}
-		// TODO 创建一个包含了上面创建的切点的Advisor实现类InstantiationModelAwarePointcutAdvisorImpl. @Advice切面中的每个被注解
-		//  的方法都会在这里创建一个Advisor实例. 这里会创建PerTargetInstantiationModelPointcut类型的Pointcut
+		// TODO 创建一个包含了上面创建的切点的Advisor实现InstantiationModelAwarePointcutAdvisorImpl. 此实现类会为@Advice切面中
+		//  被注解的每个方法创建一个Advisor实例. 在其内部会创建一个PerTargetInstantiationModelPointcut类型的Pointcut
 		return new InstantiationModelAwarePointcutAdvisorImpl(expressionPointcut, candidateAdviceMethod,
 				this, aspectInstanceFactory, declarationOrderInAspect, aspectName);
 	}
@@ -262,14 +262,23 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	}
 
 
+	/**
+	 *
+	 * @param candidateAdviceMethod the candidate advice method 要进行增强操作的方法
+	 * @param expressionPointcut the AspectJ expression pointcut AspectJ的表达式切点
+	 * @param aspectInstanceFactory the aspect instance factory  Aspect实例工厂
+	 * @param declarationOrder the declaration order within the aspect 当前方法在切面中的位置(Advice标注过的方法都是排过序的, 就是这个)
+	 * @param aspectName the name of the aspect @Aspect切面所标注的Class的名字
+	 * @return
+	 */
 	@Override
 	@Nullable
 	public Advice getAdvice(Method candidateAdviceMethod, AspectJExpressionPointcut expressionPointcut,
 			MetadataAwareAspectInstanceFactory aspectInstanceFactory, int declarationOrder, String aspectName) {
-
+		// TODO 取得切面, 然后对其进行验证, 保证其满足AspectJ的要求, 并且还得是Spring AOP所支持的切面实例类型
 		Class<?> candidateAspectClass = aspectInstanceFactory.getAspectMetadata().getAspectClass();
 		validate(candidateAspectClass);
-
+		// TODO 取得Advice方法上的注解. 会对注解中的表达式进行解析
 		AspectJAnnotation<?> aspectJAnnotation =
 				AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(candidateAdviceMethod);
 		if (aspectJAnnotation == null) {
@@ -279,6 +288,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		// If we get here, we know we have an AspectJ method.
 		// Check that it's an AspectJ-annotated class
 		if (!isAspect(candidateAspectClass)) {
+			// TODO 无法处理非AspectJ-annotated的类
 			throw new AopConfigException("Advice must be declared inside an aspect type: " +
 					"Offending method '" + candidateAdviceMethod + "' in class [" +
 					candidateAspectClass.getName() + "]");
@@ -289,26 +299,31 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		}
 
 		AbstractAspectJAdvice springAdvice;
-
+		// TODO 下面就是处理Spring AOP支持的几种Advice了
 		switch (aspectJAnnotation.getAnnotationType()) {
 			case AtPointcut:
+				// TODO Pointcut
 				if (logger.isDebugEnabled()) {
 					logger.debug("Processing pointcut '" + candidateAdviceMethod.getName() + "'");
 				}
 				return null;
 			case AtAround:
+				// TODO 用于环绕方法的Advice
 				springAdvice = new AspectJAroundAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
 			case AtBefore:
+				// TODO 用于方法前执行的Advice
 				springAdvice = new AspectJMethodBeforeAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
 			case AtAfter:
+				// TODO 用于方法后执行的Advice
 				springAdvice = new AspectJAfterAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
 			case AtAfterReturning:
+				// TODO 用于方法返回后执行的Advice
 				springAdvice = new AspectJAfterReturningAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				AfterReturning afterReturningAnnotation = (AfterReturning) aspectJAnnotation.getAnnotation();
@@ -317,6 +332,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				}
 				break;
 			case AtAfterThrowing:
+				// TODO 用于抛出异常后执行的Advice
 				springAdvice = new AspectJAfterThrowingAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				AfterThrowing afterThrowingAnnotation = (AfterThrowing) aspectJAnnotation.getAnnotation();
@@ -325,17 +341,24 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				}
 				break;
 			default:
+				// TODO 其他的就全不支持了
 				throw new UnsupportedOperationException(
 						"Unsupported advice type on method: " + candidateAdviceMethod);
 		}
 
 		// Now to configure the advice...
+		// TODO 设置Advice的信息, 名字, 位置, 参数这些
 		springAdvice.setAspectName(aspectName);
 		springAdvice.setDeclarationOrder(declarationOrder);
+		// TODO 根据Advice方法使用AspectJAnnotationParameterNameDiscoverer取得参数名数组
 		String[] argNames = this.parameterNameDiscoverer.getParameterNames(candidateAdviceMethod);
 		if (argNames != null) {
+			// TODO 如果注解中设置了'argNames'值, 则对Advice进行参数设置. 当解析过的参数数量比Advice的方法中的参数多一个时, 则表示
+			//  可能有个隐式连接点. 这时会判断Advice的方法中第一个参数, 如果是JoinPoint, ProceedingJoinPoint, 或者JoinPoint$StaticPart时,
+			//  会在解析过的参数数组首位增加一个'THIS_JOIN_POINT'参数
 			springAdvice.setArgumentNamesFromStringArray(argNames);
 		}
+		// TODO 进行参数绑定, 主要是设置切点的需要的参数名, 以及参数类型
 		springAdvice.calculateArgumentBindings();
 
 		return springAdvice;

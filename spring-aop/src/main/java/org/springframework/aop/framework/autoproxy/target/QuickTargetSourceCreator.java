@@ -58,14 +58,17 @@ public class QuickTargetSourceCreator extends AbstractBeanFactoryBasedTargetSour
 			Class<?> beanClass, String beanName) {
 
 		if (beanName.startsWith(PREFIX_COMMONS_POOL)) {
+			// TODO ':'开头表示为一个最大目标源池, 最大容器25. 其具有池的一切特征. 具体实现是委托给了GenericObjectPoolConfig
 			CommonsPool2TargetSource cpts = new CommonsPool2TargetSource();
 			cpts.setMaxSize(25);
 			return cpts;
 		}
 		else if (beanName.startsWith(PREFIX_THREAD_LOCAL)) {
+			// TODO '%'开头的表示为一个ThreadLocal类型的目标源. 每个线程都会绑定自己的目标源, 这些目标源同样也是prototype的
 			return new ThreadLocalTargetSource();
 		}
 		else if (beanName.startsWith(PREFIX_PROTOTYPE)) {
+			// TODO '!'开头的表示为原型类型的目标源, 其生成的目标源就不是单例的了.
 			return new PrototypeTargetSource();
 		}
 		else {

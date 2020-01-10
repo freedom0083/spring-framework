@@ -40,6 +40,7 @@ public class PrototypeTargetSource extends AbstractPrototypeBasedTargetSource {
 	 */
 	@Override
 	public Object getTarget() throws BeansException {
+		// TODO 每次都会从容器中得到一个新的实例
 		return newPrototypeInstance();
 	}
 

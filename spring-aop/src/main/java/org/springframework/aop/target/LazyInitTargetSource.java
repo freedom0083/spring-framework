@@ -58,6 +58,7 @@ import org.springframework.lang.Nullable;
  * @see #postProcessTargetObject
  */
 @SuppressWarnings("serial")
+// TODO 用于延迟初始化目标源, 只要在调用了getTarget()方法后才会进行初始化动作
 public class LazyInitTargetSource extends AbstractBeanFactoryBasedTargetSource {
 
 	@Nullable
@@ -68,7 +69,10 @@ public class LazyInitTargetSource extends AbstractBeanFactoryBasedTargetSource {
 	@Nullable
 	public synchronized Object getTarget() throws BeansException {
 		if (this.target == null) {
+			// TODO 作用就是当调用getTarget()方法时才会进行初始化动作
 			this.target = getBeanFactory().getBean(getTargetBeanName());
+			// TODO 然后可以对代理目标进行一此其他处理. 当前类并没有做实现, 子类可以对其进行覆盖.
+			//  目前MbeanExporter$NotificationPublisherAwareLazyTargetSource对其进行了覆盖
 			postProcessTargetObject(this.target);
 		}
 		return this.target;

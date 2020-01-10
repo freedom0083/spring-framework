@@ -1106,7 +1106,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					// TODO 有三个地方实现了SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference(Object, String)方法:
 					//  1. SmartInstantiationAwareBeanPostProcessor: 接口提供了一个默认实现方法, 直接返回当前bean做为要暴露的bean
 					//  2. InstantiationAwareBeanPostProcessorAdapter: 抽象类, 实现与接口默认方法相同, Java 8后可以去掉了
-					//  3. AbstractAutoProxyCreator: 抽象类
+					//  3. AbstractAutoProxyCreator: 抽象类, 用于提供为Spring AOP自动创建代理的功能
 					exposedObject = ibp.getEarlyBeanReference(exposedObject, beanName);
 				}
 			}

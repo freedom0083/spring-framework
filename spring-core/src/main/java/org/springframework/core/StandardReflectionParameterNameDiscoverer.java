@@ -31,6 +31,7 @@ import org.springframework.lang.Nullable;
  * @see java.lang.reflect.Method#getParameters()
  * @see java.lang.reflect.Parameter#getName()
  */
+// TODO 基于Java 8反射的标准参数名探测器, 需要为编译器使用'-parameters'参数
 public class StandardReflectionParameterNameDiscoverer implements ParameterNameDiscoverer {
 
 	@Override
@@ -46,11 +47,14 @@ public class StandardReflectionParameterNameDiscoverer implements ParameterNameD
 	}
 
 	@Nullable
+	// TODO 遍历方法的所有参数. 在指定了Java 8中javac命令的-parameters选项后参数后, 会把所有的形参都加到返回结果集中
 	private String[] getParameterNames(Parameter[] parameters) {
 		String[] parameterNames = new String[parameters.length];
 		for (int i = 0; i < parameters.length; i++) {
 			Parameter param = parameters[i];
 			if (!param.isNamePresent()) {
+				// TODO 如果没有包含方法的形参名信息, 则直接返回null. javac默认生成.class时是不包含形参名信息的. 只有为javac命令
+				//  指定-parameters选项后, isNamePresent()才会返回true. 这都是Java 8新加的
 				return null;
 			}
 			parameterNames[i] = param.getName();

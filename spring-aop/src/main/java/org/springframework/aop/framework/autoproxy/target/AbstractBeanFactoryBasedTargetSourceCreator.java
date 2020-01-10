@@ -89,6 +89,14 @@ public abstract class AbstractBeanFactoryBasedTargetSourceCreator
 	@Override
 	@Nullable
 	public final TargetSource getTargetSource(Class<?> beanClass, String beanName) {
+		// TODO 根据当前操作的bean来创建一个TargetSource. 一共有两个实现覆盖了创建目标源的方法:
+		//  1. LazyInitTargetSourceCreator: 用于延迟初始化. 如果bean设置了延迟加载, 则会创建一个LazyInitTargetSource目标源,
+		//     此目标源只有在调用getTarget()方法时才会创建目标源.
+		//  2. QuickTargetSourceCreator: 根据当前操作的bean的名字来创建目标源.
+		//     a. CommonsPool2TargetSource: 以':'开头的目标源池, 设置了最大容器为25, 具体实现是委托给了GenericObjectPoolConfig;
+		//     b. ThreadLocalTargetSource: 以'%'开头的ThreadLocal类型的目标源. 每个线程都会绑定自己的目标源, 这些目标源同样也是prototype的;
+		//     c. PrototypeTargetSource: 以'!'开头的原型类型的目标源, 其生成的目标源不是单例的了;
+		//     d. 其他情况返回的都是null
 		AbstractBeanFactoryBasedTargetSource targetSource =
 				createBeanFactoryBasedTargetSource(beanClass, beanName);
 		if (targetSource == null) {
@@ -98,20 +106,27 @@ public abstract class AbstractBeanFactoryBasedTargetSourceCreator
 		if (logger.isDebugEnabled()) {
 			logger.debug("Configuring AbstractBeanFactoryBasedTargetSource: " + targetSource);
 		}
-
+		// TODO 取得用于处理当前bean的内部容器
 		DefaultListableBeanFactory internalBeanFactory = getInternalBeanFactoryForBean(beanName);
 
 		// We need to override just this bean definition, as it may reference other beans
 		// and we're happy to take the parent's definition for those.
 		// Always use prototype scope if demanded.
 		BeanDefinition bd = this.beanFactory.getMergedBeanDefinition(beanName);
+		// TODO 复制当前bean的mbd, 创建一个新的GenericBeanDefinition
 		GenericBeanDefinition bdCopy = new GenericBeanDefinition(bd);
 		if (isPrototypeBased()) {
+			// TODO 根据当前目标源构造器来设置mbd的scope:
+			//  1. AbstractBeanFactoryBasedTargetSourceCreator: 默认为true. 即, 所有的目标源全是prototype的
+			//  2. LazyInitTargetSourceCreator: 覆盖了AbstractBeanFactoryBasedTargetSourceCreator的方法. 设置为false, 即, 其
+			//     迟延创建的目标源的scope全是默认值''
 			bdCopy.setScope(BeanDefinition.SCOPE_PROTOTYPE);
 		}
+		// TODO 把当前操作的bean所创建GenericBeanDefinition注册到内部容器中
 		internalBeanFactory.registerBeanDefinition(beanName, bdCopy);
 
 		// Complete configuring the PrototypeTargetSource.
+		// TODO 然后设置目标源所持有的目标, 以及所使用的容器
 		targetSource.setTargetBeanName(beanName);
 		targetSource.setBeanFactory(internalBeanFactory);
 
@@ -127,6 +142,8 @@ public abstract class AbstractBeanFactoryBasedTargetSourceCreator
 		synchronized (this.internalBeanFactories) {
 			DefaultListableBeanFactory internalBeanFactory = this.internalBeanFactories.get(beanName);
 			if (internalBeanFactory == null) {
+				// TODO 如果缓存里没有, 会创建一个内部容器, 然后放到缓存中. 这个内部容器与当前容器相同, 只是去掉了用于处理Spring AOP
+				//  的基础设施后处理器
 				internalBeanFactory = buildInternalBeanFactory(this.beanFactory);
 				this.internalBeanFactories.put(beanName, internalBeanFactory);
 			}

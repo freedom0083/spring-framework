@@ -72,6 +72,7 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 		return doGetParameterNames(originalMethod);
 	}
 
+	// TODO 这个名字探测器是支持构造函数的
 	@Override
 	@Nullable
 	public String[] getParameterNames(Constructor<?> ctor) {
@@ -80,6 +81,7 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 
 	@Nullable
 	private String[] doGetParameterNames(Executable executable) {
+		// TODO 先根据方法取得其所在的类信息
 		Class<?> declaringClass = executable.getDeclaringClass();
 		Map<Executable, String[]> map = this.parameterNamesCache.computeIfAbsent(declaringClass, this::inspectClass);
 		return (map != NO_DEBUG_INFO_MAP ? map.get(executable) : null);
@@ -136,6 +138,7 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 	 * Helper class that inspects all methods and constructors and then
 	 * attempts to find the parameter names for the given {@link Executable}.
 	 */
+	// TODO 从给定的Executable中取得参数名
 	private static class ParameterNameDiscoveringVisitor extends ClassVisitor {
 
 		private static final String STATIC_CLASS_INIT = "<clinit>";

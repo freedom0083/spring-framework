@@ -55,11 +55,15 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 	private final String methodName;
 
 	private final Class<?>[] parameterTypes;
-
+	// TODO @Aspect切面中被@Around, @Before, @After, @AfterReturning, @AfterThrowing这些注解标注的方法
 	private transient Method aspectJAdviceMethod;
-
+	// TODO AspectJ使用的Advisor工厂, 有两个实现:
+	//  1. AbstractAspectJAdvisorFactory: 抽象类, 提供了从AspectJ 5注解的类创建Spring AOP的Advisor的功能. 其内部类AspectJAnnotation
+	//     提供了Spring AOP与AspectJ注解之间的映射关系, 让Spring AOP支持部分AspectJ 5的标准注解, 即: @Pointcut, @Around, @Before,
+	//     @After, @AfterReturning, @AfterThrowing
+	//  2. ReflectiveAspectJAdvisorFactory: AbstractAspectJAdvisorFactory的子类. 增加了反射执行Advice方法的功能
 	private final AspectJAdvisorFactory aspectJAdvisorFactory;
-
+	// TODO 切面的实例化工厂
 	private final MetadataAwareAspectInstanceFactory aspectInstanceFactory;
 
 	private final int declarationOrder;
@@ -79,7 +83,15 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 	@Nullable
 	private Boolean isAfterAdvice;
 
-
+	/**
+	 *
+	 * @param declaredPointcut 由切面中@Around, @Before, @After, @AfterReturning, @AfterThrowing所注解的方法所生成的切点(可以解析表达式)
+	 * @param aspectJAdviceMethod @Aspect切面中被@Around, @Before, @After, @AfterReturning, @AfterThrowing这些注解标注的方法
+	 * @param aspectJAdvisorFactory Advisor工厂
+	 * @param aspectInstanceFactory 切面的实例化工厂
+	 * @param declarationOrder 当前方法在切面中的位置(Advice标注过的方法都是排过序的, 就是这个)
+	 * @param aspectName @Aspect切面所标注的Class的名字
+	 */
 	public InstantiationModelAwarePointcutAdvisorImpl(AspectJExpressionPointcut declaredPointcut,
 			Method aspectJAdviceMethod, AspectJAdvisorFactory aspectJAdvisorFactory,
 			MetadataAwareAspectInstanceFactory aspectInstanceFactory, int declarationOrder, String aspectName) {
@@ -96,20 +108,25 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 
 		if (aspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			// Static part of the pointcut is a lazy type.
+			// TODO 如果切面类型是PERTARGET, PERTHIS, PERTYPEWITHIN, 会将其与解析好的表达式切点组合成一个新的切点. 这三种类型每次
+			//  都会创建新的切点
 			Pointcut preInstantiationPointcut = Pointcuts.union(
 					aspectInstanceFactory.getAspectMetadata().getPerClausePointcut(), this.declaredPointcut);
 
 			// Make it dynamic: must mutate from pre-instantiation to post-instantiation state.
 			// If it's not a dynamic pointcut, it may be optimized out
 			// by the Spring AOP infrastructure after the first evaluation.
+			// TODO 这里就是为每个代理目标创建一个新切点的地方
 			this.pointcut = new PerTargetInstantiationModelPointcut(
 					this.declaredPointcut, preInstantiationPointcut, aspectInstanceFactory);
 			this.lazy = true;
 		}
 		else {
 			// A singleton aspect.
+			// TODO SINGLETON类型的切面, 而会共用切点
 			this.pointcut = this.declaredPointcut;
 			this.lazy = false;
+			// TODO 从切点实例化Advice, 对于没有实例化的Advice会进行实例化动作
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 	}
@@ -140,12 +157,14 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 	@Override
 	public synchronized Advice getAdvice() {
 		if (this.instantiatedAdvice == null) {
+			// TODO 取得Advice时, 如果还没有实例化过, 则用切点对其进行实例化
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 		return this.instantiatedAdvice;
 	}
 
 	private Advice instantiateAdvice(AspectJExpressionPointcut pointcut) {
+		// TODO 从Advsor工厂中取得Advice. 会对没有初始化的Advice进行初始化动作
 		Advice advice = this.aspectJAdvisorFactory.getAdvice(this.aspectJAdviceMethod, pointcut,
 				this.aspectInstanceFactory, this.declarationOrder, this.aspectName);
 		return (advice != null ? advice : EMPTY_ADVICE);

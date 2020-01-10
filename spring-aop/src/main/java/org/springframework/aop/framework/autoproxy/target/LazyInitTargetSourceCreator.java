@@ -52,6 +52,7 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#setCustomTargetSourceCreators
  * @see org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator
  */
+// TODO 用于创建延迟初始化的目标源
 public class LazyInitTargetSourceCreator extends AbstractBeanFactoryBasedTargetSourceCreator {
 
 	@Override
@@ -68,6 +69,7 @@ public class LazyInitTargetSourceCreator extends AbstractBeanFactoryBasedTargetS
 			BeanDefinition definition =
 					((ConfigurableListableBeanFactory) getBeanFactory()).getBeanDefinition(beanName);
 			if (definition.isLazyInit()) {
+				// TODO 如果设置了迟延加载, 则为其创建只有执行getTarget()方法时才会创建目标源的LazyInitTargetSource
 				return new LazyInitTargetSource();
 			}
 		}

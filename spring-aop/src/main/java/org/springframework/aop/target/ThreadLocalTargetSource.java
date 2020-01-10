@@ -78,6 +78,7 @@ public class ThreadLocalTargetSource extends AbstractPrototypeBasedTargetSource
 	@Override
 	public Object getTarget() throws BeansException {
 		++this.invocationCount;
+		// TODO 从当前线程中拿出代理目标
 		Object target = this.targetInThread.get();
 		if (target == null) {
 			if (logger.isDebugEnabled()) {
@@ -85,9 +86,11 @@ public class ThreadLocalTargetSource extends AbstractPrototypeBasedTargetSource
 						"creating one and binding it to thread '" + Thread.currentThread().getName() + "'");
 			}
 			// Associate target with ThreadLocal.
+			// TODO 如果没有, 就创建一个非单例的新实例(因为每个线程都会持有不同实例), 然后放到当前线程的ThreadLocal中. 具体创建是在父类中进行的
 			target = newPrototypeInstance();
 			this.targetInThread.set(target);
 			synchronized (this.targetSet) {
+				// TODO 同时同步地放到保存所有创建过的代理目标的set中
 				this.targetSet.add(target);
 			}
 		}

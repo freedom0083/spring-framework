@@ -33,6 +33,7 @@ import org.springframework.lang.Nullable;
  * @author Rod Johnson
  * @author Juergen Hoeller
  */
+// TODO 此接口表示的是代理目标的来源, 其持有代理目标Target.
 public interface TargetSource extends TargetClassAware {
 
 	/**
@@ -41,6 +42,7 @@ public interface TargetSource extends TargetClassAware {
 	 * might just work with a predetermined target class.
 	 * @return the type of targets returned by this {@link TargetSource}
 	 */
+	// TODO 获取代理目标对象的类型
 	@Override
 	@Nullable
 	Class<?> getTargetClass();
@@ -52,6 +54,8 @@ public interface TargetSource extends TargetClassAware {
 	 * @return {@code true} if the target is immutable
 	 * @see #getTarget
 	 */
+	// TODO 标识代理目标是否为静态. 对于静态代理目标来说, Spring AOP会在getTarget()后对其进行缓存, 这样每次返回的就都是相同的代理目标.
+	//  对于非静态代理目标来说, 因为需要每次重新创建实例, 所以会在执行结束后调用releaseTarget()来释放代理目标
 	boolean isStatic();
 
 	/**
@@ -61,6 +65,7 @@ public interface TargetSource extends TargetClassAware {
 	 * or {@code null} if there is no actual target instance
 	 * @throws Exception if the target object can't be resolved
 	 */
+	// TODO 取得目标实例. 在每次MethodInvocation方法调用执行之前会获取
 	@Nullable
 	Object getTarget() throws Exception;
 
@@ -70,6 +75,7 @@ public interface TargetSource extends TargetClassAware {
 	 * @param target object obtained from a call to {@link #getTarget()}
 	 * @throws Exception if the object can't be released
 	 */
+	// TODO 对于非静态的代理目标来说, 会释放getTarget()取得的代理目标对象
 	void releaseTarget(Object target) throws Exception;
 
 }

@@ -136,7 +136,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	private final Map<Object, Object> earlyProxyReferences = new ConcurrentHashMap<>(16);
 
 	private final Map<Object, Class<?>> proxyTypes = new ConcurrentHashMap<>(16);
-
+	// TODO 经过增加的bean
 	private final Map<Object, Boolean> advisedBeans = new ConcurrentHashMap<>(256);
 
 
@@ -235,21 +235,28 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	@Override
 	public Object getEarlyBeanReference(Object bean, String beanName) {
+		// TODO 为当前操作的bean创建一个用于缓存的key. 如果bean是个工厂类, 则为其加上'&'前缀, 否则就直接是当前操作的bean的名字.
+		//  如果没有得到bean名的话, 那这个key就是当前操作的bean的class了
 		Object cacheKey = getCacheKey(bean.getClass(), beanName);
 		// TODO 放到提前暴露bean的代理缓存中
 		this.earlyProxyReferences.put(cacheKey, bean);
 		return wrapIfNecessary(bean, beanName, cacheKey);
 	}
 
+	// TODO
 	@Override
 	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
+		// TODO 为当前操作的bean创建一个用于缓存的key. 如果bean是个工厂类, 则为其加上'&'前缀, 否则就直接是当前操作的bean的名字.
+		//  如果没有得到bean名的话, 那这个key就是当前操作的bean的class了
 		Object cacheKey = getCacheKey(beanClass, beanName);
 
 		if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
 			if (this.advisedBeans.containsKey(cacheKey)) {
+				// TODO 缓存里有了, 就表示之前已经创建过了, 所以实例化前也不需要为其创建代理了
 				return null;
 			}
 			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+				// TODO 对于基础设施bean, 或者指明需要跳过的bean, 标明一下无需进行增强操作, 然后也返回null, 表示实例化前不需要为其创建代理了
 				this.advisedBeans.put(cacheKey, Boolean.FALSE);
 				return null;
 			}
@@ -258,6 +265,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// Create proxy here if we have a custom TargetSource.
 		// Suppresses unnecessary default instantiation of the target bean:
 		// The TargetSource will handle target instances in a custom fashion.
+		// TODO 实例化之前还会看看是否有自定义的代理目标来源, 如果有的话会创建一个TargetSource代理.
 		TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
 		if (targetSource != null) {
 			if (StringUtils.hasLength(beanName)) {
@@ -283,6 +291,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	}
 
 	@Override
+	// TODO 初始化前不需要进行加工, 所以直接返回就行了
 	public Object postProcessBeforeInitialization(Object bean, String beanName) {
 		return bean;
 	}
@@ -421,6 +430,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// We can't create fancy target sources for directly registered singletons.
 		if (this.customTargetSourceCreators != null &&
 				this.beanFactory != null && this.beanFactory.containsBean(beanName)) {
+			// TODO 如果有自定义的TargetSourceCreator, 且当前操作的bean已经存在于容器中时
 			for (TargetSourceCreator tsc : this.customTargetSourceCreators) {
 				TargetSource ts = tsc.getTargetSource(beanClass, beanName);
 				if (ts != null) {

@@ -66,6 +66,7 @@ public abstract class AbstractPrototypeBasedTargetSource extends AbstractBeanFac
 		if (logger.isDebugEnabled()) {
 			logger.debug("Creating new instance of bean '" + getTargetBeanName() + "'");
 		}
+		// TODO 使用容器创建一个bean. 如果getTargetBeanName()是prototype的, 则目标对象也是prototype的
 		return getBeanFactory().getBean(getTargetBeanName());
 	}
 
