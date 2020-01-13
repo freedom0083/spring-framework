@@ -1264,9 +1264,11 @@ public abstract class ClassUtils {
 	 */
 	public static Method getMostSpecificMethod(Method method, @Nullable Class<?> targetClass) {
 		if (targetClass != null && targetClass != method.getDeclaringClass() && isOverridable(method, targetClass)) {
+			// TODO 当要得到的方法所在的类与代理目标类不同, 且这个方法被覆盖过时, 表示其为代理中的方法. 下面要找到其目标类中的原本的方法
 			try {
 				if (Modifier.isPublic(method.getModifiers())) {
 					try {
+						// TODO public方法直接找就行
 						return targetClass.getMethod(method.getName(), method.getParameterTypes());
 					}
 					catch (NoSuchMethodException ex) {
@@ -1274,8 +1276,10 @@ public abstract class ClassUtils {
 					}
 				}
 				else {
+					// TODO 非public的方法会用反映去找
 					Method specificMethod =
 							ReflectionUtils.findMethod(targetClass, method.getName(), method.getParameterTypes());
+					// TODO 找到了就直接用, 万一没找到, 就用代理过的方法
 					return (specificMethod != null ? specificMethod : method);
 				}
 			}

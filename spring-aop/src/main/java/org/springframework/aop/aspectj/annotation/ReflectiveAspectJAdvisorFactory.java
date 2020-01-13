@@ -250,7 +250,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		if (aspectJAnnotation == null) {
 			return null;
 		}
-		// TODO 创建一个表达式切点, 同时设置解析好的表达式
+		// TODO 创建一个支持AspectJ表达式的切点, 同时设置解析好的表达式
 		AspectJExpressionPointcut ajexp =
 				new AspectJExpressionPointcut(candidateAspectClass, new String[0], new Class<?>[0]);
 		ajexp.setExpression(aspectJAnnotation.getPointcutExpression());

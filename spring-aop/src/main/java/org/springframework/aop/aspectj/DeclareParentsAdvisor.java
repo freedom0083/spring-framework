@@ -38,7 +38,7 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	private final Advice advice;
 	// TODO 为目标类引入的, 需要实现其方法或属性的新接口
 	private final Class<?> introducedInterface;
-
+	// TODO 结合了TypePatternClassFilter, 以及排除不同类型的过滤器
 	private final ClassFilter typePatternClassFilter;
 
 
@@ -50,7 +50,8 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	 */
 	public DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, Class<?> defaultImpl) {
 		this(interfaceType, typePattern,
-				// TODO 创建一个
+				// TODO 创建一个DelegatePerTargetObjectIntroductionInterceptor拦截器. 这个拦截器每次创建时都会为@DeclareParents
+				//  注解中defaultImpl属性指定的, 要增加方法的类创建一个全新的代理实例
 				new DelegatePerTargetObjectIntroductionInterceptor(defaultImpl, interfaceType));
 	}
 
@@ -76,8 +77,13 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 		this.introducedInterface = interfaceType;
 
 		// Excludes methods implemented.
+		// TODO 设置类型匹配过滤器
 		ClassFilter typePatternFilter = new TypePatternClassFilter(typePattern);
+		// TODO 用于判断是否排除指定类的过滤器. 即, 给定的类与@DeclareParents注解的字段的类型是否不同.
+		//  true: 表示给定类与@DeclareParents注解的字段的类型不相同, 应该排除掉
+		//  false: 表示给定类与@DeclareParents注解的字段的类型相同, 不应该排除
 		ClassFilter exclusion = (clazz -> !this.introducedInterface.isAssignableFrom(clazz));
+		// TODO 组合两个过滤器, 用于后面的匹配操作
 		this.typePatternClassFilter = ClassFilters.intersection(typePatternFilter, exclusion);
 	}
 

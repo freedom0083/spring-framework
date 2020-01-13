@@ -456,7 +456,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		for (Map.Entry<String, AbstractBeanDefinition> entry : configBeanDefs.entrySet()) {
 			AbstractBeanDefinition beanDef = entry.getValue();
 			// If a @Configuration class gets proxied, always proxy the target class
-			// TODO 被增强的配置类会设置PRESERVE_TARGET_CLASS_ATTRIBUTE为true, 后面AOP会用到 mark
+			// TODO 被增强的配置类会设置preserveTargetClass为true, 表示使用CGLIB来创建代理
 			beanDef.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// Set enhanced subclass of the user-specified bean class
 			Class<?> configClass = beanDef.getBeanClass();

@@ -533,7 +533,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		try {
-			// TODO 开始正式创建bean实例, 然后返回
+			// TODO 开始正式创建bean实例, 然后返回创建好的bean实例
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'");
@@ -609,8 +609,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
-		// TODO 验证是否支持提前暴露, 只有正在创建的, 允许循环引用的单例bean才支持提前暴露. 支持提前暴露的bean会向singletonFactories
-		//  添加一个objectFactory, 后期依赖该bean的其他bean都可以从singletonFactories中直接获取
+		// TODO 提前暴露可以解析循环依赖的问题. 这里先验证一下当前bean是否支持提前暴露. 如果当前bean是个单例的, 且允许循环引用时, 如果
+		//  这个bean正处在创建过程中, 则表示其支持提前暴露. 支持提前暴露的bean会向singletonFactories添加一个objectFactory, 后期
+		//  依赖该bean的其他bean都可以从singletonFactories中直接获取
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -1090,16 +1091,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param bean the raw bean instance
 	 * @return the object to expose as bean reference
 	 */
+	// TODO
 	protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
 		Object exposedObject = bean;
 		// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现
 		//  InstantiationAwareBeanPostProcessor接口的主要作用是在目标实例化前后, 以及实例的属性进行处理
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-			// TODO 当这个mbd是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
-			//  类型后处理器时,
-			//  尝试从mbd中拿到bean的类型
-			// TODO 对于由当前容器所创建的bean, 且注册过并且容器注册过InstantiationAwareBeanPostProcessor类型的初始
-			//  化后处理器时, 开始类型预测.
+			// TODO 当这个mbd(当前bean)是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
+			//  类型后处理器时, 尝试用这些处理器来对要创建的bean进行处理, 提前暴露出需要的bean, 来应对循环引用问题
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;

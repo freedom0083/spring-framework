@@ -92,6 +92,7 @@ public class AspectJAwareAdvisorAutoProxyCreator extends AbstractAdvisorAutoProx
 	 */
 	@Override
 	protected void extendAdvisors(List<Advisor> candidateAdvisors) {
+		// TODO 如果支持AspectJ, 且还没有DefaultPointcutAdvisor时, 往Advisor集合中添一个DefaultPointcutAdvisor
 		AspectJProxyUtils.makeAdvisorChainAspectJCapableIfNecessary(candidateAdvisors);
 	}
 

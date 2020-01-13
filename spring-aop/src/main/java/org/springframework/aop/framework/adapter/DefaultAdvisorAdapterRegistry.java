@@ -47,6 +47,7 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 	 * Create a new DefaultAdvisorAdapterRegistry, registering well-known adapters.
 	 */
 	public DefaultAdvisorAdapterRegistry() {
+		// TODO 创建时会添加默认的三个Adapter
 		registerAdvisorAdapter(new MethodBeforeAdviceAdapter());
 		registerAdvisorAdapter(new AfterReturningAdviceAdapter());
 		registerAdvisorAdapter(new ThrowsAdviceAdapter());
@@ -64,14 +65,19 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		Advice advice = (Advice) adviceObject;
 		if (advice instanceof MethodInterceptor) {
 			// So well-known it doesn't even need an adapter.
+			// TODO MethodInterceptor会被包装成DefaultPointcutAdvisor
 			return new DefaultPointcutAdvisor(advice);
 		}
 		for (AdvisorAdapter adapter : this.adapters) {
 			// Check that it is supported.
+			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个Adapter, MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter
+			//  和ThrowsAdviceAdapter.
 			if (adapter.supportsAdvice(advice)) {
+				// TODO 如果当前增强方法是上面三个Adapter支持的其中之一时, 也创建一个DefaultPointcutAdvisor
 				return new DefaultPointcutAdvisor(advice);
 			}
 		}
+		// TODO 其他情况不支持
 		throw new UnknownAdviceTypeException(advice);
 	}
 

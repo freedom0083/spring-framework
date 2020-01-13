@@ -33,7 +33,9 @@ public class ProxyConfig implements Serializable {
 	/** use serialVersionUID from Spring 1.2 for interoperability. */
 	private static final long serialVersionUID = -8409359707199703185L;
 
-
+	// TODO 用来指示当前的代理目标是类还是接口
+	//  true: 代理目标是是类, 强制使用CGLib方式进行代理
+	//  false: 代理目标是接口, 使用JDK的动态代理
 	private boolean proxyTargetClass = false;
 
 	private boolean optimize = false;

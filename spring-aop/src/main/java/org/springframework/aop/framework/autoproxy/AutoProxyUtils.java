@@ -65,6 +65,7 @@ public abstract class AutoProxyUtils {
 	 * @param beanName the name of the bean
 	 * @return whether the given bean should be proxied with its target class
 	 */
+	// TODO 确定是为类, 还是为接口创建代理. 如果是为类创建代理, bean的preserveTargetClass属性设置的是true. 会用CGLIB来创建代理.
 	public static boolean shouldProxyTargetClass(
 			ConfigurableListableBeanFactory beanFactory, @Nullable String beanName) {
 
@@ -112,6 +113,7 @@ public abstract class AutoProxyUtils {
 			ConfigurableListableBeanFactory beanFactory, @Nullable String beanName, Class<?> targetClass) {
 
 		if (beanName != null && beanFactory.containsBeanDefinition(beanName)) {
+			// TODO 当前操作的bean已经在容器中的话, 为当前bean的mbd设置'AutoProxyUtils.originalTargetClass'属性
 			beanFactory.getMergedBeanDefinition(beanName).setAttribute(ORIGINAL_TARGET_CLASS_ATTRIBUTE, targetClass);
 		}
 	}

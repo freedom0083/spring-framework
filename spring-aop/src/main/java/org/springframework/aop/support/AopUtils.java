@@ -193,7 +193,9 @@ public abstract class AopUtils {
 	 * @see org.springframework.util.ClassUtils#getMostSpecificMethod
 	 */
 	public static Method getMostSpecificMethod(Method method, @Nullable Class<?> targetClass) {
+		// TODO 取得目标类. 如果是CGLib生成的, 则取其原始类
 		Class<?> specificTargetClass = (targetClass != null ? ClassUtils.getUserClass(targetClass) : null);
+		// TODO 这里取的方法也是尝试从代理目标类里取. 如果代理目标类没有那个方法, 比如增强后的方法. 就直接返回增强后的方法
 		Method resolvedMethod = ClassUtils.getMostSpecificMethod(method, specificTargetClass);
 		// If we are dealing with method with generic parameters, find the original method.
 		return BridgeMethodResolver.findBridgedMethod(resolvedMethod);
@@ -215,8 +217,8 @@ public abstract class AopUtils {
 	 * Can the given pointcut apply at all on the given class?
 	 * <p>This is an important test as it can be used to optimize
 	 * out a pointcut for a class.
-	 * @param pc the static or dynamic pointcut to check
-	 * @param targetClass the class to test
+	 * @param pc the static or dynamic pointcut to check 用于检查的静态或动态切点
+	 * @param targetClass the class to test 待测试的目标类
 	 * @param hasIntroductions whether or not the advisor chain
 	 * for this bean includes any introductions
 	 * @return whether the pointcut can apply on any method
@@ -235,19 +237,39 @@ public abstract class AopUtils {
 
 		IntroductionAwareMethodMatcher introductionAwareMethodMatcher = null;
 		if (methodMatcher instanceof IntroductionAwareMethodMatcher) {
+			// TODO 切点表示的如果是用来处理引用装配的MethodCher, 则进行一下转换, IntroductionAwareMethodMatcher有4个实现:
+			//  1. AspectJExpressionPointcut: 用于AspectJ表达式
+			//  2. MethodMatchers$ClassFilterAwareUnionIntroductionAwareMethodMatcher: 联合了两个方法匹配器, 其中之一必需是
+			//     IntroductionAwareMethodMatcher. 每个方法匹配器支持一个相关的类过滤器
+			//  3. MethodMatchers$UnionIntroductionAwareMethodMatcher: 与上面类似, 联合了两个方法匹配器, 但不为匹配器提供类过
+			//     滤器. 同样要求其中一个MethodMatcher必需是IntroductionAwareMethodMatcher
+			//  4. MethodMatchers$IntersectionIntroductionAwareMethodMatcher: 具有两个Introduction方法匹配器, 需要同时满足两个
+			//     方法匹配器才行
 			introductionAwareMethodMatcher = (IntroductionAwareMethodMatcher) methodMatcher;
 		}
 
 		Set<Class<?>> classes = new LinkedHashSet<>();
 		if (!Proxy.isProxyClass(targetClass)) {
+			// TODO 目标类不是代理类时, 将其加入到set中. 如果是CGLib增强过的, 则用其原始类加入到列表中
 			classes.add(ClassUtils.getUserClass(targetClass));
 		}
+		// TODO 把目标类所有的接口也放到set里
 		classes.addAll(ClassUtils.getAllInterfacesForClassAsSet(targetClass));
 
 		for (Class<?> clazz : classes) {
+			// TODO 遍历set中所有的class. 取得每个class中定义的方法
 			Method[] methods = ReflectionUtils.getAllDeclaredMethods(clazz);
 			for (Method method : methods) {
+				// TODO 对每个方法进行判断, 看切点是否可以应用到方法上
 				if (introductionAwareMethodMatcher != null ?
+						// TODO introductionAwareMethodMatcher类型的:
+						//  1. AspectJExpressionPointcut: 用于处理AspectJ表达式的切点. 会判断当前方法是否与目标类中的方法匹配
+						//  2. MethodMatchers$ClassFilterAwareUnionIntroductionAwareMethodMatcher: 联合了两个方法匹配器, 其中之一必需是
+						//     IntroductionAwareMethodMatcher. 每个方法匹配器支持一个相关的类过滤器
+						//  3. MethodMatchers$UnionIntroductionAwareMethodMatcher: 与上面类似, 联合了两个方法匹配器, 但不为匹配器提供类过
+						//     滤器. 同样要求其中一个MethodMatcher必需是IntroductionAwareMethodMatcher
+						//  4. MethodMatchers$IntersectionIntroductionAwareMethodMatcher: 具有两个Introduction方法匹配器, 需要同时满足两个
+						//     方法匹配器才行
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
 						methodMatcher.matches(method, targetClass)) {
 					return true;
@@ -262,11 +284,12 @@ public abstract class AopUtils {
 	 * Can the given advisor apply at all on the given class?
 	 * This is an important test as it can be used to optimize
 	 * out a advisor for a class.
-	 * @param advisor the advisor to check
-	 * @param targetClass class we're testing
+	 * @param advisor the advisor to check 要验证的Advisor
+	 * @param targetClass class we're testing 要进行代理的类
 	 * @return whether the pointcut can apply on any method
 	 */
 	public static boolean canApply(Advisor advisor, Class<?> targetClass) {
+		// TODO 测试Advisor是否可以应用在代理目标类上. 不存在引入的情况
 		return canApply(advisor, targetClass, false);
 	}
 
@@ -274,22 +297,30 @@ public abstract class AopUtils {
 	 * Can the given advisor apply at all on the given class?
 	 * <p>This is an important test as it can be used to optimize out a advisor for a class.
 	 * This version also takes into account introductions (for IntroductionAwareMethodMatchers).
-	 * @param advisor the advisor to check
-	 * @param targetClass class we're testing
+	 * @param advisor the advisor to check 要验证的Advisor
+	 * @param targetClass class we're testing 要进行代理的类
 	 * @param hasIntroductions whether or not the advisor chain for this bean includes
 	 * any introductions
 	 * @return whether the pointcut can apply on any method
 	 */
 	public static boolean canApply(Advisor advisor, Class<?> targetClass, boolean hasIntroductions) {
 		if (advisor instanceof IntroductionAdvisor) {
+			// TODO 如果是用于处理引用的Advisor, 即IntroductionAdvisor类型时, 直接对目标类型进行匹配测试:
+			//  1. DeclareParentsAdvisor: 会做两个判断来确定是否可以应用于目标类上:
+			//     A. @DeclareParents的value值所设定的类要与目标类相同(支持通配符, 比如'+'表示其子类, '*'表示所有等)
+			//     B. @DeclareParents所应用的字段的类型需要与代理目标类型不同
+			//  2. DefaultIntroductionAdvisor: 默认的处理引用的Advisor, 全部返回true, 表示可以应用于目标类
 			return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
 		}
 		else if (advisor instanceof PointcutAdvisor) {
+			// TODO 切点类型的Advisor
 			PointcutAdvisor pca = (PointcutAdvisor) advisor;
+			// TODO 测试代理目标类是否可以应用切点
 			return canApply(pca.getPointcut(), targetClass, hasIntroductions);
 		}
 		else {
 			// It doesn't have a pointcut so we assume it applies.
+			// TODO 所有其他类型都表示可以为代理目标应用Advisor
 			return true;
 		}
 	}
@@ -310,17 +341,22 @@ public abstract class AopUtils {
 		for (Advisor candidate : candidateAdvisors) {
 			// TODO 遍历所有候选Advisor
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
-				// TODO 把可以应用在代理目标的Advisor加入到合格列表里
+				// TODO 把所有IntroductionAdvisor类型(用于引入的Advisor), 且可以应用在代理目标上的Advisor加入到合格列表里
 				eligibleAdvisors.add(candidate);
 			}
 		}
+		// TODO 如果有合格的Advisor, 则表示有引入的情况
 		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
 		for (Advisor candidate : candidateAdvisors) {
+			// TODO 再遍历一次候选Advisor, 处理非IntroductionAdvisor的Advisor
 			if (candidate instanceof IntroductionAdvisor) {
 				// already processed
+				// TODO 引入类型的Advisor上面已经处理过了, 所以跳过
 				continue;
 			}
+			// TODO 再用canApply()方法测试一下目标类是否可以应用Advisor. 这里的Advisor就是PointcutAdvisor和其他情况了(其他情况永远返回true)
 			if (canApply(candidate, clazz, hasIntroductions)) {
+				// TODO 把合格的Advisor也加入到列表
 				eligibleAdvisors.add(candidate);
 			}
 		}

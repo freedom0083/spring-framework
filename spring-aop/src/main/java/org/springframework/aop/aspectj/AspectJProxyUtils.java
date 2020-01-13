@@ -42,6 +42,7 @@ public abstract class AspectJProxyUtils {
 	 * @return {@code true} if an {@link ExposeInvocationInterceptor} was added to the list,
 	 * otherwise {@code false}
 	 */
+	// TODO 用来为支持AspectJ时, 添加一个默认的DefaultPointcutAdvisor到代理链里
 	public static boolean makeAdvisorChainAspectJCapableIfNecessary(List<Advisor> advisors) {
 		// Don't add advisors to an empty list; may indicate that proxying is just not required
 		if (!advisors.isEmpty()) {
@@ -55,6 +56,7 @@ public abstract class AspectJProxyUtils {
 				}
 			}
 			if (foundAspectJAdvice && !advisors.contains(ExposeInvocationInterceptor.ADVISOR)) {
+				// TODO 如果支持AspectJ, 且Advisor中不包含DefaultPointcutAdvisor时, 给他添一个
 				advisors.add(0, ExposeInvocationInterceptor.ADVISOR);
 				return true;
 			}

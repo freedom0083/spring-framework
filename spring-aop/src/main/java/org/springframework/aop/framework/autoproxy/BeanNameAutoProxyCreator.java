@@ -44,11 +44,13 @@ import org.springframework.util.StringUtils;
  * @see AbstractAutoProxyCreator
  */
 @SuppressWarnings("serial")
+// TODO 用于从配置的列表里直接创建代理. 只支持为工厂类(FactoryBean)创建代理. 配置列表支通配符, 比如: 'xxx*', '*xxx'等
 public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
-
+	// TODO 可以理解为存储的是所有配置的规则. 可以直接是某个bean的名字, 也可能是'*', 'xx*'等.
+	//  1. 如果带'*', 表示模糊匹配所有bean. 如果是'tx*', 表示是所有tx开始的bean. 如果是'*tx', 表示所有tx结尾的bean.
+	//  2. 如果是个确定的名字, 则是直接匹配. 如果是'myBean', 则直接匹配所有名字为'myBean'的bean
 	@Nullable
 	private List<String> beanNames;
-
 
 	/**
 	 * Set the names of the beans that should automatically get wrapped with proxies.
@@ -74,6 +76,7 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 	/**
 	 * Identify as bean to proxy if the bean name is in the configured list of names.
 	 */
+	// TODO 直接从配置的列表里拿出正在操作的bean所对应的Advisor. 除了用bean的id外, 还会用别名进行匹配动作
 	@Override
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
@@ -82,16 +85,20 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 		if (this.beanNames != null) {
 			for (String mappedName : this.beanNames) {
 				if (FactoryBean.class.isAssignableFrom(beanClass)) {
+					// TODO 如果当前操作的bean是个工厂类, 只会专注于缓存中以'&'开头的工厂bean
 					if (!mappedName.startsWith(BeanFactory.FACTORY_BEAN_PREFIX)) {
 						continue;
 					}
 					mappedName = mappedName.substring(BeanFactory.FACTORY_BEAN_PREFIX.length());
 				}
 				if (isMatch(beanName, mappedName)) {
+					// TODO 如果缓存中有与当前操作的bean匹配的bean, 则返回一个新的Object数组
 					return PROXY_WITHOUT_ADDITIONAL_INTERCEPTORS;
 				}
+				// TODO 当前操作的bean没能与缓存的bean匹配上时, 会尝试用当前操作的bean的别名再次进行匹配操作
 				BeanFactory beanFactory = getBeanFactory();
 				if (beanFactory != null) {
+					// TODO 拿出容器中bean注册的所有别名, 然后与缓存中的bean进行对比. 如果匹配, 同样也返回一个新的Object数组
 					String[] aliases = beanFactory.getAliases(beanName);
 					for (String alias : aliases) {
 						if (isMatch(alias, mappedName)) {
@@ -101,6 +108,7 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 				}
 			}
 		}
+		// TODO 当前操作的bean没有名字, 或者是缓存中没有与其匹配的bean时, 表示不需要代理, 返回一个null
 		return DO_NOT_PROXY;
 	}
 

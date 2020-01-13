@@ -460,6 +460,7 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 		}
 		if (this.argumentNames != null) {
 			// We have been able to determine the arg names.
+			// TODO 进行参数绑定
 			bindExplicitArguments(numArgumentsExpectingToBind);
 		}
 		else {

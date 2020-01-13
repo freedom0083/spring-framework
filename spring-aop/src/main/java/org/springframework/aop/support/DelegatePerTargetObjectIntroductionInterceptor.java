@@ -73,8 +73,10 @@ public class DelegatePerTargetObjectIntroductionInterceptor extends Introduction
 		// We do this for two reasons:
 		// 1) to fail early if there is a problem instantiating delegates
 		// 2) to populate the interface map once and once only
+		// TODO 每次都会创为@DeclareParents注解中defaultImpl属性指定的, 要增加方法的类创建一个全新的代理实例
 		Object delegate = createNewDelegate();
 		implementInterfacesOnObject(delegate);
+		// TODO 这个代理会排除掉以下两个接口
 		suppressInterface(IntroductionInterceptor.class);
 		suppressInterface(DynamicIntroductionAdvice.class);
 	}

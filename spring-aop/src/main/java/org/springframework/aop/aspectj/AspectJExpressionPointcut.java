@@ -84,19 +84,29 @@ import org.springframework.util.StringUtils;
 @SuppressWarnings("serial")
 public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		implements ClassFilter, IntroductionAwareMethodMatcher, BeanFactoryAware {
-
+	// TODO 切点支持的原语
 	private static final Set<PointcutPrimitive> SUPPORTED_PRIMITIVES = new HashSet<>();
 
 	static {
+		// TODO 'execution'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.EXECUTION);
+		// TODO 'args'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.ARGS);
+		// TODO 'reference pointcut'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.REFERENCE);
+		// TODO '@this'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.THIS);
+		// TODO 'target'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.TARGET);
+		// TODO 'within'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.WITHIN);
+		// TODO '@annotation'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.AT_ANNOTATION);
+		// TODO '@within'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.AT_WITHIN);
+		// TODO '@args'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.AT_ARGS);
+		// TODO '@target'属性
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.AT_TARGET);
 	}
 
@@ -195,6 +205,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		}
 		if (this.pointcutExpression == null) {
 			this.pointcutClassLoader = determinePointcutClassLoader();
+			// TODO pointcutExpression缓存没有东西时会build一个
 			this.pointcutExpression = buildPointcutExpression(this.pointcutClassLoader);
 		}
 		return this.pointcutExpression;
@@ -218,12 +229,16 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * Build the underlying AspectJ pointcut expression.
 	 */
 	private PointcutExpression buildPointcutExpression(@Nullable ClassLoader classLoader) {
+		// TODO 创建一个切点解析器(不支持'if', 'cflow', 'cflowbelow'原语)
 		PointcutParser parser = initializePointcutParser(classLoader);
+		// TODO 准备解析表达式中的'argNames'参数
 		PointcutParameter[] pointcutParameters = new PointcutParameter[this.pointcutParameterNames.length];
 		for (int i = 0; i < pointcutParameters.length; i++) {
+			// TODO 为'argNames'中的每个参数创建一个PointcutParameter
 			pointcutParameters[i] = parser.createPointcutParameter(
 					this.pointcutParameterNames[i], this.pointcutParameterTypes[i]);
 		}
+		// TODO 先把切点中的表达式拿出来, 替换掉boolean操作符后进行解析
 		return parser.parsePointcutExpression(replaceBooleanOperators(resolveExpression()),
 				this.pointcutDeclarationScope, pointcutParameters);
 	}
@@ -238,6 +253,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * Initialize the underlying AspectJ pointcut parser.
 	 */
 	private PointcutParser initializePointcutParser(@Nullable ClassLoader classLoader) {
+		// TODO 根据支持的原语创建一个切点解析器, 这个解析器不支持'if', 'cflow', 'cflowbelow'原语
 		PointcutParser parser = PointcutParser
 				.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(
 						SUPPORTED_PRIMITIVES, classLoader);
@@ -289,29 +305,44 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		return false;
 	}
 
+	/**
+	 *
+	 * @param method the candidate method
+	 * @param targetClass the target class 代理目标类
+	 * @param hasIntroductions {@code true} if the object on whose behalf we are
+	 * asking is the subject on one or more introductions; {@code false} otherwise 是否有引入的情况
+	 * @return
+	 */
 	@Override
 	public boolean matches(Method method, Class<?> targetClass, boolean hasIntroductions) {
+		// TODO 先取得切点表达式
 		obtainPointcutExpression();
+		// TODO 然后取得目标类对应的ShadowMatch
 		ShadowMatch shadowMatch = getTargetShadowMatch(method, targetClass);
 
 		// Special handling for this, target, @this, @target, @annotation
 		// in Spring - we can optimize since we know we have exactly this class,
 		// and there will never be matching subclass at runtime.
 		if (shadowMatch.alwaysMatches()) {
+			// TODO 如果ShadowMatch表示的是YesFuzzyBoolean, 表示匹配成功
 			return true;
 		}
 		else if (shadowMatch.neverMatches()) {
+			// TODO 其他几个情况都是失败: NoFuzzyBoolean, MaybeFuzzyBoolean, NeverFuzzyBoolean
 			return false;
 		}
 		else {
 			// the maybe case
 			if (hasIntroductions) {
+				// TODO 如果有引入的话, 也表示匹配
 				return true;
 			}
 			// A match test returned maybe - if there are any subtype sensitive variables
 			// involved in the test (this, target, at_this, at_target, at_annotation) then
 			// we say this is not a match as in Spring there will never be a different
 			// runtime subtype.
+			// TODO 和子类型敏感变量有关. 测试中涉及到任何子类型敏感变量(this, target, at_this, at_target, at_annotation)时
+			//  都表示不匹配. 因为在Spring中永远不会有不同的运行时子类型。
 			RuntimeTestWalker walker = getRuntimeTestWalker(shadowMatch);
 			return (!walker.testsSubtypeSensitiveVars() || walker.testTargetInstanceOfResidue(targetClass));
 		}
@@ -426,14 +457,18 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	}
 
 	private ShadowMatch getTargetShadowMatch(Method method, Class<?> targetClass) {
+		// TODO 找到目标类中的方法. 如果目标类中没有对应的方法, 会用代理类里的方法
 		Method targetMethod = AopUtils.getMostSpecificMethod(method, targetClass);
 		if (targetMethod.getDeclaringClass().isInterface()) {
 			// Try to build the most specific interface possible for inherited methods to be
 			// considered for sub-interface matches as well, in particular for proxy classes.
 			// Note: AspectJ is only going to take Method.getDeclaringClass() into account.
+			// TODO 如果目标方法所在的类是个接口, 则把其所有父接口全拿出来
 			Set<Class<?>> ifcs = ClassUtils.getAllInterfacesForClassAsSet(targetClass);
 			if (ifcs.size() > 1) {
 				try {
+					// TODO 然后合并到一个类里, 再取一次目标方法. 如果目标方法不存在, 表示其为代理生成的方法, 返回的就是代理里的方法.
+					//  否则返回的是目标类中的原始方法
 					Class<?> compositeInterface = ClassUtils.createCompositeInterface(
 							ClassUtils.toClassArray(ifcs), targetClass.getClassLoader());
 					targetMethod = ClassUtils.getMostSpecificMethod(targetMethod, compositeInterface);
@@ -444,11 +479,19 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 				}
 			}
 		}
+		// TODO 用代理目标方法, 以及原始方法取得ShadowMatch
 		return getShadowMatch(targetMethod, method);
 	}
 
+	/**
+	 * 根据指定的方法获取ShadowMatch
+	 * @param targetMethod 目标方法, 有可能是原生方法, 也有可能是由代理类创建的, 原生类里没有的方法
+	 * @param originalMethod 目标方法
+	 * @return
+	 */
 	private ShadowMatch getShadowMatch(Method targetMethod, Method originalMethod) {
 		// Avoid lock contention for known Methods through concurrent access...
+		// TODO 取得的步骤还是一样, 先看缓存, 缓存里没有再重新计算
 		ShadowMatch shadowMatch = this.shadowMatchCache.get(targetMethod);
 		if (shadowMatch == null) {
 			synchronized (this.shadowMatchCache) {
@@ -456,15 +499,18 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 				PointcutExpression fallbackExpression = null;
 				shadowMatch = this.shadowMatchCache.get(targetMethod);
 				if (shadowMatch == null) {
+					// TODO 先用目标方法进行匹配尝试
 					Method methodToMatch = targetMethod;
 					try {
 						try {
+							// TODO 根据切点表达式取得方法对应的ShadowMatch
 							shadowMatch = obtainPointcutExpression().matchesMethodExecution(methodToMatch);
 						}
 						catch (ReflectionWorldException ex) {
 							// Failed to introspect target method, probably because it has been loaded
 							// in a special ClassLoader. Let's try the declaring ClassLoader instead...
 							try {
+								// TODO 如果出现问题了, 会进行fallback表达式. 降级再次尝试取得对应的ShadowMatch
 								fallbackExpression = getFallbackPointcutExpression(methodToMatch.getDeclaringClass());
 								if (fallbackExpression != null) {
 									shadowMatch = fallbackExpression.matchesMethodExecution(methodToMatch);
@@ -479,6 +525,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 							// Fall back to the plain original method in case of no resolvable match or a
 							// negative match on a proxy class (which doesn't carry any annotations on its
 							// redeclared methods).
+							// TODO 代理方法与目标方法不同时, 如果ShadowMatch没有取得值, 或者目标方法所在的类是个不匹配的代理类时,
+							//  再用代理方法进行匹配尝试, 过程和上面类似
 							methodToMatch = originalMethod;
 							try {
 								shadowMatch = obtainPointcutExpression().matchesMethodExecution(methodToMatch);
@@ -504,12 +552,15 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 						fallbackExpression = null;
 					}
 					if (shadowMatch == null) {
+						// TODO 没有对应的ShadowMatch时, 创建一个FuzzyBoolean.NO的ShadowMatch
 						shadowMatch = new ShadowMatchImpl(org.aspectj.util.FuzzyBoolean.NO, null, null, null);
 					}
 					else if (shadowMatch.maybeMatches() && fallbackExpression != null) {
+						// TODO 否则, 在ShadowMatch有可能匹配一些连接点时, 且有fallback表达式时, 创建一个DefensiveShadowMatch返回
 						shadowMatch = new DefensiveShadowMatch(shadowMatch,
 								fallbackExpression.matchesMethodExecution(methodToMatch));
 					}
+					// TODO 放到缓存中
 					this.shadowMatchCache.put(targetMethod, shadowMatch);
 				}
 			}

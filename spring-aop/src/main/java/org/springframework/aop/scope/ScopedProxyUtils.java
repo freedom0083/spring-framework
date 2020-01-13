@@ -48,7 +48,8 @@ public abstract class ScopedProxyUtils {
 	 * bean with an internal name and setting 'targetBeanName' on the scoped proxy.
 	 * @param definition the original bean definition
 	 * @param registry the bean definition registry
-	 * @param proxyTargetClass whether to create a target class proxy
+	 * @param proxyTargetClass whether to create a target class proxy 何种方式创建代理. true表示为类创建代理, 强制使用CGLIB;
+	 *                         false表示为接口创建代理, 使用JDK的动态代理
 	 * @return the scoped proxy definition
 	 * @see #getTargetBeanName(String)
 	 * @see #getOriginalBeanName(String)
@@ -74,7 +75,8 @@ public abstract class ScopedProxyUtils {
 		// TODO 将目标bean名注册到property属性中
 		proxyDefinition.getPropertyValues().add("targetBeanName", targetBeanName);
 		if (proxyTargetClass) {
-			// TODO cglib机制下, 设置preserveTargetClass, 用于后续AOP处理
+			// TODO proxyTargetClass是true时, 表示是为类创建代理. Spring会强制使用CGLIB来创建代理. 方式就是'preserveTargetClass'
+			//  属性为true. AbstractAutoProxyCreator.createProxy()方法代建代理时会用到此值
 			targetDefinition.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// ScopedProxyFactoryBean's "proxyTargetClass" default is TRUE, so we don't need to set it explicitly here.
 		}

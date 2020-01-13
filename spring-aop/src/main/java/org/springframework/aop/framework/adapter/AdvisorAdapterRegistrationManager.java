@@ -56,6 +56,7 @@ public class AdvisorAdapterRegistrationManager implements BeanPostProcessor {
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 		if (bean instanceof AdvisorAdapter){
+			// TODO 初始化后注册AdvisorAdapter
 			this.advisorAdapterRegistry.registerAdvisorAdapter((AdvisorAdapter) bean);
 		}
 		return bean;

@@ -101,12 +101,18 @@ public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanC
 	 * @param beanClass the class of the bean
 	 * @param proxyFactory the ProxyFactory for the bean
 	 */
+	// TODO 确定代理目标到底是应用于接口上的代理, 还是应用于类上的代理. 如果是应用于接口的代理, 还会把代理目标的所有接口放到代理工厂中
 	protected void evaluateProxyInterfaces(Class<?> beanClass, ProxyFactory proxyFactory) {
+		// TODO 取得代理目标的所有接口
 		Class<?>[] targetInterfaces = ClassUtils.getAllInterfacesForClass(beanClass, getProxyClassLoader());
 		boolean hasReasonableProxyInterface = false;
 		for (Class<?> ifc : targetInterfaces) {
+			// TODO 遍历代理目标的所有接口
 			if (!isConfigurationCallbackInterface(ifc) && !isInternalLanguageInterface(ifc) &&
 					ifc.getMethods().length > 0) {
+				// TODO 如果接口不是一个回调接口(InitializingBean, DisposableBean, Closeable, AutoCloseable, Aware.class),
+				//  不能不是内部用的一些接口('groovy.lang.GroovyObject, 以'.cglib.proxy.Factory或者'.bytebuddy.MockAccess'
+				//  结尾的class)就表示其为一个接口代理
 				hasReasonableProxyInterface = true;
 				break;
 			}
@@ -118,6 +124,7 @@ public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanC
 			}
 		}
 		else {
+			// TODO 否则还是认为是一个类代理, 强制使用CGLIB
 			proxyFactory.setProxyTargetClass(true);
 		}
 	}
