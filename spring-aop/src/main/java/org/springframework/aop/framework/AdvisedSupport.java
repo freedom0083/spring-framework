@@ -75,32 +75,37 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	TargetSource targetSource = EMPTY_TARGET_SOURCE;
 
 	/** Whether the Advisors are already filtered for the specific target class. */
+	// TODO 用来表明Advisor是否已经为特定的目标类过滤过
 	private boolean preFiltered = false;
 
 	/** The AdvisorChainFactory to use. */
+	// TODO AdvisorChainFactory工厂, 默认是DefaultAdvisorChainFactory
 	AdvisorChainFactory advisorChainFactory = new DefaultAdvisorChainFactory();
 
 	/** Cache with Method as key and advisor chain List as value. */
+	// TODO 方法-Advisor链映射的缓存
 	private transient Map<MethodCacheKey, List<Object>> methodCache;
 
 	/**
 	 * Interfaces to be implemented by the proxy. Held in List to keep the order
 	 * of registration, to create JDK proxy with specified order of interfaces.
 	 */
+	// TODO 代理实现的所有接口的缓存
 	private List<Class<?>> interfaces = new ArrayList<>();
 
 	/**
 	 * List of Advisors. If an Advice is added, it will be wrapped
 	 * in an Advisor before being added to this List.
 	 */
+	// TODO Advisor缓存. 对于Advice来说, 会先转化成Advisor后, 再加到此缓存中
 	private List<Advisor> advisors = new ArrayList<>();
 
 	/**
 	 * Array updated on changes to the advisors list, which is easier
 	 * to manipulate internally.
 	 */
+	// TODO Advisor数组缓存, 与上面的Advisor缓存是同步关系
 	private Advisor[] advisorArray = new Advisor[0];
-
 
 	/**
 	 * No-arg constructor for use as a JavaBean.
@@ -231,6 +236,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		return ClassUtils.toClassArray(this.interfaces);
 	}
 
+	// TODO 判断接口是否已经是被代理过的了
 	@Override
 	public boolean isInterfaceProxied(Class<?> intf) {
 		for (Class<?> proxyIntf : this.interfaces) {
@@ -247,17 +253,22 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		return this.advisorArray;
 	}
 
+	// TODO 把Advisor添加到缓存中, 这是增量的, 一直向后添加
 	@Override
 	public void addAdvisor(Advisor advisor) {
 		int pos = this.advisors.size();
+		// TODO 把Advisor添加到缓存最后的位置上
 		addAdvisor(pos, advisor);
 	}
 
 	@Override
 	public void addAdvisor(int pos, Advisor advisor) throws AopConfigException {
 		if (advisor instanceof IntroductionAdvisor) {
+			// TODO 用于引入的IntroductionAdvisor, 需要先验证一下是否实现了指定的接口, (defaultImpl里指定的么??), 如果实现了,
+			//  就将其加入到代理实现的所有接口的缓存中
 			validateIntroductionAdvisor((IntroductionAdvisor) advisor);
 		}
+		// TODO 把其他类型的Advisor添加到Advisor缓存中. 然后会同步更新Advisor数组, 以及清理方法-Advisor链映射缓存
 		addAdvisorInternal(pos, advisor);
 	}
 
@@ -344,11 +355,16 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		}
 	}
 
+	// TODO 验证IntroductionAdvisor是否实现了指定的接口(defaultImpl里指定的么??), 如果实现了, 就将其加入到代理实现的所有接口的缓存中
 	private void validateIntroductionAdvisor(IntroductionAdvisor advisor) {
+		// TODO
+		//  1. DeclareParentsAdvisor: 没做处理
+		//  2. DefaultIntroductionAdvisor: 验证用于引入操作的IntroductionAdvisor是否实现了其指定的接口(defaultImpl里指定的么??)
 		advisor.validateInterfaces();
 		// If the advisor passed validation, we can make the change.
 		Class<?>[] ifcs = advisor.getInterfaces();
 		for (Class<?> ifc : ifcs) {
+			// TODO 如果通过了验证, 则将指定的接口添加到代理实现的所有接口的缓存
 			addInterface(ifc);
 		}
 	}
@@ -356,14 +372,18 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	private void addAdvisorInternal(int pos, Advisor advisor) throws AopConfigException {
 		Assert.notNull(advisor, "Advisor must not be null");
 		if (isFrozen()) {
+			// TODO 冻结时是不能更改配置的
 			throw new AopConfigException("Cannot add advisor: Configuration is frozen.");
 		}
 		if (pos > this.advisors.size()) {
 			throw new IllegalArgumentException(
 					"Illegal position " + pos + " in advisor list with size " + this.advisors.size());
 		}
+		// TODO 把Advisor添加到缓存中
 		this.advisors.add(pos, advisor);
+		// TODO 更新Advisor数组缓存
 		updateAdvisorArray();
+		// TODO 清除一下方法-链映射缓存
 		adviceChanged();
 	}
 
@@ -477,10 +497,19 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 */
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
 		MethodCacheKey cacheKey = new MethodCacheKey(method);
+		// TODO 先从方法缓存里取, 如果取到, 直接返回就行
 		List<Object> cached = this.methodCache.get(cacheKey);
 		if (cached == null) {
+			// TODO 没取到时, 会进行一次加载动作. 会遍历所有的Advisor:
+			//  1. PointcutAdvisor: 切点类型的会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter,
+			//     AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor(如果是动态的方法拦截器, 会被包装成
+			//     InterceptorAndDynamicMethodMatcher)
+			//  2. IntroductionAdvisor: 如果Advisor已经过滤过了, 或者匹配上了代理目标类时, 会做和上面相同的处理. 这里只是不需要做切点类型
+			//     的类级匹配测试
+			//  3. 其他类型: 和上面一样, 只是不需要做任何匹配测试
 			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
 					this, method, targetClass);
+			// TODO 然后放到缓存里
 			this.methodCache.put(cacheKey, cached);
 		}
 		return cached;

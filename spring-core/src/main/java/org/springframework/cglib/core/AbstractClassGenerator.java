@@ -318,8 +318,10 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 			this.key = key;
 			Object obj = data.get(this, getUseCache());
 			if (obj instanceof Class) {
+				// TODO 为类创建实例
 				return firstInstance((Class) obj);
 			}
+			// TODO 应该是为接口创建实例了吧
 			return nextInstance(obj);
 		}
 		catch (RuntimeException | Error ex) {

@@ -619,10 +619,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
-			// 这里面主要是解决循环引用问题~~~~~~~~~借助了这个工厂
-			//这里主要是调用处理器：SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference方法去寻找到前期的Bean们（若存在这种处理器的话）
-			// TODO
-			//  getEarlyBeanReference可以对返回的bean进行修改，这边目前除了可能会返回动态代理对象 其他的都是直接返回bean
+			// TODO 解决单例bean的循环引用是通过提前暴露bean来实现的. 如果bean支持提前暴露, 会通过addSingletonFactory()方法将其放到
+			//  singletonFactories, 和registeredSingletons缓存中, 同时从earlySingletonObjects缓存中移除.
+			//  提前暴露的bean有可能是需要进行代理, 所以SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference()方法
+			//  会看容器中是否有可以应用于当前操作的bean的Advisor来决定是否为其创建动态代理
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
@@ -1091,7 +1091,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param bean the raw bean instance
 	 * @return the object to expose as bean reference
 	 */
-	// TODO
+	// TODO 解析循环引用问题. 会对支持提前暴露的单例bean进行处理, 在需要的时候会为其创建代理
 	protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
 		Object exposedObject = bean;
 		// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现

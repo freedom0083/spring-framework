@@ -69,7 +69,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	}
 
 	// TODO 取得容器中所有的Advisor. 对于普通的Advisor, 会对没有实例化的Advisor进行实例化操作. 如果支持AspectJ, 则还会为@Aspect切面
-	//  中的@Around, @Before, @After, @AfterReturning, @AfterThrowing方法, 以及@DeclareParents字段创建Advisor
+	//  中的@Around, @Before, @After, @AfterReturning, @AfterThrowing这些Advice方法, 以及@DeclareParents字段创建Advisor
 	@Override
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
@@ -131,6 +131,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @return the List of applicable Advisors
 	 * @see ProxyCreationContext#getCurrentProxiedBeanName()
 	 */
+	// TODO 找出所有可以用于当前操作的bean的Advisor
 	protected List<Advisor> findAdvisorsThatCanApply(
 			List<Advisor> candidateAdvisors, Class<?> beanClass, String beanName) {
 		// TODO 这个ProxyCreationContext上下文中, 用ThreadLocal来保存的要实例化的bean的名字

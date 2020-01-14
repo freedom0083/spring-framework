@@ -299,11 +299,14 @@ public class ReflectUtils {
 		throw new ClassNotFoundException(save);
 	}
 
+	// TODO 创建一个新实例, 不提供参数
 	public static Object newInstance(Class type) {
+		// TODO 设置空参数
 		return newInstance(type, Constants.EMPTY_CLASS_ARRAY, null);
 	}
-
+	// TODO 根据参数类型, 以及入参来创建一个新实例
 	public static Object newInstance(Class type, Class[] parameterTypes, Object[] args) {
+		// TODO 先根据参数类型取得构造器, 然后用构造器创建新实例
 		return newInstance(getConstructor(type, parameterTypes), args);
 	}
 
@@ -314,6 +317,7 @@ public class ReflectUtils {
 			if (!flag) {
 				cstruct.setAccessible(true);
 			}
+			// TODO 通过构造器创建实例
 			Object result = cstruct.newInstance(args);
 			return result;
 		}

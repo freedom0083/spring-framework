@@ -107,6 +107,9 @@ public class ProxyFactory extends ProxyCreatorSupport {
 	 * @return the proxy object
 	 */
 	public Object getProxy(@Nullable ClassLoader classLoader) {
+		// TODO Spring使用两种方式进行代理:
+		//  1. JdkDynamicAopProxy: 应用于代理目标是接口的情况;
+		//  2. CglibAopProxy: 应用于代理目标是类的情况;
 		return createAopProxy().getProxy(classLoader);
 	}
 

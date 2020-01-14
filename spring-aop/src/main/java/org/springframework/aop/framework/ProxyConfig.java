@@ -28,24 +28,25 @@ import org.springframework.util.Assert;
  * @author Juergen Hoeller
  * @see AdvisedSupport
  */
+// TODO 提供代理的配置信息
 public class ProxyConfig implements Serializable {
 
 	/** use serialVersionUID from Spring 1.2 for interoperability. */
 	private static final long serialVersionUID = -8409359707199703185L;
-
 	// TODO 用来指示当前的代理目标是类还是接口
 	//  true: 代理目标是是类, 强制使用CGLib方式进行代理
 	//  false: 代理目标是接口, 使用JDK的动态代理
 	private boolean proxyTargetClass = false;
-
+	// TODO 表示当前代理是否需要进行优化
 	private boolean optimize = false;
-
+	// TODO 表示当前代理是否可以转化为Advised来进行代理状态的查询
 	boolean opaque = false;
-
+	// TODO 表示代理是否应该被暴露为一个Threadlocal, 使其可以通过AOPContext进行查询
 	boolean exposeProxy = false;
-
+	// TODO 代理是否对配置更改进行冻结.
+	//  true: 表示冻结配置, Advice不能再更改
+	//  false: 表示Advice可以更新
 	private boolean frozen = false;
-
 
 	/**
 	 * Set whether to proxy the target class directly, instead of just proxying

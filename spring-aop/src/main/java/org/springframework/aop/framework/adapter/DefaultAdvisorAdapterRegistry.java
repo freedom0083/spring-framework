@@ -53,7 +53,7 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		registerAdvisorAdapter(new ThrowsAdviceAdapter());
 	}
 
-
+	// TODO 把对象包装为Advisor
 	@Override
 	public Advisor wrap(Object adviceObject) throws UnknownAdviceTypeException {
 		if (adviceObject instanceof Advisor) {
@@ -81,15 +81,22 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		throw new UnknownAdviceTypeException(advice);
 	}
 
+	// TODO 取得Advisor中包含的所有方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter
+	//  和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor
 	@Override
 	public MethodInterceptor[] getInterceptors(Advisor advisor) throws UnknownAdviceTypeException {
 		List<MethodInterceptor> interceptors = new ArrayList<>(3);
+		// TODO 从Advisor里拿出对应的Advice方法
 		Advice advice = advisor.getAdvice();
 		if (advice instanceof MethodInterceptor) {
+			// TODO MethodInterceptor类型的Advice直接加到方法拦截器列表里
 			interceptors.add((MethodInterceptor) advice);
 		}
 		for (AdvisorAdapter adapter : this.adapters) {
+			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个Adapter, MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter
+			//  和ThrowsAdviceAdapter.
 			if (adapter.supportsAdvice(advice)) {
+				// TODO 如果当前增强方法是上面三个Adapter支持的其中之一时, 会转化成对应的MethodInterceptor后, 放到方法拦截器列表里
 				interceptors.add(adapter.getInterceptor(advisor));
 			}
 		}

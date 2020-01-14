@@ -108,11 +108,13 @@ public class DefaultIntroductionAdvisor implements IntroductionAdvisor, ClassFil
 		return ClassUtils.toClassArray(this.interfaces);
 	}
 
+	// TODO 验证是否实现了指定的接口
 	@Override
 	public void validateInterfaces() throws IllegalArgumentException {
 		for (Class<?> ifc : this.interfaces) {
 			if (this.advice instanceof DynamicIntroductionAdvice &&
 					!((DynamicIntroductionAdvice) this.advice).implementsInterface(ifc)) {
+				// TODO DynamicIntroductionAdvice类型的Advice方法必需要实现指定的接口
 				throw new IllegalArgumentException("DynamicIntroductionAdvice [" + this.advice + "] " +
 						"does not implement interface [" + ifc.getName() + "] specified for introduction");
 			}

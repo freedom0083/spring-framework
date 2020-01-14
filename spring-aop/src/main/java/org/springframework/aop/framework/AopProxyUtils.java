@@ -115,23 +115,31 @@ public abstract class AopProxyUtils {
 	 * @see Advised
 	 * @see DecoratingProxy
 	 */
+	// TODO 主要是为了把SpringProxy, Advised接口添加到代理实现的接口列表里. 如果可以暴露DecoratingProxy接口, 也会将其加入到代理实现的接口列表里
 	static Class<?>[] completeProxiedInterfaces(AdvisedSupport advised, boolean decoratingProxy) {
+		// TODO 取得代理实现的所有接口
 		Class<?>[] specifiedInterfaces = advised.getProxiedInterfaces();
 		if (specifiedInterfaces.length == 0) {
 			// No user-specified interfaces: check whether target class is an interface.
+			// TODO 如果代理实现的接口缓存是空的, 需要重新计算一下. 先从目标源取得代理目标类
 			Class<?> targetClass = advised.getTargetClass();
 			if (targetClass != null) {
 				if (targetClass.isInterface()) {
+					// TODO 如果代理目标类是个接口, 把他也添加到代理实现的所有接口缓存里
 					advised.setInterfaces(targetClass);
 				}
 				else if (Proxy.isProxyClass(targetClass)) {
+					// TODO 如果代理类是Proxy类型, 则把其实现的接口添加到代理实现的所有接口缓存里
 					advised.setInterfaces(targetClass.getInterfaces());
 				}
 				specifiedInterfaces = advised.getProxiedInterfaces();
 			}
 		}
+		// TODO 判断一下SpringProxy是否在代理实现的接口列表里
 		boolean addSpringProxy = !advised.isInterfaceProxied(SpringProxy.class);
+		// TODO 判断一下Advised是否在代理实现的接口列表里
 		boolean addAdvised = !advised.isOpaque() && !advised.isInterfaceProxied(Advised.class);
+		// TODO 如果公开DecoratingProxy接口, 判断其是否在代理实现的接口列表里
 		boolean addDecoratingProxy = (decoratingProxy && !advised.isInterfaceProxied(DecoratingProxy.class));
 		int nonUserIfcCount = 0;
 		if (addSpringProxy) {
@@ -146,6 +154,7 @@ public abstract class AopProxyUtils {
 		Class<?>[] proxiedInterfaces = new Class<?>[specifiedInterfaces.length + nonUserIfcCount];
 		System.arraycopy(specifiedInterfaces, 0, proxiedInterfaces, 0, specifiedInterfaces.length);
 		int index = specifiedInterfaces.length;
+		// TODO 如果上面三个接口没有代理实现的接口列表里, 会把他们添加进去
 		if (addSpringProxy) {
 			proxiedInterfaces[index] = SpringProxy.class;
 			index++;
