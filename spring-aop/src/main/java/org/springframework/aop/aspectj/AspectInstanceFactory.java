@@ -31,12 +31,14 @@ import org.springframework.lang.Nullable;
  * @since 2.0
  * @see org.springframework.beans.factory.BeanFactory#getBean
  */
+// TODO 切面工厂
 public interface AspectInstanceFactory extends Ordered {
 
 	/**
 	 * Create an instance of this factory's aspect.
 	 * @return the aspect instance (never {@code null})
 	 */
+	// TODO 取得切面实例
 	Object getAspectInstance();
 
 	/**

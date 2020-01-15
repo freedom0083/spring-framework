@@ -50,6 +50,7 @@ public class PrototypeTargetSource extends AbstractPrototypeBasedTargetSource {
 	 */
 	@Override
 	public void releaseTarget(Object target) {
+		// TODO 销毁原型实例
 		destroyPrototypeInstance(target);
 	}
 

@@ -29,6 +29,7 @@ import org.springframework.lang.Nullable;
  * @since 2.0.3
  * @see org.springframework.aop.support.AopUtils#getTargetClass(Object)
  */
+// TODO 用于暴露代理目标的Class
 public interface TargetClassAware {
 
 	/**

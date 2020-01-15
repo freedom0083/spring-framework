@@ -35,29 +35,35 @@ import org.springframework.aop.TargetSource;
  * @since 13.03.2003
  * @see org.springframework.aop.framework.AdvisedSupport
  */
+// TODO 保存了AOP代理工厂的信息, 包括: Advisor, 拦截器, Advice增强方法(都会转化成Advisor的), 被代理的接口. 所有从Spring中取得的被
+//  代理出的对象全部都可以转化成Advised(不管是JDK动态代理, 还是CGLIB)
 public interface Advised extends TargetClassAware {
 
 	/**
 	 * Return whether the Advised configuration is frozen,
 	 * in which case no advice changes can be made.
 	 */
+	// TODO 是否冻结了Advised配置. 冻结的Advised中的advice增强方法都是不能再做修改的了
 	boolean isFrozen();
 
 	/**
 	 * Are we proxying the full target class instead of specified interfaces?
 	 */
+	// TODO 代理目标是个接口还是类. 接口会用JDK的动态代理, 类会用CGLIB进行代理
 	boolean isProxyTargetClass();
 
 	/**
 	 * Return the interfaces proxied by the AOP proxy.
 	 * <p>Will not include the target class, which may also be proxied.
 	 */
+	// TODO 被AOP代理的所有接口
 	Class<?>[] getProxiedInterfaces();
 
 	/**
 	 * Determine whether the given interface is proxied.
 	 * @param intf the interface to check
 	 */
+	// TODO 判断指定的接口是否被代理过
 	boolean isInterfaceProxied(Class<?> intf);
 
 	/**
@@ -65,11 +71,13 @@ public interface Advised extends TargetClassAware {
 	 * <p>Only works if the configuration isn't {@linkplain #isFrozen frozen}.
 	 * @param targetSource new TargetSource to use
 	 */
+	// TODO 设置当前Advised的代理目标源, 非冻结状态下可以使用
 	void setTargetSource(TargetSource targetSource);
 
 	/**
 	 * Return the {@code TargetSource} used by this {@code Advised} object.
 	 */
+	// TODO 取得当前Advised的代理目标源
 	TargetSource getTargetSource();
 
 	/**
@@ -112,6 +120,7 @@ public interface Advised extends TargetClassAware {
 	 * Return the advisors applying to this proxy.
 	 * @return a list of Advisors applying to this proxy (never {@code null})
 	 */
+	// TODO 取得当前Advised所持有的所有的Advisor
 	Advisor[] getAdvisors();
 
 	/**
@@ -122,6 +131,7 @@ public interface Advised extends TargetClassAware {
 	 * @param advisor the advisor to add to the end of the chain
 	 * @throws AopConfigException in case of invalid advice
 	 */
+	// TODO 向当前Advised持有的Advisor集合尾部添加一个Advisor
 	void addAdvisor(Advisor advisor) throws AopConfigException;
 
 	/**
@@ -130,6 +140,7 @@ public interface Advised extends TargetClassAware {
 	 * @param pos position in chain (0 is head). Must be valid.
 	 * @throws AopConfigException in case of invalid advice
 	 */
+	// TODO 和上面的方法一样, 只是指定了位置
 	void addAdvisor(int pos, Advisor advisor) throws AopConfigException;
 
 	/**
@@ -138,6 +149,7 @@ public interface Advised extends TargetClassAware {
 	 * @return {@code true} if the advisor was removed; {@code false}
 	 * if the advisor was not found and hence could not be removed
 	 */
+	// TODO 移除当前Advised最后一个Advisor
 	boolean removeAdvisor(Advisor advisor);
 
 	/**
@@ -145,6 +157,7 @@ public interface Advised extends TargetClassAware {
 	 * @param index index of advisor to remove
 	 * @throws AopConfigException if the index is invalid
 	 */
+	// TODO 移除当前Advised指定位置的Advisor
 	void removeAdvisor(int index) throws AopConfigException;
 
 	/**
@@ -182,6 +195,7 @@ public interface Advised extends TargetClassAware {
 	 * @see #addAdvice(int, Advice)
 	 * @see org.springframework.aop.support.DefaultPointcutAdvisor
 	 */
+	// TODO 为当前Advised添加一个新的Advice增强方法, Advice增强方法最终会被包装成一个DefaultIntroductionAdvisor. 实际添加的还是Advisor
 	void addAdvice(Advice advice) throws AopConfigException;
 
 	/**
@@ -196,6 +210,7 @@ public interface Advised extends TargetClassAware {
 	 * @param advice advice to add at the specified position in the advice chain
 	 * @throws AopConfigException in case of invalid advice
 	 */
+	// TODO 和上面方法一样, 只是指定了位置
 	void addAdvice(int pos, Advice advice) throws AopConfigException;
 
 	/**

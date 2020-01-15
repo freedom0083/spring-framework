@@ -28,7 +28,7 @@ import org.springframework.util.Assert;
  * @author Juergen Hoeller
  * @see AdvisedSupport
  */
-// TODO 提供代理的配置信息
+// TODO 提供代理的配置信息的AOP配置类
 public class ProxyConfig implements Serializable {
 
 	/** use serialVersionUID from Spring 1.2 for interoperability. */

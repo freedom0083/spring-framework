@@ -264,12 +264,12 @@ public abstract class AopUtils {
 				if (introductionAwareMethodMatcher != null ?
 						// TODO introductionAwareMethodMatcher类型的:
 						//  1. AspectJExpressionPointcut: 用于处理AspectJ表达式的切点. 会判断当前方法是否与目标类中的方法匹配
-						//  2. MethodMatchers$ClassFilterAwareUnionIntroductionAwareMethodMatcher: 联合了两个方法匹配器, 其中之一必需是
-						//     IntroductionAwareMethodMatcher. 每个方法匹配器支持一个相关的类过滤器
-						//  3. MethodMatchers$UnionIntroductionAwareMethodMatcher: 与上面类似, 联合了两个方法匹配器, 但不为匹配器提供类过
-						//     滤器. 同样要求其中一个MethodMatcher必需是IntroductionAwareMethodMatcher
-						//  4. MethodMatchers$IntersectionIntroductionAwareMethodMatcher: 具有两个Introduction方法匹配器, 需要同时满足两个
-						//     方法匹配器才行
+						//  2. MethodMatchers$ClassFilterAwareUnionIntroductionAwareMethodMatcher: 联合了两个方法匹配器,
+						//     其中之一必需是IntroductionAwareMethodMatcher. 每个方法匹配器支持一个相关的类过滤器
+						//  3. MethodMatchers$UnionIntroductionAwareMethodMatcher: 与上面类似, 联合了两个方法匹配器, 但不为
+						//     匹配器提供类过滤器. 同样要求其中一个MethodMatcher必需是IntroductionAwareMethodMatcher
+						//  4. MethodMatchers$IntersectionIntroductionAwareMethodMatcher: 具有两个Introduction方法匹配器,
+						//     需要同时满足两个方法匹配器才行
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
 						methodMatcher.matches(method, targetClass)) {
 					return true;

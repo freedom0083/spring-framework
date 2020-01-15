@@ -160,9 +160,12 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	public Object proceed() throws Throwable {
 		// We start with an index of -1 and increment early.
 		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
+			// TODO 没有拦截器时, 直接执行代理类的方法了:
+			//  1. JDK动态代理: 通过反映直接执行代理类里的方法
+			//  2. CGLIB代理: 在有方法代理时, 执行的是方法代理
 			return invokeJoinpoint();
 		}
-
+		// TODO 挨个执行方法拦截器
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
@@ -171,18 +174,30 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 			InterceptorAndDynamicMethodMatcher dm =
 					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
 			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
+			// TODO InterceptorAndDynamicMethodMatcher类型的拦截器，需要在方法调用时再次使用methodMatcher来判断是否可以拦截此方法.
+			//  只不过这次调用methodMatcher的matches()方法为三个参数的:
+			//  1. AspectJExpressionPointcut: 基于表达式进行匹配
+			//  2. ControlFlowPointcut: 用于控制流的匹配
+			//  3. MethodMatchers$IntersectionMethodMatcher: 用来同时匹配两个MethodMatcher
+			//  4. InstantiationModelAwarePointcutAdvisorImpl$PerTargetInstantiationModelPointcut: 只用于声明的切点进行匹配
+			//  5. StaticMethodMatcher: 抽象类. 不支持此方法, 直接抛出UnsupportedOperationException异常
+			//  6. TrueMethodMatcher: 不支持此方法, 直接抛出UnsupportedOperationException异常
+			//  7. MethodMatchers$UnionMethodMatcher
 			if (dm.methodMatcher.matches(this.method, targetClass, this.arguments)) {
+				// TODO InterceptorAndDynamicMethodMatcher类型的方法拦截器动态匹配成功时, 执行拦截器
 				return dm.interceptor.invoke(this);
 			}
 			else {
 				// Dynamic matching failed.
 				// Skip this interceptor and invoke the next in the chain.
+				// TODO 匹配失败就继续下一个方法拦截器
 				return proceed();
 			}
 		}
 		else {
 			// It's an interceptor, so we just invoke it: The pointcut will have
 			// been evaluated statically before this object was constructed.
+			// TODO 方法拦截器是其他类型时, 就直接执行就好
 			return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
 		}
 	}

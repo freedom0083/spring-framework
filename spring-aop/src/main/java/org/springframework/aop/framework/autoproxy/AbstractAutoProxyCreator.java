@@ -220,7 +220,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		return this.beanFactory;
 	}
 
-
+	// TODO 因为当前类是用于为bean创建代理的, 所以对于bean类型的预测就转化为对bean的代理类型的比较了
 	@Override
 	@Nullable
 	public Class<?> predictBeanType(Class<?> beanClass, String beanName) {
@@ -582,7 +582,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		List<Object> allInterceptors = new ArrayList<>();
 		if (specificInterceptors != null) {
 			allInterceptors.addAll(Arrays.asList(specificInterceptors));
-			// TODO 然后再处理由增强方法创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在增强方法创建的Advisor之前
+			// TODO 然后再处理由增强方法创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在Advice增强方法创建的Advisor之前
 			if (commonInterceptors.length > 0) {
 				if (this.applyCommonInterceptorsFirst) {
 					allInterceptors.addAll(0, Arrays.asList(commonInterceptors));

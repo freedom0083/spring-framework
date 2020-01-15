@@ -85,11 +85,13 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	/**
 	 * Is the {@link #equals} method defined on the proxied interfaces?
 	 */
+	// TODO 代理的目标接口是否定义了'equals'方法
 	private boolean equalsDefined;
 
 	/**
 	 * Is the {@link #hashCode} method defined on the proxied interfaces?
 	 */
+	// TODO 代理的目标接口是否定义了'hashCode'方法
 	private boolean hashCodeDefined;
 
 
@@ -153,38 +155,50 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	 * Implementation of {@code InvocationHandler.invoke}.
 	 * <p>Callers will see exactly the exception thrown by the target,
 	 * unless a hook method throws an exception.
+	 *
+	 * @param proxy 代理
+	 * @param method 要执行的方法
+	 * @param args 要执行方法的参数
+	 * @return
+	 * @throws Throwable
 	 */
+	// TODO 这里就是调用代理时反映所执行的方法了. 实现了InvocationHandler.invoke()方法
 	@Override
 	@Nullable
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		Object oldProxy = null;
 		boolean setProxyContext = false;
-
+		// TODO 取得代理目标源
 		TargetSource targetSource = this.advised.targetSource;
 		Object target = null;
 
 		try {
 			if (!this.equalsDefined && AopUtils.isEqualsMethod(method)) {
 				// The target does not implement the equals(Object) method itself.
+				// TODO 当前要执行的方法是equals(), 但代理的目标接口没定义此方法时, 使用代理提供的equals()方法
 				return equals(args[0]);
 			}
 			else if (!this.hashCodeDefined && AopUtils.isHashCodeMethod(method)) {
 				// The target does not implement the hashCode() method itself.
+				// TODO 当前要执行的方法是hashCode(), 但代理的目标接口没定义此方法时, 使用代理提供的hashCode()方法
 				return hashCode();
 			}
 			else if (method.getDeclaringClass() == DecoratingProxy.class) {
 				// There is only getDecoratedClass() declared -> dispatch to proxy config.
+				// TODO 如果要执行的方法所在类是DecoratingProxy, 则会从AdvisedSupport中取得代理目标
 				return AopProxyUtils.ultimateTargetClass(this.advised);
 			}
 			else if (!this.advised.opaque && method.getDeclaringClass().isInterface() &&
 					method.getDeclaringClass().isAssignableFrom(Advised.class)) {
 				// Service invocations on ProxyConfig with the proxy config...
+				// TODO 不能转化为Advised, 且要执行的方法是Advised及其子接口内的方法时, 直接反映执行代理的方法
 				return AopUtils.invokeJoinpointUsingReflection(this.advised, method, args);
 			}
 
 			Object retVal;
 
 			if (this.advised.exposeProxy) {
+				// TODO 对于可以暴露为一个Threadlocal的代理来说, 可以通过AopContext进行查询. 这里就是设置AopContext
 				// Make invocation available if necessary.
 				oldProxy = AopContext.setCurrentProxy(proxy);
 				setProxyContext = true;
@@ -192,10 +206,12 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 
 			// Get as late as possible to minimize the time we "own" the target,
 			// in case it comes from a pool.
+			// TODO 取得代理目标
 			target = targetSource.getTarget();
 			Class<?> targetClass = (target != null ? target.getClass() : null);
 
 			// Get the interception chain for this method.
+			// TODO 从advised中取得配置好的, 所有可以应用于代理目标类中要执行的方法的拦截器列表
 			List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 
 			// Check whether we have any advice. If we don't, we can fallback on direct
@@ -205,10 +221,12 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// Note that the final invoker must be an InvokerInterceptor so we know it does
 				// nothing but a reflective operation on the target, and no hot swapping or fancy proxying.
 				Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+				// TODO 没有方法拦截器, 那就直接执行该方法
 				retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 			}
 			else {
 				// We need to create a method invocation...
+				// TODO 根据方法拦截器列表, 为方法创建一个MethodInvocation, 然后执行
 				MethodInvocation invocation =
 						new ReflectiveMethodInvocation(proxy, target, method, args, targetClass, chain);
 				// Proceed to the joinpoint through the interceptor chain.
@@ -223,6 +241,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// Special case: it returned "this" and the return type of the method
 				// is type-compatible. Note that we can't help if the target sets
 				// a reference to itself in another returned object.
+				// TODO 这里说的是返回的就是代理本身???
 				retVal = proxy;
 			}
 			else if (retVal == null && returnType != Void.TYPE && returnType.isPrimitive()) {
@@ -234,10 +253,14 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		finally {
 			if (target != null && !targetSource.isStatic()) {
 				// Must have come from TargetSource.
+				// TODO 勾子方法, 除了下面两个地方做了实现, 其他地方全为空:
+				//  1. CommonsPool2TargetSource: 把目标放回了池里
+				//  2. PrototypeTargetSource: 销毁了单例实例
 				targetSource.releaseTarget(target);
 			}
 			if (setProxyContext) {
 				// Restore old proxy.
+				// TODO 恢复上下文
 				AopContext.setCurrentProxy(oldProxy);
 			}
 		}

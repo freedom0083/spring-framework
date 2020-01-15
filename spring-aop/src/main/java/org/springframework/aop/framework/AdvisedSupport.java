@@ -58,6 +58,8 @@ import org.springframework.util.CollectionUtils;
  * @author Juergen Hoeller
  * @see org.springframework.aop.framework.AopProxy
  */
+// TODO Advised的实现类, 同时扩展了ProxyConfig, 持有代理的配置信息. 不提供创建代理的任何方法. 提供了获取对应代理方法所对应的有效的
+//  拦截器链的getInterceptorsAndDynamicInterceptionAdvice()
 public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	/** use serialVersionUID from Spring 2.0 for interoperability. */
@@ -83,7 +85,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	AdvisorChainFactory advisorChainFactory = new DefaultAdvisorChainFactory();
 
 	/** Cache with Method as key and advisor chain List as value. */
-	// TODO 方法-Advisor链映射的缓存
+	// TODO 方法缓存, 存的是方法对应的哪些Advisor
 	private transient Map<MethodCacheKey, List<Object>> methodCache;
 
 	/**
@@ -357,7 +359,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	// TODO 验证IntroductionAdvisor是否实现了指定的接口(defaultImpl里指定的么??), 如果实现了, 就将其加入到代理实现的所有接口的缓存中
 	private void validateIntroductionAdvisor(IntroductionAdvisor advisor) {
-		// TODO
+		// TODO 验证Advisor是否满足某些条件, 有两个实现方法:
 		//  1. DeclareParentsAdvisor: 没做处理
 		//  2. DefaultIntroductionAdvisor: 验证用于引入操作的IntroductionAdvisor是否实现了其指定的接口(defaultImpl里指定的么??)
 		advisor.validateInterfaces();
@@ -383,7 +385,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		this.advisors.add(pos, advisor);
 		// TODO 更新Advisor数组缓存
 		updateAdvisorArray();
-		// TODO 清除一下方法-链映射缓存
+		// TODO 清除一下方法Advisor映射缓存
 		adviceChanged();
 	}
 
@@ -495,15 +497,16 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * @param targetClass the target class
 	 * @return a List of MethodInterceptors (may also include InterceptorAndDynamicMethodMatchers)
 	 */
+	// TODO 返回一个可以应用于代理目标类的方法的方法拦截器列表
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
 		MethodCacheKey cacheKey = new MethodCacheKey(method);
-		// TODO 先从方法缓存里取, 如果取到, 直接返回就行
+		// TODO 先从方法缓存里取该方法可以使用的Advisor列表. 如果取到, 直接返回就行
 		List<Object> cached = this.methodCache.get(cacheKey);
 		if (cached == null) {
 			// TODO 没取到时, 会进行一次加载动作. 会遍历所有的Advisor:
-			//  1. PointcutAdvisor: 切点类型的会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter,
-			//     AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor(如果是动态的方法拦截器, 会被包装成
-			//     InterceptorAndDynamicMethodMatcher)
+			//  1. PointcutAdvisor: 切点类型的Advisor会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及
+			//     MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor
+			//     (如果是动态的方法拦截器, 会被包装成InterceptorAndDynamicMethodMatcher)
 			//  2. IntroductionAdvisor: 如果Advisor已经过滤过了, 或者匹配上了代理目标类时, 会做和上面相同的处理. 这里只是不需要做切点类型
 			//     的类级匹配测试
 			//  3. 其他类型: 和上面一样, 只是不需要做任何匹配测试

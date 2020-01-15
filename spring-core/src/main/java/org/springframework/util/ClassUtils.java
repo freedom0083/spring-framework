@@ -1272,6 +1272,7 @@ public abstract class ClassUtils {
 						return targetClass.getMethod(method.getName(), method.getParameterTypes());
 					}
 					catch (NoSuchMethodException ex) {
+						// TODO 如果方法不存在于代理目标类中, 表示其为后添加的增强方法, 直接返回代理创建的方法即可
 						return method;
 					}
 				}
@@ -1279,7 +1280,7 @@ public abstract class ClassUtils {
 					// TODO 非public的方法会用反映去找
 					Method specificMethod =
 							ReflectionUtils.findMethod(targetClass, method.getName(), method.getParameterTypes());
-					// TODO 找到了就直接用, 万一没找到, 就用代理过的方法
+					// TODO 找到了就直接用, 万一没找到, 表示其为后添加的增强方法, 直接返回代理创建的方法即可
 					return (specificMethod != null ? specificMethod : method);
 				}
 			}
@@ -1287,6 +1288,7 @@ public abstract class ClassUtils {
 				// Security settings are disallowing reflective access; fall back to 'method' below.
 			}
 		}
+		// TODO 不是代理类时, 就直接返回方法即可
 		return method;
 	}
 

@@ -621,8 +621,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			// TODO 解决单例bean的循环引用是通过提前暴露bean来实现的. 如果bean支持提前暴露, 会通过addSingletonFactory()方法将其放到
 			//  singletonFactories, 和registeredSingletons缓存中, 同时从earlySingletonObjects缓存中移除.
-			//  提前暴露的bean有可能是需要进行代理, 所以SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference()方法
-			//  会看容器中是否有可以应用于当前操作的bean的Advisor来决定是否为其创建动态代理
+			//  提前暴露的bean有可能需要进行AOP代理, 所以SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference()方法
+			//  会看容器中是否有可以应用于当前操作的bean的Advisor来决定是否为其创建动态代理. 基于接口的代理会用JDK的动态代理实现, 基于
+			//  类的代理会用CGLIB来实现
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 

@@ -41,6 +41,7 @@ class ThrowsAdviceAdapter implements AdvisorAdapter, Serializable {
 
 	@Override
 	public MethodInterceptor getInterceptor(Advisor advisor) {
+		// TODO Advice适配成ThrowsAdviceInterceptor
 		return new ThrowsAdviceInterceptor(advisor.getAdvice());
 	}
 

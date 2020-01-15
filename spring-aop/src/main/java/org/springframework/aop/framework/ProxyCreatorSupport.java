@@ -30,15 +30,16 @@ import org.springframework.util.Assert;
  * @see #createAopProxy()
  */
 @SuppressWarnings("serial")
+// TODO 用于代理工厂的支持. 提供了创建AOP代理的功能, 但具体创建的实现是在DefaultAopProxyFactory中完成的. 如果是接口, 创建的是基于JDK
+//  的动态代理. 如果是类, 创建的是基于CGLIB的代理
 public class ProxyCreatorSupport extends AdvisedSupport {
-
+	// TODO AOP代理工厂
 	private AopProxyFactory aopProxyFactory;
 
 	private final List<AdvisedSupportListener> listeners = new LinkedList<>();
 
 	/** Set to true when the first AOP proxy has been created. */
 	private boolean active = false;
-
 
 	/**
 	 * Create a new ProxyCreatorSupport instance.

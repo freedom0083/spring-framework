@@ -37,6 +37,7 @@ import org.springframework.util.ObjectUtils;
  * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator
  */
 @SuppressWarnings("serial")
+// TODO 为代理处理操作了一些公用的方法, 比如: ClassLoad的管理, 代理是基于接口的(会用JDK进行动态代理), 还是基于类的(会用CGLIB进行代理)
 public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanClassLoaderAware, AopInfrastructureBean {
 
 	/**
@@ -111,8 +112,8 @@ public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanC
 			if (!isConfigurationCallbackInterface(ifc) && !isInternalLanguageInterface(ifc) &&
 					ifc.getMethods().length > 0) {
 				// TODO 如果接口不是一个回调接口(InitializingBean, DisposableBean, Closeable, AutoCloseable, Aware.class),
-				//  不能不是内部用的一些接口('groovy.lang.GroovyObject, 以'.cglib.proxy.Factory或者'.bytebuddy.MockAccess'
-				//  结尾的class)就表示其为一个接口代理
+				//  不是内部用的一些接口('groovy.lang.GroovyObject, 以'.cglib.proxy.Factory或者'.bytebuddy.MockAccess'结尾的
+				//  class), 而且接口里还定义了方法, 就表示其为一个接口代理. 断路操作, 有一个满足就跳出
 				hasReasonableProxyInterface = true;
 				break;
 			}
@@ -120,6 +121,7 @@ public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanC
 		if (hasReasonableProxyInterface) {
 			// Must allow for introductions; can't just set interfaces to the target's interfaces only.
 			for (Class<?> ifc : targetInterfaces) {
+				// TODO 只要是应用于接口上的代理, 就将代理目标的所有接口放到其实现的所有接口的缓存中
 				proxyFactory.addInterface(ifc);
 			}
 		}

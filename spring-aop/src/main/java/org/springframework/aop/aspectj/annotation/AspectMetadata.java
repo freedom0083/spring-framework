@@ -44,6 +44,7 @@ import org.springframework.aop.support.ComposablePointcut;
  * @see org.springframework.aop.aspectj.AspectJExpressionPointcut
  */
 @SuppressWarnings("serial")
+// TODO 切面元数据信息
 public class AspectMetadata implements Serializable {
 
 	/**
@@ -113,14 +114,14 @@ public class AspectMetadata implements Serializable {
 		// TODO 下面就是对切面的实例类型进行处理了, 目前只支持下面这四种类型
 		switch (this.ajType.getPerClause().getKind()) {
 			case SINGLETON:
-				// TODO SINGLETON表示切面只有一个实例, 所以其切点表达式perClausePointcut设置为TruePointcut.INSTANCE
+				// TODO singleton表示切面只有一个实例, 所以其切点表达式perClausePointcut设置为TruePointcut.INSTANCE
 				this.perClausePointcut = Pointcut.TRUE;
 				return;
 			case PERTARGET:
-				// TODO PERTARGET表示每个切点表达式匹配的连接点所对应的目标对象都会创建一个新的切面实例, 比如:
-				//  PERTARGET: @Aspect("pertarget(切点表达式)"), 这里的切点表达式不能是接口
+				// TODO pertarget表示每个切点表达式匹配的连接点所对应的目标对象都会创建一个新的切面实例, 比如:
+				//  pertarget: @Aspect("pertarget(切点表达式)"), 这里的切点表达式不能是接口
 			case PERTHIS:
-				// TODO PERTHIS表示每个切点表达式匹配的连接点所对应的AOP对象(代理对象)都会创建一个新的切面实例, 比如
+				// TODO perthis表示每个切点表达式匹配的连接点所对应的aop对象(代理对象)都会创建一个新的切面实例, 比如
 				//  @Aspect("perthis(切点表达式)"), 这里的切点表达式可以是接口
 				//  这两种情况都需要把切面的Scope定义为prototype
 				AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut();

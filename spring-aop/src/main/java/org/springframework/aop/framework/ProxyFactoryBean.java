@@ -101,7 +101,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 
 
 	protected final Log logger = LogFactory.getLog(getClass());
-
+	// TODO 所有的拦截器的名字, 其实对标的是Advisor
 	@Nullable
 	private String[] interceptorNames;
 
@@ -323,7 +323,8 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	private synchronized Object getSingletonInstance() {
 		// TODO 如果单例缓存里有, 就直接返回
 		if (this.singletonInstance == null) {
-			// TODO 没有的话, 需要创建一个新的代理实例. 首选刷新一下代理目标源
+			// TODO 没有的话, 需要创建一个新的代理实例. 首先会取代理目标源. 设置了代理目标类的名字时, 会从用这个名字从容器里去取得对应
+			//  的代理目标源. 如果取到的不是TargetSource类型, 会将其包装成SingletonTargetSource
 			this.targetSource = freshTargetSource();
 			if (this.autodetectInterfaces && getProxiedInterfaces().length == 0 && !isProxyTargetClass()) {
 				// Rely on AOP infrastructure to tell us what interfaces to proxy.
@@ -332,12 +333,13 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 				if (targetClass == null) {
 					throw new FactoryBeanNotInitializedException("Cannot determine target class for proxy");
 				}
-				// TODO 然后把这个类所实现的所有接口全部加到缓存中
+				// TODO 把这个类所实现的所有接口全部加到缓存中保存
 				setInterfaces(ClassUtils.getAllInterfacesForClass(targetClass, this.proxyClassLoader));
 			}
 			// Initialize the shared singleton instance.
 			super.setFrozen(this.freezeProxy);
-			// TODO 最后取得单例代理. 会根据类型来创建代理. 接口用JdkDynamicAopProxy来创建; 类用CglibAopProxy来创建
+			// TODO 取得单例代理. createAopProxy()内部默认使用DefaultAopProxyFactory, 根据类型来创建代理. 接口用JdkDynamicAopProxy
+			//  来创建; 类用CglibAopProxy来创建
 			this.singletonInstance = getProxy(createAopProxy());
 		}
 		return this.singletonInstance;
@@ -467,7 +469,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 
 			// Materialize interceptor chain from bean names.
 			for (String name : this.interceptorNames) {
-				// TODO 遍历所有的Advisor
+				// TODO 遍历所有的拦截器(Advisor)
 				if (logger.isTraceEnabled()) {
 					logger.trace("Configuring advisor or advice '" + name + "'");
 				}
@@ -477,8 +479,9 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 						throw new AopConfigException(
 								"Can only use global advisors or interceptors with a ListableBeanFactory");
 					}
-					// TODO 如果Advisor是以'*'结尾的, 表示全局的情况, 作用是个通配符. 会把项下所有的Advisor全部加入到Advisor缓存中
-					//  中间会进行实例化动作. 还会对InterceptorAdvisor是否实现了指定接口进行了判断
+					// TODO 可以通过通配符来配置拦截器. 如果拦截器名字是以'*'结尾的, 则会从容器中取得所有以此拦截器名开头的Advisor
+					//  加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor). 还会对InterceptorAdvisor是否实现
+					//  了指定接口进行了判断
 					addGlobalAdvisor((ListableBeanFactory) this.beanFactory,
 							name.substring(0, name.length() - GLOBAL_SUFFIX.length()));
 				}
@@ -550,34 +553,36 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	/**
 	 * Add all global interceptors and pointcuts.
 	 */
-	// TODO 把所有以指定字符开头(可能是个全限定名)的bean加入到缓存里. 如果Advisor没有实例化, 会进行实例化动作. 还会把Interceptor转换成Advisor
+	// TODO  从容器中取得所有以指定字符开头的Advisor加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor)
 	private void addGlobalAdvisor(ListableBeanFactory beanFactory, String prefix) {
-		// TODO 从容器中取得所有类型是Advisor的bean名
+		// TODO 从容器中取得所有Advisor的
 		String[] globalAdvisorNames =
 				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, Advisor.class);
-		// TODO 从容器中取得所有类型是Interceptor的bean名
+		// TODO 从容器中取得所有Interceptor的名字
 		String[] globalInterceptorNames =
 				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, Interceptor.class);
-		// TODO 用于组合Advisor和Interceptor两个bean集合
+		// TODO 用于组合Advisor和Interceptor两个集合, 因为Interceptor最终也会封装成Advisor
 		List<Object> beans = new ArrayList<>(globalAdvisorNames.length + globalInterceptorNames.length);
+		// TODO 容器中Advisor和Interceptor对象与其名字的映射
 		Map<Object, String> names = new HashMap<>(beans.size());
 		for (String name : globalAdvisorNames) {
-			// TODO 根据Advisor名取得所有的bean. 会实例化没实例化的bean
+			// TODO 从容器中取得所有的Advisor对象
 			Object bean = beanFactory.getBean(name);
 			beans.add(bean);
 			names.put(bean, name);
 		}
 		for (String name : globalInterceptorNames) {
-			// TODO 根据Interceptor名取得所有的bean. 会实例化没实例化的bean
+			// TODO 从容器中取得所有的Interceptor对象
 			Object bean = beanFactory.getBean(name);
 			beans.add(bean);
 			names.put(bean, name);
 		}
 		AnnotationAwareOrderComparator.sort(beans);
 		for (Object bean : beans) {
+			// TODO 所有的Advisor/Interceptor全部都收集好后, 就可以进行模糊匹配了
 			String name = names.get(bean);
 			if (name.startsWith(prefix)) {
-				// TODO 然后把所有以指定字符开头(可能是个全限定名)的bean加入到缓存里
+				// TODO 把所有以指定字符开头的Advisor/Interceptor(Interceptor会先包装成Advisor)对象加入到缓存里
 				addAdvisorOnChainCreation(bean, name);
 			}
 		}
@@ -628,7 +633,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			}
 			// TODO 从容器里拿出代理目标对象
 			Object target = this.beanFactory.getBean(this.targetName);
-			// TODO 如果代理不是TargetSource, 则用其创建一个SingletonTargetSource返回
+			// TODO 如果代理不是TargetSource类型, 则用其创建一个SingletonTargetSource返回
 			return (target instanceof TargetSource ? (TargetSource) target : new SingletonTargetSource(target));
 		}
 	}

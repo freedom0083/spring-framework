@@ -53,6 +53,7 @@ public abstract class AopProxyUtils {
 	 * @see Advised#getTargetSource()
 	 * @see SingletonTargetSource#getTarget()
 	 */
+	// TODO 用于从单例目标源返回代理目标
 	@Nullable
 	public static Object getSingletonTarget(Object candidate) {
 		if (candidate instanceof Advised) {
@@ -79,10 +80,15 @@ public abstract class AopProxyUtils {
 		Object current = candidate;
 		Class<?> result = null;
 		while (current instanceof TargetClassAware) {
+			// TODO 取得由TargetClassAware持有的代理目标类
 			result = ((TargetClassAware) current).getTargetClass();
+			// TODO 这是个递归操作, 会一直向上取当前操作的对象的单例目标源中的代理目标
 			current = getSingletonTarget(current);
 		}
 		if (result == null) {
+			// TODO 如果没有得到代理目标类, 则会进行下列判断:
+			//  1. 操作的对象是由CGLIB生成的代理. 这时会取由CGLIB生成的代理的原始类
+			//  2. 其他情况则是直接使用当前的操作对象的Class
 			result = (AopUtils.isCglibProxy(candidate) ? candidate.getClass().getSuperclass() : candidate.getClass());
 		}
 		return result;

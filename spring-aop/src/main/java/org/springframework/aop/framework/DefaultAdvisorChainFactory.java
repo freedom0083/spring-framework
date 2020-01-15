@@ -48,7 +48,7 @@ import org.springframework.lang.Nullable;
 public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializable {
 
 	// TODO 取得所有的方法拦截器. 会遍历所有的Advisor:
-	//  1. PointcutAdvisor: 切点类型的会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter,
+	//  1. PointcutAdvisor: 切点类型的Advisor会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter,
 	//     AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor(如果是动态的方法拦截器, 会被包装成
 	//     InterceptorAndDynamicMethodMatcher)
 	//  2. IntroductionAdvisor: 如果Advisor已经过滤过了, 或者匹配上了代理目标类时, 会做和上面相同的处理. 这里只是不需要做切点类型
@@ -74,7 +74,7 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 				// Add it conditionally.
 				PointcutAdvisor pointcutAdvisor = (PointcutAdvisor) advisor;
 				if (config.isPreFiltered() || pointcutAdvisor.getPointcut().getClassFilter().matches(actualClass)) {
-					// TODO Advisor过滤过了, 或者切点Advisor匹配上了代理目标类时, 会对目标类的方法进行匹配测试
+					// TODO 对于切点类型的Advisor, 如果已经过滤过了, 或者设置的切点与代理目标类匹配时, 就可以对目标类的方法进行匹配测试了
 					MethodMatcher mm = pointcutAdvisor.getPointcut().getMethodMatcher();
 					boolean match;
 					if (mm instanceof IntroductionAwareMethodMatcher) {

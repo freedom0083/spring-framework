@@ -34,6 +34,7 @@ import org.springframework.aop.Advisor;
  *
  * @author Rod Johnson
  */
+// TODO Advisor适配器, 用来将Advisor/Advice适配成MethodInterceptor
 public interface AdvisorAdapter {
 
 	/**
@@ -45,6 +46,7 @@ public interface AdvisorAdapter {
 	 * @see #getInterceptor(org.springframework.aop.Advisor)
 	 * @see org.springframework.aop.BeforeAdvice
 	 */
+	// TODO 是否支持指定的Advice
 	boolean supportsAdvice(Advice advice);
 
 	/**
@@ -58,6 +60,7 @@ public interface AdvisorAdapter {
 	 * no need to cache instances for efficiency, as the AOP framework
 	 * caches advice chains.
 	 */
+	// TODO 将一个Advisor适配成MethodInterceptor
 	MethodInterceptor getInterceptor(Advisor advisor);
 
 }

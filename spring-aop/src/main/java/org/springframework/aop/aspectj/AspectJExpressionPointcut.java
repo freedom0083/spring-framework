@@ -342,7 +342,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 			// we say this is not a match as in Spring there will never be a different
 			// runtime subtype.
 			// TODO 和子类型敏感变量有关. 测试中涉及到任何子类型敏感变量(this, target, at_this, at_target, at_annotation)时
-			//  都表示不匹配. 因为在Spring中永远不会有不同的运行时子类型。
+			//  都表示不匹配. 因为在Spring中永远不会有不同的运行时子类型
 			RuntimeTestWalker walker = getRuntimeTestWalker(shadowMatch);
 			return (!walker.testsSubtypeSensitiveVars() || walker.testTargetInstanceOfResidue(targetClass));
 		}
@@ -360,7 +360,9 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 	@Override
 	public boolean matches(Method method, Class<?> targetClass, Object... args) {
+		// TODO 先取得切点表达式
 		obtainPointcutExpression();
+		// TODO 然后取得目标类对应的ShadowMatch
 		ShadowMatch shadowMatch = getTargetShadowMatch(method, targetClass);
 
 		// Bind Spring AOP proxy to AspectJ "this" and Spring AOP target to AspectJ target,
@@ -369,9 +371,11 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		Object targetObject = null;
 		Object thisObject = null;
 		try {
+			// TODO 取得当前的MethodInvocation, 然后从其中拿出代理目标
 			MethodInvocation mi = ExposeInvocationInterceptor.currentInvocation();
 			targetObject = mi.getThis();
 			if (!(mi instanceof ProxyMethodInvocation)) {
+				// TODO 只支持ProxyMethodInvocation
 				throw new IllegalStateException("MethodInvocation is not a Spring ProxyMethodInvocation: " + mi);
 			}
 			pmi = (ProxyMethodInvocation) mi;
@@ -385,6 +389,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		}
 
 		try {
+			// TODO 取得连接点匹配器
 			JoinPointMatch joinPointMatch = shadowMatch.matchesJoinPoint(thisObject, targetObject, args);
 
 			/*
@@ -404,7 +409,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 					bindParameters(pmi, joinPointMatch);
 				}
 			}
-
+			// TODO 进行连接点匹配测试
 			return joinPointMatch.matches();
 		}
 		catch (Throwable ex) {
@@ -479,7 +484,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 				}
 			}
 		}
-		// TODO 用代理目标方法, 以及原始方法取得ShadowMatch
+		// TODO 用目标方法, 以及原始方法取得ShadowMatch
 		return getShadowMatch(targetMethod, method);
 	}
 
