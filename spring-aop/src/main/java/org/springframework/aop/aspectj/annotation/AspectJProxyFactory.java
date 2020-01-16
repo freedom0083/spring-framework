@@ -91,11 +91,16 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 	public void addAspect(Object aspectInstance) {
 		Class<?> aspectClass = aspectInstance.getClass();
 		String aspectName = aspectClass.getName();
+		// TODO 为当前切面创建元素数据. 创建过程中会解析切面所在的类
 		AspectMetadata am = createAspectMetadata(aspectClass, aspectName);
 		if (am.getAjType().getPerClause().getKind() != PerClauseKind.SINGLETON) {
+			// TODO 调用当前方法添加的切面全部都要求是singleton的. 否则会抛出异常
 			throw new IllegalArgumentException(
 					"Aspect class [" + aspectClass.getName() + "] does not define a singleton aspect");
 		}
+		// TODO 上面对于切面的解析, 其实只是为了做是否为Aspect切面, 已经切面是否为singleton的验证用的. 在将Aspect中的Advisor加入
+		//  到缓存时, 还会在创建SingletonMetadataAwareAspectInstanceFactory工厂时解析一次切面. 主要原因是创建工厂时会向
+		//  SingletonAspectInstanceFactory中设置切面实例
 		addAdvisorsFromAspectInstanceFactory(
 				new SingletonMetadataAwareAspectInstanceFactory(aspectInstance, aspectName));
 	}
@@ -104,10 +109,16 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 	 * Add an aspect of the supplied type to the end of the advice chain.
 	 * @param aspectClass the AspectJ aspect class
 	 */
+	// TODO 根据切面生成一个切面实例工厂, 然后再交给addAdvisorsFromAspectInstanceFactory()来处理
 	public void addAspect(Class<?> aspectClass) {
 		String aspectName = aspectClass.getName();
+		// TODO 解析切面, 创建切面元数据
 		AspectMetadata am = createAspectMetadata(aspectClass, aspectName);
+		// TODO 根据切点的类型创建实例工厂:
+		//  1. singleton: 创建SingletonMetadataAwareAspectInstanceFactory
+		//  2. 其他: 创建SimpleMetadataAwareAspectInstanceFactory
 		MetadataAwareAspectInstanceFactory instanceFactory = createAspectInstanceFactory(am, aspectClass, aspectName);
+		// TODO 最后就可以交给addAdvisorsFromAspectInstanceFactory()以统一的方式将Advisor加入到缓存了
 		addAdvisorsFromAspectInstanceFactory(instanceFactory);
 	}
 
@@ -117,13 +128,18 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 	 * to the current chain. Exposes any special purpose {@link Advisor Advisors} if needed.
 	 * @see AspectJProxyUtils#makeAdvisorChainAspectJCapableIfNecessary(List)
 	 */
+	// TODO 从工厂中解析Advisor并加入到缓存里
 	private void addAdvisorsFromAspectInstanceFactory(MetadataAwareAspectInstanceFactory instanceFactory) {
+		// TODO 从切面工厂中取得由@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的所有方法转换后的Advisor
 		List<Advisor> advisors = this.aspectFactory.getAdvisors(instanceFactory);
 		Class<?> targetClass = getTargetClass();
 		Assert.state(targetClass != null, "Unresolvable target class");
+		// TODO 然后找出所有可以应用于目标类的Advisor
 		advisors = AopUtils.findAdvisorsThatCanApply(advisors, targetClass);
+		// TODO 在Advisor包含AspectJ支持的Advice, 且Advisor中不包含DefaultPointcutAdvisor时, 给他添一个DefaultPointcutAdvisor
 		AspectJProxyUtils.makeAdvisorChainAspectJCapableIfNecessary(advisors);
 		AnnotationAwareOrderComparator.sort(advisors);
+		// TODO 把Advisor添加到缓存中
 		addAdvisors(advisors);
 	}
 
@@ -131,6 +147,7 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 	 * Create an {@link AspectMetadata} instance for the supplied aspect type.
 	 */
 	private AspectMetadata createAspectMetadata(Class<?> aspectClass, String aspectName) {
+		// TODO 为切面创建元数据
 		AspectMetadata am = new AspectMetadata(aspectClass, aspectName);
 		if (!am.getAjType().isAspect()) {
 			throw new IllegalArgumentException("Class [" + aspectClass.getName() + "] is not a valid aspect type");
@@ -147,8 +164,11 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 			AspectMetadata am, Class<?> aspectClass, String aspectName) {
 
 		MetadataAwareAspectInstanceFactory instanceFactory;
+		// TODO 根据切面类型创建实例工厂
 		if (am.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
 			// Create a shared aspect instance.
+			// TODO singleton会用SimpleAspectInstanceFactory来取得切面实例. 最终委托给ReflectionUtils.accessibleConstructor()
+			//  用切面的默认构造器(无参构造器)来创建实例
 			Object instance = getSingletonAspectInstance(aspectClass);
 			instanceFactory = new SingletonMetadataAwareAspectInstanceFactory(instance, aspectName);
 		}

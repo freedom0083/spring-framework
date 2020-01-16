@@ -35,7 +35,7 @@ import org.springframework.aop.TargetSource;
  * @since 13.03.2003
  * @see org.springframework.aop.framework.AdvisedSupport
  */
-// TODO 保存了AOP代理工厂的信息, 包括: Advisor, 拦截器, Advice增强方法(都会转化成Advisor的), 被代理的接口. 所有从Spring中取得的被
+// TODO 保存了AOP代理工厂的信息, 包括: Advisor, 拦截器, Advice(都会转化成Advisor的), 被代理的接口. 所有从Spring中取得的被
 //  代理出的对象全部都可以转化成Advised(不管是JDK动态代理, 还是CGLIB)
 public interface Advised extends TargetClassAware {
 
@@ -43,7 +43,7 @@ public interface Advised extends TargetClassAware {
 	 * Return whether the Advised configuration is frozen,
 	 * in which case no advice changes can be made.
 	 */
-	// TODO 是否冻结了Advised配置. 冻结的Advised中的advice增强方法都是不能再做修改的了
+	// TODO 是否冻结了Advised配置. 冻结的Advised中的Advice通知都是不能再做修改的了
 	boolean isFrozen();
 
 	/**
@@ -195,7 +195,7 @@ public interface Advised extends TargetClassAware {
 	 * @see #addAdvice(int, Advice)
 	 * @see org.springframework.aop.support.DefaultPointcutAdvisor
 	 */
-	// TODO 为当前Advised添加一个新的Advice增强方法, Advice增强方法最终会被包装成一个DefaultIntroductionAdvisor. 实际添加的还是Advisor
+	// TODO 为当前Advised添加一个新的Advice通知, Advice通知最终会被包装成一个DefaultIntroductionAdvisor. 实际添加的还是Advisor
 	void addAdvice(Advice advice) throws AopConfigException;
 
 	/**

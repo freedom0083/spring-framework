@@ -283,7 +283,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 				// TODO 将当前操作的bean的名字添加到代理目标源缓存
 				this.targetSourcedBeans.add(beanName);
 			}
-			// TODO 取得容器中所有的Advisor和Advice增强方法. 有两个实现:
+			// TODO 取得容器中所有的Advisor和Advice. 有两个实现:
 			//  1. AbstractAdvisorAutoProxyCreator: 抽象类. 会取得容器中所有的Advisor(会对没有实例化的Advisor进行实例化操作).
 			//     如果支持AspectJ, 则还会为@Aspect切面中的@Around, @Before, @After, @AfterReturning, @AfterThrowing方法,
 			//     以及@DeclareParents字段创建Advisor
@@ -383,7 +383,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		}
 
 		// Create proxy if we have advice.
-		// TODO 其他的就是可能需要进行AOP代理的bean了. 首先取得容器中所有的Advisor和Advice增强方法. 有两个实现:
+		// TODO 其他的就是可能需要进行AOP代理的bean了. 首先取得容器中所有的Advisor和Advice通知. 有两个实现:
 		//  1. AbstractAdvisorAutoProxyCreator: 抽象类. 会取得容器中所有的Advisor(会对没有实例化的Advisor进行实例化操作).
 		//     如果支持AspectJ, 则还会为@Aspect切面中的@Around, @Before, @After, @AfterReturning, @AfterThrowing方法,
 		//     以及@DeclareParents字段创建Advisor
@@ -582,7 +582,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		List<Object> allInterceptors = new ArrayList<>();
 		if (specificInterceptors != null) {
 			allInterceptors.addAll(Arrays.asList(specificInterceptors));
-			// TODO 然后再处理由增强方法创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在Advice增强方法创建的Advisor之前
+			// TODO 然后再处理由Advice通知创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在Advice通知创建的Advisor之前
 			if (commonInterceptors.length > 0) {
 				if (this.applyCommonInterceptorsFirst) {
 					allInterceptors.addAll(0, Arrays.asList(commonInterceptors));

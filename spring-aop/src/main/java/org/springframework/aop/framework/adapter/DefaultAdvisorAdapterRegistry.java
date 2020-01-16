@@ -65,15 +65,15 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		Advice advice = (Advice) adviceObject;
 		if (advice instanceof MethodInterceptor) {
 			// So well-known it doesn't even need an adapter.
-			// TODO MethodInterceptor会被包装成DefaultPointcutAdvisor
+			// TODO MethodInterceptor不用进行适配, 直接被包装成DefaultPointcutAdvisor
 			return new DefaultPointcutAdvisor(advice);
 		}
 		for (AdvisorAdapter adapter : this.adapters) {
 			// Check that it is supported.
-			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个Adapter, MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter
-			//  和ThrowsAdviceAdapter.
+			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个适配器: MethodBeforeAdviceAdapter,
+			//  AfterReturningAdviceAdapter和ThrowsAdviceAdapter
 			if (adapter.supportsAdvice(advice)) {
-				// TODO 如果当前增强方法是上面三个Adapter支持的其中之一时, 也创建一个DefaultPointcutAdvisor
+				// TODO 当有一个适配器可以处理当前Advice时, 也创建一个DefaultPointcutAdvisor
 				return new DefaultPointcutAdvisor(advice);
 			}
 		}
@@ -86,17 +86,17 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 	@Override
 	public MethodInterceptor[] getInterceptors(Advisor advisor) throws UnknownAdviceTypeException {
 		List<MethodInterceptor> interceptors = new ArrayList<>(3);
-		// TODO 从Advisor里拿出对应的Advice方法
+		// TODO 从Advisor里拿出对应的Advice
 		Advice advice = advisor.getAdvice();
 		if (advice instanceof MethodInterceptor) {
 			// TODO MethodInterceptor类型的Advice直接加到方法拦截器列表里
 			interceptors.add((MethodInterceptor) advice);
 		}
 		for (AdvisorAdapter adapter : this.adapters) {
-			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个Adapter, MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter
-			//  和ThrowsAdviceAdapter.
+			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个适配器, MethodBeforeAdviceAdapter,
+			//  AfterReturningAdviceAdapter和ThrowsAdviceAdapter.
 			if (adapter.supportsAdvice(advice)) {
-				// TODO 如果当前增强方法是上面三个Adapter支持的其中之一时, 会转化成对应的MethodInterceptor后, 放到方法拦截器列表里
+				// TODO 当有一个适配器可以处理当前Advice时, Advice会被适合器转化成对应的MethodInterceptor后加到方法拦截器列表里
 				interceptors.add(adapter.getInterceptor(advisor));
 			}
 		}

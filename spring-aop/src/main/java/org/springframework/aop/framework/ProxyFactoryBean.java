@@ -107,7 +107,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 
 	@Nullable
 	private String targetName;
-
+	// TODO 是否自动探测接口. true: 表示自动探测, 如果没有手动设置需要实现的代理接口, Spring会把类上所有的接口都找出来进行代理
 	private boolean autodetectInterfaces = true;
 
 	private boolean singleton = true;
@@ -250,8 +250,9 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	@Override
 	@Nullable
 	public Object getObject() throws BeansException {
-		// TODO 初始化Advisor链. 初始化动作只进行一次. 会所所有满足条件的Advisor(支持通配符)加入到缓存中. 如果是非单例的, 每次都会
-		//  为拦截方法创建一个新的PrototypePlaceholderAdvisor
+		// TODO 初始化Advisor链. 初始化动作只进行一次. 会所所有满足条件的Advisor(支持通配符. 使用通配符时, 会在全局进行查找, 包括
+		//  当前容器, 以及父容器中类型为Advisor以及Interceptor, 名称以通配符指定的prefix的所有bean. Interceptor类型的bean最终会
+		//  包装为Advisor)加入到缓存中. 如果是非单例的, 每次都会为拦截方法创建一个新的PrototypePlaceholderAdvisor
 		initializeAdvisorChain();
 		if (isSingleton()) {
 			// TODO 如果bean工厂是单例的, 返回的就是单例bean工厂
@@ -328,12 +329,12 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			this.targetSource = freshTargetSource();
 			if (this.autodetectInterfaces && getProxiedInterfaces().length == 0 && !isProxyTargetClass()) {
 				// Rely on AOP infrastructure to tell us what interfaces to proxy.
-				// TODO 对于接口来说, 会从代理目标源中拿到代理的具体类
+				// TODO 如果没有手动设置需要被代理的接口, Spring会自动进行探测, 查找目标类所有实现的接口, 然后进行代理
 				Class<?> targetClass = getTargetClass();
 				if (targetClass == null) {
 					throw new FactoryBeanNotInitializedException("Cannot determine target class for proxy");
 				}
-				// TODO 把这个类所实现的所有接口全部加到缓存中保存
+				// TODO Spring自动地将目标类所实现的所有接口全部加到代理实现的所有接口的缓存中, 为后面创建代理时使用
 				setInterfaces(ClassUtils.getAllInterfacesForClass(targetClass, this.proxyClassLoader));
 			}
 			// Initialize the shared singleton instance.
@@ -447,8 +448,9 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 * is added. Interceptors added programmatically through the factory API
 	 * are unaffected by such changes.
 	 */
-	// TODO 只进行一次的初始化动作. 会所所有满足条件的Advisor(支持通配符)加入到缓存中. 如果是非单例的, 每次都会为拦截方法创建一个新的
-	//  PrototypePlaceholderAdvisor
+	// TODO 只进行一次的初始化动作. 将所有满足条件的Advisor(支持通配符. 使用通配符时, 会在全局进行查找, 包括当前容器, 以及父容器中
+	//  类型为Advisor以及Interceptor, 名称以通配符指定的prefix的所有bean. Interceptor类型的bean最终会包装为Advisor)加入到缓存中.
+	//  如果是非单例的, 每次都会为拦截方法创建一个新的PrototypePlaceholderAdvisor
 	private synchronized void initializeAdvisorChain() throws AopConfigException, BeansException {
 		if (this.advisorChainInitialized) {
 			// TODO 如果Advisor链被初始化过, 则无需再次进行
@@ -479,9 +481,9 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 						throw new AopConfigException(
 								"Can only use global advisors or interceptors with a ListableBeanFactory");
 					}
-					// TODO 可以通过通配符来配置拦截器. 如果拦截器名字是以'*'结尾的, 则会从容器中取得所有以此拦截器名开头的Advisor
-					//  加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor). 还会对InterceptorAdvisor是否实现
-					//  了指定接口进行了判断
+					// TODO 支持通配符. 如果拦截器名字是以'*'结尾的, 则会从全局容器(当前容器及其父容器)中取得所有以此拦截器名开头的
+					//  Advisor/Interceptor加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor). 还会对
+					//  InterceptorAdvisor是否实现了指定接口进行了判断
 					addGlobalAdvisor((ListableBeanFactory) this.beanFactory,
 							name.substring(0, name.length() - GLOBAL_SUFFIX.length()));
 				}

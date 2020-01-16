@@ -92,8 +92,8 @@ public class BeanFactoryAdvisorRetrievalHelper {
 			//     A. AbstractAdvisorAutoProxyCreator: 抽象类, 同样默认所有的Advisor全是合格的;
 			//     B. InfrastructureAdvisorAutoProxyCreator: AbstractAdvisorAutoProxyCreator的子类, 判断Advisor在当前
 			//        容器中的role是否为2(ROLE_INFRASTRUCTURE)
-			//     C. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor增强器
-			//        设置的前缀相同时, 表示合格
+			//     C. DefaultAdvisorAutoProxyCreator: 通过前缀来识别Advisor是否合格. 没有前缀的, 或者前缀与专门为Advisor设置的
+			//        前缀相同时, 表示合格
 			if (isEligibleBean(name)) {
 				if (this.beanFactory.isCurrentlyInCreation(name)) {
 					if (logger.isTraceEnabled()) {

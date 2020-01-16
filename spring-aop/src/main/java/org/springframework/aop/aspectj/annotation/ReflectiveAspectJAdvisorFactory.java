@@ -237,7 +237,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	/**
 	 * 为@Pointcut, @Around, @Before, @After, @AfterReturning, @AfterThrowing注解创建一个AspectJExpressionPointcut.
 	 * 创建过程中会解析注解中的表达式
-	 * @param candidateAdviceMethod 要进行增强操作的方法
+	 * @param candidateAdviceMethod 要进行通知操作的方法
 	 * @param candidateAspectClass 被@Aspect注解的切面Class
 	 * @return 根据注解的方法所创建出来的表达式切点
 	 */

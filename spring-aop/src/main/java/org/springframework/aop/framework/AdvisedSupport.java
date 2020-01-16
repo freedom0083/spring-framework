@@ -58,8 +58,8 @@ import org.springframework.util.CollectionUtils;
  * @author Juergen Hoeller
  * @see org.springframework.aop.framework.AopProxy
  */
-// TODO Advised的实现类, 同时扩展了ProxyConfig, 持有代理的配置信息. 不提供创建代理的任何方法. 提供了获取对应代理方法所对应的有效的
-//  拦截器链的getInterceptorsAndDynamicInterceptionAdvice()
+// TODO Advised的实现类, 同时扩展了ProxyConfig, 持有代理的配置信息. 封装了对Advise和Advisor的操作, 不提供创建代理的任何方法.
+//  这里还提供了getInterceptorsAndDynamicInterceptionAdvice()方法, 用来获取可以应用于代理目标类的方法的有效拦截器列表
 public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	/** use serialVersionUID from Spring 2.0 for interoperability. */
@@ -347,9 +347,11 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		if (!CollectionUtils.isEmpty(advisors)) {
 			for (Advisor advisor : advisors) {
 				if (advisor instanceof IntroductionAdvisor) {
+					// TODO 如果要处理引入, 则是确定引入Advisor是否实现了指定的接口(defaultImpl里指定的么??)
 					validateIntroductionAdvisor((IntroductionAdvisor) advisor);
 				}
 				Assert.notNull(advisor, "Advisor must not be null");
+				// TODO 将符合要求的Advisor加入缓存
 				this.advisors.add(advisor);
 			}
 			updateAdvisorArray();
