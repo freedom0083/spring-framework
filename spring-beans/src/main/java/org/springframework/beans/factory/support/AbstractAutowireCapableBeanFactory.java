@@ -1699,11 +1699,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
 		if (bw == null) {
 			if (mbd.hasPropertyValues()) {
+				// TODO 如果没有bean包装实例, 但mbd有bean的属性值时, 会抛出'Cannot apply property values to null instance'的
+				//  BeanCreationException异常
 				throw new BeanCreationException(
 						mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
 			}
 			else {
 				// Skip property population phase for null instance.
+				// TODO 同时mbd也没有属性值时, 直接跳过就好
 				return;
 			}
 		}
@@ -1716,12 +1719,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
 					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
+						// TODO 对于容器创建的bean来说, 如果容器中任何一个InstantiationAwareBeanPostProcessor类型的后处理器表示
+						//  不需要实例化后执行其他操作时, 就表示无需要进行后续的属性设值(这是个断路操作)
 						return;
 					}
 				}
 			}
 		}
-
+		// TODO 下面就是开始进行属性填充了
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
 
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
