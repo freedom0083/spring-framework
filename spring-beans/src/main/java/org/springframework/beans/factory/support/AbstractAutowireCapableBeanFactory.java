@@ -1720,30 +1720,37 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
 					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
 						// TODO 对于容器创建的bean来说, 如果容器中任何一个InstantiationAwareBeanPostProcessor类型的后处理器表示
-						//  不需要实例化后执行其他操作时, 就表示无需要进行后续的属性设值(这是个断路操作)
+						//  不需要实例化后执行其他操作, 就无需要进行后续的属性设值(这是个断路操作)
 						return;
 					}
 				}
 			}
 		}
-		// TODO 下面就是开始进行属性填充了
+		// TODO 下面就是开始进行属性填充了, 先取得所有解析好的属性值
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
-
+		// TODO 取得自动装配的模式, 用于后续判断
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
 		if (resolvedAutowireMode == AUTOWIRE_BY_NAME || resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
 			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
 			// Add property values based on autowire by name if applicable.
 			if (resolvedAutowireMode == AUTOWIRE_BY_NAME) {
+				// TODO 开始按名字进行自动装配
 				autowireByName(beanName, mbd, bw, newPvs);
 			}
 			// Add property values based on autowire by type if applicable.
 			if (resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
+				// TODO 开始按类型进行自动装配
 				autowireByType(beanName, mbd, bw, newPvs);
 			}
 			pvs = newPvs;
 		}
-
+		// TODO 判断容器是否注册了InstantiationAwareBeanPostProcessors类型的后处理器
 		boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
+		// TODO 当前bean是否需要依赖检查. bean的默认值是DEPENDENCY_CHECK_NONE, 表示不需要依赖检查. 一共有4种模式:
+		//  1. DEPENDENCY_CHECK_NONE = 0: 不需要依赖检查
+		//  2. DEPENDENCY_CHECK_OBJECTS = 1: 检查对象引用
+		//  3. DEPENDENCY_CHECK_SIMPLE = 2: 检查简单属性
+		//  4. DEPENDENCY_CHECK_ALL = 3: 同时检查对象引用和简单属性
 		boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
 
 		PropertyDescriptor[] filteredPds = null;
@@ -1754,6 +1761,25 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+					// TODO 遍历所有InstantiationAwareBeanPostProcessor类型的后处理器, 来对属性进行处理:
+					//  1. InstantiationAwareBeanPostProcessor: 接口提供了默认方法, 永远返回null;
+					//  2. InstantiationAwareBeanPostProcessorAdapter: InstantiationAwareBeanPostProcessor接口的子类. 也是
+					//     什么也没做, 直接返回null. 留着应该是为了兼容以前的版本. Java 8后可以去掉了;
+					//  3. PersistenceAnnotationBeanPostProcessor: 用于JAP持久化相关功能. 在AnnotationConfigApplicationContext
+					//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@PersistenceContext和@PersistenceUnit
+					//     注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入点元数据后, 根据注入点元数据信息进行注入操作
+					//  4. AbstractAutoProxyCreator: 用于AOP代理创建. 其并没有对属性进行任何操作, 直接返回属性
+					//  5. AutowiredAnnotationBeanPostProcessor: 用于处理自动装配注解的后处理器. 在AnnotationConfigApplicationContext
+					//     容器初始化时由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解的
+					//     字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
+					//     注入点元数据信息进行注入操作
+					//  6. CommonAnnotationBeanPostProcessor: 用来处理通用资源的后处理器. AnnotationConfigApplicationContext
+					//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解
+					//     的字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
+					//     注入点元数据信息进行注入操作
+					//  7. ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor: 用来处理由CGLIB增强的@Configuration
+					//     配置类. 为增强类设置了相同的容器
+					//  8. ScriptFactoryPostProcessor: 不做任何处理, 直接返回属性
 					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 					if (pvsToUse == null) {
 						if (filteredPds == null) {
@@ -1784,18 +1810,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Fill in any missing property values with references to
 	 * other beans in this factory if autowire is set to "byName".
 	 * @param beanName the name of the bean we're wiring up.
-	 * Useful for debugging messages; not used functionally.
-	 * @param mbd bean definition to update through autowiring
-	 * @param bw the BeanWrapper from which we can obtain information about the bean
-	 * @param pvs the PropertyValues to register wired objects with
+	 * Useful for debugging messages; not used functionally. 需要填充属性的bean名(当前正在创建的bean的名字)
+	 * @param mbd bean definition to update through autowiring 属性填充属性的bean的mbd
+	 * @param bw the BeanWrapper from which we can obtain information about the bean 包装好的, 用来返回的bw
+	 * @param pvs the PropertyValues to register wired objects with 属性值
 	 */
+	// TODO 这里其实是按bean名进行自动装配
 	protected void autowireByName(
 			String beanName, AbstractBeanDefinition mbd, BeanWrapper bw, MutablePropertyValues pvs) {
 
 		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
 		for (String propertyName : propertyNames) {
 			if (containsBean(propertyName)) {
+				// TODO 如果容器中有属性所对应的bean, 取得对应的bean
 				Object bean = getBean(propertyName);
+				// TODO 设置到
 				pvs.add(propertyName, bean);
 				registerDependentBean(propertyName, beanName);
 				if (logger.isTraceEnabled()) {

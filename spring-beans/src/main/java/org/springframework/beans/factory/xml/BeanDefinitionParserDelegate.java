@@ -304,9 +304,11 @@ public class BeanDefinitionParserDelegate {
 	 * @see #populateDefaults(DocumentDefaultsDefinition, DocumentDefaultsDefinition, org.w3c.dom.Element)
 	 * @see #getDefaults()
 	 */
+	// TODO 初始化默认的lazy-init, autowire等属性
 	public void initDefaults(Element root, @Nullable BeanDefinitionParserDelegate parent) {
-		// TODO 用配置类读的节点属性填充document的默认属性, lazyInit, merge等
+		// TODO 用配置类读的节点属性填充document的默认属性, 这些属性全是以'default'开头, 比如: 'default-lazy-init', 'default-merge'等
 		populateDefaults(this.defaults, (parent != null ? parent.defaults : null), root);
+		// TODO 最后触发一个注册事件. 但目前没有相应的实现
 		this.readerContext.fireDefaultsRegistered(this.defaults);
 	}
 
@@ -320,45 +322,52 @@ public class BeanDefinitionParserDelegate {
 	 * @param root the root element of the current bean definition document (or nested beans element)
 	 */
 	protected void populateDefaults(DocumentDefaultsDefinition defaults, @Nullable DocumentDefaultsDefinition parentDefaults, Element root) {
+		// TODO 解析'default-lazy-init', 默认情况下是否支持延迟加载
 		String lazyInit = root.getAttribute(DEFAULT_LAZY_INIT_ATTRIBUTE);
 		if (isDefaultValue(lazyInit)) {
 			// Potentially inherited from outer <beans> sections, otherwise falling back to false.
+			// TODO 如果没设置, 或者设置的是'default', 则先确定其父元素是否有此属性, 如果没有则设置为'false'
 			lazyInit = (parentDefaults != null ? parentDefaults.getLazyInit() : FALSE_VALUE);
 		}
 		defaults.setLazyInit(lazyInit);
-
+		// TODO 解析'default-merge', 默认情况下是否支持合并
 		String merge = root.getAttribute(DEFAULT_MERGE_ATTRIBUTE);
 		if (isDefaultValue(merge)) {
 			// Potentially inherited from outer <beans> sections, otherwise falling back to false.
+			// TODO 如果没设置, 或者设置的是'default', 则先确定其父元素是否有此属性, 如果没有则设置为'false'
 			merge = (parentDefaults != null ? parentDefaults.getMerge() : FALSE_VALUE);
 		}
 		defaults.setMerge(merge);
-
+		// TODO 解析'default-autowire', 默认的自动装配方式
 		String autowire = root.getAttribute(DEFAULT_AUTOWIRE_ATTRIBUTE);
 		if (isDefaultValue(autowire)) {
 			// Potentially inherited from outer <beans> sections, otherwise falling back to 'no'.
+			// TODO 如果没设置, 或者设置的是'default', 则先确定其父元素是否有此属性, 如果没有则设置为'no'. 即, 不进行自动装配
 			autowire = (parentDefaults != null ? parentDefaults.getAutowire() : AUTOWIRE_NO_VALUE);
 		}
 		defaults.setAutowire(autowire);
-
+		// TODO 解析'default-autowire-candidates', 默认的自动装配候选列表(多项时, 用逗号进行拆分)
 		if (root.hasAttribute(DEFAULT_AUTOWIRE_CANDIDATES_ATTRIBUTE)) {
 			defaults.setAutowireCandidates(root.getAttribute(DEFAULT_AUTOWIRE_CANDIDATES_ATTRIBUTE));
 		}
 		else if (parentDefaults != null) {
+			// TODO 如果父元素存在, 则使用父元素的值
 			defaults.setAutowireCandidates(parentDefaults.getAutowireCandidates());
 		}
-
+		// TODO 解析'default-init-method', 默认的初始方法
 		if (root.hasAttribute(DEFAULT_INIT_METHOD_ATTRIBUTE)) {
 			defaults.setInitMethod(root.getAttribute(DEFAULT_INIT_METHOD_ATTRIBUTE));
 		}
 		else if (parentDefaults != null) {
+			// TODO 如果父元素存在, 则使用父元素的值
 			defaults.setInitMethod(parentDefaults.getInitMethod());
 		}
-
+		// TODO 解析'default-destroy-method', 默认的销毁方法
 		if (root.hasAttribute(DEFAULT_DESTROY_METHOD_ATTRIBUTE)) {
 			defaults.setDestroyMethod(root.getAttribute(DEFAULT_DESTROY_METHOD_ATTRIBUTE));
 		}
 		else if (parentDefaults != null) {
+			// TODO 如果父元素存在, 则使用父元素的值
 			defaults.setDestroyMethod(parentDefaults.getDestroyMethod());
 		}
 
@@ -581,36 +590,48 @@ public class BeanDefinitionParserDelegate {
 			@Nullable BeanDefinition containingBean, AbstractBeanDefinition bd) {
 
 		if (ele.hasAttribute(SINGLETON_ATTRIBUTE)) {
+			// TODO 解析'singleton'属性, 现在已经不用了, 改用'scope'了
 			error("Old 1.x 'singleton' attribute in use - upgrade to 'scope' declaration", ele);
 		}
 		else if (ele.hasAttribute(SCOPE_ATTRIBUTE)) {
+			// TODO 解析'scope', 设置当前bean的scope
 			bd.setScope(ele.getAttribute(SCOPE_ATTRIBUTE));
 		}
 		else if (containingBean != null) {
 			// Take default from containing bean in case of an inner bean definition.
+			// TODO 被包含的内部类的scope和外部类是一样的
 			bd.setScope(containingBean.getScope());
 		}
 
 		if (ele.hasAttribute(ABSTRACT_ATTRIBUTE)) {
+			// TODO 解析'abstract'属性, 当前bean是否为抽象bean
 			bd.setAbstract(TRUE_VALUE.equals(ele.getAttribute(ABSTRACT_ATTRIBUTE)));
 		}
-
+		// TODO 解析'lazy-init', 当前bean是否需要延迟加载
 		String lazyInit = ele.getAttribute(LAZY_INIT_ATTRIBUTE);
 		if (isDefaultValue(lazyInit)) {
+			// TODO 没设置, 或设置的是default时, 使用默认设置
 			lazyInit = this.defaults.getLazyInit();
 		}
 		bd.setLazyInit(TRUE_VALUE.equals(lazyInit));
-
+		// TODO 解析'autowire', 当前bean的自动装配模式:
+		//  0. 不使用自动装配, 默认值
+		//  1. 按名字进行自动装配
+		//  2. 按类型进行自动装配
+		//  3. 构造器自动装配
+		//  4. 自动探测, 现已标注为废弃
 		String autowire = ele.getAttribute(AUTOWIRE_ATTRIBUTE);
 		bd.setAutowireMode(getAutowireMode(autowire));
 
 		if (ele.hasAttribute(DEPENDS_ON_ATTRIBUTE)) {
+			// TODO 解析'depends-on', 当前bean的依赖列表
 			String dependsOn = ele.getAttribute(DEPENDS_ON_ATTRIBUTE);
 			bd.setDependsOn(StringUtils.tokenizeToStringArray(dependsOn, MULTI_VALUE_ATTRIBUTE_DELIMITERS));
 		}
-
+		// TODO 解析'autowire-candidate', 当前bean是否为自动装配候选
 		String autowireCandidate = ele.getAttribute(AUTOWIRE_CANDIDATE_ATTRIBUTE);
 		if (isDefaultValue(autowireCandidate)) {
+			// TODO 没设置, 或设置的为default, 则会与设置的默认自动装配候选列表进行对比, 来确定当前bean是否为自动装配候选
 			String candidatePattern = this.defaults.getAutowireCandidates();
 			if (candidatePattern != null) {
 				String[] patterns = StringUtils.commaDelimitedListToStringArray(candidatePattern);
@@ -622,31 +643,38 @@ public class BeanDefinitionParserDelegate {
 		}
 
 		if (ele.hasAttribute(PRIMARY_ATTRIBUTE)) {
+			// TODO 解析'primary', 判断当前bean是否为首选项
 			bd.setPrimary(TRUE_VALUE.equals(ele.getAttribute(PRIMARY_ATTRIBUTE)));
 		}
 
 		if (ele.hasAttribute(INIT_METHOD_ATTRIBUTE)) {
+			// TODO 解析'init-method', 设置初始化方法
 			String initMethodName = ele.getAttribute(INIT_METHOD_ATTRIBUTE);
 			bd.setInitMethodName(initMethodName);
 		}
 		else if (this.defaults.getInitMethod() != null) {
+			// TODO 没设置时, 如果有默认的初始化方法时, 使用默认的初始化方法
 			bd.setInitMethodName(this.defaults.getInitMethod());
 			bd.setEnforceInitMethod(false);
 		}
 
 		if (ele.hasAttribute(DESTROY_METHOD_ATTRIBUTE)) {
+			// TODO 解析'destroy-method', 设置销毁方法
 			String destroyMethodName = ele.getAttribute(DESTROY_METHOD_ATTRIBUTE);
 			bd.setDestroyMethodName(destroyMethodName);
 		}
 		else if (this.defaults.getDestroyMethod() != null) {
+			// TODO 没设置时, 如果有默认的销毁方法时, 使用默认的销毁方法
 			bd.setDestroyMethodName(this.defaults.getDestroyMethod());
 			bd.setEnforceDestroyMethod(false);
 		}
 
 		if (ele.hasAttribute(FACTORY_METHOD_ATTRIBUTE)) {
+			// TODO 解析'factory-method', 设置当前bean使用的是哪个工厂方法
 			bd.setFactoryMethodName(ele.getAttribute(FACTORY_METHOD_ATTRIBUTE));
 		}
 		if (ele.hasAttribute(FACTORY_BEAN_ATTRIBUTE)) {
+			// TODO 解析'factory-bean', 设置当前bean是由哪个工厂提供的
 			bd.setFactoryBeanName(ele.getAttribute(FACTORY_BEAN_ATTRIBUTE));
 		}
 
@@ -695,22 +723,28 @@ public class BeanDefinitionParserDelegate {
 	 * {@link AbstractBeanDefinition} autowire constants.
 	 */
 	@SuppressWarnings("deprecation")
+	// TODO 根据属性解析自动装配模式
 	public int getAutowireMode(String attrValue) {
 		String attr = attrValue;
 		if (isDefaultValue(attr)) {
 			attr = this.defaults.getAutowire();
 		}
+		// TODO 默认的自动装配是'AUTOWIRE_NO = 0', 下面开始解析属性值, 根据属性值设置对应的模式
 		int autowire = AbstractBeanDefinition.AUTOWIRE_NO;
 		if (AUTOWIRE_BY_NAME_VALUE.equals(attr)) {
+			// TODO 按名字装配时是'AUTOWIRE_BY_NAME = 1'
 			autowire = AbstractBeanDefinition.AUTOWIRE_BY_NAME;
 		}
 		else if (AUTOWIRE_BY_TYPE_VALUE.equals(attr)) {
+			// TODO 按类型装配时是'AUTOWIRE_BY_TYPE = 2'
 			autowire = AbstractBeanDefinition.AUTOWIRE_BY_TYPE;
 		}
 		else if (AUTOWIRE_CONSTRUCTOR_VALUE.equals(attr)) {
+			// TODO 构造器装配时是'AUTOWIRE_CONSTRUCTOR = 3'
 			autowire = AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
 		}
 		else if (AUTOWIRE_AUTODETECT_VALUE.equals(attr)) {
+			// TODO 自动探测时是'AUTOWIRE_AUTODETECT = 4'
 			autowire = AbstractBeanDefinition.AUTOWIRE_AUTODETECT;
 		}
 		// Else leave default value.

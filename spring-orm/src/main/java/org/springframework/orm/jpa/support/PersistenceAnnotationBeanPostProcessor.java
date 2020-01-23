@@ -354,8 +354,12 @@ public class PersistenceAnnotationBeanPostProcessor
 		return true;
 	}
 
+	// TODO 把bean里所有标有@PersistenceContext和@PersistenceUnit注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入
+	//  点元数据后, 根据注入点元数据信息进行注入操作
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		// TODO 把bean里所有标有@PersistenceContext和@PersistenceUnit注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入
+		//  点元数据, 下面就可以根据注入点元数据进行注入操作
 		InjectionMetadata metadata = findPersistenceMetadata(beanName, bean.getClass(), pvs);
 		try {
 			metadata.inject(bean, beanName, pvs);
@@ -395,7 +399,8 @@ public class PersistenceAnnotationBeanPostProcessor
 		return this.extendedEntityManagersToClose.containsKey(bean);
 	}
 
-
+	// TODO 把bean里所有标有@PersistenceContext和@PersistenceUnit注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入
+	//  点元数据后, 根据注入点元数据信息进行注入操作
 	private InjectionMetadata findPersistenceMetadata(String beanName, final Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());

@@ -441,8 +441,12 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
 	}
 
+	// TODO 把bean里所有标有@Autowire, @Value, @Inject注解的字段以及方法全都找出来, 生成包含有AutowiredFieldElement和
+	//  AutowiredMethodElement的注入点元数据. 根据注入点元数据信息进行注入操作
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		// TODO 把bean里所有标有@Autowire, @Value, @Inject注解的字段以及方法全都找出来, 生成包含有AutowiredFieldElement和
+		//  AutowiredMethodElement的注入点元数据, 下面就可以根据注入点元数据进行注入操作
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
 			metadata.inject(bean, beanName, pvs);
@@ -487,7 +491,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		}
 	}
 
-
+	// TODO 把bean里所有标有@Autowire, @Value, @Inject注解的字段以及方法全都找出来, 生成包含AutowiredFieldElement和AutowiredMethodElement
+	//  的注入点元数据后, 加入缓存中, 用于后续注入操作
 	private InjectionMetadata findAutowiringMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
@@ -655,10 +660,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	/**
 	 * Register the specified bean as dependent on the autowired beans.
 	 */
+	// TODO 注册自动装配的bean与当前bean的依赖关系
 	private void registerDependentBeans(@Nullable String beanName, Set<String> autowiredBeanNames) {
 		if (beanName != null) {
 			for (String autowiredBeanName : autowiredBeanNames) {
+				// TODO 遍历所有自动装配过的bean
 				if (this.beanFactory != null && this.beanFactory.containsBean(autowiredBeanName)) {
+					// TODO 注册依赖的bean. 把当前操作的bean做为依赖自动装配的bean. 更新双向依赖关系
 					this.beanFactory.registerDependentBean(autowiredBeanName, beanName);
 				}
 				if (logger.isTraceEnabled()) {
@@ -672,14 +680,17 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	/**
 	 * Resolve the specified cached method argument or field value.
 	 */
+	// TODO 解析缓存的内容. 如果是待注入项, 需要对其进行解析
 	@Nullable
 	private Object resolvedCachedArgument(@Nullable String beanName, @Nullable Object cachedArgument) {
 		if (cachedArgument instanceof DependencyDescriptor) {
+			// TODO 如果缓存的是待注入项, 需要解决依赖关系
 			DependencyDescriptor descriptor = (DependencyDescriptor) cachedArgument;
 			Assert.state(this.beanFactory != null, "No BeanFactory available");
 			return this.beanFactory.resolveDependency(descriptor, beanName, null, null);
 		}
 		else {
+			// TODO 其他情况直接反回就好
 			return cachedArgument;
 		}
 	}
@@ -702,20 +713,28 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			this.required = required;
 		}
 
+		// TODO Field字段注入
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 			Field field = (Field) this.member;
 			Object value;
 			if (this.cached) {
+				// TODO 有缓存的话, 直接解析缓存的值. 如果是DependencyDescriptor待注入项, 需要对其进行解析
 				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 			}
 			else {
+				// TODO 缓存里没有的话, 就开始重新查找值. 将方法参数(用于实例化bean的方法参数)封装为一个DependencyDescriptor.
+				//  DependencyDescriptor是InjectionPoint的子类, 用于描述一个用于注入的依赖项的描述符, 比如: 字段(成员属性), 或
+				//  方法(普通方法, 构造函数). 对于DependencyDescriptor描述的项来说, 可以对其进行自动装配, 即: 方法的参数也可以使用
+				//  @Autowaire, @Value这些注解来进行自动注入.
 				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
 				desc.setContainingClass(bean.getClass());
 				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
 				Assert.state(beanFactory != null, "No BeanFactory available");
+				// TODO 取得容器中的类型解析器
 				TypeConverter typeConverter = beanFactory.getTypeConverter();
 				try {
+					// TODO 在当前容器中解析依赖关系
 					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 				}
 				catch (BeansException ex) {
@@ -724,26 +743,33 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 				synchronized (this) {
 					if (!this.cached) {
 						if (value != null || this.required) {
+							// TODO 如果解析出来了, 就设置到缓存里
 							this.cachedFieldValue = desc;
+							// TODO 然后注册一下当前操作的bean与自动装配过的bean的依赖关系
 							registerDependentBeans(beanName, autowiredBeanNames);
 							if (autowiredBeanNames.size() == 1) {
 								String autowiredBeanName = autowiredBeanNames.iterator().next();
 								if (beanFactory.containsBean(autowiredBeanName) &&
 										beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
+									// TODO 如果只有一个为当前Field自动装配过的bean, 并且其已经注册到容器中了, 其类型还与Field类型
+									//  相同, 将其包装为ShortcutDependencyDescriptor放到缓存里
 									this.cachedFieldValue = new ShortcutDependencyDescriptor(
 											desc, autowiredBeanName, field.getType());
 								}
 							}
 						}
 						else {
+							// TODO 没解析聘为, 就是空的
 							this.cachedFieldValue = null;
 						}
+						// TODO 不管解没解析出来, 都做过操作了, 所以设置成缓存过了
 						this.cached = true;
 					}
 				}
 			}
 			if (value != null) {
 				ReflectionUtils.makeAccessible(field);
+				// TODO 然后为字段重新设置值, 这时依赖注入完成(@Autowire, @Value等)
 				field.set(bean, value);
 			}
 		}
@@ -776,6 +802,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			Object[] arguments;
 			if (this.cached) {
 				// Shortcut for avoiding synchronization...
+				// TODO 缓存过的话, 直接解析缓存的方法参数的值. 因为参数可能是多个, 所以这里其实是为每个参数调用一次resolvedCachedArgument()
+				//  有一份而已. 具体处理与Field字段的一样. 如果是DependencyDescriptor待注入项, 需要对其进行解析
 				arguments = resolveCachedArguments(beanName);
 			}
 			else {
@@ -839,14 +867,17 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			}
 		}
 
+		// TODO 解析缓存的方法参数
 		@Nullable
 		private Object[] resolveCachedArguments(@Nullable String beanName) {
 			Object[] cachedMethodArguments = this.cachedMethodArguments;
 			if (cachedMethodArguments == null) {
+				// TODO 没有缓存的方法参数时, 直接返回个null
 				return null;
 			}
 			Object[] arguments = new Object[cachedMethodArguments.length];
 			for (int i = 0; i < arguments.length; i++) {
+				// TODO 否则挨个解析方法要用的参数
 				arguments[i] = resolvedCachedArgument(beanName, cachedMethodArguments[i]);
 			}
 			return arguments;

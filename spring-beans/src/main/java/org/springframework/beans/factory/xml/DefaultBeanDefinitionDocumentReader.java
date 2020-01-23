@@ -158,10 +158,12 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		this.delegate = parent;
 	}
 
+	// TODO 创建一个用于解析元素的代理
 	protected BeanDefinitionParserDelegate createDelegate(
 			XmlReaderContext readerContext, Element root, @Nullable BeanDefinitionParserDelegate parentDelegate) {
-
+		// TODO 用当前上下文件创建一个用于解析元素的代理
 		BeanDefinitionParserDelegate delegate = new BeanDefinitionParserDelegate(readerContext);
+		// TODO 然后初始化默认属性, 比如: lazy-init, autowire等. 这里支持嵌套bean
 		delegate.initDefaults(root, parentDelegate);
 		return delegate;
 	}

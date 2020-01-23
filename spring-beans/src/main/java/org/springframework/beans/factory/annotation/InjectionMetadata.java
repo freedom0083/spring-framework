@@ -68,7 +68,7 @@ public class InjectionMetadata {
 	private static final Log logger = LogFactory.getLog(InjectionMetadata.class);
 
 	private final Class<?> targetClass;
-
+	// TODO 被注入的元素集合
 	private final Collection<InjectedElement> injectedElements;
 
 	@Nullable
@@ -106,6 +106,7 @@ public class InjectionMetadata {
 		this.checkedElements = checkedElements;
 	}
 
+	// TODO 挨个注入由注解解析好的每个元素
 	public void inject(Object target, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 		Collection<InjectedElement> checkedElements = this.checkedElements;
 		Collection<InjectedElement> elementsToIterate =
@@ -115,6 +116,10 @@ public class InjectionMetadata {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Processing injected element of bean '" + beanName + "': " + element);
 				}
+				// TODO 遍历被注入的元素, 挨个进行注入
+				//  1. AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement: 处理Field字段注入
+				//  2. AutowiredAnnotationBeanPostProcessor$AutowiredMethodElement: 处理Method方法注入
+				//  3. InjectionMetadata$InjectedElement:
 				element.inject(target, beanName, pvs);
 			}
 		}
@@ -223,6 +228,13 @@ public class InjectionMetadata {
 			if (this.isField) {
 				Field field = (Field) this.member;
 				ReflectionUtils.makeAccessible(field);
+				// TODO 如果要注入的项是Field, 那就为target所指定的目标类的field属性通过getResourceToInject()方法设置新值, 以下
+				//  类实现了这个方法:
+				//  1. InjectionMetadata: 勾子方法, 返回的是null, 需要由子类进行覆盖;
+				//  2. PersistenceAnnotationBeanPostProcessor:
+				//  3. CommonAnnotationBeanPostProcessor$EjbRefElement:
+				//  4. CommonAnnotationBeanPostProcessor$ResourceElement:
+				//  5. CommonAnnotationBeanPostProcessor$WebServiceRefElement:
 				field.set(target, getResourceToInject(target, requestingBeanName));
 			}
 			else {
@@ -232,6 +244,7 @@ public class InjectionMetadata {
 				try {
 					Method method = (Method) this.member;
 					ReflectionUtils.makeAccessible(method);
+					// TODO 如果要注入的项是Method
 					method.invoke(target, getResourceToInject(target, requestingBeanName));
 				}
 				catch (InvocationTargetException ex) {
