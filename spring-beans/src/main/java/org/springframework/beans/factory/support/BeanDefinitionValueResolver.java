@@ -452,10 +452,11 @@ class BeanDefinitionValueResolver {
 	private String adaptInnerBeanName(String innerBeanName) {
 		String actualInnerBeanName = innerBeanName;
 		int counter = 0;
+		String prefix = innerBeanName + BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR;
 		while (this.beanFactory.isBeanNameInUse(actualInnerBeanName)) {
 			counter++;
 			// TODO 容器中有相同的内嵌bean时, 重新命名. 格式: 内嵌bean名 + '#' + 增量值
-			actualInnerBeanName = innerBeanName + BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR + counter;
+			actualInnerBeanName = prefix + counter;
 		}
 		return actualInnerBeanName;
 	}

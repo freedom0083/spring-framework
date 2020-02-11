@@ -3,7 +3,16 @@ configurations {
 }
 
 dependencies {
-	asciidoctorExt("io.spring.asciidoctor:spring-asciidoctor-extensions:0.2.0.RELEASE")
+	asciidoctorExt("io.spring.asciidoctor:spring-asciidoctor-extensions-block-switch:0.4.0.RELEASE")
+}
+
+repositories {
+	maven {
+		url "https://repo.spring.io/release"
+		mavenContent {
+			group "io.spring.asciidoctor"
+		}
+	}
 }
 
 /**
@@ -107,6 +116,7 @@ asciidoctorj {
 			version '1.5.0-beta.8'
 		}
 	}
+	fatalWarnings ".*"
 }
 
 /**

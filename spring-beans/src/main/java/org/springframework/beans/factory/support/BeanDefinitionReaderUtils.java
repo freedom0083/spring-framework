@@ -159,10 +159,11 @@ public abstract class BeanDefinitionReaderUtils {
 		int counter = -1;
 
 		// Increase counter until the id is unique.
+		String prefix = beanName + GENERATED_BEAN_NAME_SEPARATOR;
 		while (counter == -1 || registry.containsBeanDefinition(id)) {
 			counter++;
 			// TODO 生成一个容器中全局唯一的名字: beanName+'#'+自增的号
-			id = beanName + GENERATED_BEAN_NAME_SEPARATOR + counter;
+			id = prefix + counter;
 		}
 		return id;
 	}
