@@ -96,42 +96,16 @@ public final class StringDecoder extends AbstractDataBufferDecoder<String> {
 
 		Flux<DataBuffer> inputFlux = Flux.defer(() -> {
 			DataBufferUtils.Matcher matcher = DataBufferUtils.matcher(delimiterBytes);
-			if (getMaxInMemorySize() != -1) {
 
-				// Passing limiter into endFrameAfterDelimiter helps to ensure that in case of one DataBuffer
-				// containing multiple lines, the limit is checked and raised  immediately without accumulating
-				// subsequent lines. This is necessary because concatMapIterable doesn't respect doOnDiscard.
-				// When reactor-core#1925 is resolved, we could replace bufferUntil with:
+			@SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+			LimitChecker limiter = new LimitChecker(getMaxInMemorySize());
 
-				//	.windowUntil(buffer -> buffer instanceof EndFrameBuffer)
-				//	.concatMap(fluxes -> fluxes.collect(() -> new LimitedDataBufferList(getMaxInMemorySize()), LimitedDataBufferList::add))
-
-				LimitedDataBufferList limiter = new LimitedDataBufferList(getMaxInMemorySize());
-
-				return Flux.from(input)
-						.concatMapIterable(buffer -> endFrameAfterDelimiter(buffer, matcher, limiter))
-						.bufferUntil(buffer -> buffer instanceof EndFrameBuffer)
-						.map(buffers -> joinAndStrip(buffers, this.stripDelimiter))
-						.doOnDiscard(PooledDataBuffer.class, DataBufferUtils::release);
-			}
-			else {
-
-				// When the decoder is unlimited (-1), concatMapIterable will cache buffers that may not
-				// be released if cancel is signalled before they are turned into String lines
-				// (see test maxInMemoryLimitReleasesUnprocessedLinesWhenUnlimited).
-				// When reactor-core#1925 is resolved, the workaround can be removed and the entire
-				// else clause possibly dropped.
-
-				ConcatMapIterableDiscardWorkaroundCache cache = new ConcatMapIterableDiscardWorkaroundCache();
-
-				return Flux.from(input)
-						.concatMapIterable(buffer -> cache.addAll(endFrameAfterDelimiter(buffer, matcher, null)))
-						.doOnNext(cache)
-						.doOnCancel(cache)
-						.bufferUntil(buffer -> buffer instanceof EndFrameBuffer)
-						.map(buffers -> joinAndStrip(buffers, this.stripDelimiter))
-						.doOnDiscard(PooledDataBuffer.class, DataBufferUtils::release);
-			}
+			return Flux.from(input)
+					.concatMapIterable(buffer -> endFrameAfterDelimiter(buffer, matcher))
+					.doOnNext(limiter)
+					.bufferUntil(buffer -> buffer instanceof EndFrameBuffer)
+					.map(list -> joinAndStrip(list, this.stripDelimiter))
+					.doOnDiscard(PooledDataBuffer.class, DataBufferUtils::release);
 		});
 
 		return super.decode(inputFlux, elementType, mimeType, hints);
@@ -176,14 +150,11 @@ public final class StringDecoder extends AbstractDataBufferDecoder<String> {
 	 *
 	 * @param dataBuffer the buffer to find delimiters in
 	 * @param matcher used to find the first delimiters
-	 * @param limiter to enforce maxInMemorySize with
 	 * @return a flux of buffers, containing {@link EndFrameBuffer} after each delimiter that was
 	 * found in {@code dataBuffer}. Returns  Flux, because returning List (w/ flatMapIterable)
 	 * results in memory leaks due to pre-fetching.
 	 */
-	private static List<DataBuffer> endFrameAfterDelimiter(
-			DataBuffer dataBuffer, DataBufferUtils.Matcher matcher, @Nullable LimitedDataBufferList limiter) {
-
+	private static List<DataBuffer> endFrameAfterDelimiter(DataBuffer dataBuffer, DataBufferUtils.Matcher matcher) {
 		List<DataBuffer> result = new ArrayList<>();
 		try {
 			do {
@@ -195,26 +166,13 @@ public final class StringDecoder extends AbstractDataBufferDecoder<String> {
 					result.add(slice);
 					result.add(new EndFrameBuffer(matcher.delimiter()));
 					dataBuffer.readPosition(endIdx + 1);
-					if (limiter != null) {
-						limiter.add(slice); // enforce the limit
-						limiter.clear();
-					}
 				}
 				else {
 					result.add(DataBufferUtils.retain(dataBuffer));
-					if (limiter != null) {
-						limiter.add(dataBuffer);
-					}
 					break;
 				}
 			}
 			while (dataBuffer.readableByteCount() > 0);
-		}
-		catch (DataBufferLimitException ex) {
-			if (limiter != null) {
-				limiter.releaseAndClear();
-			}
-			throw ex;
 		}
 		finally {
 			DataBufferUtils.release(dataBuffer);
@@ -230,9 +188,7 @@ public final class StringDecoder extends AbstractDataBufferDecoder<String> {
 	 * @param stripDelimiter whether to strip the delimiter
 	 * @return the joined buffer
 	 */
-	private static DataBuffer joinAndStrip(List<DataBuffer> dataBuffers,
-			boolean stripDelimiter) {
-
+	private static DataBuffer joinAndStrip(List<DataBuffer> dataBuffers, boolean stripDelimiter) {
 		Assert.state(!dataBuffers.isEmpty(), "DataBuffers should not be empty");
 
 		byte[] matchingDelimiter = null;
@@ -332,31 +288,28 @@ public final class StringDecoder extends AbstractDataBufferDecoder<String> {
 	}
 
 
-	private class ConcatMapIterableDiscardWorkaroundCache implements Consumer<DataBuffer>, Runnable {
+	private static class LimitChecker implements Consumer<DataBuffer> {
 
-		private final List<DataBuffer> buffers = new ArrayList<>();
+		@SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+		private final LimitedDataBufferList list;
 
 
-		public List<DataBuffer> addAll(List<DataBuffer> buffersToAdd) {
-			this.buffers.addAll(buffersToAdd);
-			return buffersToAdd;
+		LimitChecker(int maxInMemorySize) {
+			this.list = new LimitedDataBufferList(maxInMemorySize);
 		}
 
 		@Override
-		public void accept(DataBuffer dataBuffer) {
-			this.buffers.remove(dataBuffer);
-		}
-
-		@Override
-		public void run() {
-			this.buffers.forEach(buffer -> {
-				try {
-					DataBufferUtils.release(buffer);
-				}
-				catch (Throwable ex) {
-					// Keep going..
-				}
-			});
+		public void accept(DataBuffer buffer) {
+			if (buffer instanceof EndFrameBuffer) {
+				this.list.clear();
+			}
+			try {
+				this.list.add(buffer);
+			}
+			catch (DataBufferLimitException ex) {
+				DataBufferUtils.release(buffer);
+				throw ex;
+			}
 		}
 	}
 
