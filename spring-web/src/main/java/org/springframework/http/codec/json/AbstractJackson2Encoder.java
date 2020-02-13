@@ -30,10 +30,12 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.ByteArrayBuilder;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.exc.InvalidDefinitionException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -164,15 +166,20 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 			writer.writeValue(generator, value);
 			generator.flush();
 		}
-		catch (InvalidDefinitionException ex) {
+		catch (MismatchedInputException ex) {  // specific kind of JsonMappingException
+			throw new EncodingException("Invalid JSON input: " + ex.getOriginalMessage(), ex);
+		}
+		catch (InvalidDefinitionException ex) {  // another kind of JsonMappingException
 			throw new CodecException("Type definition error: " + ex.getType(), ex);
+		}
+		catch (JsonMappingException ex) {  // typically ValueInstantiationException
+			throw new CodecException("JSON conversion problem: " + ex.getOriginalMessage(), ex);
 		}
 		catch (JsonProcessingException ex) {
 			throw new EncodingException("JSON encoding error: " + ex.getOriginalMessage(), ex);
 		}
 		catch (IOException ex) {
-			throw new IllegalStateException("Unexpected I/O error while writing to byte array builder",
-					ex);
+			throw new IllegalStateException("Unexpected I/O error while writing to byte array builder", ex);
 		}
 
 		byte[] bytes = byteBuilder.toByteArray();
@@ -198,8 +205,7 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 			throw new EncodingException("JSON encoding error: " + ex.getOriginalMessage(), ex);
 		}
 		catch (IOException ex) {
-			throw new IllegalStateException("Unexpected I/O error while writing to byte array builder",
-					ex);
+			throw new IllegalStateException("Unexpected I/O error while writing to byte array builder", ex);
 		}
 
 		byte[] bytes = byteArrayBuilder.toByteArray();
@@ -234,6 +240,7 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 
 	private ObjectWriter createObjectWriter(ResolvableType valueType, @Nullable MimeType mimeType,
 			@Nullable Map<String, Object> hints) {
+
 		JavaType javaType = getJavaType(valueType.getType(), null);
 		Class<?> jsonView = (hints != null ? (Class<?>) hints.get(Jackson2CodecSupport.JSON_VIEW_HINT) : null);
 		ObjectWriter writer = (jsonView != null ?
@@ -281,7 +288,7 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 	}
 
 
-	// HttpMessageEncoder...
+	// HttpMessageEncoder
 
 	@Override
 	public List<MimeType> getEncodableMimeTypes() {
@@ -300,7 +307,8 @@ public abstract class AbstractJackson2Encoder extends Jackson2CodecSupport imple
 		return (actualType != null ? getHints(actualType) : Hints.none());
 	}
 
-	// Jackson2CodecSupport ...
+
+	// Jackson2CodecSupport
 
 	@Override
 	protected <A extends Annotation> A getAnnotation(MethodParameter parameter, Class<A> annotType) {
