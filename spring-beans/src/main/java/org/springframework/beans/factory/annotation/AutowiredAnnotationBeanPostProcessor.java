@@ -726,7 +726,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 				// TODO 缓存里没有的话, 就开始重新查找值. 将方法参数(用于实例化bean的方法参数)封装为一个DependencyDescriptor.
 				//  DependencyDescriptor是InjectionPoint的子类, 用于描述一个用于注入的依赖项的描述符, 比如: 字段(成员属性), 或
 				//  方法(普通方法, 构造函数). 对于DependencyDescriptor描述的项来说, 可以对其进行自动装配, 即: 方法的参数也可以使用
-				//  @Autowaire, @Value这些注解来进行自动注入.
+				//  @Autowire, @Value这些注解来进行自动注入.
 				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
 				desc.setContainingClass(bean.getClass());
 				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
