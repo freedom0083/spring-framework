@@ -395,7 +395,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 				// TODO 看一下元数据的类型是否在可解析的类型中
 				if (isCandidateComponent(metadataReader)) {
 					// TODO 把符合条件的元数据加载到一个支持注解的bd中, ScannedGenericBeanDefinition是GenericBeanDefinition的子类,
-					//  并且实现了ScannedGenericBeanDefinition接口
+					//  并且实现了AnnotatedBeanDefinition接口
 					ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
 					// TODO 判断beanDefinition是否为一个可以实例化的具体类
 					//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
