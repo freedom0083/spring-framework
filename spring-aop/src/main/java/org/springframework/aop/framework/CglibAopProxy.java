@@ -266,8 +266,6 @@ class CglibAopProxy implements AopProxy, Serializable {
 	 */
 	private void doValidateClass(Class<?> proxySuperClass, @Nullable ClassLoader proxyClassLoader, Set<Class<?>> ifcs) {
 		if (proxySuperClass != Object.class) {
-			final boolean infoEnabled = logger.isInfoEnabled();
-			final boolean debugEnabled = logger.isDebugEnabled();
 			// TODO 验证只进行到Object之前. 先把要验证的类的方法全拿出来
 			Method[] methods = proxySuperClass.getDeclaredMethods();
 			for (Method method : methods) {
@@ -275,19 +273,19 @@ class CglibAopProxy implements AopProxy, Serializable {
 				if (!Modifier.isStatic(mod) && !Modifier.isPrivate(mod)) {
 					// TODO 静态和私有方法不需要验证
 					if (Modifier.isFinal(mod)) {
-						if (infoEnabled && implementsInterface(method, ifcs)) {
+						if (logger.isInfoEnabled() && implementsInterface(method, ifcs)) {
 							// TODO 接口里的final方法CGLIB也不能代理, 需要用JDK的动态代理
 							logger.info("Unable to proxy interface-implementing method [" + method + "] because " +
 									"it is marked as final: Consider using interface-based JDK proxies instead!");
 						}
-						if (debugEnabled) {
+						if (logger.isDebugEnabled()) {
 							// TODO CGLIB不能代理final方法
 							logger.debug("Final method [" + method + "] cannot get proxied via CGLIB: " +
 									"Calls to this method will NOT be routed to the target instance and " +
 									"might lead to NPEs against uninitialized fields in the proxy instance.");
 						}
 					}
-					else if (debugEnabled && !Modifier.isPublic(mod) && !Modifier.isProtected(mod) &&
+					else if (logger.isDebugEnabled() && !Modifier.isPublic(mod) && !Modifier.isProtected(mod) &&
 							proxyClassLoader != null && proxySuperClass.getClassLoader() != proxyClassLoader) {
 						// TODO 除了公有, 受保护的方法外, 需要验证一下类加载器
 						logger.debug("Method [" + method + "] is package-visible across different ClassLoaders " +

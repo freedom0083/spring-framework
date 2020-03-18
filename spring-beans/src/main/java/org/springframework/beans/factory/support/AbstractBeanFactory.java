@@ -1597,7 +1597,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 								// TODO 其他情况会抛NoSuchBeanDefinitionException异常, 无法在没有父抽象容器时解析bean
 								throw new NoSuchBeanDefinitionException(parentBeanName,
 										"Parent name '" + parentBeanName + "' is equal to bean name '" + beanName +
-										"': cannot be resolved without an AbstractBeanFactory parent");
+										"': cannot be resolved without a ConfigurableBeanFactory parent");
 							}
 						}
 					}
