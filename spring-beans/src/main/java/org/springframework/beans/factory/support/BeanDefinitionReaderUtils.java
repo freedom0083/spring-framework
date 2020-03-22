@@ -131,18 +131,15 @@ public abstract class BeanDefinitionReaderUtils {
 					"'class' nor 'parent' nor 'factory-bean' - can't generate bean name");
 		}
 
-		String id = generatedBeanName;
 		if (isInnerBean) {
 			// Inner bean: generate identity hashcode suffix.
 			// TODO 如果是内部类, 重新命名为: 刚才生成的bean名+'#'+bd转化的16进制字符串
-			id = generatedBeanName + GENERATED_BEAN_NAME_SEPARATOR + ObjectUtils.getIdentityHexString(definition);
+			return generatedBeanName + GENERATED_BEAN_NAME_SEPARATOR + ObjectUtils.getIdentityHexString(definition);
 		}
-		else {
-			// Top-level bean: use plain class name with unique suffix if necessary.
-			// TODO 用刚才生成的bean名生成一个容器中唯一的名字, 即刚才生成的bean名+0开始的序列号
-			return uniqueBeanName(generatedBeanName, registry);
-		}
-		return id;
+
+		// Top-level bean: use plain class name with unique suffix if necessary.
+		// TODO 用刚才生成的bean名生成一个容器中唯一的名字, 即刚才生成的bean名+0开始的序列号
+		return uniqueBeanName(generatedBeanName, registry);
 	}
 
 	/**
