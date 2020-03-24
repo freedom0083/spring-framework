@@ -21,9 +21,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.aopalliance.aop.Advice;
 import org.aopalliance.intercept.Interceptor;
@@ -357,11 +355,9 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		// an independent instance of the configuration.
 		// In this case, no proxy will have an instance of this object's configuration,
 		// but will have an independent copy.
-		if (logger.isTraceEnabled()) {
-			logger.trace("Creating copy of prototype ProxyFactoryBean config: " + this);
-		}
 		// TODO 非单例每次都会创建一个实例, 所以这边也都是new的ProxyCreatorSupport
 		ProxyCreatorSupport copy = new ProxyCreatorSupport(getAopProxyFactory());
+
 		// The copy needs a fresh advisor chain, and a fresh TargetSource.
 		// TODO 刷新一下代理目标源
 		TargetSource targetSource = freshTargetSource();
@@ -377,9 +373,6 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		}
 		copy.setFrozen(this.freezeProxy);
 
-		if (logger.isTraceEnabled()) {
-			logger.trace("Using ProxyCreatorSupport copy: " + copy);
-		}
 		// TODO 用副本创建一个代理
 		return getProxy(copy.createAopProxy());
 	}
@@ -472,10 +465,6 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			// Materialize interceptor chain from bean names.
 			for (String name : this.interceptorNames) {
 				// TODO 遍历所有的拦截器(Advisor)
-				if (logger.isTraceEnabled()) {
-					logger.trace("Configuring advisor or advice '" + name + "'");
-				}
-
 				if (name.endsWith(GLOBAL_SUFFIX)) {
 					if (!(this.beanFactory instanceof ListableBeanFactory)) {
 						throw new AopConfigException(
@@ -484,7 +473,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 					// TODO 支持通配符. 如果拦截器名字是以'*'结尾的, 则会从全局容器(当前容器及其父容器)中取得所有以此拦截器名开头的
 					//  Advisor/Interceptor加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor). 还会对
 					//  InterceptorAdvisor是否实现了指定接口进行了判断
-					addGlobalAdvisor((ListableBeanFactory) this.beanFactory,
+					addGlobalAdvisors((ListableBeanFactory) this.beanFactory,
 							name.substring(0, name.length() - GLOBAL_SUFFIX.length()));
 				}
 
@@ -505,7 +494,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 						advice = new PrototypePlaceholderAdvisor(name);
 					}
 					// TODO 把Advisor添加到缓存中. 如果是Interceptor, 则会先转成Advisor
-					addAdvisorOnChainCreation(advice, name);
+					addAdvisorOnChainCreation(advice);
 				}
 			}
 		}
@@ -531,11 +520,10 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 				if (logger.isDebugEnabled()) {
 					logger.debug("Refreshing bean named '" + pa.getBeanName() + "'");
 				}
-				// Replace the placeholder with a fresh prototype instance resulting
-				// from a getBean() lookup
+				// Replace the placeholder with a fresh prototype instance resulting from a getBean lookup
 				if (this.beanFactory == null) {
-					throw new IllegalStateException("No BeanFactory available anymore (probably due to serialization) " +
-							"- cannot resolve prototype advisor '" + pa.getBeanName() + "'");
+					throw new IllegalStateException("No BeanFactory available anymore (probably due to " +
+							"serialization) - cannot resolve prototype advisor '" + pa.getBeanName() + "'");
 				}
 				// TODO 从容器里拿PrototypePlaceholderAdvisor类型的Advisor
 				Object bean = this.beanFactory.getBean(pa.getBeanName());
@@ -555,37 +543,33 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	/**
 	 * Add all global interceptors and pointcuts.
 	 */
-	// TODO  从容器中取得所有以指定字符开头的Advisor加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor)
-	private void addGlobalAdvisor(ListableBeanFactory beanFactory, String prefix) {
+	private void addGlobalAdvisors(ListableBeanFactory beanFactory, String prefix) {
 		// TODO 从容器中取得所有Advisor的
 		String[] globalAdvisorNames =
 				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, Advisor.class);
 		// TODO 从容器中取得所有Interceptor的名字
 		String[] globalInterceptorNames =
 				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, Interceptor.class);
-		// TODO 用于组合Advisor和Interceptor两个集合, 因为Interceptor最终也会封装成Advisor
-		List<Object> beans = new ArrayList<>(globalAdvisorNames.length + globalInterceptorNames.length);
-		// TODO 容器中Advisor和Interceptor对象与其名字的映射
-		Map<Object, String> names = new HashMap<>(beans.size());
-		for (String name : globalAdvisorNames) {
-			// TODO 从容器中取得所有的Advisor对象
-			Object bean = beanFactory.getBean(name);
-			beans.add(bean);
-			names.put(bean, name);
-		}
-		for (String name : globalInterceptorNames) {
-			// TODO 从容器中取得所有的Interceptor对象
-			Object bean = beanFactory.getBean(name);
-			beans.add(bean);
-			names.put(bean, name);
-		}
-		AnnotationAwareOrderComparator.sort(beans);
-		for (Object bean : beans) {
-			// TODO 所有的Advisor/Interceptor全部都收集好后, 就可以进行模糊匹配了
-			String name = names.get(bean);
-			if (name.startsWith(prefix)) {
-				// TODO 把所有以指定字符开头的Advisor/Interceptor(Interceptor会先包装成Advisor)对象加入到缓存里
-				addAdvisorOnChainCreation(bean, name);
+		if (globalAdvisorNames.length > 0 || globalInterceptorNames.length > 0) {
+			// TODO 用于组合Advisor和Interceptor两个集合, 因为Interceptor最终也会封装成Advisor
+			List<Object> beans = new ArrayList<>(globalAdvisorNames.length + globalInterceptorNames.length);
+			for (String name : globalAdvisorNames) {
+				if (name.startsWith(prefix)) {
+					// TODO 把所有以指定前缀开头的Advisor放到待处理集合中
+					beans.add(beanFactory.getBean(name));
+				}
+			}
+			for (String name : globalInterceptorNames) {
+				if (name.startsWith(prefix)) {
+					// TODO 把所有以指定前缀开头的Interceptor对象放到待处理集合中
+					beans.add(beanFactory.getBean(name));
+				}
+			}
+			AnnotationAwareOrderComparator.sort(beans);
+			for (Object bean : beans) {
+				// TODO 对所有收集到的Advisor/Interceptor(Interceptor会先包装成Advisor)进行模糊匹配
+				//  将这些Advisor/Interceptor(Interceptor会先包装成Advisor)对象加入到缓存里
+				addAdvisorOnChainCreation(bean);
 			}
 		}
 	}
@@ -596,20 +580,13 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 * Because of these three possibilities, we can't type the signature
 	 * more strongly.
 	 * @param next advice, advisor or target object
-	 * @param name bean name from which we obtained this object in our owning
-	 * bean factory
 	 */
 	// TODO 把Advisor添加到缓存中. 如果是Interceptor, 则会先转成Advisor
-	private void addAdvisorOnChainCreation(Object next, String name) {
+	private void addAdvisorOnChainCreation(Object next) {
 		// We need to convert to an Advisor if necessary so that our source reference
 		// matches what we find from superclass interceptors.
-		// TODO 先把Interceptor包装成Advisor
-		Advisor advisor = namedBeanToAdvisor(next);
-		if (logger.isTraceEnabled()) {
-			logger.trace("Adding advisor with name '" + name + "'");
-		}
-		// TODO 把Advisor添加到缓存中
-		addAdvisor(advisor);
+		// TODO 先把Interceptor包装成Advisor，然后再把所有的Advisor添加到缓存中
+		addAdvisor(namedBeanToAdvisor(next));
 	}
 
 	/**
@@ -620,9 +597,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 */
 	private TargetSource freshTargetSource() {
 		if (this.targetName == null) {
-			if (logger.isTraceEnabled()) {
-				logger.trace("Not refreshing target: Bean name not specified in 'interceptorNames'.");
-			}
+			// Not refreshing target: bean name not specified in 'interceptorNames'
 			return this.targetSource;
 		}
 		else {
@@ -665,7 +640,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	protected void adviceChanged() {
 		super.adviceChanged();
 		if (this.singleton) {
-			logger.debug("Advice has changed; recaching singleton instance");
+			logger.debug("Advice has changed; re-caching singleton instance");
 			synchronized (this) {
 				this.singletonInstance = null;
 			}
