@@ -1102,6 +1102,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			//  4. 递归重置beanDefinitionMap中的内置bean
 			resetBeanDefinition(beanName);
 		}
+		else if (isConfigurationFrozen()) {
+			clearByTypeCache();
+		}
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,8 +184,7 @@ public abstract class PropertiesLoaderUtils {
 			URL url = urls.nextElement();
 			URLConnection con = url.openConnection();
 			ResourceUtils.useCachesIfNecessary(con);
-			InputStream is = con.getInputStream();
-			try {
+			try (InputStream is = con.getInputStream()) {
 				// TODO 挨个儿load所有的properties
 				if (resourceName.endsWith(XML_FILE_EXTENSION)) {
 					props.loadFromXML(is);
@@ -193,9 +192,6 @@ public abstract class PropertiesLoaderUtils {
 				else {
 					props.load(is);
 				}
-			}
-			finally {
-				is.close();
 			}
 		}
 		return props;
