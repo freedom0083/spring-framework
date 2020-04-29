@@ -6,13 +6,10 @@ plugins {
 	id 'io.spring.gradle-enterprise-conventions' version '0.0.2'
 	id 'io.spring.nohttp' version '0.0.4.RELEASE'
 	id 'de.undercouch.download' version '4.0.0'
-	id 'com.gradle.build-scan' version '3.2'
-	id "com.jfrog.artifactory" version '4.12.0' apply false
 	id "io.freefair.aspectj" version '4.1.1' apply false
 	id "com.github.ben-manes.versions" version '0.24.0'
 }
 
-apply from: "$rootDir/gradle/build-scan-user-data.gradle"
 ext {
 	moduleProjects = subprojects.findAll { it.name.startsWith("spring-") }
 	javaProjects = subprojects - project(":framework-bom")
@@ -27,22 +24,23 @@ configure(allprojects) { project ->
 	dependencyManagement {
 		imports {
 			mavenBom "com.fasterxml.jackson:jackson-bom:2.10.3"
-			mavenBom "io.netty:netty-bom:4.1.48.Final"
-			mavenBom "io.projectreactor:reactor-bom:Dysprosium-BUILD-SNAPSHOT"
-			mavenBom "io.rsocket:rsocket-bom:1.0.0-RC7-SNAPSHOT"
+			mavenBom "io.netty:netty-bom:4.1.49.Final"
+			mavenBom "io.projectreactor:reactor-bom:Dysprosium-SR7"
+			mavenBom "io.rsocket:rsocket-bom:1.0.0-RC7"
 			mavenBom "org.eclipse.jetty:jetty-bom:9.4.28.v20200408"
 			mavenBom "org.jetbrains.kotlin:kotlin-bom:1.3.72"
 			mavenBom "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.3.5"
 			mavenBom "org.junit:junit-bom:5.6.2"
 		}
 		dependencies {
-			dependencySet(group: 'org.apache.logging.log4j', version: '2.13.1') {
+			dependencySet(group: 'org.apache.logging.log4j', version: '2.13.2') {
 				entry 'log4j-api'
 				entry 'log4j-core'
 				entry 'log4j-slf4j-impl'
 				entry 'log4j-jul'
 			}
 			dependency "org.slf4j:slf4j-api:1.7.30"
+			dependency "com.google.code.findbugs:findbugs:3.0.1"
 			dependency "com.google.code.findbugs:jsr305:3.0.2"
 
 			dependencySet(group: 'org.aspectj', version: '1.9.5') {
@@ -50,10 +48,10 @@ configure(allprojects) { project ->
 				entry 'aspectjtools'
 				entry 'aspectjweaver'
 			}
-			dependencySet(group: 'org.codehaus.groovy', version: '2.5.10') {
+			dependencySet(group: 'org.codehaus.groovy', version: '3.0.3') {
 				entry 'groovy'
 				entry 'groovy-jsr223'
-				entry 'groovy-templates'
+				entry 'groovy-templates'  // requires findbugs for warning-free compilation
 				entry 'groovy-test'
 				entry 'groovy-xml'
 			}
@@ -116,7 +114,7 @@ configure(allprojects) { project ->
 			dependency "org.ehcache:jcache:1.0.1"
 			dependency "org.ehcache:ehcache:3.4.0"
 			dependency "org.hibernate:hibernate-core:5.4.14.Final"
-			dependency "org.hibernate:hibernate-validator:6.1.3.Final"
+			dependency "org.hibernate:hibernate-validator:6.1.4.Final"
 			dependency "org.webjars:webjars-locator-core:0.44"
 			dependency "org.webjars:underscorejs:1.8.3"
 
@@ -170,13 +168,13 @@ configure(allprojects) { project ->
 				exclude group: "xerces", name: "xercesImpl"
 			}
 
-			dependency("junit:junit:4.12") {
+			dependency("junit:junit:4.13") {
 				exclude group: "org.hamcrest", name: "hamcrest-core"
 			}
 			dependency("de.bechte.junit:junit-hierarchicalcontextrunner:4.12.1") {
 				exclude group: "junit", name: "junit"
 			}
-			dependency "org.testng:testng:6.14.3"
+			dependency "org.testng:testng:7.1.0"
 			dependency "org.hamcrest:hamcrest:2.1"
 			dependency "org.awaitility:awaitility:3.1.6"
 			dependency "org.assertj:assertj-core:3.15.0"
@@ -186,18 +184,18 @@ configure(allprojects) { project ->
 					exclude group: "org.hamcrest", name: "hamcrest-core"
 				}
 			}
-			dependencySet(group: 'org.mockito', version: '3.2.4') {
+			dependencySet(group: 'org.mockito', version: '3.3.3') {
 				entry('mockito-core') {
 					exclude group: "org.hamcrest", name: "hamcrest-core"
 				}
 				entry 'mockito-junit-jupiter'
 			}
-			dependency "io.mockk:mockk:1.9.3"
+			dependency "io.mockk:mockk:1.10.0"
 
-			dependency("net.sourceforge.htmlunit:htmlunit:2.38.0") {
+			dependency("net.sourceforge.htmlunit:htmlunit:2.39.1") {
 				exclude group: "commons-logging", name: "commons-logging"
 			}
-			dependency("org.seleniumhq.selenium:htmlunit-driver:2.38.0") {
+			dependency("org.seleniumhq.selenium:htmlunit-driver:2.39.0") {
 				exclude group: "commons-logging", name: "commons-logging"
 			}
 			dependency("org.seleniumhq.selenium:selenium-java:3.141.59") {
@@ -279,8 +277,6 @@ configure(allprojects) { project ->
 		repositories {
 			mavenCentral()
 			maven { url "https://repo.spring.io/libs-spring-framework-build" }
-			maven { url "https://repo.spring.io/snapshot" }
-			maven { url "https://oss.jfrog.org/artifactory/oss-snapshot-local" } // RSocket
 		}
 	}
 	configurations.all {
@@ -327,7 +323,7 @@ configure([rootProject] + javaProjects) { project ->
 	}
 
 	checkstyle {
-		toolVersion = "8.30"
+		toolVersion = "8.31"
 		configDir = rootProject.file("src/checkstyle")
 	}
 
@@ -367,7 +363,7 @@ configure([rootProject] + javaProjects) { project ->
 			"https://fasterxml.github.io/jackson-databind/javadoc/2.10/",
 			"https://fasterxml.github.io/jackson-dataformat-xml/javadoc/2.10/",
 			"https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/",
-			"https://junit.org/junit4/javadoc/4.12/",
+			"https://junit.org/junit4/javadoc/4.13/",
 			"https://junit.org/junit5/docs/5.6.2/api/"
 	] as String[]
 }

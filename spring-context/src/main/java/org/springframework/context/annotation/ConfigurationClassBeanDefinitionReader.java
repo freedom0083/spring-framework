@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -240,7 +240,6 @@ class ConfigurationClassBeanDefinitionReader {
 		//  1. 宽松模式: 使用Spring构造的参数数组的类型和获取到的构造方法的参数类型进行对比
 		//  2. 严格模式: 还需要检查能否将构造方法的参数复制到对应的属性中
 		ConfigurationClassBeanDefinition beanDef = new ConfigurationClassBeanDefinition(configClass, metadata);
-		beanDef.setResource(configClass.getResource());
 		beanDef.setSource(this.sourceExtractor.extractSource(metadata, configClass.getResource()));
 
 		if (metadata.isStatic()) {
@@ -456,6 +455,7 @@ class ConfigurationClassBeanDefinitionReader {
 		public ConfigurationClassBeanDefinition(ConfigurationClass configClass, MethodMetadata beanMethodMetadata) {
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
+			setResource(configClass.getResource());
 			setLenientConstructorResolution(false);
 		}
 

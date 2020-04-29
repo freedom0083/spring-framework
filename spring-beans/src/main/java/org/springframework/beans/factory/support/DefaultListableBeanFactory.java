@@ -168,6 +168,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	// TODO 注册中心, bean definition缓存
 	private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
+	/** Map from bean name to merged BeanDefinitionHolder. */
+	private final Map<String, BeanDefinitionHolder> mergedBeanDefinitionHolders = new ConcurrentHashMap<>(256);
+
 	/** Map of singleton and non-singleton bean names, keyed by dependency type. */
 	private final Map<Class<?>, String[]> allBeanNamesByType = new ConcurrentHashMap<>(64);
 
@@ -895,6 +898,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			//  ConstructorResolver来解析注入项生成的mbd的工厂方法, 解析后会填充factoryMethodToIntrospect缓存
 			new ConstructorResolver(this).resolveFactoryMethodIfPossible(mbd);
 		}
+		BeanDefinitionHolder holder = (beanName.equals(beanDefinitionName) ?
+				this.mergedBeanDefinitionHolders.computeIfAbsent(beanName,
+						key -> new BeanDefinitionHolder(mbd, beanName, getAliases(beanDefinitionName))) :
+				new BeanDefinitionHolder(mbd, beanName, getAliases(beanDefinitionName)));
 		// TODO 将待验证的自动装配候选项包装为一个bd, 然后将其与注入项一起交给解析器去进行判断. 以下解析器实现了isAutowireCandidate()方法:
 		//  1. AutowireCandidateResolver接口: 默认方法, 返回的是mbd的autowireCandidate属性对应的值
 		//  2. SimpleAutowireCandidateResolver类: 实现了AutowireCandidateResolver接口, 同样返回的是mbd的autowireCandidate
@@ -902,8 +909,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		//  3. GenericTypeAwareAutowireCandidateResolver类: 扩展了SimpleAutowireCandidateResolver, 增加了对泛型类型的匹配检测
 		//  4. QualifierAnnotationAutowireCandidateResolver类: 扩展了GenericTypeAwareAutowireCandidateResolver, 增加了由
 		//                                                     @Qualifier注解指定的约束的情况
-		return resolver.isAutowireCandidate(
-				new BeanDefinitionHolder(mbd, beanName, getAliases(beanDefinitionName)), descriptor);
+		return resolver.isAutowireCandidate(holder, descriptor);
 	}
 
 	@Override
@@ -927,8 +933,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	@Override
+	protected void clearMergedBeanDefinition(String beanName) {
+		super.clearMergedBeanDefinition(beanName);
+		this.mergedBeanDefinitionHolders.remove(beanName);
+	}
+
+	@Override
 	public void clearMetadataCache() {
 		super.clearMetadataCache();
+		this.mergedBeanDefinitionHolders.clear();
 		clearByTypeCache();
 	}
 

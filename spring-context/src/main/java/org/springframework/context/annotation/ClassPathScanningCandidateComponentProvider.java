@@ -397,6 +397,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 					// TODO 把符合条件的元数据加载到一个支持注解的bd中, ScannedGenericBeanDefinition是GenericBeanDefinition的子类,
 					//  并且实现了AnnotatedBeanDefinition接口
 					ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
+					sbd.setSource(metadataReader.getResource());
 					// TODO 判断beanDefinition是否为一个可以实例化的具体类
 					//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
 					if (isCandidateComponent(sbd)) {
@@ -449,7 +450,6 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 							//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作
 							//  是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
 							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
-							sbd.setResource(resource);
 							sbd.setSource(resource);
 							// TODO 判断beanDefinition是否为一个可以实例化的具体类
 							//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的

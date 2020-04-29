@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ReflectionUtils;
 
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -1252,6 +1253,7 @@ class MergedAnnotationsTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void getRepeatableDeclaredOnClassWithAttributeAliases() {
 		assertThat(MergedAnnotations.from(HierarchyClass.class).stream(
 				TestConfiguration.class)).isEmpty();
@@ -1374,6 +1376,58 @@ class MergedAnnotationsTests {
 		assertThat(synthesizedWebMapping.name()).isEqualTo("foo");
 		assertThat(synthesizedWebMapping.path()).containsExactly("/test");
 		assertThat(synthesizedWebMapping.value()).containsExactly("/test");
+	}
+
+	@Test
+	void synthesizeShouldNotSynthesizeNonsynthesizableAnnotations() throws Exception {
+		Method method = getClass().getDeclaredMethod("getId");
+
+		Id id = method.getAnnotation(Id.class);
+		assertThat(id).isNotNull();
+		Id synthesizedId = MergedAnnotation.from(id).synthesize();
+		assertThat(id).isEqualTo(synthesizedId);
+		// It doesn't make sense to synthesize @Id since it declares zero attributes.
+		assertThat(synthesizedId).isNotInstanceOf(SynthesizedAnnotation.class);
+		assertThat(id).isSameAs(synthesizedId);
+
+		GeneratedValue generatedValue = method.getAnnotation(GeneratedValue.class);
+		assertThat(generatedValue).isNotNull();
+		GeneratedValue synthesizedGeneratedValue = MergedAnnotation.from(generatedValue).synthesize();
+		assertThat(generatedValue).isEqualTo(synthesizedGeneratedValue);
+		// It doesn't make sense to synthesize @GeneratedValue since it declares zero attributes with aliases.
+		assertThat(synthesizedGeneratedValue).isNotInstanceOf(SynthesizedAnnotation.class);
+		assertThat(generatedValue).isSameAs(synthesizedGeneratedValue);
+	}
+
+	/**
+	 * If an attempt is made to synthesize an annotation from an annotation instance
+	 * that has already been synthesized, the original synthesized annotation should
+	 * ideally be returned as-is without creating a new proxy instance with the same
+	 * values.
+	 */
+	@Test
+	void synthesizeShouldNotResynthesizeAlreadySynthesizedAnnotations() throws Exception {
+		Method method = WebController.class.getMethod("handleMappedWithValueAttribute");
+		RequestMapping webMapping = method.getAnnotation(RequestMapping.class);
+		assertThat(webMapping).isNotNull();
+
+		MergedAnnotation<RequestMapping> mergedAnnotation1 = MergedAnnotation.from(webMapping);
+		RequestMapping synthesizedWebMapping1 = mergedAnnotation1.synthesize();
+		RequestMapping synthesizedWebMapping2 = MergedAnnotation.from(webMapping).synthesize();
+
+		assertThat(synthesizedWebMapping1).isInstanceOf(SynthesizedAnnotation.class);
+		assertThat(synthesizedWebMapping2).isInstanceOf(SynthesizedAnnotation.class);
+		assertThat(synthesizedWebMapping1).isEqualTo(synthesizedWebMapping2);
+
+		// Synthesizing an annotation from a different MergedAnnotation results in a different synthesized annotation instance.
+		assertThat(synthesizedWebMapping1).isNotSameAs(synthesizedWebMapping2);
+		// Synthesizing an annotation from the same MergedAnnotation results in the same synthesized annotation instance.
+		assertThat(synthesizedWebMapping1).isSameAs(mergedAnnotation1.synthesize());
+
+		RequestMapping synthesizedAgainWebMapping = MergedAnnotation.from(synthesizedWebMapping1).synthesize();
+		assertThat(synthesizedWebMapping1).isEqualTo(synthesizedAgainWebMapping);
+		// Synthesizing an already synthesized annotation results in the original synthesized annotation instance.
+		assertThat(synthesizedWebMapping1).isSameAs(synthesizedAgainWebMapping);
 	}
 
 	@Test
@@ -1911,7 +1965,7 @@ class MergedAnnotationsTests {
 	}
 
 	@Test
-	void synthesizeWithAttributeAliasesInNestedAnnotations() throws Exception {
+	void synthesizeWithArrayOfAnnotations() throws Exception {
 		Hierarchy hierarchy = HierarchyClass.class.getAnnotation(Hierarchy.class);
 		assertThat(hierarchy).isNotNull();
 		Hierarchy synthesizedHierarchy = MergedAnnotation.from(hierarchy).synthesize();
@@ -1919,33 +1973,17 @@ class MergedAnnotationsTests {
 		TestConfiguration[] configs = synthesizedHierarchy.value();
 		assertThat(configs).isNotNull();
 		assertThat(configs).allMatch(SynthesizedAnnotation.class::isInstance);
-		assertThat(
-				Arrays.stream(configs).map(TestConfiguration::location)).containsExactly(
-						"A", "B");
-		assertThat(Arrays.stream(configs).map(TestConfiguration::value)).containsExactly(
-				"A", "B");
-	}
+		assertThat(configs).extracting(TestConfiguration::value).containsExactly("A", "B");
+		assertThat(configs).extracting(TestConfiguration::location).containsExactly("A", "B");
 
-	@Test
-	void synthesizeWithArrayOfAnnotations() throws Exception {
-		Hierarchy hierarchy = HierarchyClass.class.getAnnotation(Hierarchy.class);
-		assertThat(hierarchy).isNotNull();
-		Hierarchy synthesizedHierarchy = MergedAnnotation.from(hierarchy).synthesize();
-		assertThat(synthesizedHierarchy).isInstanceOf(SynthesizedAnnotation.class);
-		TestConfiguration contextConfig = TestConfigurationClass.class.getAnnotation(
-				TestConfiguration.class);
+		TestConfiguration contextConfig = TestConfigurationClass.class.getAnnotation(TestConfiguration.class);
 		assertThat(contextConfig).isNotNull();
-		TestConfiguration[] configs = synthesizedHierarchy.value();
-		assertThat(
-				Arrays.stream(configs).map(TestConfiguration::location)).containsExactly(
-						"A", "B");
 		// Alter array returned from synthesized annotation
 		configs[0] = contextConfig;
+		assertThat(configs).extracting(TestConfiguration::value).containsExactly("simple.xml", "B");
 		// Re-retrieve the array from the synthesized annotation
 		configs = synthesizedHierarchy.value();
-		assertThat(
-				Arrays.stream(configs).map(TestConfiguration::location)).containsExactly(
-						"A", "B");
+		assertThat(configs).extracting(TestConfiguration::value).containsExactly("A", "B");
 	}
 
 	@Test
@@ -2949,6 +2987,27 @@ class MergedAnnotationsTests {
 		@RequestMapping(value = "/enigma", path = "/test", name = "baz")
 		public void handleMappedWithDifferentPathAndValueAttributes() {
 		}
+	}
+
+	/**
+	 * Mimics javax.persistence.Id
+	 */
+	@Retention(RUNTIME)
+	@interface Id {
+	}
+
+	/**
+	 * Mimics javax.persistence.GeneratedValue
+	 */
+	@Retention(RUNTIME)
+	@interface GeneratedValue {
+		String strategy();
+	}
+
+	@Id
+	@GeneratedValue(strategy = "AUTO")
+	private Long getId() {
+		return 42L;
 	}
 
 	@Retention(RetentionPolicy.RUNTIME)
