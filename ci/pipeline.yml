@@ -187,21 +187,21 @@ jobs:
       threads: 8
       artifact_set:
       - include:
-        - "/**/spring-framework-*.zip"
+        - "/**/spring-*.zip"
         properties:
           "zip.name": "spring-framework"
           "zip.displayname": "Spring Framework"
           "zip.deployed": "false"
       - include:
-        - "/**/spring-framework-*-docs.zip"
+        - "/**/spring-*-docs.zip"
         properties:
           "zip.type": "docs"
       - include:
-        - "/**/spring-framework-*-dist.zip"
+        - "/**/spring-*-dist.zip"
         properties:
           "zip.type": "dist"
       - include:
-        - "/**/spring-framework-*-schema.zip"
+        - "/**/spring-*-schema.zip"
         properties:
           "zip.type": "schema"
     get_params:
@@ -211,6 +211,7 @@ jobs:
   public: true
   plan:
   - get: spring-framework-jdk11-ci-image
+  - get: git-repo
   - get: every-morning
     trigger: true
   - put: repo-status-jdk11-build
@@ -247,6 +248,7 @@ jobs:
   public: true
   plan:
     - get: spring-framework-jdk14-ci-image
+    - get: git-repo
     - get: every-morning
       trigger: true
     - put: repo-status-jdk14-build
@@ -283,6 +285,7 @@ jobs:
   public: true
   plan:
     - get: spring-framework-jdk15-ci-image
+    - get: git-repo
     - get: every-morning
       trigger: true
     - put: repo-status-jdk15-build
