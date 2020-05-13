@@ -443,7 +443,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	@Override
 	public void destroyBean(Object existingBean) {
-		new DisposableBeanAdapter(existingBean, getBeanPostProcessors(), getAccessControlContext()).destroy();
+		new DisposableBeanAdapter(
+				existingBean, getBeanPostProcessorCache().destructionAware, getAccessControlContext()).destroy();
 	}
 
 
@@ -699,20 +700,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//  化后处理器时, 开始类型预测.
 			//  首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
 			boolean matchingOnlyFactoryBean = typesToMatch.length == 1 && typesToMatch[0] == FactoryBean.class;
-			for (BeanPostProcessor bp : getBeanPostProcessors()) {
-				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
-					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
-					// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来预测目标类型, 以下后处理器实现了predictBeanType()方法:
-					//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了一个默认实现, 返回的是null;
-					//  2. InstantiationAwareBeanPostProcessorAdapter抽象类: 什么也没做, 也是返回null, 其实可以去掉这个方法, 直接使用接口中的默认方法;
-					//  3. AbstractAutoProxyCreator抽象类: 从代理类型中查找
-					//  4. ScriptFactoryPostProcessor类: 用脚本工厂来查找 mark 以后补上
-					Class<?> predicted = ibp.predictBeanType(targetType, beanName);
-					if (predicted != null &&
-							(!matchingOnlyFactoryBean || FactoryBean.class.isAssignableFrom(predicted))) {
-						// TODO 只要有一个类型匹配上, 并且不是FactoryBean类型时, 就返回预测的类型, 这是个断路操作
-						return predicted;
-					}
+			for (SmartInstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().smartInstantiationAware) {
+				// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来预测目标类型, 以下后处理器实现了predictBeanType()方法:
+				//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了一个默认实现, 返回的是null;
+				//  2. InstantiationAwareBeanPostProcessorAdapter抽象类: 什么也没做, 也是返回null, 其实可以去掉这个方法, 直接使用接口中的默认方法;
+				//  3. AbstractAutoProxyCreator抽象类: 从代理类型中查找
+				//  4. ScriptFactoryPostProcessor类: 用脚本工厂来查找 mark 以后补上
+				Class<?> predicted = bp.predictBeanType(targetType, beanName);
+				if (predicted != null &&
+						(!matchingOnlyFactoryBean || FactoryBean.class.isAssignableFrom(predicted))) {
+					// TODO 只要有一个类型匹配上, 并且不是FactoryBean类型时, 就返回预测的类型, 这是个断路操作
+					return predicted;
 				}
 			}
 		}
@@ -1100,15 +1098,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			// TODO 当这个mbd(当前bean)是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
 			//  类型后处理器时, 尝试用这些处理器来对要创建的bean进行处理, 提前暴露出需要的bean, 来应对循环引用问题
-			for (BeanPostProcessor bp : getBeanPostProcessors()) {
-				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
-					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
-					// TODO 有三个地方实现了SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference(Object, String)方法:
-					//  1. SmartInstantiationAwareBeanPostProcessor: 接口提供了一个默认实现方法, 直接返回当前bean做为要暴露的bean
-					//  2. InstantiationAwareBeanPostProcessorAdapter: 抽象类, 实现与接口默认方法相同, Java 8后可以去掉了
-					//  3. AbstractAutoProxyCreator: 抽象类, 用于提供为Spring AOP自动创建代理的功能
-					exposedObject = ibp.getEarlyBeanReference(exposedObject, beanName);
-				}
+			for (SmartInstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().smartInstantiationAware) {
+				// TODO 有三个地方实现了SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference(Object, String)方法:
+				//  1. SmartInstantiationAwareBeanPostProcessor: 接口提供了一个默认实现方法, 直接返回当前bean做为要暴露的bean
+				//  2. InstantiationAwareBeanPostProcessorAdapter: 抽象类, 实现与接口默认方法相同, Java 8后可以去掉了
+				//  3. AbstractAutoProxyCreator: 抽象类, 用于提供为Spring AOP自动创建代理的功能
+				exposedObject = bp.getEarlyBeanReference(exposedObject, beanName);
 			}
 		}
 		return exposedObject;
@@ -1233,30 +1228,27 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 	 */
 	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
-		for (BeanPostProcessor bp : getBeanPostProcessors()) {
-			if (bp instanceof MergedBeanDefinitionPostProcessor) {
-				// TODO 迭代所有实现了MergedBeanDefinitionPostProcessor接口的后处理器(此接口是个回调接口)的postProcessMergedBeanDefinition()
-				//  方法(此方法提供了修改合并后的bd的属性, 缓存元数据信息的功能). MergedBeanDefinitionPostProcessor接口有以下实现:
-				//  1. ApplicationListenerDetector: 将每个mbd是否为单例缓存到singletonNames中. 此实现在容器初始化时, 由以下两个位置注册到容器中:
-				//     a. AbstractApplicationContext#prepareBeanFactory()方法中注册
-				//     b. AbstractApplicationContext#registerBeanPostProcessors()最后会为探测嵌套bean而再次注入一个到容器中
-				//  2. AutowiredAnnotationBeanPostProcessor: 提供自动装配功能, 处理被@Autowire, @Value, @Inject标注的字段或方法,
-				//     为其生成注入点信息并加入injectionMetadataCache缓存中用于后续自动注入处理. 此实现在AnnotationConfigApplicationContext
-				//     容器初始化时由AnnotatedBeanDefinitionReader创建
-				//  3. InitDestroyAnnotationBeanPostProcessor: 处理bean的生命周期, 对于指定的注解(比如@PostConstruct, 或@PreDestroy)
-				//     进行处理, 如果想自定义一些处理bean生命周期的处理器, 可以使用这个为基类. 其本身没有被Spring实例化, 用的都是其
-				//     子类, 比如下面的CommonAnnotationBeanPostProcessor
-				//  4. CommonAnnotationBeanPostProcessor: InitDestroyAnnotationBeanPostProcessor的子类, 除了设置了处理
-				//     生命周期所支持的注解@PostConstruct和@PreDestroy, 还支持@Resource注解, 以及对@EJB, @WebServiceRef的支持.
-				//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
-				//  5. JmsListenerAnnotationBeanPostProcessor: 什么都没做
-				//  6. PersistenceAnnotationBeanPostProcessor: 处理持久化相关功能(@PersistenceContext和@PersistenceUnit注解),
-				//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
-				//  7. RequiredAnnotationBeanPostProcessor: 已被废弃
-				//  8. ScheduledAnnotationBeanPostProcessor: 什么都没做
-				MergedBeanDefinitionPostProcessor bdp = (MergedBeanDefinitionPostProcessor) bp;
-				bdp.postProcessMergedBeanDefinition(mbd, beanType, beanName);
-			}
+		for (MergedBeanDefinitionPostProcessor processor : getBeanPostProcessorCache().mergedDefinition) {
+			// TODO 迭代所有实现了MergedBeanDefinitionPostProcessor接口的后处理器(此接口是个回调接口)的postProcessMergedBeanDefinition()
+			//  方法(此方法提供了修改合并后的bd的属性, 缓存元数据信息的功能). MergedBeanDefinitionPostProcessor接口有以下实现:
+			//  1. ApplicationListenerDetector: 将每个mbd是否为单例缓存到singletonNames中. 此实现在容器初始化时, 由以下两个位置注册到容器中:
+			//     a. AbstractApplicationContext#prepareBeanFactory()方法中注册
+			//     b. AbstractApplicationContext#registerBeanPostProcessors()最后会为探测嵌套bean而再次注入一个到容器中
+			//  2. AutowiredAnnotationBeanPostProcessor: 提供自动装配功能, 处理被@Autowire, @Value, @Inject标注的字段或方法,
+			//     为其生成注入点信息并加入injectionMetadataCache缓存中用于后续自动注入处理. 此实现在AnnotationConfigApplicationContext
+			//     容器初始化时由AnnotatedBeanDefinitionReader创建
+			//  3. InitDestroyAnnotationBeanPostProcessor: 处理bean的生命周期, 对于指定的注解(比如@PostConstruct, 或@PreDestroy)
+			//     进行处理, 如果想自定义一些处理bean生命周期的处理器, 可以使用这个为基类. 其本身没有被Spring实例化, 用的都是其
+			//     子类, 比如下面的CommonAnnotationBeanPostProcessor
+			//  4. CommonAnnotationBeanPostProcessor: InitDestroyAnnotationBeanPostProcessor的子类, 除了设置了处理
+			//     生命周期所支持的注解@PostConstruct和@PreDestroy, 还支持@Resource注解, 以及对@EJB, @WebServiceRef的支持.
+			//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
+			//  5. JmsListenerAnnotationBeanPostProcessor: 什么都没做
+			//  6. PersistenceAnnotationBeanPostProcessor: 处理持久化相关功能(@PersistenceContext和@PersistenceUnit注解),
+			//     AnnotationConfigApplicationContext容器初始化时, 由AnnotatedBeanDefinitionReader创建
+			//  7. RequiredAnnotationBeanPostProcessor: 已被废弃
+			//  8. ScheduledAnnotationBeanPostProcessor: 什么都没做
+			processor.postProcessMergedBeanDefinition(mbd, beanType, beanName);
 		}
 	}
 
@@ -1312,22 +1304,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Nullable
 	protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) {
-		for (BeanPostProcessor bp : getBeanPostProcessors()) {
-			if (bp instanceof InstantiationAwareBeanPostProcessor) {
-				InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-				// TODO 迭代所有后InstantiationAwareBeanPostProcessor类型的后处理器, 执行postProcessBeforeInstantiation()方法
-				//  对bean进行处理, 只要有一个处理器产生了处理结果, 就直接返回, 目前有以下几个实现复写了postProcessBeforeInstantiation()方法:
-				//  1. ScriptFactoryPostProcessor: 用脚本对象替换所有的工厂bean
-				//  2. PersistenceAnnotationBeanPostProcessor: 返回null
-				//  3. CommonAnnotationBeanPostProcessor: 返回null
-				//  4. InstantiationAwareBeanPostProcessorAdapter: 返回null
-				//  5. AbstractAutoProxyCreator: 用于创建代理对象
-				//  6. ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor: 对ImportAware类型的bean做了一下处理
-				//  这边主要是处理AOP, 声明式事务等
-				Object result = ibp.postProcessBeforeInstantiation(beanClass, beanName);
-				if (result != null) {
-					return result;
-				}
+		for (InstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().instantiationAware) {
+			// TODO 迭代所有后InstantiationAwareBeanPostProcessor类型的后处理器, 执行postProcessBeforeInstantiation()方法
+			//  对bean进行处理, 只要有一个处理器产生了处理结果, 就直接返回, 目前有以下几个实现复写了postProcessBeforeInstantiation()方法:
+			//  1. ScriptFactoryPostProcessor: 用脚本对象替换所有的工厂bean
+			//  2. PersistenceAnnotationBeanPostProcessor: 返回null
+			//  3. CommonAnnotationBeanPostProcessor: 返回null
+			//  4. InstantiationAwareBeanPostProcessorAdapter: 返回null
+			//  5. AbstractAutoProxyCreator: 用于创建代理对象
+			//  6. ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor: 对ImportAware类型的bean做了一下处理
+			//  这边主要是处理AOP, 声明式事务等
+			Object result = bp.postProcessBeforeInstantiation(beanClass, beanName);
+			if (result != null) {
+				return result;
 			}
 		}
 		return null;
@@ -1548,22 +1537,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (beanClass != null && hasInstantiationAwareBeanPostProcessors()) {
 			// TODO 在有明确了的bean的类型, 并且容器注册过InstantiationAwareBeanPostProcessor类型的初始化后处理器时, 开始类型预测.
 			//  首先看一下要匹配的类型是否只有一个, 且是FactoryBean类型
-			for (BeanPostProcessor bp : getBeanPostProcessors()) {
-				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
-					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
-					// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来确定构造器, 以下后处理器实现了此方法:
-					//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了默认方法, 直接返回null;
-					//  2. AbstractAutoProxyCreator抽象类: 直接返回null. 实际上Java 8后可以移除此方法了;
-					//  3. InstantiationAwareBeanPostProcessorAdapter抽象类: 同上;
-					//  4. AutowiredAnnotationBeanPostProcessor类: InstantiationAwareBeanPostProcessorAdapter的实现类, 用来
-					//     确定要实例化的bean有哪些满足要求的构造器. 这里会处理@Lookup注解. 还会处理@Autowire, @Inject这些用来
-					//     自动注入的注解. 这2个注解的'required'属性默认都为true, 只是@Inject没有设置此属性的地方. Spring只允许
-					//     一个类中有一个构造器的'required'属性为true(@Autowire需要明确设置'required = false'), 否则会抛出异常.
-					Constructor<?>[] ctors = ibp.determineCandidateConstructors(beanClass, beanName);
-					if (ctors != null) {
-						// TODO 这也是个断路操作, 只要有一个后处理器找到了候选构造器, 直接返回
-						return ctors;
-					}
+			for (SmartInstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().smartInstantiationAware) {
+				// TODO 遍历所有的SmartInstantiationAwareBeanPostProcessor类型后处理器来确定构造器, 以下后处理器实现了此方法:
+				//  1. SmartInstantiationAwareBeanPostProcessor接口: 提供了默认方法, 直接返回null;
+				//  2. AbstractAutoProxyCreator抽象类: 直接返回null. 实际上Java 8后可以移除此方法了;
+				//  3. InstantiationAwareBeanPostProcessorAdapter抽象类: 同上;
+				//  4. AutowiredAnnotationBeanPostProcessor类: InstantiationAwareBeanPostProcessorAdapter的实现类, 用来
+				//     确定要实例化的bean有哪些满足要求的构造器. 这里会处理@Lookup注解. 还会处理@Autowire, @Inject这些用来
+				//     自动注入的注解. 这2个注解的'required'属性默认都为true, 只是@Inject没有设置此属性的地方. Spring只允许
+				//     一个类中有一个构造器的'required'属性为true(@Autowire需要明确设置'required = false'), 否则会抛出异常.
+				Constructor<?>[] ctors = bp.determineCandidateConstructors(beanClass, beanName);
+				if (ctors != null) {
+					// TODO 这也是个断路操作, 只要有一个后处理器找到了候选构造器, 直接返回
+					return ctors;
 				}
 			}
 		}
@@ -1715,14 +1701,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-			for (BeanPostProcessor bp : getBeanPostProcessors()) {
-				if (bp instanceof InstantiationAwareBeanPostProcessor) {
-					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
-						// TODO 对于容器创建的bean来说, 如果容器中任何一个InstantiationAwareBeanPostProcessor类型的后处理器表示
-						//  不需要实例化后执行其他操作, 就无需要进行后续的属性设值(这是个断路操作)
-						return;
-					}
+			for (InstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().instantiationAware) {
+				if (!bp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
+					// TODO 对于容器创建的bean来说, 如果容器中任何一个InstantiationAwareBeanPostProcessor类型的后处理器表示
+					//  不需要实例化后执行其他操作, 就无需要进行后续的属性设值(这是个断路操作)
+					return;
 				}
 			}
 		}
@@ -1758,40 +1741,37 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (pvs == null) {
 				pvs = mbd.getPropertyValues();
 			}
-			for (BeanPostProcessor bp : getBeanPostProcessors()) {
-				if (bp instanceof InstantiationAwareBeanPostProcessor) {
-					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-					// TODO 遍历所有InstantiationAwareBeanPostProcessor类型的后处理器, 来对属性进行处理:
-					//  1. InstantiationAwareBeanPostProcessor: 接口提供了默认方法, 永远返回null;
-					//  2. InstantiationAwareBeanPostProcessorAdapter: InstantiationAwareBeanPostProcessor接口的子类. 也是
-					//     什么也没做, 直接返回null. 留着应该是为了兼容以前的版本. Java 8后可以去掉了;
-					//  3. PersistenceAnnotationBeanPostProcessor: 用于JAP持久化相关功能. 在AnnotationConfigApplicationContext
-					//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@PersistenceContext和@PersistenceUnit
-					//     注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入点元数据后, 根据注入点元数据信息进行注入操作
-					//  4. AbstractAutoProxyCreator: 用于AOP代理创建. 其并没有对属性进行任何操作, 直接返回属性
-					//  5. AutowiredAnnotationBeanPostProcessor: 用于处理自动装配注解的后处理器. 在AnnotationConfigApplicationContext
-					//     容器初始化时由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解的
-					//     字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
-					//     注入点元数据信息进行注入操作
-					//  6. CommonAnnotationBeanPostProcessor: 用来处理通用资源的后处理器. AnnotationConfigApplicationContext
-					//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解
-					//     的字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
-					//     注入点元数据信息进行注入操作
-					//  7. ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor: 用来处理由CGLIB增强的@Configuration
-					//     配置类. 为增强类设置了相同的容器
-					//  8. ScriptFactoryPostProcessor: 不做任何处理, 直接返回属性
-					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
-					if (pvsToUse == null) {
-						if (filteredPds == null) {
-							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
-						}
-						pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
-						if (pvsToUse == null) {
-							return;
-						}
+			for (InstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().instantiationAware) {
+				// TODO 遍历所有InstantiationAwareBeanPostProcessor类型的后处理器, 来对属性进行处理:
+				//  1. InstantiationAwareBeanPostProcessor: 接口提供了默认方法, 永远返回null;
+				//  2. InstantiationAwareBeanPostProcessorAdapter: InstantiationAwareBeanPostProcessor接口的子类. 也是
+				//     什么也没做, 直接返回null. 留着应该是为了兼容以前的版本. Java 8后可以去掉了;
+				//  3. PersistenceAnnotationBeanPostProcessor: 用于JAP持久化相关功能. 在AnnotationConfigApplicationContext
+				//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@PersistenceContext和@PersistenceUnit
+				//     注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入点元数据后, 根据注入点元数据信息进行注入操作
+				//  4. AbstractAutoProxyCreator: 用于AOP代理创建. 其并没有对属性进行任何操作, 直接返回属性
+				//  5. AutowiredAnnotationBeanPostProcessor: 用于处理自动装配注解的后处理器. 在AnnotationConfigApplicationContext
+				//     容器初始化时由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解的
+				//     字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
+				//     注入点元数据信息进行注入操作
+				//  6. CommonAnnotationBeanPostProcessor: 用来处理通用资源的后处理器. AnnotationConfigApplicationContext
+				//     容器初始化时, 由AnnotatedBeanDefinitionReader创建. 会把bean里所有标有@Autowire, @Value, @Inject注解
+				//     的字段以及方法全都找出来, 生成包含有AutowiredFieldElement和AutowiredMethodElement的注入点元数据. 根据
+				//     注入点元数据信息进行注入操作
+				//  7. ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor: 用来处理由CGLIB增强的@Configuration
+				//     配置类. 为增强类设置了相同的容器
+				//  8. ScriptFactoryPostProcessor: 不做任何处理, 直接返回属性
+				PropertyValues pvsToUse = bp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
+				if (pvsToUse == null) {
+					if (filteredPds == null) {
+						filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 					}
-					pvs = pvsToUse;
+					pvsToUse = bp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
+					if (pvsToUse == null) {
+						return;
+					}
 				}
+				pvs = pvsToUse;
 			}
 		}
 		if (needsDepCheck) {

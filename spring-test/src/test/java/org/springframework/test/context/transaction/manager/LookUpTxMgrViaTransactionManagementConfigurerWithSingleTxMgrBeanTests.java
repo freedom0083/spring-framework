@@ -19,13 +19,10 @@ package org.springframework.test.context.transaction.manager;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.test.context.transaction.AfterTransaction;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.TransactionManagementConfigurer;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,32 +32,32 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test that verifies the behavior for transaction manager lookups
- * when one transaction manager is {@link Primary @Primary} and an additional
- * transaction manager is configured via the
+ * when only one transaction manager is configured as a bean in the application
+ * context and a non-bean transaction manager is configured via the
  * {@link TransactionManagementConfigurer} API.
  *
  * @author Sam Brannen
- * @since 5.2.6
+ * @since 5.3
  */
 @SpringJUnitConfig
 @Transactional
-class LookUpTxMgrViaTransactionManagementConfigurerWithPrimaryTxMgrTests {
+class LookUpTxMgrViaTransactionManagementConfigurerWithSingleTxMgrBeanTests {
 
 	@Autowired
-	CallCountingTransactionManager primary;
+	CallCountingTransactionManager txManager;
 
 	@Autowired
-	@Qualifier("annotationDrivenTransactionManager")
-	CallCountingTransactionManager annotationDriven;
+	Config config;
 
 
 	@Test
 	void transactionalTest() {
-		assertThat(primary.begun).isEqualTo(0);
-		assertThat(primary.inflight).isEqualTo(0);
-		assertThat(primary.commits).isEqualTo(0);
-		assertThat(primary.rollbacks).isEqualTo(0);
+		assertThat(txManager.begun).isEqualTo(0);
+		assertThat(txManager.inflight).isEqualTo(0);
+		assertThat(txManager.commits).isEqualTo(0);
+		assertThat(txManager.rollbacks).isEqualTo(0);
 
+		CallCountingTransactionManager annotationDriven = config.annotationDriven;
 		assertThat(annotationDriven.begun).isEqualTo(1);
 		assertThat(annotationDriven.inflight).isEqualTo(1);
 		assertThat(annotationDriven.commits).isEqualTo(0);
@@ -69,11 +66,12 @@ class LookUpTxMgrViaTransactionManagementConfigurerWithPrimaryTxMgrTests {
 
 	@AfterTransaction
 	void afterTransaction() {
-		assertThat(primary.begun).isEqualTo(0);
-		assertThat(primary.inflight).isEqualTo(0);
-		assertThat(primary.commits).isEqualTo(0);
-		assertThat(primary.rollbacks).isEqualTo(0);
+		assertThat(txManager.begun).isEqualTo(0);
+		assertThat(txManager.inflight).isEqualTo(0);
+		assertThat(txManager.commits).isEqualTo(0);
+		assertThat(txManager.rollbacks).isEqualTo(0);
 
+		CallCountingTransactionManager annotationDriven = config.annotationDriven;
 		assertThat(annotationDriven.begun).isEqualTo(1);
 		assertThat(annotationDriven.inflight).isEqualTo(0);
 		assertThat(annotationDriven.commits).isEqualTo(0);
@@ -84,16 +82,16 @@ class LookUpTxMgrViaTransactionManagementConfigurerWithPrimaryTxMgrTests {
 	@Configuration
 	static class Config implements TransactionManagementConfigurer {
 
+		final CallCountingTransactionManager annotationDriven = new CallCountingTransactionManager();
+
 		@Bean
-		@Primary
-		PlatformTransactionManager primary() {
+		TransactionManager txManager() {
 			return new CallCountingTransactionManager();
 		}
 
-		@Bean
 		@Override
 		public TransactionManager annotationDrivenTransactionManager() {
-			return new CallCountingTransactionManager();
+			return annotationDriven;
 		}
 
 	}
