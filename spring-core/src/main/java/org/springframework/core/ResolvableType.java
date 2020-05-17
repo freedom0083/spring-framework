@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -479,19 +479,29 @@ public class ResolvableType implements Serializable {
 	public ResolvableType getSuperType() {
 		// TODO 从resolved参数中取得解析过的Type
 		Class<?> resolved = resolve();
-		if (resolved == null || resolved.getGenericSuperclass() == null) {
+		if (resolved == null) {
 			// TODO 没有超类, 或没有解析过的Type时, 返回空的ResolvableType
 			return NONE;
 		}
-		// TODO 否则, 先从缓存中取得解析过的超类型
-		ResolvableType superType = this.superType;
-		if (superType == null) {
-			// TODO 如果之前没有解析过超类型, 对其进行解析, 然后设置到缓存中
-			superType = forType(resolved.getGenericSuperclass(), this);
-			this.superType = superType;
+		try {
+			Type superclass = resolved.getGenericSuperclass();
+			if (superclass == null) {
+				return NONE;
+			}
+			// TODO 否则, 先从缓存中取得解析过的超类型
+			ResolvableType superType = this.superType;
+			if (superType == null) {
+				// TODO 如果之前没有解析过超类型, 对其进行解析, 然后设置到缓存中
+				superType = forType(superclass, this);
+				this.superType = superType;
+			}
+			// TODO 返回超类型
+			return superType;
 		}
-		// TODO 返回超类型
-		return superType;
+		catch (TypeNotPresentException ex) {
+			// Ignore non-present types in generic signature
+			return NONE;
+		}
 	}
 
 	/**
@@ -567,15 +577,20 @@ public class ResolvableType implements Serializable {
 		}
 		Class<?> resolved = resolve();
 		if (resolved != null) {
-			for (Type genericInterface : resolved.getGenericInterfaces()) {
-				// TODO 迭代当前type所实现的接口
-				if (genericInterface instanceof Class) {
-					if (forClass((Class<?>) genericInterface).hasGenerics()) {
-						// TODO 只要有一个接口的type是Class类型, 且其还有泛型(通以原始方式实现通用接口，即不替换接口的类型变量),
-						//  就返回true, 表示有不可解析的泛型
-						return true;
+			try {
+				for (Type genericInterface : resolved.getGenericInterfaces()) {
+					// TODO 迭代当前type所实现的接口
+					if (genericInterface instanceof Class) {
+						if (forClass((Class<?>) genericInterface).hasGenerics()) {
+							// TODO 只要有一个接口的type是Class类型, 且其还有泛型(通以原始方式实现通用接口，即不替换接口的类型变量),
+							//  就返回true, 表示有不可解析的泛型
+							return true;
+						}
 					}
 				}
+			}
+			catch (TypeNotPresentException ex) {
+				// Ignore non-present types in generic signature
 			}
 			// TODO 然后再到父类型中去找
 			return getSuperType().hasUnresolvableGenerics();
