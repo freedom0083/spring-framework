@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,13 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.MappingMatch;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.lang.Nullable;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -48,6 +50,10 @@ import org.springframework.util.StringUtils;
  * @see javax.servlet.RequestDispatcher
  */
 public class UrlPathHelper {
+
+	private static boolean isServlet4Present =
+			ClassUtils.isPresent("javax.servlet.http.HttpServletMapping",
+					UrlPathHelper.class.getClassLoader());
 
 	/**
 	 * Special WebSphere request attribute, indicating the original request URI.
@@ -155,30 +161,6 @@ public class UrlPathHelper {
 
 
 	/**
-	 * Return the mapping lookup path for the given request, within the current
-	 * servlet mapping if applicable, else within the web application.
-	 * <p>Detects include request URL if called within a RequestDispatcher include.
-	 * @param request current HTTP request
-	 * @return the lookup path
-	 * @see #getPathWithinServletMapping
-	 * @see #getPathWithinApplication
-	 */
-	public String getLookupPathForRequest(HttpServletRequest request) {
-		// Always use full path within current servlet context?
-		if (this.alwaysUseFullPath) {
-			return getPathWithinApplication(request);
-		}
-		// Else, use path within current servlet mapping if applicable
-		String rest = getPathWithinServletMapping(request);
-		if (!"".equals(rest)) {
-			return rest;
-		}
-		else {
-			return getPathWithinApplication(request);
-		}
-	}
-
-	/**
 	 * Variant of {@link #getLookupPathForRequest(HttpServletRequest)} that
 	 * automates checking for a previously computed lookupPath saved as a
 	 * request attribute. The attribute is only used for lookup purposes.
@@ -196,6 +178,40 @@ public class UrlPathHelper {
 			}
 		}
 		return getLookupPathForRequest(request);
+	}
+
+	/**
+	 * Return the mapping lookup path for the given request, within the current
+	 * servlet mapping if applicable, else within the web application.
+	 * <p>Detects include request URL if called within a RequestDispatcher include.
+	 * @param request current HTTP request
+	 * @return the lookup path
+	 * @see #getPathWithinServletMapping
+	 * @see #getPathWithinApplication
+	 */
+	public String getLookupPathForRequest(HttpServletRequest request) {
+		// Always use full path within current servlet context?
+		if (this.alwaysUseFullPath || skipServletPathDetermination(request)) {
+			return getPathWithinApplication(request);
+		}
+		// Else, use path within current servlet mapping if applicable
+		String rest = getPathWithinServletMapping(request);
+		if (!"".equals(rest)) {
+			return rest;
+		}
+		else {
+			return getPathWithinApplication(request);
+		}
+	}
+
+	private boolean skipServletPathDetermination(HttpServletRequest request) {
+		if (isServlet4Present) {
+			if (request.getHttpServletMapping().getMappingMatch() != null) {
+				return !request.getHttpServletMapping().getMappingMatch().equals(MappingMatch.PATH) ||
+						request.getHttpServletMapping().getPattern().equals("/*");
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -625,5 +641,38 @@ public class UrlPathHelper {
 		// However, if it is not compliant, do remove the improper trailing slash!
 		return !flagToUse;
 	}
+
+
+	/**
+	 * Shared, read-only instance of {@code UrlPathHelper}. Uses default settings:
+	 * <ul>
+	 * <li>{@code alwaysUseFullPath=false}
+	 * <li>{@code urlDecode=true}
+	 * <li>{@code removeSemicolon=true}
+	 * <li>{@code defaultEncoding=}{@link WebUtils#DEFAULT_CHARACTER_ENCODING}
+	 * </ul>
+	 */
+	public static final UrlPathHelper defaultInstance = new UrlPathHelper() {
+
+		@Override
+		public void setAlwaysUseFullPath(boolean alwaysUseFullPath) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setUrlDecode(boolean urlDecode) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setRemoveSemicolonContent(boolean removeSemicolonContent) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setDefaultEncoding(String defaultEncoding) {
+			throw new UnsupportedOperationException();
+		}
+	};
 
 }
