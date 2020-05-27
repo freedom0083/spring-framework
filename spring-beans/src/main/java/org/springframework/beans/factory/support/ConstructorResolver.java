@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -687,8 +687,8 @@ class ConstructorResolver {
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
 			for (Method candidate : candidates) {
-
 				int parameterCount = candidate.getParameterCount();
+
 				if (parameterCount >= minNrOfArgs) {
 					// TODO 要找最接近的方法, 参数数量比工厂方法少的肯定不是, 所以这里只看参数数量 >= 工厂方法参数数量的方法
 					//  这个是用于保存参数的holder
@@ -900,7 +900,7 @@ class ConstructorResolver {
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Invalid constructor argument index: " + index);
 			}
-			if (index > minNrOfArgs) {
+			if (index + 1 > minNrOfArgs) {
 				// TODO 在索引 > 带索引的参数数量 + 泛型参数数量时, 用索引更新构造器的参数数量的最小值
 				minNrOfArgs = index + 1;
 			}
