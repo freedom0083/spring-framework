@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -344,16 +344,6 @@ public class PersistenceAnnotationBeanPostProcessor
 		this.injectionMetadataCache.remove(beanName);
 	}
 
-	@Override
-	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
-		return null;
-	}
-
-	@Override
-	public boolean postProcessAfterInstantiation(Object bean, String beanName) {
-		return true;
-	}
-
 	// TODO 把bean里所有标有@PersistenceContext和@PersistenceUnit注解的字段以及方法全都找出来, 生成包含PersistenceElement的注入
 	//  点元数据后, 根据注入点元数据信息进行注入操作
 	@Override
@@ -376,16 +366,6 @@ public class PersistenceAnnotationBeanPostProcessor
 			PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) {
 
 		return postProcessProperties(pvs, bean, beanName);
-	}
-
-	@Override
-	public Object postProcessBeforeInitialization(Object bean, String beanName) {
-		return bean;
-	}
-
-	@Override
-	public Object postProcessAfterInitialization(Object bean, String beanName) {
-		return bean;
 	}
 
 	@Override
