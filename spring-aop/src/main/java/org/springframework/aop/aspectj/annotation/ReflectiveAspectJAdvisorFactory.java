@@ -56,14 +56,15 @@ import org.springframework.util.comparator.InstanceComparator;
 
 /**
  * Factory that can create Spring AOP Advisors given AspectJ classes from
- * classes honoring the AspectJ 5 annotation syntax, using reflection to
- * invoke the corresponding advice methods.
+ * classes honoring AspectJ's annotation syntax, using reflection to invoke the
+ * corresponding advice methods.
  *
  * @author Rod Johnson
  * @author Adrian Colyer
  * @author Juergen Hoeller
  * @author Ramnivas Laddad
  * @author Phillip Webb
+ * @author Sam Brannen
  * @since 2.0
  */
 @SuppressWarnings("serial")
@@ -72,13 +73,17 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	private static final Comparator<Method> METHOD_COMPARATOR;
 
 	static {
+		// Note: although @After is ordered before @AfterReturning and @AfterThrowing,
+		// an @After advice method will actually be invoked after @AfterReturning and
+		// @AfterThrowing methods due to the fact that AspectJAfterAdvice.invoke(MethodInvocation)
+		// invokes proceed() in a `try` block and only invokes the @After advice method
+		// in a corresponding `finally` block.
 		Comparator<Method> adviceKindComparator = new ConvertingComparator<>(
 				new InstanceComparator<>(
 						Around.class, Before.class, After.class, AfterReturning.class, AfterThrowing.class),
 				(Converter<Method, Annotation>) method -> {
-					AspectJAnnotation<?> annotation =
-						AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(method);
-					return (annotation != null ? annotation.getAnnotation() : null);
+					AspectJAnnotation<?> ann = AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(method);
+					return (ann != null ? ann.getAnnotation() : null);
 				});
 		Comparator<Method> methodNameComparator = new ConvertingComparator<>(Method::getName);
 		METHOD_COMPARATOR = adviceKindComparator.thenComparing(methodNameComparator);
@@ -135,9 +140,17 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		// TODO 通过getAdvisorMethods()取得@Aspect标注的切面中, 由@Around, @Before, @After, @AfterReturning, @AfterThrowing
 		//  标注的所有方法(不包含@Pointcut注解标注的方法)
 		for (Method method : getAdvisorMethods(aspectClass)) {
+			// Prior to Spring Framework 5.2.7, advisors.size() was supplied as the declarationOrderInAspect
+			// to getAdvisor(...) to represent the "current position" in the declared methods list.
+			// However, since Java 7 the "current position" is not valid since the JDK no longer
+			// returns declared methods in the order in which they are declared in the source code.
+			// Thus, we now hard code the declarationOrderInAspect to 0 for all advice methods
+			// discovered via reflection in order to support reliable advice ordering across JVM launches.
+			// Specifically, a value of 0 aligns with the default value used in
+			// AspectJPrecedenceComparator.getAspectDeclarationOrder(Advisor).
 			// TODO 遍历每个由注解标注的方法, 对注解进行解析, 用解析结果创建一个包含了表达式的Pointcut切点. 然后用切点, 注解类型,
 			//  注解方法等创建Advisor, 并加入到Advisor结果集中
-			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
+			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, 0, aspectName);
 			if (advisor != null) {
 				advisors.add(advisor);
 			}
