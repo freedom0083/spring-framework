@@ -249,15 +249,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @throws BeansException if the bean could not be created
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredType,
-			@Nullable final Object[] args, boolean typeCheckOnly) throws BeansException {
+	protected <T> T doGetBean(
+			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
+			throws BeansException {
 		// TODO transformedBeanName()用来规范化要取得的bean的名字, 此方法做了两件事:
 		//  1. 去掉'&': Spring中工厂类是以'&'开头的(表示为一个引用, 而非bean). 使用getBean("&xxx")方法时, 得到的会是bean工厂, 而
 		//             使用getBean("xxx")方法得到的是bean本身, 或者bean工厂中的对象(最终返回的是beanFactory.getObject()).
 		//             这里去掉'&'后, 后面再取的bean就是bean工厂中的对象了
 		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
 		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
-		final String beanName = transformedBeanName(name);
+		String beanName = transformedBeanName(name);
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
@@ -344,7 +345,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 			try {
 				// TODO 为要取得的bean生成RootBeanDefinition类型的mbd(如果有双亲bd, 会合并双亲bd的属性)
-				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				// TODO 合并后的bd不能是抽象类, 这里做一下查检, 如果是抽象类则抛出BeanIsAbstractException异常
 				checkMergedBeanDefinition(mbd, beanName, args);
 
@@ -433,7 +434,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					if (!StringUtils.hasLength(scopeName)) {
 						throw new IllegalStateException("No scope name defined for bean ´" + beanName + "'");
 					}
-					final Scope scope = this.scopes.get(scopeName);
+					Scope scope = this.scopes.get(scopeName);
 					if (scope == null) {
 						throw new IllegalStateException("No Scope registered for scope name '" + scopeName + "'");
 					}
@@ -587,10 +588,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			return false;
 		}
 		if (isFactoryBean(beanName, mbd)) {
-			final FactoryBean<?> fb = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
+			FactoryBean<?> fb = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
 			if (System.getSecurityManager() != null) {
-				return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
-						((fb instanceof SmartFactoryBean && ((SmartFactoryBean<?>) fb).isPrototype()) || !fb.isSingleton()),
+				return AccessController.doPrivileged(
+						(PrivilegedAction<Boolean>) () ->
+								((fb instanceof SmartFactoryBean && ((SmartFactoryBean<?>) fb).isPrototype()) ||
+										!fb.isSingleton()),
 						getAccessControlContext());
 			}
 			else {
@@ -1747,7 +1750,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	@Nullable
 	// TODO 对bean进行解析加载
-	protected Class<?> resolveBeanClass(final RootBeanDefinition mbd, String beanName, final Class<?>... typesToMatch)
+	protected Class<?> resolveBeanClass(RootBeanDefinition mbd, String beanName, Class<?>... typesToMatch)
 			throws CannotLoadBeanClassException {
 
 		try {
@@ -1758,8 +1761,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// TODO mbd是全限定名时, 会有下面两种情况
 			if (System.getSecurityManager() != null) {
 				// TODO 需要权限的验证
-				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>) () ->
-					doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
+				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>)
+						() -> doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
 			}
 			else {
 				// TODO 系统中找不到security设置时, 直接根据类型从mbd中取得对应的class
@@ -1992,7 +1995,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace(LogMessage.format("Bean creation exception on lazy FactoryBean type check: %s", ex));
 				}
 				else {
-					logger.debug(LogMessage.format("Bean creation exception on non-lazy FactoryBean type check: %s", ex));
+					logger.debug(LogMessage.format("Bean creation exception on eager FactoryBean type check: %s", ex));
 				}
 				onSuppressedException(ex);
 			}

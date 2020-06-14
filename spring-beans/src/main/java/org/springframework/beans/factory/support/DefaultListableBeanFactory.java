@@ -296,14 +296,14 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * when deciding whether a bean definition should be considered as a
 	 * candidate for autowiring.
 	 */
-	public void setAutowireCandidateResolver(final AutowireCandidateResolver autowireCandidateResolver) {
+	public void setAutowireCandidateResolver(AutowireCandidateResolver autowireCandidateResolver) {
 		Assert.notNull(autowireCandidateResolver, "AutowireCandidateResolver must not be null");
 		if (autowireCandidateResolver instanceof BeanFactoryAware) {
 			// TODO 支持容器感知时, 通过setBeanFactory()方法为Resolver设置容器环境的同时会创建用于操作Advisor的
 			//  BeanFactoryAspectJAdvisorsBuilderAdapter, 主要提供AspectJ的支持
 			if (System.getSecurityManager() != null) {
 				AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-					((BeanFactoryAware) autowireCandidateResolver).setBeanFactory(DefaultListableBeanFactory.this);
+					((BeanFactoryAware) autowireCandidateResolver).setBeanFactory(this);
 					return null;
 				}, getAccessControlContext());
 			}
@@ -590,8 +590,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// Check all bean definitions.
 		// TODO 首先从注册中心中找相同类型的bean加到结果集
 		for (String beanName : this.beanDefinitionNames) {
-			// Only consider bean as eligible if the bean name
-			// is not defined as alias for some other bean.
+			// Only consider bean as eligible if the bean name is not defined as alias for some other bean.
 			// TODO 遍历注册中心中所有的beanDefinition, 这里不关注别名
 			if (!isAlias(beanName)) {
 				try {
@@ -611,8 +610,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						// TODO 取得当前mbd的代理的目标
 						BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 						boolean matchFound = false;
-						boolean allowFactoryBeanInit = allowEagerInit || containsSingleton(beanName);
-						boolean isNonLazyDecorated = dbd != null && !mbd.isLazyInit();
+						boolean allowFactoryBeanInit = (allowEagerInit || containsSingleton(beanName));
+						boolean isNonLazyDecorated = (dbd != null && !mbd.isLazyInit());
 						if (!isFactoryBean) {
 							// TODO 当前mbd不是工厂类时
 							if (includeNonSingletons || isSingleton(beanName, mbd, dbd)) {
@@ -650,15 +649,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						throw ex;
 					}
 					// Probably a placeholder: let's ignore it for type matching purposes.
-					LogMessage message = (ex instanceof CannotLoadBeanClassException) ?
+					LogMessage message = (ex instanceof CannotLoadBeanClassException ?
 							LogMessage.format("Ignoring bean class loading failure for bean '%s'", beanName) :
-							LogMessage.format("Ignoring unresolvable metadata in bean definition '%s'", beanName);
+							LogMessage.format("Ignoring unresolvable metadata in bean definition '%s'", beanName));
 					logger.trace(message, ex);
+					// Register exception, in case the bean was accidentally unresolvable.
 					onSuppressedException(ex);
 				}
 			}
 		}
-
 
 		// Check manually registered singletons too.
 		// TODO 然后从手动注册的单例缓存中查找对应type的bean放到结果集中
@@ -687,7 +686,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			catch (NoSuchBeanDefinitionException ex) {
 				// Shouldn't happen - probably a result of circular reference resolution...
-				logger.trace(LogMessage.format("Failed to check manually registered singleton with name '%s'", beanName), ex);
+				logger.trace(LogMessage.format(
+						"Failed to check manually registered singleton with name '%s'", beanName), ex);
 			}
 		}
 		// TODO 返回注册中心以及手动加载的单例bean的名字的集合
@@ -719,8 +719,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> Map<String, T> getBeansOfType(@Nullable Class<T> type, boolean includeNonSingletons, boolean allowEagerInit)
-			throws BeansException {
+	public <T> Map<String, T> getBeansOfType(
+			@Nullable Class<T> type, boolean includeNonSingletons, boolean allowEagerInit) throws BeansException {
 
 		String[] beanNames = getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
 		Map<String, T> result = new LinkedHashMap<>(beanNames.length);
@@ -875,13 +875,14 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @return whether the bean should be considered as autowire candidate
 	 */
 	// TODO 用AutowireCandidateResolver所指定的解析器来判断给定的bean是否为注入项的自动装配候选(可以自动装配到注入项中)
-	protected boolean isAutowireCandidate(String beanName, DependencyDescriptor descriptor, AutowireCandidateResolver resolver)
+	protected boolean isAutowireCandidate(
+			String beanName, DependencyDescriptor descriptor, AutowireCandidateResolver resolver)
 			throws NoSuchBeanDefinitionException {
 		// TODO 取得自动装配候选项的名字(去掉其中的'&')
-		String beanDefinitionName = BeanFactoryUtils.transformedBeanName(beanName);
-		if (containsBeanDefinition(beanDefinitionName)) {
+		String bdName = BeanFactoryUtils.transformedBeanName(beanName);
+		if (containsBeanDefinition(bdName)) {
 			// TODO 注册中心存在自动装配候选项时, 为其生成mbd, 然后用指定的解析器验证其是否可以进行自动装配
-			return isAutowireCandidate(beanName, getMergedLocalBeanDefinition(beanDefinitionName), descriptor, resolver);
+			return isAutowireCandidate(beanName, getMergedLocalBeanDefinition(bdName), descriptor, resolver);
 		}
 		else if (containsSingleton(beanName)) {
 			// TODO 对于直接registerSingleton的情况, 注册中心不会有其信息, 会直接进入单例缓存中. 这时用自动装配项的type类型
@@ -923,18 +924,18 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	protected boolean isAutowireCandidate(String beanName, RootBeanDefinition mbd,
 			DependencyDescriptor descriptor, AutowireCandidateResolver resolver) {
 		// TODO 取得自动装配候选项的名字(去掉其中的'&')
-		String beanDefinitionName = BeanFactoryUtils.transformedBeanName(beanName);
+		String bdName = BeanFactoryUtils.transformedBeanName(beanName);
 		// TODO 解析mbd的class
-		resolveBeanClass(mbd, beanDefinitionName);
+		resolveBeanClass(mbd, bdName);
 		if (mbd.isFactoryMethodUnique && mbd.factoryMethodToIntrospect == null) {
 			// TODO 自动装配候选项没有被@Bean标注的同名方法(唯一的方法), 且没有缓存的内省工厂方法时, 用当前容器创建一个构造解析器
 			//  ConstructorResolver来解析注入项生成的mbd的工厂方法, 解析后会填充factoryMethodToIntrospect缓存
 			new ConstructorResolver(this).resolveFactoryMethodIfPossible(mbd);
 		}
-		BeanDefinitionHolder holder = (beanName.equals(beanDefinitionName) ?
+		BeanDefinitionHolder holder = (beanName.equals(bdName) ?
 				this.mergedBeanDefinitionHolders.computeIfAbsent(beanName,
-						key -> new BeanDefinitionHolder(mbd, beanName, getAliases(beanDefinitionName))) :
-				new BeanDefinitionHolder(mbd, beanName, getAliases(beanDefinitionName)));
+						key -> new BeanDefinitionHolder(mbd, beanName, getAliases(bdName))) :
+				new BeanDefinitionHolder(mbd, beanName, getAliases(bdName)));
 		// TODO 将待验证的自动装配候选项包装为一个bd, 然后将其与注入项一起交给解析器去进行判断. 以下解析器实现了isAutowireCandidate()方法:
 		//  1. AutowireCandidateResolver接口: 默认方法, 返回的是mbd的autowireCandidate属性对应的值
 		//  2. SimpleAutowireCandidateResolver类: 实现了AutowireCandidateResolver接口, 同样返回的是mbd的autowireCandidate
@@ -1017,11 +1018,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				if (isFactoryBean(beanName)) {
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					if (bean instanceof FactoryBean) {
-						final FactoryBean<?> factory = (FactoryBean<?>) bean;
+						FactoryBean<?> factory = (FactoryBean<?>) bean;
 						boolean isEagerInit;
 						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
-							isEagerInit = AccessController.doPrivileged((PrivilegedAction<Boolean>)
-											((SmartFactoryBean<?>) factory)::isEagerInit,
+							isEagerInit = AccessController.doPrivileged(
+									(PrivilegedAction<Boolean>) ((SmartFactoryBean<?>) factory)::isEagerInit,
 									getAccessControlContext());
 						}
 						else {
@@ -1043,7 +1044,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		for (String beanName : beanNames) {
 			Object singletonInstance = getSingleton(beanName);
 			if (singletonInstance instanceof SmartInitializingSingleton) {
-				final SmartInitializingSingleton smartSingleton = (SmartInitializingSingleton) singletonInstance;
+				SmartInitializingSingleton smartSingleton = (SmartInitializingSingleton) singletonInstance;
 				if (System.getSecurityManager() != null) {
 					AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
 						smartSingleton.afterSingletonsInstantiated();
@@ -1592,7 +1593,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		//    2. 集合类型: List<>时, 得到的是List<>
 		//    3. Map类型: Map<>时, 得到的是Map<>
 		//  TIPS: 这里只是得到依赖描述的待注入项的声明类型, 而不是具体的组件类型, 比如int[], 这里得到的只是int[], 而不是int
-		final Class<?> type = descriptor.getDependencyType();
+		Class<?> type = descriptor.getDependencyType();
 		// TODO 下面是按依赖描述的待注入项的类型进行解析
 		if (descriptor instanceof StreamDependencyDescriptor) {
 			// TODO 依赖描述的待注入项是流的情况, 根据依赖注入项的名字, 类型寻找自动注入候选类
