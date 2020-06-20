@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	// TODO 实例化bean所使用的工厂方法是否被重载过:
 	//  true: 表示@Bean标注的方法没有被重载过, 即: 唯一的工厂方法. AbstractBeanDefinition$factoryMethodName属性中保存工厂方法名;
 	//  false: 表示配置类中@Bean标注的方法出现同名的情况.
-	boolean isFactoryMethodUnique = false;
+	boolean isFactoryMethodUnique;
 
 	@Nullable
 	// TODO bean的ResolvableType类型. 封装了java.lang.reflect.Type, 提供了更多的与类型相关的操作, 比如: 泛型相关的操作等
