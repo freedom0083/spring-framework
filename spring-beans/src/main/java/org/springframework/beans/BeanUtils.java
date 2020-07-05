@@ -234,7 +234,6 @@ public abstract class BeanUtils {
 	 * @since 5.0
 	 * @see <a href="https://kotlinlang.org/docs/reference/classes.html#constructors">Kotlin docs</a>
 	 */
-	@SuppressWarnings("unchecked")
 	@Nullable
 	// TODO 找出首选的构造器, 这里只是针对Kotlin有实现, 非Kotlin不支持找首选构造器, 返回的全是null
 	public static <T> Constructor<T> findPrimaryConstructor(Class<T> clazz) {

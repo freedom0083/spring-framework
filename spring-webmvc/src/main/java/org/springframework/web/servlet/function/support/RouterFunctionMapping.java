@@ -38,6 +38,7 @@ import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.handler.AbstractHandlerMapping;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * {@code HandlerMapping} implementation that supports {@link RouterFunction RouterFunctions}.
@@ -130,6 +131,14 @@ public class RouterFunctionMapping extends AbstractHandlerMapping implements Ini
 		}
 		if (CollectionUtils.isEmpty(this.messageConverters)) {
 			initMessageConverters();
+		}
+		if (this.routerFunction != null) {
+			PathPatternParser patternParser = getPatternParser();
+			if (patternParser == null) {
+				patternParser = new PathPatternParser();
+				setPatternParser(patternParser);
+			}
+			RouterFunctions.changeParser(this.routerFunction, patternParser);
 		}
 	}
 
