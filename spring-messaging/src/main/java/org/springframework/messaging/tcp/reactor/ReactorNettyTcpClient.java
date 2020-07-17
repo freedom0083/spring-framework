@@ -32,7 +32,6 @@ import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.reactivestreams.Publisher;
-import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Scheduler;
@@ -87,7 +86,7 @@ public class ReactorNettyTcpClient<P> implements TcpOperations<P> {
 
 	private Log logger = LogFactory.getLog(ReactorNettyTcpClient.class);
 
-	private volatile boolean stopping = false;
+	private volatile boolean stopping;
 
 
 	/**
@@ -316,7 +315,7 @@ public class ReactorNettyTcpClient<P> implements TcpOperations<P> {
 					logger.debug("Connected to " + conn.address());
 				}
 			});
-			DirectProcessor<Void> completion = DirectProcessor.create();
+			MonoProcessor<Void> completion = MonoProcessor.create();
 			TcpConnection<P> connection = new ReactorNettyTcpConnection<>(inbound, outbound,  codec, completion);
 			scheduler.schedule(() -> this.connectionHandler.afterConnected(connection));
 

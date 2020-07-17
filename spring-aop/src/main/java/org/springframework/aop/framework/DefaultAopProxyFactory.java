@@ -38,6 +38,7 @@ import org.springframework.aop.SpringProxy;
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  * @since 12.03.2004
  * @see AdvisedSupport#setOptimize
  * @see AdvisedSupport#setProxyTargetClass
@@ -46,12 +47,20 @@ import org.springframework.aop.SpringProxy;
 @SuppressWarnings("serial")
 public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 
+	/**
+	 * Whether this environment lives within a native image.
+	 * Exposed as a private static field rather than in a {@code NativeImageDetector.inNativeImage()} static method due to https://github.com/oracle/graal/issues/2594.
+	 * @see <a href="https://github.com/oracle/graal/blob/master/sdk/src/org.graalvm.nativeimage/src/org/graalvm/nativeimage/ImageInfo.java">ImageInfo.java</a>
+	 */
+	private static final boolean IN_NATIVE_IMAGE = (System.getProperty("org.graalvm.nativeimage.imagecode") != null);
+
 	// TODO 根据代理目标来使用不同类型的代理方式:
 	//  1. 接口: 使用JDK动态代理;
 	//  2. 类: 使用CGLIB代理;
 	@Override
 	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
-		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
+		if (!IN_NATIVE_IMAGE &&
+				(config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config))) {
 			// TODO 对于需要优化的, 或者代理目标是类, 或者是没有代理接口/接口是SpringProxy的情况下, 需要对代理目标的类型进行判断
 			Class<?> targetClass = config.getTargetClass();
 			if (targetClass == null) {

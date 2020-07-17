@@ -35,7 +35,6 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.CacheControl;
@@ -71,11 +70,7 @@ public class ResourceWebHandlerTests {
 
 	private static final Duration TIMEOUT = Duration.ofSeconds(1);
 
-
 	private ResourceWebHandler handler;
-
-	private DataBufferFactory bufferFactory = new DefaultDataBufferFactory();
-
 
 	@BeforeEach
 	public void setup() throws Exception {
@@ -280,7 +275,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(handler.handle(exchange))
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				}).verify(TIMEOUT);
 	}
 
@@ -326,7 +321,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(this.handler.handle(exchange))
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				})
 				.verify(TIMEOUT);
 		if (!location.createRelative(requestPath).exists() && !requestPath.contains(":")) {
@@ -421,7 +416,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(this.handler.handle(exchange))
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				}).verify(TIMEOUT);
 	}
 
@@ -432,7 +427,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(this.handler.handle(exchange))
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				}).verify(TIMEOUT);
 	}
 
@@ -443,7 +438,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(this.handler.handle(exchange))
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				}).verify(TIMEOUT);
 	}
 
@@ -478,7 +473,7 @@ public class ResourceWebHandlerTests {
 		StepVerifier.create(mono)
 				.expectErrorSatisfies(err -> {
 					assertThat(err).isInstanceOf(ResponseStatusException.class);
-					assertThat(((ResponseStatusException) err).getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+					assertThat(((ResponseStatusException) err).getRawStatusCode()).isEqualTo(404);
 				}).verify(TIMEOUT);
 
 		// SPR-17475
@@ -596,7 +591,7 @@ public class ResourceWebHandlerTests {
 		String boundary = "--" + exchange.getResponse().getHeaders().getContentType().toString().substring(30);
 
 		Mono<DataBuffer> reduced = Flux.from(exchange.getResponse().getBody())
-				.reduce(this.bufferFactory.allocateBuffer(), (previous, current) -> {
+				.reduce(DefaultDataBufferFactory.sharedInstance.allocateBuffer(), (previous, current) -> {
 					previous.write(current);
 					DataBufferUtils.release(current);
 					return previous;

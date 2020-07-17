@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoProcessor;
-import reactor.core.publisher.ReplayProcessor;
+import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
@@ -108,14 +108,16 @@ public class RSocketServerToClientIntegrationTests {
 					.setupRoute(connectionRoute)
 					.rsocketStrategies(strategies)
 					.rsocketConnector(connector -> connector.acceptor(responder))
-					.connectTcp("localhost", server.address().getPort())
-					.block();
+					.tcp("localhost", server.address().getPort());
+
+			// Make a request to cause a connection to be established.
+			requester.route("fnf").send().block();
 
 			context.getBean(ServerController.class).await(Duration.ofSeconds(5));
 		}
 		finally {
 			if (requester != null) {
-				requester.rsocket().dispose();
+				requester.dispose();
 			}
 		}
 	}
@@ -199,24 +201,27 @@ public class RSocketServerToClientIntegrationTests {
 			});
 		}
 
-
 		private void runTest(Runnable testEcho) {
 			Mono.fromRunnable(testEcho)
 					.doOnError(ex -> result.onError(ex))
 					.doOnSuccess(o -> result.onComplete())
-					.subscribeOn(Schedulers.elastic()) // StepVerifier will block
+					.subscribeOn(Schedulers.boundedElastic()) // StepVerifier will block
 					.subscribe();
+		}
+
+		@MessageMapping("fnf")
+		void handleFireAndForget() {
 		}
 	}
 
 
 	private static class ClientHandler {
 
-		final ReplayProcessor<String> fireForgetPayloads = ReplayProcessor.create();
+		final Sinks.StandaloneFluxSink<String> fireForgetPayloads = Sinks.replayAll();
 
 		@MessageMapping("receive")
 		void receive(String payload) {
-			this.fireForgetPayloads.onNext(payload);
+			this.fireForgetPayloads.next(payload);
 		}
 
 		@MessageMapping("echo")
