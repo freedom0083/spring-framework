@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -165,10 +165,10 @@ public class ConstructorArgumentValues {
 		// TODO 先从索引缓存中拿参数
 		ValueHolder valueHolder = this.indexedArgumentValues.get(index);
 		if (valueHolder != null &&
-				(valueHolder.getType() == null ||
-						(requiredType != null && ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) &&
-				(valueHolder.getName() == null || "".equals(requiredName) ||
-						(requiredName != null && requiredName.equals(valueHolder.getName())))) {
+				(valueHolder.getType() == null || (requiredType != null &&
+						ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) &&
+				(valueHolder.getName() == null || (requiredName != null &&
+						(requiredName.isEmpty() || requiredName.equals(valueHolder.getName()))))) {
 			// TODO 如果缓存中存在对应索引的值, 并且其类型与构造函数对应位置的参数类型一致, 名字也一致时, 返回缓存的内容
 			return valueHolder;
 		}
@@ -280,20 +280,22 @@ public class ConstructorArgumentValues {
 	 * @return the ValueHolder for the argument, or {@code null} if none found
 	 */
 	@Nullable
-	public ValueHolder getGenericArgumentValue(@Nullable Class<?> requiredType, @Nullable String requiredName, @Nullable Set<ValueHolder> usedValueHolders) {
+	public ValueHolder getGenericArgumentValue(@Nullable Class<?> requiredType, @Nullable String requiredName,
+			@Nullable Set<ValueHolder> usedValueHolders) {
+
 		for (ValueHolder valueHolder : this.genericArgumentValues) {
 			// TODO 遍历genericArgumentValues缓存中的每个值
 			if (usedValueHolders != null && usedValueHolders.contains(valueHolder)) {
 				// TODO 跳过已应用到本构造函数的值
 				continue;
 			}
-			if (valueHolder.getName() != null && !"".equals(requiredName) &&
-					(requiredName == null || !valueHolder.getName().equals(requiredName))) {
+			if (valueHolder.getName() != null && (requiredName == null ||
+					(!requiredName.isEmpty() && !requiredName.equals(valueHolder.getName())))) {
 				// TODO 跳过参数名与缓存不同的值(包括不按名字匹配的)
 				continue;
 			}
-			if (valueHolder.getType() != null &&
-					(requiredType == null || !ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) {
+			if (valueHolder.getType() != null && (requiredType == null ||
+					!ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) {
 				// TODO 跳过参数类型不同的值(包括requiredType为null)
 				continue;
 			}

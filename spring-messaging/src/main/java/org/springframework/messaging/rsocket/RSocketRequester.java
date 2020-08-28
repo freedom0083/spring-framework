@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import io.rsocket.ConnectionSetupPayload;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
+import io.rsocket.RSocketClient;
 import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
@@ -48,13 +49,16 @@ import org.springframework.util.MimeType;
 public interface RSocketRequester {
 
 	/**
-	 * This method returns {@code null} unless the the requester was created
-	 * with a "live" RSocket through one of the (now deprecated) builder connect
-	 * methods or via {@link #wrap(RSocket, MimeType, MimeType, RSocketStrategies)}
-	 * which is mainly for internal use in client and server responder
-	 * implementations. Otherwise in the more common case where there is no
-	 * "live" RSocket, the requester delegates to an
-	 * {@link io.rsocket.RSocketClient}.
+	 * Return the underlying {@link RSocketClient} used to make requests with.
+	 * @since 5.3
+	 */
+	RSocketClient rsocketClient();
+
+	/**
+	 * Return the underlying {@link RSocket} if the requester was created with a
+	 * "live" RSocket via {@link #wrap(RSocket, MimeType, MimeType, RSocketStrategies)}
+	 * or via one of the (deprecated) connect methods on the
+	 * {@code RSocketRequester} builder, or otherwise return {@code null}.
 	 */
 	@Nullable
 	RSocket rsocket();
@@ -104,13 +108,6 @@ public interface RSocketRequester {
 	RequestSpec metadata(Object metadata, @Nullable MimeType mimeType);
 
 	/**
-	 * Invoke the dispose method on the underlying
-	 * {@link io.rsocket.RSocketClient} or {@link RSocket}.
-	 * @since 5.3
-	 */
-	public void dispose();
-
-	/**
 	 * Obtain a builder to create a client {@link RSocketRequester} by connecting
 	 * to an RSocket server.
 	 */
@@ -126,9 +123,7 @@ public interface RSocketRequester {
 			RSocket rsocket, MimeType dataMimeType, MimeType metadataMimeType,
 			RSocketStrategies strategies) {
 
-		return new DefaultRSocketRequester(
-				new DefaultRSocketRequester.ConnectionRSocketDelegate(rsocket),
-				dataMimeType, metadataMimeType, strategies);
+		return new DefaultRSocketRequester(null, rsocket, dataMimeType, metadataMimeType, strategies);
 	}
 
 
@@ -219,29 +214,6 @@ public interface RSocketRequester {
 		 * @since 5.2.6
 		 */
 		RSocketRequester.Builder rsocketConnector(RSocketConnectorConfigurer configurer);
-
-		/**
-		 * Callback to configure the {@code ClientRSocketFactory} directly.
-		 * <ul>
-		 * <li>The data and metadata mime types cannot be set directly
-		 * on the {@code ClientRSocketFactory} and will be overridden. Use the
-		 * shortcuts {@link #dataMimeType(MimeType)} and
-		 * {@link #metadataMimeType(MimeType)} on this builder instead.
-		 * <li>The frame decoder also cannot be set directly and instead is set
-		 * to match the configured {@code DataBufferFactory}.
-		 * <li>For the
-		 * {@link io.rsocket.RSocketFactory.ClientRSocketFactory#setupPayload(Payload)
-		 * setupPayload}, consider using methods on this builder to specify the
-		 * route, other metadata, and data as Object values to be encoded.
-		 * <li>To configure client side responding, see
-		 * {@link RSocketMessageHandler#clientResponder(RSocketStrategies, Object...)}.
-		 * </ul>
-		 * @deprecated as of 5.2.6 following the deprecation of
-		 * {@link io.rsocket.RSocketFactory.ClientRSocketFactory RSocketFactory.ClientRSocketFactory}
-		 * in RSocket 1.0 RC7. Please, use {@link #rsocketConnector(RSocketConnectorConfigurer)}.
-		 */
-		@Deprecated
-		RSocketRequester.Builder rsocketFactory(ClientRSocketFactoryConfigurer configurer);
 
 		/**
 		 * Configure this builder through a {@code Consumer}. This enables

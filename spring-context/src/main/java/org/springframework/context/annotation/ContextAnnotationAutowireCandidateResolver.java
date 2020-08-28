@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,14 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.QualifierAnnotationAutowireCandidateResolver;
 import org.springframework.beans.factory.config.DependencyDescriptor;
@@ -90,9 +92,11 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 	 * @return
 	 */
 	protected Object buildLazyResolutionProxy(final DependencyDescriptor descriptor, final @Nullable String beanName) {
-		Assert.state(getBeanFactory() instanceof DefaultListableBeanFactory,
+		BeanFactory beanFactory = getBeanFactory();
+		Assert.state(beanFactory instanceof DefaultListableBeanFactory,
 				"BeanFactory needs to be a DefaultListableBeanFactory");
-		final DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) getBeanFactory();
+		final DefaultListableBeanFactory dlbf = (DefaultListableBeanFactory) beanFactory;
+
 		// TODO 创建一个用于AOP的代理目标
 		TargetSource ts = new TargetSource() {
 			@Override
@@ -106,8 +110,9 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 			}
 			@Override
 			public Object getTarget() {
+				Set<String> autowiredBeanNames = (beanName != null ? new LinkedHashSet<>(1) : null);
 				// TODO 解析依赖
-				Object target = beanFactory.doResolveDependency(descriptor, beanName, null, null);
+				Object target = dlbf.doResolveDependency(descriptor, beanName, autowiredBeanNames, null);
 				if (target == null) {
 					// TODO 解析失败时, 根据被包装的参数或字段的类型, 返回对应的空对象
 					Class<?> type = getTargetClass();
@@ -123,12 +128,20 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 					throw new NoSuchBeanDefinitionException(descriptor.getResolvableType(),
 							"Optional dependency not present for lazy injection point");
 				}
+				if (autowiredBeanNames != null) {
+					for (String autowiredBeanName : autowiredBeanNames) {
+						if (dlbf.containsBean(autowiredBeanName)) {
+							dlbf.registerDependentBean(autowiredBeanName, beanName);
+						}
+					}
+				}
 				return target;
 			}
 			@Override
 			public void releaseTarget(Object target) {
 			}
 		};
+
 		// TODO 创建用于返回的代理工厂, 并设置目标源, 最后返回代理对象
 		ProxyFactory pf = new ProxyFactory();
 		pf.setTargetSource(ts);
@@ -137,7 +150,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 			// TODO 如果被包装的参数或字段的类型是接口类型, 为代理也设置一下接口类型
 			pf.addInterface(dependencyType);
 		}
-		return pf.getProxy(beanFactory.getBeanClassLoader());
+		return pf.getProxy(dlbf.getBeanClassLoader());
 	}
 
 }
