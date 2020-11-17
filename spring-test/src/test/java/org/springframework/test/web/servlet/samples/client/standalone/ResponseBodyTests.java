@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.test.web.servlet.samples.client.standalone;
 
 import javax.validation.constraints.NotNull;
@@ -20,7 +21,7 @@ import javax.validation.constraints.NotNull;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.MockMvcTestClient;
+import org.springframework.test.web.servlet.client.MockMvcWebTestClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +34,11 @@ import static org.hamcrest.Matchers.equalTo;
  *
  * @author Rossen Stoyanchev
  */
-public class ResponseBodyTests {
+class ResponseBodyTests {
 
 	@Test
 	void json() {
-		MockMvcTestClient.bindToController(new PersonController()).build()
+		MockMvcWebTestClient.bindToController(new PersonController()).build()
 				.get()
 				.uri("/person/Lee")
 				.accept(MediaType.APPLICATION_JSON)
@@ -56,13 +57,14 @@ public class ResponseBodyTests {
 	private static class PersonController {
 
 		@GetMapping("/person/{name}")
-		public Person get(@PathVariable String name) {
+		Person get(@PathVariable String name) {
 			Person person = new Person(name);
 			person.setAge(42);
 			return person;
 		}
 	}
 
+	@SuppressWarnings("unused")
 	private static class Person {
 
 		@NotNull

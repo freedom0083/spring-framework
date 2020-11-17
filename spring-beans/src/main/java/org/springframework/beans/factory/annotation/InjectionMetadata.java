@@ -26,9 +26,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.support.RootBeanDefinition;
@@ -68,8 +65,6 @@ public class InjectionMetadata {
 		}
 	};
 
-
-	private static final Log logger = LogFactory.getLog(InjectionMetadata.class);
 
 	private final Class<?> targetClass;
 	// TODO 被注入的元素集合
@@ -112,9 +107,6 @@ public class InjectionMetadata {
 				// TODO 如果不是外部管理的字段或方法, 注册到bd中, 然后加入到已检测元素的集合中
 				beanDefinition.registerExternallyManagedConfigMember(member);
 				checkedElements.add(element);
-				if (logger.isTraceEnabled()) {
-					logger.trace("Registered injected element on class [" + this.targetClass.getName() + "]: " + element);
-				}
 			}
 		}
 		this.checkedElements = checkedElements;
@@ -127,9 +119,6 @@ public class InjectionMetadata {
 				(checkedElements != null ? checkedElements : this.injectedElements);
 		if (!elementsToIterate.isEmpty()) {
 			for (InjectedElement element : elementsToIterate) {
-				if (logger.isTraceEnabled()) {
-					logger.trace("Processing injected element of bean '" + beanName + "': " + element);
-				}
 				// TODO 遍历被注入的元素, 挨个进行注入
 				//  1. AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement: 处理Field字段注入
 				//  2. AutowiredAnnotationBeanPostProcessor$AutowiredMethodElement: 处理Method方法注入
@@ -159,12 +148,12 @@ public class InjectionMetadata {
 	 * Return an {@code InjectionMetadata} instance, possibly for empty elements.
 	 * @param elements the elements to inject (possibly empty)
 	 * @param clazz the target class
-	 * @return a new {@link #InjectionMetadata(Class, Collection)} instance,
-	 * or {@link #EMPTY} in case of no elements
+	 * @return a new {@link #InjectionMetadata(Class, Collection)} instance
 	 * @since 5.2
 	 */
 	public static InjectionMetadata forElements(Collection<InjectedElement> elements, Class<?> clazz) {
-		return (elements.isEmpty() ? InjectionMetadata.EMPTY : new InjectionMetadata(clazz, elements));
+		return (elements.isEmpty() ? new InjectionMetadata(clazz, Collections.emptyList()) :
+				new InjectionMetadata(clazz, elements));
 	}
 
 	/**

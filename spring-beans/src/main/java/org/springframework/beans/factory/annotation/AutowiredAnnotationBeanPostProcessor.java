@@ -742,9 +742,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 				}
 				synchronized (this) {
 					if (!this.cached) {
+						Object cachedFieldValue = null;
 						if (value != null || this.required) {
 							// TODO 如果解析出来了, 就设置到缓存里
-							this.cachedFieldValue = desc;
+							cachedFieldValue = desc;
 							// TODO 然后注册一下当前操作的bean与自动装配过的bean的依赖关系
 							registerDependentBeans(beanName, autowiredBeanNames);
 							if (autowiredBeanNames.size() == 1) {
@@ -753,15 +754,13 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 										beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
 									// TODO 如果只有一个为当前Field自动装配过的bean, 并且其已经注册到容器中了, 其类型还与Field类型
 									//  相同, 将其包装为ShortcutDependencyDescriptor放到缓存里
-									this.cachedFieldValue = new ShortcutDependencyDescriptor(
+									cachedFieldValue = new ShortcutDependencyDescriptor(
 											desc, autowiredBeanName, field.getType());
 								}
 							}
 						}
-						else {
-							// TODO 没解析聘为, 就是空的
-							this.cachedFieldValue = null;
-						}
+						// TODO 没解析聘为, 就是空的
+						this.cachedFieldValue = cachedFieldValue;
 						// TODO 不管解没解析出来, 都做过操作了, 所以设置成缓存过了
 						this.cached = true;
 					}

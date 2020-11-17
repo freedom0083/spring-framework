@@ -51,6 +51,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.ConvertingComparator;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.ReflectionUtils.MethodFilter;
 import org.springframework.util.StringUtils;
 import org.springframework.util.comparator.InstanceComparator;
 
@@ -69,8 +70,13 @@ import org.springframework.util.comparator.InstanceComparator;
  */
 @SuppressWarnings("serial")
 public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFactory implements Serializable {
+
+	// Exclude @Pointcut methods
+	private static final MethodFilter adviceMethodFilter = ReflectionUtils.USER_DECLARED_METHODS
+			.and(method -> (AnnotationUtils.getAnnotation(method, Pointcut.class) == null));
+
 	// TODO 比较器, 先按@Around -> @Before -> @After -> @AfterReturning -> @AfterThrowing排序, 然后再按名字排
-	private static final Comparator<Method> METHOD_COMPARATOR;
+	private static final Comparator<Method> adviceMethodComparator;
 
 	static {
 		// Note: although @After is ordered before @AfterReturning and @AfterThrowing,
@@ -86,7 +92,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 					return (ann != null ? ann.getAnnotation() : null);
 				});
 		Comparator<Method> methodNameComparator = new ConvertingComparator<>(Method::getName);
-		METHOD_COMPARATOR = adviceKindComparator.thenComparing(methodNameComparator);
+		adviceMethodComparator = adviceKindComparator.thenComparing(methodNameComparator);
 	}
 
 
@@ -179,19 +185,14 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 	// TODO 取得切面里所有除了@Pointcut标注的方法以外的其他方法(被@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的方法),
 	private List<Method> getAdvisorMethods(Class<?> aspectClass) {
-		final List<Method> methods = new ArrayList<>();
+		List<Method> methods = new ArrayList<>();
 		// TODO 从@Aspect注解标注的切面中过滤掉所有非桥接, 非合成的方法, 然后再把除了@Pointcut标注的方法以外的其他方法全部放到切面
 		//  要使用的方法集合中. (被@Around, @Before, @After, @AfterReturning, @AfterThrowing标注的方法. 然后再按@Around ->
 		//  @Before -> @After -> @AfterReturning -> @AfterThrowing的顺序, 以及方法名字排序)
-		ReflectionUtils.doWithMethods(aspectClass, method -> {
-			// Exclude pointcuts
-			if (AnnotationUtils.getAnnotation(method, Pointcut.class) == null) {
-				// TODO 这里会排除掉@Pointcut注解的方法
-				methods.add(method);
-			}
-		}, ReflectionUtils.USER_DECLARED_METHODS);
+		ReflectionUtils.doWithMethods(aspectClass, methods::add, adviceMethodFilter);
 		if (methods.size() > 1) {
-			methods.sort(METHOD_COMPARATOR);
+			// TODO 这里会排除掉@Pointcut注解的方法
+			methods.sort(adviceMethodComparator);
 		}
 		return methods;
 	}

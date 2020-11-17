@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,12 +102,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	// TODO Advisor缓存. 对于Advice来说, 会先转化成Advisor后, 再加到此缓存中
 	private List<Advisor> advisors = new ArrayList<>();
 
-	/**
-	 * Array updated on changes to the advisors list, which is easier
-	 * to manipulate internally.
-	 */
-	// TODO Advisor数组缓存, 与上面的Advisor缓存是同步关系
-	private Advisor[] advisorArray = new Advisor[0];
 
 	/**
 	 * No-arg constructor for use as a JavaBean.
@@ -252,7 +246,12 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	@Override
 	public final Advisor[] getAdvisors() {
-		return this.advisorArray;
+		return this.advisors.toArray(new Advisor[0]);
+	}
+
+	@Override
+	public int getAdvisorCount() {
+		return this.advisors.size();
 	}
 
 	// TODO 把Advisor添加到缓存中, 这是增量的, 一直向后添加
@@ -305,7 +304,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 			}
 		}
 
-		updateAdvisorArray();
 		adviceChanged();
 	}
 
@@ -354,7 +352,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 				// TODO 将符合要求的Advisor加入缓存
 				this.advisors.add(advisor);
 			}
-			updateAdvisorArray();
 			adviceChanged();
 		}
 	}
@@ -385,28 +382,18 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		}
 		// TODO 把Advisor添加到缓存中
 		this.advisors.add(pos, advisor);
-		// TODO 更新Advisor数组缓存
-		updateAdvisorArray();
 		// TODO 清除一下方法Advisor映射缓存
 		adviceChanged();
 	}
 
 	/**
-	 * Bring the array up to date with the list.
-	 */
-	protected final void updateAdvisorArray() {
-		this.advisorArray = this.advisors.toArray(new Advisor[0]);
-	}
-
-	/**
 	 * Allows uncontrolled access to the {@link List} of {@link Advisor Advisors}.
-	 * <p>Use with care, and remember to {@link #updateAdvisorArray() refresh the advisor array}
-	 * and {@link #adviceChanged() fire advice changed events} when making any modifications.
+	 * <p>Use with care, and remember to {@link #adviceChanged() fire advice changed events}
+	 * when making any modifications.
 	 */
 	protected final List<Advisor> getAdvisorsInternal() {
 		return this.advisors;
 	}
-
 
 	@Override
 	public void addAdvice(Advice advice) throws AopConfigException {
@@ -555,7 +542,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 			Assert.notNull(advisor, "Advisor must not be null");
 			this.advisors.add(advisor);
 		}
-		updateAdvisorArray();
 		adviceChanged();
 	}
 
@@ -570,7 +556,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		copy.advisorChainFactory = this.advisorChainFactory;
 		copy.interfaces = this.interfaces;
 		copy.advisors = this.advisors;
-		copy.updateAdvisorArray();
 		return copy;
 	}
 
@@ -586,7 +571,6 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		// Initialize transient fields.
 		this.methodCache = new ConcurrentHashMap<>(32);
 	}
-
 
 	@Override
 	public String toProxyConfigString() {

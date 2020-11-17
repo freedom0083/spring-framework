@@ -84,7 +84,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	/** Cache of early singleton objects: bean name to bean instance. */
 	// TODO 提前暴露的单例对象缓存, 表示正在加载的bean, bean名 -> 引用
-	private final Map<String, Object> earlySingletonObjects = new HashMap<>(16);
+	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
 	/** Set of registered singletons, containing the bean names in registration order. */
 	// TODO 注册过的单例对象的名字的缓存
@@ -193,23 +193,31 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Nullable
 	// TODO 根据名字取得容器中注册的原生的单例对象, 提供对提前暴露的支持
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+		// Quick check for existing instance without full singleton lock
 		// TODO 首先从单例缓存里尝试取得bean
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
-			// TODO 如果没有取得bean, 但bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 后面的操作就需要在单例缓存上进行同步
-			synchronized (this.singletonObjects) {
-				// TODO 允许提前暴露的bean会在创建时进入earlySingletonObjects缓存, 如果缓存中有要取得的bean, 表示其正在加载, 无需处理, 直接返回即可
-				singletonObject = this.earlySingletonObjects.get(beanName);
-				if (singletonObject == null && allowEarlyReference) {
-					// TODO 如果还是没找到, 并且支持提前暴露时(支持提前初始化的方法会调用addSingletonFactory()将对应的ObjectFactory
-					//  初始化策略存在singletonFactories), 尝试从singletonFactories缓存取得对应的ObjectFactory. 如果没取到, 返回的就是null
-					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
-					if (singletonFactory != null) {
-						// TODO 如果singletonFactories中存在预先设置的ObjectFactory, 则根据factory实现的getObject()返回对象
-						singletonObject = singletonFactory.getObject();
-						// TODO 然后将其加入到earlySingletonObjects缓存中, 并从singletonFactories缓存中删除
-						this.earlySingletonObjects.put(beanName, singletonObject);
-						this.singletonFactories.remove(beanName);
+			singletonObject = this.earlySingletonObjects.get(beanName);
+			if (singletonObject == null && allowEarlyReference) {
+				// TODO 如果没有取得bean, 但bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 后面的操作就需要在单例缓存上进行同步
+				synchronized (this.singletonObjects) {
+					// Consistent creation of early reference within full singleton lock
+					// TODO 允许提前暴露的bean会在创建时进入earlySingletonObjects缓存, 如果缓存中有要取得的bean, 表示其正在加载, 无需处理, 直接返回即可
+					singletonObject = this.singletonObjects.get(beanName);
+					if (singletonObject == null) {
+						singletonObject = this.earlySingletonObjects.get(beanName);
+						if (singletonObject == null) {
+							// TODO 如果还是没找到, 并且支持提前暴露时(支持提前初始化的方法会调用addSingletonFactory()将对应的ObjectFactory
+							//  初始化策略存在singletonFactories), 尝试从singletonFactories缓存取得对应的ObjectFactory. 如果没取到, 返回的就是null
+							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+							if (singletonFactory != null) {
+								// TODO 如果singletonFactories中存在预先设置的ObjectFactory, 则根据factory实现的getObject()返回对象
+								singletonObject = singletonFactory.getObject();
+								// TODO 然后将其加入到earlySingletonObjects缓存中, 并从singletonFactories缓存中删除
+								this.earlySingletonObjects.put(beanName, singletonObject);
+								this.singletonFactories.remove(beanName);
+							}
+						}
 					}
 				}
 			}

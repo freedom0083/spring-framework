@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -356,17 +356,8 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	}
 
 	// TODO 判断给定的名字是否为Java支持, 只要字符串中有一个字符是Java无法识别的, 就表示不支持
-	private boolean isVariableName(String name) {
-		char[] chars = name.toCharArray();
-		if (!Character.isJavaIdentifierStart(chars[0])) {
-			return false;
-		}
-		for (int i = 1; i < chars.length; i++) {
-			if (!Character.isJavaIdentifierPart(chars[i])) {
-				return false;
-			}
-		}
-		return true;
+	private static boolean isVariableName(String name) {
+		return AspectJProxyUtils.isVariableName(name);
 	}
 
 

@@ -355,7 +355,7 @@ public class CallMetaDataContext {
 							logger.debug("Using declared out parameter '" + paramName +
 									"' for function return value");
 						}
-						setFunctionReturnName(paramName);
+						this.actualFunctionReturnName = paramName;
 						returnDeclared = true;
 					}
 				}
@@ -393,8 +393,8 @@ public class CallMetaDataContext {
 								"Unable to locate declared parameter for function return value - " +
 								" add an SqlOutParameter with name '" + getFunctionReturnName() + "'");
 					}
-					else if (paramName != null) {
-						setFunctionReturnName(paramName);
+					else {
+						this.actualFunctionReturnName = param.getName();
 					}
 				}
 				else {
@@ -422,7 +422,7 @@ public class CallMetaDataContext {
 								(StringUtils.hasLength(paramNameToUse) ? paramNameToUse : getFunctionReturnName());
 						workParams.add(provider.createDefaultOutParameter(returnNameToUse, meta));
 						if (isFunction()) {
-							setFunctionReturnName(returnNameToUse);
+							this.actualFunctionReturnName = returnNameToUse;
 							outParamNames.add(returnNameToUse);
 						}
 						if (logger.isDebugEnabled()) {
@@ -637,20 +637,22 @@ public class CallMetaDataContext {
 			schemaNameToUse = this.metaDataProvider.schemaNameToUse(getSchemaName());
 		}
 
-		String procedureNameToUse = this.metaDataProvider.procedureNameToUse(getProcedureName());
 		if (isFunction() || isReturnValueRequired()) {
-			callString = new StringBuilder().append("{? = call ").
-					append(StringUtils.hasLength(catalogNameToUse) ? catalogNameToUse + "." : "").
-					append(StringUtils.hasLength(schemaNameToUse) ? schemaNameToUse + "." : "").
-					append(procedureNameToUse).append("(");
+			callString = new StringBuilder("{? = call ");
 			parameterCount = -1;
 		}
 		else {
-			callString = new StringBuilder().append("{call ").
-					append(StringUtils.hasLength(catalogNameToUse) ? catalogNameToUse + "." : "").
-					append(StringUtils.hasLength(schemaNameToUse) ? schemaNameToUse + "." : "").
-					append(procedureNameToUse).append("(");
+			callString = new StringBuilder("{call ");
 		}
+
+		if (StringUtils.hasLength(catalogNameToUse)) {
+			callString.append(catalogNameToUse).append(".");
+		}
+		if (StringUtils.hasLength(schemaNameToUse)) {
+			callString.append(schemaNameToUse).append(".");
+		}
+		callString.append(this.metaDataProvider.procedureNameToUse(getProcedureName()));
+		callString.append("(");
 
 		for (SqlParameter parameter : this.callParameters) {
 			if (!parameter.isResultsParameter()) {
