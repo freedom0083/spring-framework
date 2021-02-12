@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -253,6 +253,9 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	@Nullable
 	private Map<String, CorsConfiguration> corsConfigurations;
 
+	@Nullable
+	private AsyncSupportConfigurer asyncSupportConfigurer;
+
 
 	/**
 	 * Set the Spring {@link ApplicationContext}, e.g. for resource loading.
@@ -392,6 +395,17 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	protected void configurePathMatch(PathMatchConfigurer configurer) {
 	}
 
+	/**
+	 * Return a global {@link PathPatternParser} instance to use for parsing
+	 * patterns to match to the {@link org.springframework.http.server.RequestPath}.
+	 * The returned instance can be configured using
+	 * {@link #configurePathMatch(PathMatchConfigurer)}.
+	 * @since 5.3.4
+	 */
+	@Bean
+	public PathPatternParser mvcPatternParser() {
+		return getPathMatchConfigurer().getPatternParserOrDefault();
+	}
 
 	/**
 	 * Return a global {@link UrlPathHelper} instance which is used to resolve
@@ -511,6 +525,16 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 		BeanNameUrlHandlerMapping mapping = new BeanNameUrlHandlerMapping();
 		mapping.setOrder(2);
+
+		PathMatchConfigurer pathConfig = getPathMatchConfigurer();
+		if (pathConfig.getPatternParser() != null) {
+			mapping.setPatternParser(pathConfig.getPatternParser());
+		}
+		else {
+			mapping.setUrlPathHelper(pathConfig.getUrlPathHelperOrDefault());
+			mapping.setPathMatcher(pathConfig.getPathMatcherOrDefault());
+		}
+
 		mapping.setInterceptors(getInterceptors(conversionService, resourceUrlProvider));
 		mapping.setCorsConfigurations(getCorsConfigurations());
 		return mapping;
@@ -652,8 +676,7 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			adapter.setResponseBodyAdvice(Collections.singletonList(new JsonViewResponseBodyAdvice()));
 		}
 
-		AsyncSupportConfigurer configurer = new AsyncSupportConfigurer();
-		configureAsyncSupport(configurer);
+		AsyncSupportConfigurer configurer = getAsyncSupportConfigurer();
 		if (configurer.getTaskExecutor() != null) {
 			adapter.setTaskExecutor(configurer.getTaskExecutor());
 		}
@@ -682,7 +705,13 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 */
 	@Bean
 	public HandlerFunctionAdapter handlerFunctionAdapter() {
-		return new HandlerFunctionAdapter();
+		HandlerFunctionAdapter adapter = new HandlerFunctionAdapter();
+
+		AsyncSupportConfigurer configurer = getAsyncSupportConfigurer();
+		if (configurer.getTimeout() != null) {
+			adapter.setAsyncRequestTimeout(configurer.getTimeout());
+		}
+		return adapter;
 	}
 
 	/**
@@ -708,13 +737,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	@Nullable
 	protected MessageCodesResolver getMessageCodesResolver() {
 		return null;
-	}
-
-	/**
-	 * Override this method to configure asynchronous request processing options.
-	 * @see AsyncSupportConfigurer
-	 */
-	protected void configureAsyncSupport(AsyncSupportConfigurer configurer) {
 	}
 
 	/**
@@ -905,6 +927,9 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			}
 		}
 
+		if (kotlinSerializationJsonPresent) {
+			messageConverters.add(new KotlinSerializationJsonHttpMessageConverter());
+		}
 		if (jackson2Present) {
 			Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.json();
 			if (this.applicationContext != null) {
@@ -917,9 +942,6 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 		}
 		else if (jsonbPresent) {
 			messageConverters.add(new JsonbHttpMessageConverter());
-		}
-		else if (kotlinSerializationJsonPresent) {
-			messageConverters.add(new KotlinSerializationJsonHttpMessageConverter());
 		}
 
 		if (jackson2SmilePresent) {
@@ -936,6 +958,26 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			}
 			messageConverters.add(new MappingJackson2CborHttpMessageConverter(builder.build()));
 		}
+	}
+
+	/**
+	 * Callback for building the {@link AsyncSupportConfigurer}.
+	 * Delegates to {@link #configureAsyncSupport(AsyncSupportConfigurer)}.
+	 * @since 5.3.2
+	 */
+	protected AsyncSupportConfigurer getAsyncSupportConfigurer() {
+		if (this.asyncSupportConfigurer == null) {
+			this.asyncSupportConfigurer = new AsyncSupportConfigurer();
+			configureAsyncSupport(this.asyncSupportConfigurer);
+		}
+		return this.asyncSupportConfigurer;
+	}
+
+	/**
+	 * Override this method to configure asynchronous request processing options.
+	 * @see AsyncSupportConfigurer
+	 */
+	protected void configureAsyncSupport(AsyncSupportConfigurer configurer) {
 	}
 
 	/**

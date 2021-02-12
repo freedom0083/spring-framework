@@ -43,11 +43,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ClientHttpRequest;
+import org.springframework.http.client.reactive.ClientHttpResponse;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.BodyExtractor;
 import org.springframework.web.reactive.function.BodyInserter;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.util.UriBuilder;
@@ -304,6 +306,7 @@ class DefaultWebClient implements WebClient {
 		}
 
 		@Override
+		@SuppressWarnings("deprecation")
 		public RequestBodySpec context(Function<Context, Context> contextModifier) {
 			this.contextModifier = (this.contextModifier != null ?
 					this.contextModifier.andThen(contextModifier) : contextModifier);
@@ -597,6 +600,12 @@ class DefaultWebClient implements WebClient {
 		public <T> Mono<ResponseEntity<Flux<T>>> toEntityFlux(ParameterizedTypeReference<T> elementTypeRef) {
 			return this.responseMono.flatMap(response ->
 					handlerEntityFlux(response, response.bodyToFlux(elementTypeRef)));
+		}
+
+		@Override
+		public <T> Mono<ResponseEntity<Flux<T>>> toEntityFlux(BodyExtractor<Flux<T>, ? super ClientHttpResponse> bodyExtractor) {
+			return this.responseMono.flatMap(response ->
+					handlerEntityFlux(response, response.body(bodyExtractor)));
 		}
 
 		@Override

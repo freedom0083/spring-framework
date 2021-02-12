@@ -22,6 +22,7 @@ import java.util.Map;
 
 import kotlinx.serialization.KSerializer;
 import kotlinx.serialization.SerializersKt;
+import kotlinx.serialization.descriptors.PolymorphicKind;
 import kotlinx.serialization.json.Json;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -42,7 +43,9 @@ import org.springframework.util.MimeType;
  * Encode from an {@code Object} stream to a byte stream of JSON objects using
  * <a href="https://github.com/Kotlin/kotlinx.serialization">kotlinx.serialization</a>.
  *
- * <p>This encoder can be used to bind {@code @Serializable} Kotlin classes.
+ * <p>This encoder can be used to bind {@code @Serializable} Kotlin classes,
+ * <a href="https://github.com/Kotlin/kotlinx.serialization/blob/master/docs/polymorphism.md#open-polymorphism">open polymorphic serialization</a>
+ * is not supported.
  * It supports {@code application/json} and {@code application/*+json} with
  * various character sets, {@code UTF-8} being the default.
  *
@@ -71,8 +74,14 @@ public class KotlinSerializationJsonEncoder extends AbstractEncoder<Object> {
 
 	@Override
 	public boolean canEncode(ResolvableType elementType, @Nullable MimeType mimeType) {
-		return (super.canEncode(elementType, mimeType) && !String.class.isAssignableFrom(elementType.toClass()) &&
-				!ServerSentEvent.class.isAssignableFrom(elementType.toClass()));
+		try {
+			serializer(elementType.getType());
+			return (super.canEncode(elementType, mimeType) && !String.class.isAssignableFrom(elementType.toClass()) &&
+					!ServerSentEvent.class.isAssignableFrom(elementType.toClass()));
+		}
+		catch (Exception ex) {
+			return false;
+		}
 	}
 
 	@Override
@@ -105,6 +114,7 @@ public class KotlinSerializationJsonEncoder extends AbstractEncoder<Object> {
 	 * Tries to find a serializer that can marshall or unmarshall instances of the given type
 	 * using kotlinx.serialization. If no serializer can be found, an exception is thrown.
 	 * <p>Resolved serializers are cached and cached results are returned on successive calls.
+	 * TODO Avoid relying on throwing exception when https://github.com/Kotlin/kotlinx.serialization/pull/1164 is fixed
 	 * @param type the type to find a serializer for
 	 * @return a resolved serializer for the given type
 	 * @throws RuntimeException if no serializer supporting the given type can be found
@@ -113,6 +123,9 @@ public class KotlinSerializationJsonEncoder extends AbstractEncoder<Object> {
 		KSerializer<Object> serializer = serializerCache.get(type);
 		if (serializer == null) {
 			serializer = SerializersKt.serializer(type);
+			if (serializer.getDescriptor().getKind().equals(PolymorphicKind.OPEN.INSTANCE)) {
+				throw new UnsupportedOperationException("Open polymorphic serialization is not supported yet");
+			}
 			serializerCache.put(type, serializer);
 		}
 		return serializer;

@@ -1364,9 +1364,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		if (candidateNames.length == 1) {
-			String beanName = candidateNames[0];
 			// TODO 只有唯一候选时, 通过getBean()方法进行实例化, 然后包装为NamedBeanHolder返回
-			return new NamedBeanHolder<>(beanName, (T) getBean(beanName, requiredType.toClass(), args));
+			return resolveNamedBean(candidateNames[0], requiredType, args);
 		}
 		else if (candidateNames.length > 1) {
 			// TODO 有多个结果时, 就需要进行过滤了
@@ -1391,9 +1390,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			if (candidateName != null) {
 				// TODO 取得对应的bean实例, 并封装为NamedBeanHolder返回
 				Object beanInstance = candidates.get(candidateName);
-				if (beanInstance == null || beanInstance instanceof Class) {
+				if (beanInstance == null) {
+					return null;
+				}
+				if (beanInstance instanceof Class) {
 					// TODO 没有对应的bean实例, 或bean实例是Class时, 进行初始化
-					beanInstance = getBean(candidateName, requiredType.toClass(), args);
+					return resolveNamedBean(candidateName, requiredType, args);
 				}
 				return new NamedBeanHolder<>(candidateName, (T) beanInstance);
 			}
@@ -1417,6 +1419,17 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @return
 	 * @throws BeansException
 	 */
+	@Nullable
+	private <T> NamedBeanHolder<T> resolveNamedBean(
+			String beanName, ResolvableType requiredType, @Nullable Object[] args) throws BeansException {
+
+		Object bean = getBean(beanName, null, args);
+		if (bean instanceof NullBean) {
+			return null;
+		}
+		return new NamedBeanHolder<T>(beanName, adaptBeanInstance(beanName, bean, requiredType.toClass()));
+	}
+
 	@Override
 	@Nullable
 	// TODO 解决依赖关系

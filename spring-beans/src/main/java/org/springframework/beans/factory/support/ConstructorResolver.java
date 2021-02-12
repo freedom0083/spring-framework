@@ -67,6 +67,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Delegate for resolving constructors and factory methods.
+ *
  * <p>Performs constructor resolution through argument matching.
  *
  * @author Juergen Hoeller
@@ -85,7 +86,7 @@ class ConstructorResolver {
 	private static final Object[] EMPTY_ARGS = new Object[0];
 
 	/**
-	 * Marker for autowired arguments in a cached argument array, to be later replaced
+	 * Marker for autowired arguments in a cached argument array, to be replaced
 	 * by a {@linkplain #resolveAutowiredArgument resolved autowired argument}.
 	 */
 	private static final Object autowiredArgumentMarker = new Object();
@@ -159,7 +160,7 @@ class ConstructorResolver {
 			}
 			if (argsToResolve != null) {
 				// TODO 解析参数
-				argsToUse = resolvePreparedArguments(beanName, mbd, bw, constructorToUse, argsToResolve, true);
+				argsToUse = resolvePreparedArguments(beanName, mbd, bw, constructorToUse, argsToResolve);
 			}
 		}
 
@@ -545,6 +546,7 @@ class ConstructorResolver {
 				// TODO 要创建实例的bean是单例, 并且已经存在于容器中时, 会报一个隐匿创建异常 mark
 				throw new ImplicitlyAppearedSingletonException();
 			}
+			this.beanFactory.registerDependentBean(factoryBeanName, beanName);
 			// TODO 取得工厂类的类型(xxx.CarFactory)
 			factoryClass = factoryBean.getClass();
 			isStatic = false;
@@ -596,7 +598,7 @@ class ConstructorResolver {
 			if (argsToResolve != null) {
 				// TODO 如果有还未解析的工厂方法的参数, 表示其肯定有可用来实例化bean的工厂方法, 即: factoryMethodToUse肯定不为null.
 				//  所以这里就开始解析准备好的参数(这里会进行@Value, @Autowire自动注入, property解析, 参数的SpEL表达式, 和值的处理)
-				argsToUse = resolvePreparedArguments(beanName, mbd, bw, factoryMethodToUse, argsToResolve, true);
+				argsToUse = resolvePreparedArguments(beanName, mbd, bw, factoryMethodToUse, argsToResolve);
 			}
 		}
 
@@ -1090,7 +1092,7 @@ class ConstructorResolver {
 	 */
 	// TODO 按顺序解析参数
 	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
-			Executable executable, Object[] argsToResolve, boolean fallback) {
+			Executable executable, Object[] argsToResolve) {
 		// TODO 取得容器中的自定义类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
 		// TODO 如果容器中没有自定义的类型转换器, 使用包装bean实例的BeanWrapper做为类型转换器
@@ -1114,7 +1116,7 @@ class ConstructorResolver {
 				//  }
 				//  MethodParameter里封装的就是方法(工厂方法, 或构造函数), 以及第一个参数Car的信息. 在解析自动装配时, 会把符合要求
 				//  的bean(Car类型的bean)拿出来做为参数的值argValue. 如果注入的是一个集合, 数组, Map等多值对象, 这里会返回Object[]
-				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, fallback);
+				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, true);
 			}
 			else if (argValue instanceof BeanMetadataElement) {
 				// TODO 参数是BeanMetadataElement类型时, 解析propertyValues

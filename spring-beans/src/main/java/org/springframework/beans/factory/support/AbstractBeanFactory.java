@@ -263,7 +263,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
 		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
 		String beanName = transformedBeanName(name);
-		Object bean;
+		Object beanInstance;
 
 		// Eagerly check singleton cache for manually registered singletons.
 		// TODO 按以下顺序尝试从缓存中取得对应的单例实例:
@@ -288,7 +288,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
 			//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
 			//     (由程序本身创建bean, 会用后处理器进行处理)
-			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
+			beanInstance = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
 		else {
@@ -410,7 +410,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
 					//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
 					//     (由程序本身创建bean, 会用后处理器进行处理)
-					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
+					beanInstance = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
 
 				else if (mbd.isPrototype()) {
@@ -434,7 +434,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
 					//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
 					//     (由程序本身创建bean, 会用后处理器进行处理)
-					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
+					beanInstance = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
 				}
 
 				else {
@@ -467,7 +467,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						//  3. 如果要得到的bean的名字是普通bean, 即, getBean("xxx"), 但得到的实例实现了工厂接口FactoryBean时, 先从缓存取得bean实例,
 						//     如果缓存中没有, 则调用工厂类实例的getObject()方法取得bean, 然后再根据bean是否由程序本身创建来决定是否进行后处理加工
 						//     (由程序本身创建bean, 会用后处理器进行处理)
-						bean = getObjectForBeanInstance(scopedInstance, name, beanName, mbd);
+						beanInstance = getObjectForBeanInstance(scopedInstance, name, beanName, mbd);
 					}
 					catch (IllegalStateException ex) {
 						throw new ScopeNotActiveException(beanName, scopeName, ex);
@@ -486,15 +486,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 
+		return adaptBeanInstance(name, beanInstance, requiredType);
+	}
+
+	@SuppressWarnings("unchecked")
+	<T> T adaptBeanInstance(String name, Object bean, @Nullable Class<?> requiredType) {
 		// Check if required type matches the type of the actual bean instance.
 		if (requiredType != null && !requiredType.isInstance(bean)) {
 			try {
 				// TODO 指定了bean类型时, 将得到的bean转换成对应的类型并返回, 转换失败, 或类型不匹配时会抛出异常,
-				T convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
+				Object convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
 				if (convertedBean == null) {
 					throw new BeanNotOfRequiredTypeException(name, requiredType, bean.getClass());
 				}
-				return convertedBean;
+				return (T) convertedBean;
 			}
 			catch (TypeMismatchException ex) {
 				if (logger.isTraceEnabled()) {

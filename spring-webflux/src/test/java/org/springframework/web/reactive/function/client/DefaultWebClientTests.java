@@ -40,6 +40,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ClientCodecConfigurer;
+import org.springframework.web.reactive.function.BodyExtractors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -459,6 +460,7 @@ public class DefaultWebClientTests {
 		testStatusHandlerForToEntity(spec.toEntityList(new ParameterizedTypeReference<String>() {}));
 		testStatusHandlerForToEntity(spec.toEntityFlux(String.class));
 		testStatusHandlerForToEntity(spec.toEntityFlux(new ParameterizedTypeReference<String>() {}));
+		testStatusHandlerForToEntity(spec.toEntityFlux(BodyExtractors.toFlux(String.class)));
 	}
 
 	private void testStatusHandlerForToEntity(Publisher<?> responsePublisher) {
