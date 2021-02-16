@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -719,58 +719,70 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			Field field = (Field) this.member;
 			Object value;
 			if (this.cached) {
-				// TODO 有缓存的话, 直接解析缓存的值. 如果是DependencyDescriptor待注入项, 需要对其进行解析
-				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
+				try {
+					// TODO 有缓存的话, 直接解析缓存的值. 如果是DependencyDescriptor待注入项, 需要对其进行解析
+					value = resolvedCachedArgument(beanName, this.cachedFieldValue);
+				}
+				catch (NoSuchBeanDefinitionException ex) {
+					// Unexpected removal of target bean for cached argument -> re-resolve
+					value = resolveFieldValue(field, bean, beanName);
+				}
 			}
 			else {
 				// TODO 缓存里没有的话, 就开始重新查找值. 将方法参数(用于实例化bean的方法参数)封装为一个DependencyDescriptor.
 				//  DependencyDescriptor是InjectionPoint的子类, 用于描述一个用于注入的依赖项的描述符, 比如: 字段(成员属性), 或
 				//  方法(普通方法, 构造函数). 对于DependencyDescriptor描述的项来说, 可以对其进行自动装配, 即: 方法的参数也可以使用
 				//  @Autowire, @Value这些注解来进行自动注入.
-				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
-				desc.setContainingClass(bean.getClass());
-				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
-				Assert.state(beanFactory != null, "No BeanFactory available");
-				// TODO 取得容器中的类型解析器
-				TypeConverter typeConverter = beanFactory.getTypeConverter();
-				try {
-					// TODO 在当前容器中解析依赖关系
-					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
-				}
-				catch (BeansException ex) {
-					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
-				}
-				synchronized (this) {
-					if (!this.cached) {
-						Object cachedFieldValue = null;
-						if (value != null || this.required) {
-							// TODO 如果解析出来了, 就设置到缓存里
-							cachedFieldValue = desc;
-							// TODO 然后注册一下当前操作的bean与自动装配过的bean的依赖关系
-							registerDependentBeans(beanName, autowiredBeanNames);
-							if (autowiredBeanNames.size() == 1) {
-								String autowiredBeanName = autowiredBeanNames.iterator().next();
-								if (beanFactory.containsBean(autowiredBeanName) &&
-										beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
-									// TODO 如果只有一个为当前Field自动装配过的bean, 并且其已经注册到容器中了, 其类型还与Field类型
-									//  相同, 将其包装为ShortcutDependencyDescriptor放到缓存里
-									cachedFieldValue = new ShortcutDependencyDescriptor(
-											desc, autowiredBeanName, field.getType());
-								}
-							}
-						}
-						// TODO 没解析聘为, 就是空的
-						this.cachedFieldValue = cachedFieldValue;
-						// TODO 不管解没解析出来, 都做过操作了, 所以设置成缓存过了
-						this.cached = true;
-					}
-				}
+				value = resolveFieldValue(field, bean, beanName);
 			}
 			if (value != null) {
 				ReflectionUtils.makeAccessible(field);
 				// TODO 然后为字段重新设置值, 这时依赖注入完成(@Autowire, @Value等)
 				field.set(bean, value);
 			}
+		}
+
+		@Nullable
+		private Object resolveFieldValue(Field field, Object bean, @Nullable String beanName) {
+			DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
+			desc.setContainingClass(bean.getClass());
+			Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
+			Assert.state(beanFactory != null, "No BeanFactory available");
+			// TODO 取得容器中的类型解析器
+			TypeConverter typeConverter = beanFactory.getTypeConverter();
+			Object value;
+			try {
+				value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
+			}
+			catch (BeansException ex) {
+				throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
+			}
+			synchronized (this) {
+				if (!this.cached) {
+					Object cachedFieldValue = null;
+					if (value != null || this.required) {
+						// TODO 如果解析出来了, 就设置到缓存里
+						cachedFieldValue = desc;
+						// TODO 然后注册一下当前操作的bean与自动装配过的bean的依赖关系
+						registerDependentBeans(beanName, autowiredBeanNames);
+						if (autowiredBeanNames.size() == 1) {
+							String autowiredBeanName = autowiredBeanNames.iterator().next();
+							if (beanFactory.containsBean(autowiredBeanName) &&
+									beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
+								// TODO 如果只有一个为当前Field自动装配过的bean, 并且其已经注册到容器中了, 其类型还与Field类型
+								//  相同, 将其包装为ShortcutDependencyDescriptor放到缓存里
+								cachedFieldValue = new ShortcutDependencyDescriptor(
+										desc, autowiredBeanName, field.getType());
+							}
+						}
+					}
+					// TODO 没解析聘为, 就是空的
+					this.cachedFieldValue = cachedFieldValue;
+					// TODO 不管解没解析出来, 都做过操作了, 所以设置成缓存过了
+					this.cached = true;
+				}
+			}
+			return value;
 		}
 	}
 
@@ -800,60 +812,18 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			Method method = (Method) this.member;
 			Object[] arguments;
 			if (this.cached) {
-				// Shortcut for avoiding synchronization...
-				// TODO 缓存过的话, 直接解析缓存的方法参数的值. 因为参数可能是多个, 所以这里其实是为每个参数调用一次resolvedCachedArgument()
-				//  有一份而已. 具体处理与Field字段的一样. 如果是DependencyDescriptor待注入项, 需要对其进行解析
-				arguments = resolveCachedArguments(beanName);
+				try {
+					// TODO 缓存过的话, 直接解析缓存的方法参数的值. 因为参数可能是多个, 所以这里其实是为每个参数调用一次resolvedCachedArgument()
+					//  有一份而已. 具体处理与Field字段的一样. 如果是DependencyDescriptor待注入项, 需要对其进行解析
+					arguments = resolveCachedArguments(beanName);
+				}
+				catch (NoSuchBeanDefinitionException ex) {
+					// Unexpected removal of target bean for cached argument -> re-resolve
+					arguments = resolveMethodArguments(method, bean, beanName);
+				}
 			}
 			else {
-				int argumentCount = method.getParameterCount();
-				arguments = new Object[argumentCount];
-				DependencyDescriptor[] descriptors = new DependencyDescriptor[argumentCount];
-				Set<String> autowiredBeans = new LinkedHashSet<>(argumentCount);
-				Assert.state(beanFactory != null, "No BeanFactory available");
-				TypeConverter typeConverter = beanFactory.getTypeConverter();
-				for (int i = 0; i < arguments.length; i++) {
-					MethodParameter methodParam = new MethodParameter(method, i);
-					DependencyDescriptor currDesc = new DependencyDescriptor(methodParam, this.required);
-					currDesc.setContainingClass(bean.getClass());
-					descriptors[i] = currDesc;
-					try {
-						Object arg = beanFactory.resolveDependency(currDesc, beanName, autowiredBeans, typeConverter);
-						if (arg == null && !this.required) {
-							arguments = null;
-							break;
-						}
-						arguments[i] = arg;
-					}
-					catch (BeansException ex) {
-						throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(methodParam), ex);
-					}
-				}
-				synchronized (this) {
-					if (!this.cached) {
-						if (arguments != null) {
-							DependencyDescriptor[] cachedMethodArguments = Arrays.copyOf(descriptors, arguments.length);
-							registerDependentBeans(beanName, autowiredBeans);
-							if (autowiredBeans.size() == argumentCount) {
-								Iterator<String> it = autowiredBeans.iterator();
-								Class<?>[] paramTypes = method.getParameterTypes();
-								for (int i = 0; i < paramTypes.length; i++) {
-									String autowiredBeanName = it.next();
-									if (beanFactory.containsBean(autowiredBeanName) &&
-											beanFactory.isTypeMatch(autowiredBeanName, paramTypes[i])) {
-										cachedMethodArguments[i] = new ShortcutDependencyDescriptor(
-												descriptors[i], autowiredBeanName, paramTypes[i]);
-									}
-								}
-							}
-							this.cachedMethodArguments = cachedMethodArguments;
-						}
-						else {
-							this.cachedMethodArguments = null;
-						}
-						this.cached = true;
-					}
-				}
+				arguments = resolveMethodArguments(method, bean, beanName);
 			}
 			if (arguments != null) {
 				try {
@@ -866,18 +836,68 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			}
 		}
 
-		// TODO 解析缓存的方法参数
 		@Nullable
 		private Object[] resolveCachedArguments(@Nullable String beanName) {
 			Object[] cachedMethodArguments = this.cachedMethodArguments;
 			if (cachedMethodArguments == null) {
-				// TODO 没有缓存的方法参数时, 直接返回个null
 				return null;
 			}
 			Object[] arguments = new Object[cachedMethodArguments.length];
 			for (int i = 0; i < arguments.length; i++) {
-				// TODO 否则挨个解析方法要用的参数
 				arguments[i] = resolvedCachedArgument(beanName, cachedMethodArguments[i]);
+			}
+			return arguments;
+		}
+
+		@Nullable
+		private Object[] resolveMethodArguments(Method method, Object bean, @Nullable String beanName) {
+			int argumentCount = method.getParameterCount();
+			Object[] arguments = new Object[argumentCount];
+			DependencyDescriptor[] descriptors = new DependencyDescriptor[argumentCount];
+			Set<String> autowiredBeans = new LinkedHashSet<>(argumentCount);
+			Assert.state(beanFactory != null, "No BeanFactory available");
+			TypeConverter typeConverter = beanFactory.getTypeConverter();
+			for (int i = 0; i < arguments.length; i++) {
+				MethodParameter methodParam = new MethodParameter(method, i);
+				DependencyDescriptor currDesc = new DependencyDescriptor(methodParam, this.required);
+				currDesc.setContainingClass(bean.getClass());
+				descriptors[i] = currDesc;
+				try {
+					Object arg = beanFactory.resolveDependency(currDesc, beanName, autowiredBeans, typeConverter);
+					if (arg == null && !this.required) {
+						arguments = null;
+						break;
+					}
+					arguments[i] = arg;
+				}
+				catch (BeansException ex) {
+					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(methodParam), ex);
+				}
+			}
+			synchronized (this) {
+				if (!this.cached) {
+					if (arguments != null) {
+						DependencyDescriptor[] cachedMethodArguments = Arrays.copyOf(descriptors, arguments.length);
+						registerDependentBeans(beanName, autowiredBeans);
+						if (autowiredBeans.size() == argumentCount) {
+							Iterator<String> it = autowiredBeans.iterator();
+							Class<?>[] paramTypes = method.getParameterTypes();
+							for (int i = 0; i < paramTypes.length; i++) {
+								String autowiredBeanName = it.next();
+								if (beanFactory.containsBean(autowiredBeanName) &&
+										beanFactory.isTypeMatch(autowiredBeanName, paramTypes[i])) {
+									cachedMethodArguments[i] = new ShortcutDependencyDescriptor(
+											descriptors[i], autowiredBeanName, paramTypes[i]);
+								}
+							}
+						}
+						this.cachedMethodArguments = cachedMethodArguments;
+					}
+					else {
+						this.cachedMethodArguments = null;
+					}
+					this.cached = true;
+				}
 			}
 			return arguments;
 		}
