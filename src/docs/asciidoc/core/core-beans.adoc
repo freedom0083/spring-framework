@@ -4316,15 +4316,14 @@ org.springframework.scripting.groovy.GroovyMessenger@272961
 ----
 
 
-[[beans-factory-extension-bpp-examples-rabpp]]
-==== Example: The `RequiredAnnotationBeanPostProcessor`
+[[beans-factory-extension-bpp-examples-aabpp]]
+==== Example: The `AutowiredAnnotationBeanPostProcessor`
 
-Using callback interfaces or annotations in conjunction with a custom
-`BeanPostProcessor` implementation is a common means of extending the Spring IoC
-container. An example is Spring's `RequiredAnnotationBeanPostProcessor` -- a
-`BeanPostProcessor` implementation that ships with the Spring distribution and that ensures
-that JavaBean properties on beans that are marked with an (arbitrary) annotation are
-actually (configured to be) dependency-injected with a value.
+Using callback interfaces or annotations in conjunction with a custom `BeanPostProcessor`
+implementation is a common means of extending the Spring IoC container. An example is
+Spring's `AutowiredAnnotationBeanPostProcessor` -- a `BeanPostProcessor` implementation
+that ships with the Spring distribution and autowires annotated fields, setter methods,
+and arbitrary config methods.
 
 
 
@@ -4588,7 +4587,7 @@ An alternative to XML setup is provided by annotation-based configuration, which
 the bytecode metadata for wiring up components instead of angle-bracket declarations.
 Instead of using XML to describe a bean wiring, the developer moves the configuration
 into the component class itself by using annotations on the relevant class, method, or
-field declaration. As mentioned in <<beans-factory-extension-bpp-examples-rabpp>>, using
+field declaration. As mentioned in <<beans-factory-extension-bpp-examples-aabpp>>, using
 a `BeanPostProcessor` in conjunction with annotations is a common means of extending the
 Spring IoC container. For example, Spring 2.0 introduced the possibility of enforcing
 required properties with the <<beans-required-annotation,`@Required`>> annotation. Spring
@@ -4630,8 +4629,7 @@ configuration (notice the inclusion of the `context` namespace):
 (The implicitly registered post-processors include
 {api-spring-framework}/beans/factory/annotation/AutowiredAnnotationBeanPostProcessor.html[`AutowiredAnnotationBeanPostProcessor`],
 {api-spring-framework}/context/annotation/CommonAnnotationBeanPostProcessor.html[`CommonAnnotationBeanPostProcessor`],
-{api-spring-framework}/orm/jpa/support/PersistenceAnnotationBeanPostProcessor.html[`PersistenceAnnotationBeanPostProcessor`],
-and the aforementioned
+{api-spring-framework}/orm/jpa/support/PersistenceAnnotationBeanPostProcessor.html[`PersistenceAnnotationBeanPostProcessor`], and
 {api-spring-framework}/beans/factory/annotation/RequiredAnnotationBeanPostProcessor.html[`RequiredAnnotationBeanPostProcessor`].)
 
 [NOTE]
@@ -4678,7 +4676,6 @@ example:
 }
 ----
 
-
 This annotation indicates that the affected bean property must be populated at
 configuration time, through an explicit property value in a bean definition or through
 autowiring. The container throws an exception if the affected bean property has not been
@@ -4687,11 +4684,21 @@ instances or the like later on. We still recommend that you put assertions into 
 bean class itself (for example, into an init method). Doing so enforces those required
 references and values even when you use the class outside of a container.
 
+[TIP]
+====
+The {api-spring-framework}/beans/factory/annotation/RequiredAnnotationBeanPostProcessor.html[`RequiredAnnotationBeanPostProcessor`]
+must be registered as a bean to enable support for the `@Required` annotation. Note,
+however, that a `RequiredAnnotationBeanPostProcessor` bean is registered automatically
+when using the `<context:annotation-config/>` or `<context:component-scan/>` XML
+namespace elements.
+====
+
 [NOTE]
 ====
-The `@Required` annotation is formally deprecated as of Spring Framework 5.1, in favor
-of using constructor injection for required settings (or a custom implementation of
-`InitializingBean.afterPropertiesSet()` along with bean property setter methods).
+The `@Required` annotation and `RequiredAnnotationBeanPostProcessor` are formally
+deprecated as of Spring Framework 5.1, in favor of using constructor injection for
+required settings (or a custom implementation of `InitializingBean.afterPropertiesSet()`
+or a custom `@PostConstruct` method along with bean property setter methods).
 ====
 
 
@@ -7113,10 +7120,10 @@ metadata is provided per-instance rather than per-class.
 
 While classpath scanning is very fast, it is possible to improve the startup performance
 of large applications by creating a static list of candidates at compilation time. In this
-mode, all modules that are target of component scan must use this mechanism.
+mode, all modules that are targets of component scanning must use this mechanism.
 
-NOTE: Your existing `@ComponentScan` or `<context:component-scan` directives must stay as
-is to request the context to scan candidates in certain packages. When the
+NOTE: Your existing `@ComponentScan` or `<context:component-scan/>` directives must remain
+unchanged to request the context to scan candidates in certain packages. When the
 `ApplicationContext` detects such an index, it automatically uses it rather than scanning
 the classpath.
 
@@ -7145,12 +7152,10 @@ configuration, as shown in the following example:
 		compileOnly "org.springframework:spring-context-indexer:{spring-version}"
 	}
 ----
-====
 
 With Gradle 4.6 and later, the dependency should be declared in the `annotationProcessor`
 configuration, as shown in the following example:
 
-====
 [source,groovy,indent=0subs="verbatim,quotes,attributes"]
 ----
 	dependencies {
@@ -7158,19 +7163,20 @@ configuration, as shown in the following example:
 	}
 ----
 
-That process generates a `META-INF/spring.components` file that is
-included in the jar file.
+The `spring-context-indexer` artifact generates a `META-INF/spring.components` file that
+is included in the jar file.
 
 NOTE: When working with this mode in your IDE, the `spring-context-indexer` must be
 registered as an annotation processor to make sure the index is up-to-date when
 candidate components are updated.
 
-TIP: The index is enabled automatically when a `META-INF/spring.components` is found
+TIP: The index is enabled automatically when a `META-INF/spring.components` file is found
 on the classpath. If an index is partially available for some libraries (or use cases)
-but could not be built for the whole application, you can fallback to a regular classpath
-arrangement (as though no index was present at all) by setting `spring.index.ignore` to
-`true`, either as a system property or in a `spring.properties` file at the root of the
-classpath.
+but could not be built for the whole application, you can fall back to a regular classpath
+arrangement (as though no index were present at all) by setting `spring.index.ignore` to
+`true`, either as a JVM system property or via the
+<<appendix.adoc#appendix-spring-properties,`SpringProperties`>> mechanism.
+
 
 
 

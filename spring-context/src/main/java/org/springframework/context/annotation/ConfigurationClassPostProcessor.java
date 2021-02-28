@@ -75,16 +75,17 @@ import org.springframework.util.ClassUtils;
  *
  * <p>Registered by default when using {@code <context:annotation-config/>} or
  * {@code <context:component-scan/>}. Otherwise, may be declared manually as
- * with any other BeanFactoryPostProcessor.
+ * with any other {@link BeanFactoryPostProcessor}.
  *
  * <p>This post processor is priority-ordered as it is important that any
- * {@link Bean} methods declared in {@code @Configuration} classes have
+ * {@link Bean @Bean} methods declared in {@code @Configuration} classes have
  * their corresponding bean definitions registered before any other
- * {@link BeanFactoryPostProcessor} executes.
+ * {@code BeanFactoryPostProcessor} executes.
  *
  * @author Chris Beams
  * @author Juergen Hoeller
  * @author Phillip Webb
+ * @author Sam Brannen
  * @since 3.0
  */
 public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPostProcessor,
@@ -421,24 +422,33 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			//  1. 带有@Configuration注解, 或有其他注解以及@Bean时, 设置configurationClass为lite类型
 			//  2. 带有@Configuration注解, 并且不是代理方法时, 设置configurationClass为full类型
 			Object configClassAttr = beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE);
+			AnnotationMetadata annotationMetadata = null;
 			MethodMetadata methodMetadata = null;
 			if (beanDef instanceof AnnotatedBeanDefinition) {
+				AnnotatedBeanDefinition annotatedBeanDefinition = (AnnotatedBeanDefinition) beanDef;
+				annotationMetadata = annotatedBeanDefinition.getMetadata();
 				// TODO 如果bd本身就是一个AnnotatedBeanDefinition, 直接拿元数据方法
-				methodMetadata = ((AnnotatedBeanDefinition) beanDef).getFactoryMethodMetadata();
+				methodMetadata = annotatedBeanDefinition.getFactoryMethodMetadata();
 			}
 			if ((configClassAttr != null || methodMetadata != null) && beanDef instanceof AbstractBeanDefinition) {
 				// Configuration class (full or lite) or a configuration-derived @Bean method
-				// -> resolve bean class at this point...
+				// -> eagerly resolve bean class at this point, unless it's a 'lite' configuration
+				// or component class without @Bean methods.
 				// TODO Configuration是full或lite, 或有元数据, 并且bd是AbstractBeanDefinition时
 				AbstractBeanDefinition abd = (AbstractBeanDefinition) beanDef;
 				if (!abd.hasBeanClass()) {
-					try {
-						// TODO 'class'不是引用时, 重新加载一下
-						abd.resolveBeanClass(this.beanClassLoader);
-					}
-					catch (Throwable ex) {
-						throw new IllegalStateException(
-								"Cannot load configuration class: " + beanDef.getBeanClassName(), ex);
+					boolean liteConfigurationCandidateWithoutBeanMethods =
+							(ConfigurationClassUtils.CONFIGURATION_CLASS_LITE.equals(configClassAttr) &&
+								annotationMetadata != null && !ConfigurationClassUtils.hasBeanMethods(annotationMetadata));
+					if (!liteConfigurationCandidateWithoutBeanMethods) {
+						try {
+							// TODO 'class'不是引用时, 重新加载一下
+							abd.resolveBeanClass(this.beanClassLoader);
+						}
+						catch (Throwable ex) {
+							throw new IllegalStateException(
+									"Cannot load configuration class: " + beanDef.getBeanClassName(), ex);
+						}
 					}
 				}
 			}

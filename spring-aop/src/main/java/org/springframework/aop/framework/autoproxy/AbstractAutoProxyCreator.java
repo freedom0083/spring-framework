@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostProcessor;
+import org.springframework.core.SmartClassLoader;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -522,8 +523,13 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			//  如果Advisor被提前过滤过, 代理工厂也做同样的设置
 			proxyFactory.setPreFiltered(true);
 		}
+
+		ClassLoader targetClassLoader = getProxyClassLoader();
+		if (targetClassLoader instanceof SmartClassLoader && targetClassLoader != beanClass.getClassLoader()) {
+			targetClassLoader = ((SmartClassLoader) targetClassLoader).getOriginalClassLoader();
+		}
 		// TODO 开始创建代理
-		return proxyFactory.getProxy(getProxyClassLoader());
+		return proxyFactory.getProxy(targetClassLoader);
 	}
 
 	/**
