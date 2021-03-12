@@ -524,12 +524,13 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			proxyFactory.setPreFiltered(true);
 		}
 
-		ClassLoader targetClassLoader = getProxyClassLoader();
-		if (targetClassLoader instanceof SmartClassLoader && targetClassLoader != beanClass.getClassLoader()) {
-			targetClassLoader = ((SmartClassLoader) targetClassLoader).getOriginalClassLoader();
+		// Use original ClassLoader if bean class not locally loaded in overriding class loader
+		ClassLoader classLoader = getProxyClassLoader();
+		if (classLoader instanceof SmartClassLoader && classLoader != beanClass.getClassLoader()) {
+			classLoader = ((SmartClassLoader) classLoader).getOriginalClassLoader();
 		}
 		// TODO 开始创建代理
-		return proxyFactory.getProxy(targetClassLoader);
+		return proxyFactory.getProxy(classLoader);
 	}
 
 	/**
@@ -576,7 +577,10 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 		List<Object> allInterceptors = new ArrayList<>();
 		if (specificInterceptors != null) {
-			allInterceptors.addAll(Arrays.asList(specificInterceptors));
+			if (specificInterceptors.length > 0) {
+				// specificInterceptors may equals PROXY_WITHOUT_ADDITIONAL_INTERCEPTORS
+				allInterceptors.addAll(Arrays.asList(specificInterceptors));
+			}
 			// TODO 然后再处理由Advice通知创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在Advice通知创建的Advisor之前
 			if (commonInterceptors.length > 0) {
 				if (this.applyCommonInterceptorsFirst) {
