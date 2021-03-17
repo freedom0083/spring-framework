@@ -65,15 +65,18 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
+		// TODO 用于收集Spring启动时的相关数据信息、处理时间等，目前有两个实现：
+		//  1. DefaultStartupStep: 默认实现，什么也没做；
+		//  2. FlightRecorderApplicationStartup: 利用JFR来对容器的启动进行监控；
 		StartupStep createAnnotatedBeanDefReader = this.getApplicationStartup().start("spring.context.annotated-bean-reader.create");
 		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
-		//  根据情况注册一些用RootBeanDefinition(AbstractBeanDefinition)类型于处理注解的后处理器:
+		//  根据情况注册一些用RootBeanDefinition(AbstractBeanDefinition)类型用于处理注解的后处理器:
 		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
 		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
 		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
 		//  2. AutowiredAnnotationBeanPostProcessor: 继承自InstantiationAwareBeanPostProcessorAdapter, 同时实现了
 		//     MergedBeanDefinitionPostProcessor接口(用于自动装配, 可以处理@Autowire, @Value, 以及JSR-330中的@Inject)
-		//  3. CommonAnnotationBeanPostProcessor: 提供生命周期管理(@PostConstruct, @PreDestroy), 以及其他通用处理(@WebServiceRef
+		//  3. CommonAnnotationBeanPostProcessor: 提供生命周期管理(@PostConstruct, @PreDestroy), 以及其他通用处理(@WebServiceRef,
 		//     @EJB, @Resource)
 		//  4. PersistenceAnnotationBeanPostProcessor:
 		//  5. EventListenerMethodProcessor:

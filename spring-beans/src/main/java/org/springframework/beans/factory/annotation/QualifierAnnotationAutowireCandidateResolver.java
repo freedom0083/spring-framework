@@ -62,7 +62,6 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	// TODO @Value注解
 	private Class<? extends Annotation> valueAnnotationType = Value.class;
 
-
 	/**
 	 * Create a new QualifierAnnotationAutowireCandidateResolver
 	 * for Spring's standard {@link Qualifier} annotation.

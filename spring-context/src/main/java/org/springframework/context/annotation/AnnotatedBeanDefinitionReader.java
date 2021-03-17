@@ -48,13 +48,13 @@ import org.springframework.util.Assert;
  */
 // TODO 对带有注解的BeanDefinition进行注册
 public class AnnotatedBeanDefinitionReader {
-
+	// TODO BeanDefinition注册中心
 	private final BeanDefinitionRegistry registry;
 
 	private BeanNameGenerator beanNameGenerator = AnnotationBeanNameGenerator.INSTANCE;
 
 	private ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
-
+	// TODO 处理@Condition注解的处理器
 	private ConditionEvaluator conditionEvaluator;
 
 
