@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.aop.framework.autoproxy;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,6 +50,7 @@ import org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostP
 import org.springframework.core.SmartClassLoader;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -84,6 +86,7 @@ import org.springframework.util.StringUtils;
  * @author Juergen Hoeller
  * @author Rod Johnson
  * @author Rob Harrop
+ * @author Sam Brannen
  * @since 13.10.2003
  * @see #setInterceptorNames
  * @see #getAdvicesAndAdvisorsForBean
@@ -494,8 +497,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.copyFrom(this);
 
-		if (!proxyFactory.isProxyTargetClass()) {
-			// TODO 如果代理工厂是对接口创建代理
+		if (proxyFactory.isProxyTargetClass()) {
+			// Explicit handling of JDK proxy targets and lambdas (for introduction advice scenarios)
+			if (Proxy.isProxyClass(beanClass) || ClassUtils.isLambdaClass(beanClass)) {
+				// Must allow for introductions; can't just set interfaces to the proxy's interfaces only.
+				for (Class<?> ifc : beanClass.getInterfaces()) {
+					proxyFactory.addInterface(ifc);
+				}
+			}
+		}
+		else {
+			// No proxyTargetClass flag enforced, let's apply our default checks...
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				// TODO 这里会看正在创建的bean的preserveTargetClass属性是否为true. 如果为true, 会强制使用CGLIB来创建代理
 				proxyFactory.setProxyTargetClass(true);
@@ -578,7 +590,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		List<Object> allInterceptors = new ArrayList<>();
 		if (specificInterceptors != null) {
 			if (specificInterceptors.length > 0) {
-				// specificInterceptors may equals PROXY_WITHOUT_ADDITIONAL_INTERCEPTORS
+				// specificInterceptors may equal PROXY_WITHOUT_ADDITIONAL_INTERCEPTORS
 				allInterceptors.addAll(Arrays.asList(specificInterceptors));
 			}
 			// TODO 然后再处理由Advice通知创建的Advisor. 默认情况下, 通用的拦截器创建的Advisor排在Advice通知创建的Advisor之前

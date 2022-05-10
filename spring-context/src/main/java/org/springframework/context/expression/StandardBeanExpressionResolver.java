@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.springframework.beans.factory.BeanExpressionException;
 import org.springframework.beans.factory.config.BeanExpressionContext;
 import org.springframework.beans.factory.config.BeanExpressionResolver;
 import org.springframework.core.convert.ConversionService;
+import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.ParserContext;
@@ -138,7 +139,7 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 	@Override
 	@Nullable
 	// TODO 解析复杂类型的value, BeanExpressionContext持有当前容器和bean的scope
-	public Object evaluate(@Nullable String value, BeanExpressionContext evalContext) throws BeansException {
+	public Object evaluate(@Nullable String value, BeanExpressionContext beanExpressionContext) throws BeansException {
 		if (!StringUtils.hasLength(value)) {
 			return value;
 		}
@@ -160,10 +161,10 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 				this.expressionCache.put(value, expr);
 			}
 			// TODO 从缓存中取得BeanExpressionContext表达式上下文对应的StandardEvaluationContext取值上下文
-			StandardEvaluationContext sec = this.evaluationCache.get(evalContext);
+			StandardEvaluationContext sec = this.evaluationCache.get(beanExpressionContext);
 			if (sec == null) {
 				// TODO 缓存中没有StandardEvaluationContext取值上下文时, 新建一个rootObject为evalContext的上下文
-				sec = new StandardEvaluationContext(evalContext);
+				sec = new StandardEvaluationContext(beanExpressionContext);
 				// TODO 然后按顺序设置5个属性属性解析器PropertyAccessor, 这些PropertyAccessor的实现类通过实现接口中的canRead(),
 				//  read(), canWrite(), write()来实现对属性的读写操作:
 				//  1. ReflectivePropertyAccessor/DataBindingPropertyAccessor: 通过addPropertyAccessor()添加的默认解析器,
@@ -177,18 +178,18 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 				sec.addPropertyAccessor(new MapAccessor());
 				sec.addPropertyAccessor(new EnvironmentAccessor());
 				// TODO BeanFactoryResolver是针对Spring的EL bean解析器, resolve()方法调用的是beanFactory的getBean()方法
-				sec.setBeanResolver(new BeanFactoryResolver(evalContext.getBeanFactory()));
+				sec.setBeanResolver(new BeanFactoryResolver(beanExpressionContext.getBeanFactory()));
 				// TODO 设置标准的类型定位器(classLoad与evalContext相同), 支持java.lang下所有类型. 在类型使用时可以只使用类名或不必使用全限定名.
-				sec.setTypeLocator(new StandardTypeLocator(evalContext.getBeanFactory().getBeanClassLoader()));
-				// TODO 提取BeanExpressionContext中bean factory的conversionService
-				ConversionService conversionService = evalContext.getBeanFactory().getConversionService();
-				if (conversionService != null) {
+				sec.setTypeLocator(new StandardTypeLocator(beanExpressionContext.getBeanFactory().getBeanClassLoader()));
+				sec.setTypeConverter(new StandardTypeConverter(() -> {
+					// TODO 提取BeanExpressionContext中bean factory的conversionService
+					ConversionService cs = beanExpressionContext.getBeanFactory().getConversionService();
 					// TODO 如果存在, 将其包装成TypeConverter
-					sec.setTypeConverter(new StandardTypeConverter(conversionService));
-				}
+					return (cs != null ? cs : DefaultConversionService.getSharedInstance());
+				}));
 				// TODO 勾子方法, 留给子类去实现
 				customizeEvaluationContext(sec);
-				this.evaluationCache.put(evalContext, sec);
+				this.evaluationCache.put(beanExpressionContext, sec);
 			}
 			// TODO 从上下文环境sec中拿出表达式expr表示的对象
 			return expr.getValue(sec);

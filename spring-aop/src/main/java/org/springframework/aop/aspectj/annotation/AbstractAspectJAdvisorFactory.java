@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,12 +108,13 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	@Override
 	public void validate(Class<?> aspectClass) throws AopConfigException {
 		// If the parent has the annotation and isn't abstract it's an error
-		if (aspectClass.getSuperclass().getAnnotation(Aspect.class) != null &&
-				!Modifier.isAbstract(aspectClass.getSuperclass().getModifiers())) {
+		Class<?> superclass = aspectClass.getSuperclass();
+		if (superclass.getAnnotation(Aspect.class) != null &&
+				!Modifier.isAbstract(superclass.getModifiers())) {
 			// TODO Aspect不允许扩展一个具体的切面, 所以当@Aspect注解的切面的父类也被@Aspect注解, 且其父类不为抽象类时, 就会抛出异常:
 			//  [Subclass] cannot extend concrete aspect [Superclass]
 			throw new AopConfigException("[" + aspectClass.getName() + "] cannot extend concrete aspect [" +
-					aspectClass.getSuperclass().getName() + "]");
+					superclass.getName() + "]");
 		}
 
 		AjType<?> ajType = AjTypeSystem.getAjType(aspectClass);
@@ -235,8 +236,7 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 		private String resolveExpression(A annotation) {
 			for (String attributeName : EXPRESSION_ATTRIBUTES) {
 				Object val = AnnotationUtils.getValue(annotation, attributeName);
-				if (val instanceof String) {
-					String str = (String) val;
+				if (val instanceof String str) {
 					if (!str.isEmpty()) {
 						// TODO 断路操作, 只要存在一个就把值拿出来
 						return str;

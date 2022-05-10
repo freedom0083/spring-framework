@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Optional;
 
@@ -199,7 +197,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 
 	/**
 	 * Check whether the underlying field is annotated with any variant of a
-	 * {@code Nullable} annotation, e.g. {@code javax.annotation.Nullable} or
+	 * {@code Nullable} annotation, e.g. {@code jakarta.annotation.Nullable} or
 	 * {@code edu.umd.cs.findbugs.annotations.Nullable}.
 	 */
 	private boolean hasNullableAnnotation() {
@@ -234,26 +232,6 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 */
 	@Nullable
 	public Object resolveNotUnique(ResolvableType type, Map<String, Object> matchingBeans) throws BeansException {
-		throw new NoUniqueBeanDefinitionException(type, matchingBeans.keySet());
-	}
-
-	/**
-	 * Resolve the specified not-unique scenario: by default,
-	 * throwing a {@link NoUniqueBeanDefinitionException}.
-	 * <p>Subclasses may override this to select one of the instances or
-	 * to opt out with no result at all through returning {@code null}.
-	 * @param type the requested bean type
-	 * @param matchingBeans a map of bean names and corresponding bean
-	 * instances which have been pre-selected for the given type
-	 * (qualifiers etc already applied)
-	 * @return a bean instance to proceed with, or {@code null} for none
-	 * @throws BeansException in case of the not-unique scenario being fatal
-	 * @since 4.3
-	 * @deprecated as of 5.1, in favor of {@link #resolveNotUnique(ResolvableType, Map)}
-	 */
-	@Deprecated
-	@Nullable
-	public Object resolveNotUnique(Class<?> type, Map<String, Object> matchingBeans) throws BeansException {
 		throw new NoUniqueBeanDefinitionException(type, matchingBeans.keySet());
 	}
 
@@ -409,32 +387,8 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		if (this.field != null) {
 			// TODO 对字段的处理逻辑
 			if (this.nestingLevel > 1) {
-				// TODO 如果嵌套等级超过1时, 表示为泛型内包含泛型的嵌套类型, 比如(List<Sample<String>>, 或Sample<Sample2<String>>这种),
-				//  这时首先取得字段的第一层泛型类型(Sample<String>, 或Sample2<String>)
-				Type type = this.field.getGenericType();
-				for (int i = 2; i <= this.nestingLevel; i++) {
-					// TODO 然后再根据指定的层级向内遍历每一层嵌套的泛型
-					if (type instanceof ParameterizedType) {
-						// TODO 如果得到的类型是参数化类型时(使用了'<>', 即例子中Sample<String>), 取得'<>'中的实际类型集合,
-						//  (即例子中的String), 然后拿出第一个实际类型, 这个遍历最终得到的是最内部'<>'操作符中的类型, 即例子中的String
-						Type[] args = ((ParameterizedType) type).getActualTypeArguments();
-						type = args[args.length - 1];
-					}
-				}
-				if (type instanceof Class) {
-					// TODO 如果得到的是Class, 转为Class类型返回, 这种情况基本和泛型无关
-					return (Class<?>) type;
-				}
-				else if (type instanceof ParameterizedType) {
-					// TODO 如果还是个参数化类型, 取得其原生类型, 即'<>'操作符前的那个类型, 比如Map<K, V>时, 得到的就是Map
-					Type arg = ((ParameterizedType) type).getRawType();
-					if (arg instanceof Class) {
-						// TODO 如果是Class, 转为Class类型返回, 这种情况基本和泛型无关
-						return (Class<?>) arg;
-					}
-				}
-				// TODO 都不是, 返回Object
-				return Object.class;
+				Class<?> clazz = getResolvableType().getRawClass();
+				return (clazz != null ? clazz : Object.class);
 			}
 			else {
 				// TODO 没有嵌套时, 直接返回字段的类型

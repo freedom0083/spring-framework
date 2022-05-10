@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,8 +183,8 @@ public abstract class AopUtils {
 	 * may be {@code DefaultFoo}. In this case, the method may be
 	 * {@code DefaultFoo.bar()}. This enables attributes on that method to be found.
 	 * <p><b>NOTE:</b> In contrast to {@link org.springframework.util.ClassUtils#getMostSpecificMethod},
-	 * this method resolves Java 5 bridge methods in order to retrieve attributes
-	 * from the <i>original</i> method definition.
+	 * this method resolves bridge methods in order to retrieve attributes from
+	 * the <i>original</i> method definition.
 	 * @param method the method to be invoked, which may come from an interface
 	 * @param targetClass the target class for the current invocation.
 	 * May be {@code null} or may not even implement the method.
@@ -312,10 +312,8 @@ public abstract class AopUtils {
 			//  2. DefaultIntroductionAdvisor: 默认的处理引用的Advisor, 全部返回true, 表示可以应用于目标类
 			return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
 		}
-		else if (advisor instanceof PointcutAdvisor) {
-			// TODO 切点类型的Advisor
-			PointcutAdvisor pca = (PointcutAdvisor) advisor;
-			// TODO 测试代理目标类是否可以应用切点
+		else if (advisor instanceof PointcutAdvisor pca) {
+			// TODO 如果是切点类型的Advisor, 测试代理目标类是否可以应用切点
 			return canApply(pca.getPointcut(), targetClass, hasIntroductions);
 		}
 		else {

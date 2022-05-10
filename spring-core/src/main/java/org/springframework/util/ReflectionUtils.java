@@ -46,12 +46,12 @@ import org.springframework.lang.Nullable;
 public abstract class ReflectionUtils {
 
 	/**
-	 * Pre-built MethodFilter that matches all non-bridge non-synthetic methods
+	 * Pre-built {@link MethodFilter} that matches all non-bridge non-synthetic methods
 	 * which are not declared on {@code java.lang.Object}.
 	 * @since 3.0.5
 	 */
 	public static final MethodFilter USER_DECLARED_METHODS =
-			(method -> !method.isBridge() && !method.isSynthetic());
+			(method -> !method.isBridge() && !method.isSynthetic() && (method.getDeclaringClass() != Object.class));
 
 	/**
 	 * Pre-built FieldFilter that matches all non-static, non-final fields.
@@ -190,12 +190,11 @@ public abstract class ReflectionUtils {
 	/**
 	 * Make the given constructor accessible, explicitly setting it accessible
 	 * if necessary. The {@code setAccessible(true)} method is only called
-	 * when actually necessary, to avoid unnecessary conflicts with a JVM
-	 * SecurityManager (if active).
+	 * when actually necessary, to avoid unnecessary conflicts.
 	 * @param ctor the constructor to make accessible
 	 * @see java.lang.reflect.Constructor#setAccessible
 	 */
-	@SuppressWarnings("deprecation")  // on JDK 9
+	@SuppressWarnings("deprecation")
 	public static void makeAccessible(Constructor<?> ctor) {
 		if ((!Modifier.isPublic(ctor.getModifiers()) ||
 				!Modifier.isPublic(ctor.getDeclaringClass().getModifiers())) && !ctor.isAccessible()) {
@@ -358,6 +357,10 @@ public abstract class ReflectionUtils {
 	 */
 	// TODO 主要是执行MethodCallback表示的doWith()回调函数, 然后再用父类或父接口的同名方法对其进行二次包装
 	public static void doWithMethods(Class<?> clazz, MethodCallback mc, @Nullable MethodFilter mf) {
+		if (mf == USER_DECLARED_METHODS && clazz == Object.class) {
+			// nothing to introspect
+			return;
+		}
 		// Keep backing up the inheritance hierarchy.
 		// TODO 取得类中的所有方法(包含接口中的default方法)的副本
 		Method[] methods = getDeclaredMethods(clazz, false);
@@ -375,6 +378,7 @@ public abstract class ReflectionUtils {
 				throw new IllegalStateException("Not allowed to access method '" + method.getName() + "': " + ex);
 			}
 		}
+		// Keep backing up the inheritance hierarchy.
 		if (clazz.getSuperclass() != null && (mf != USER_DECLARED_METHODS || clazz.getSuperclass() != Object.class)) {
 			// TODO 在父类存在, 并且不是Object, 且过滤条件也不能是非桥接的非合成方法时, 递归父类
 			doWithMethods(clazz.getSuperclass(), mc, mf);
@@ -451,10 +455,9 @@ public abstract class ReflectionUtils {
 
 	/**
 	 * Variant of {@link Class#getDeclaredMethods()} that uses a local cache in
-	 * order to avoid the JVM's SecurityManager check and new Method instances.
-	 * In addition, it also includes Java 8 default methods from locally
-	 * implemented interfaces, since those are effectively to be treated just
-	 * like declared methods.
+	 * order to avoid new Method instances. In addition, it also includes Java 8
+	 * default methods from locally implemented interfaces, since those are
+	 * effectively to be treated just like declared methods.
 	 * @param clazz the class to introspect
 	 * @return the cached array of methods
 	 * @throws IllegalStateException if introspection fails
@@ -578,12 +581,11 @@ public abstract class ReflectionUtils {
 	/**
 	 * Make the given method accessible, explicitly setting it accessible if
 	 * necessary. The {@code setAccessible(true)} method is only called
-	 * when actually necessary, to avoid unnecessary conflicts with a JVM
-	 * SecurityManager (if active).
+	 * when actually necessary, to avoid unnecessary conflicts.
 	 * @param method the method to make accessible
 	 * @see java.lang.reflect.Method#setAccessible
 	 */
-	@SuppressWarnings("deprecation")  // on JDK 9
+	@SuppressWarnings("deprecation")
 	public static void makeAccessible(Method method) {
 		if ((!Modifier.isPublic(method.getModifiers()) ||
 				!Modifier.isPublic(method.getDeclaringClass().getModifiers())) && !method.isAccessible()) {
@@ -737,7 +739,7 @@ public abstract class ReflectionUtils {
 
 	/**
 	 * This variant retrieves {@link Class#getDeclaredFields()} from a local cache
-	 * in order to avoid the JVM's SecurityManager check and defensive array copying.
+	 * in order to avoid defensive array copying.
 	 * @param clazz the class to introspect
 	 * @return the cached array of fields
 	 * @throws IllegalStateException if introspection fails
@@ -791,12 +793,11 @@ public abstract class ReflectionUtils {
 	/**
 	 * Make the given field accessible, explicitly setting it accessible if
 	 * necessary. The {@code setAccessible(true)} method is only called
-	 * when actually necessary, to avoid unnecessary conflicts with a JVM
-	 * SecurityManager (if active).
+	 * when actually necessary, to avoid unnecessary conflicts.
 	 * @param field the field to make accessible
 	 * @see java.lang.reflect.Field#setAccessible
 	 */
-	@SuppressWarnings("deprecation")  // on JDK 9
+	@SuppressWarnings("deprecation")
 	public static void makeAccessible(Field field) {
 		if ((!Modifier.isPublic(field.getModifiers()) ||
 				!Modifier.isPublic(field.getDeclaringClass().getModifiers()) ||

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,9 @@ package org.springframework.aop.framework;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.TargetClassAware;
@@ -29,6 +31,7 @@ import org.springframework.aop.target.SingletonTargetSource;
 import org.springframework.core.DecoratingProxy;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -40,6 +43,7 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @see org.springframework.aop.support.AopUtils
  */
 public abstract class AopProxyUtils {
@@ -134,45 +138,30 @@ public abstract class AopProxyUtils {
 					// TODO 如果代理目标类是个接口, 把他也添加到代理实现的所有接口缓存里
 					advised.setInterfaces(targetClass);
 				}
-				else if (Proxy.isProxyClass(targetClass)) {
-					// TODO 如果代理类是Proxy类型, 则把其实现的接口添加到代理实现的所有接口缓存里
+				else if (Proxy.isProxyClass(targetClass) || ClassUtils.isLambdaClass(targetClass)) {
+					// TODO 如果代理类是Proxy类型或Lambda表达式, 则把其实现的接口添加到代理实现的所有接口缓存里
 					advised.setInterfaces(targetClass.getInterfaces());
 				}
 				specifiedInterfaces = advised.getProxiedInterfaces();
 			}
 		}
-		// TODO 判断一下SpringProxy是否在代理实现的接口列表里
-		boolean addSpringProxy = !advised.isInterfaceProxied(SpringProxy.class);
-		// TODO 判断一下Advised是否在代理实现的接口列表里
-		boolean addAdvised = !advised.isOpaque() && !advised.isInterfaceProxied(Advised.class);
-		// TODO 如果公开DecoratingProxy接口, 判断其是否在代理实现的接口列表里
-		boolean addDecoratingProxy = (decoratingProxy && !advised.isInterfaceProxied(DecoratingProxy.class));
-		int nonUserIfcCount = 0;
-		if (addSpringProxy) {
-			nonUserIfcCount++;
+		List<Class<?>> proxiedInterfaces = new ArrayList<>(specifiedInterfaces.length + 3);
+		for (Class<?> ifc : specifiedInterfaces) {
+			// Only non-sealed interfaces are actually eligible for JDK proxying (on JDK 17)
+			if (!ifc.isSealed()) {
+				proxiedInterfaces.add(ifc);
+			}
 		}
-		if (addAdvised) {
-			nonUserIfcCount++;
+		if (!advised.isInterfaceProxied(SpringProxy.class)) {
+			proxiedInterfaces.add(SpringProxy.class);
 		}
-		if (addDecoratingProxy) {
-			nonUserIfcCount++;
+		if (!advised.isOpaque() && !advised.isInterfaceProxied(Advised.class)) {
+			proxiedInterfaces.add(Advised.class);
 		}
-		Class<?>[] proxiedInterfaces = new Class<?>[specifiedInterfaces.length + nonUserIfcCount];
-		System.arraycopy(specifiedInterfaces, 0, proxiedInterfaces, 0, specifiedInterfaces.length);
-		int index = specifiedInterfaces.length;
-		// TODO 如果上面三个接口没有代理实现的接口列表里, 会把他们添加进去
-		if (addSpringProxy) {
-			proxiedInterfaces[index] = SpringProxy.class;
-			index++;
+		if (decoratingProxy && !advised.isInterfaceProxied(DecoratingProxy.class)) {
+			proxiedInterfaces.add(DecoratingProxy.class);
 		}
-		if (addAdvised) {
-			proxiedInterfaces[index] = Advised.class;
-			index++;
-		}
-		if (addDecoratingProxy) {
-			proxiedInterfaces[index] = DecoratingProxy.class;
-		}
-		return proxiedInterfaces;
+		return ClassUtils.toClassArray(proxiedInterfaces);
 	}
 
 	/**

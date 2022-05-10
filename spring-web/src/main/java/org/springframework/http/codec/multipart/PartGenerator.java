@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -41,6 +42,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
+import reactor.util.context.Context;
 
 import org.springframework.core.codec.DecodingException;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -48,12 +50,11 @@ import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.util.FastByteArrayOutputStream;
 
 /**
  * Subscribes to a token stream (i.e. the result of
- * {@link MultipartParser#parse(Flux, byte[], int)}, and produces a flux of {@link Part} objects.
+ * {@link MultipartParser#parse(Flux, byte[], int, Charset)}, and produces a flux of {@link Part} objects.
  *
  * @author Arjen Poutsma
  * @since 5.3
@@ -113,6 +114,11 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 	}
 
 	@Override
+	public Context currentContext() {
+		return Context.of(this.sink.contextView());
+	}
+
+	@Override
 	protected void hookOnSubscribe(Subscription subscription) {
 		requestToken();
 	}
@@ -137,7 +143,7 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 	}
 
 	private void newPart(State currentState, HttpHeaders headers) {
-		if (isFormField(headers)) {
+		if (MultipartUtils.isFormField(headers)) {
 			changeStateInternal(new FormFieldState(headers));
 			requestToken();
 		}
@@ -238,12 +244,6 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 		}
 	}
 
-	private static boolean isFormField(HttpHeaders headers) {
-		MediaType contentType = headers.getContentType();
-		return (contentType == null || MediaType.TEXT_PLAIN.equalsTypeAndSubtype(contentType))
-				&& headers.getContentDisposition().getFilename() == null;
-	}
-
 	/**
 	 * Represents the internal state of the {@link PartGenerator} for
 	 * creating a single {@link Part}.
@@ -252,7 +252,7 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 	 * {@link #newPart(State, HttpHeaders)}.
 	 * The following rules determine which state the creator will have:
 	 * <ol>
-	 * <li>If the part is a {@linkplain #isFormField(HttpHeaders) form field},
+	 * <li>If the part is a {@linkplain MultipartUtils#isFormField(HttpHeaders) form field},
 	 * the creator will be in the {@link FormFieldState}.</li>
 	 * <li>If {@linkplain #streaming} is enabled, the creator will be in the
 	 * {@link StreamingState}.</li>
@@ -321,7 +321,7 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 
 
 	/**
-	 * The creator state when a {@linkplain #isFormField(HttpHeaders) form field} is received.
+	 * The creator state when a {@linkplain MultipartUtils#isFormField(HttpHeaders) form field} is received.
 	 * Stores all body buffers in memory (up until {@link #maxInMemorySize}).
 	 */
 	private final class FormFieldState implements State {
@@ -667,19 +667,10 @@ final class PartGenerator extends BaseSubscriber<MultipartParser.Token> {
 		@Override
 		public void partComplete(boolean finalPart) {
 			MultipartUtils.closeChannel(this.channel);
-			Flux<DataBuffer> content = partContent();
-			emitPart(DefaultParts.part(this.headers, content));
+			emitPart(DefaultParts.part(this.headers, this.file, PartGenerator.this.blockingOperationScheduler));
 			if (finalPart) {
 				emitComplete();
 			}
-		}
-
-		private Flux<DataBuffer> partContent() {
-			return DataBufferUtils
-					.readByteChannel(
-							() -> Files.newByteChannel(this.file, StandardOpenOption.READ),
-							DefaultDataBufferFactory.sharedInstance, 1024)
-					.subscribeOn(PartGenerator.this.blockingOperationScheduler);
 		}
 
 		@Override

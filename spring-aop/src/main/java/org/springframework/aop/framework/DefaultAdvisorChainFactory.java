@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,9 +70,8 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 
 		for (Advisor advisor : advisors) {
 			// TODO 遍历所有的Advisor, 根据类型做不同处理
-			if (advisor instanceof PointcutAdvisor) {
+			if (advisor instanceof PointcutAdvisor pointcutAdvisor) {
 				// Add it conditionally.
-				PointcutAdvisor pointcutAdvisor = (PointcutAdvisor) advisor;
 				if (config.isPreFiltered() || pointcutAdvisor.getPointcut().getClassFilter().matches(actualClass)) {
 					// TODO 对于切点类型的Advisor, 如果已经过滤过了, 或者设置的切点与代理目标类匹配时, 就可以对目标类的方法进行匹配测试了
 					MethodMatcher mm = pointcutAdvisor.getPointcut().getMethodMatcher();
@@ -110,9 +109,8 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 					}
 				}
 			}
-			else if (advisor instanceof IntroductionAdvisor) {
+			else if (advisor instanceof IntroductionAdvisor ia) {
 				// TODO Advisor是用于处理引入的IntroductionAdvisor时
-				IntroductionAdvisor ia = (IntroductionAdvisor) advisor;
 				if (config.isPreFiltered() || ia.getClassFilter().matches(actualClass)) {
 					// TODO 如果Advisor已经过滤过了, 或者IntroductionAdvisor匹配上了代理目标类时, 从Advisor中拿出方法拦截器
 					//  MethodInterceptor, 以及MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter和ThrowsAdviceAdapter
@@ -138,8 +136,7 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 	// TODO 用于引入的Advisor里是否有可以匹配目标类的
 	private static boolean hasMatchingIntroductions(Advisor[] advisors, Class<?> actualClass) {
 		for (Advisor advisor : advisors) {
-			if (advisor instanceof IntroductionAdvisor) {
-				IntroductionAdvisor ia = (IntroductionAdvisor) advisor;
+			if (advisor instanceof IntroductionAdvisor ia) {
 				if (ia.getClassFilter().matches(actualClass)) {
 					return true;
 				}

@@ -18,7 +18,7 @@ package org.springframework.web.servlet.function
 
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
+import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import java.net.URI
 import java.util.*
@@ -649,8 +649,8 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 */
 	fun filter(filterFunction: (ServerRequest, (ServerRequest) -> ServerResponse) -> ServerResponse) {
 		builder.filter { request, next ->
-			filterFunction(request) {
-				next.handle(request)
+			filterFunction(request) { handlerRequest ->
+				next.handle(handlerRequest)
 			}
 		}
 	}
@@ -767,7 +767,7 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	/**
 	 * @see ServerResponse.status
 	 */
-	fun status(status: HttpStatus) = ServerResponse.status(status)
+	fun status(status: HttpStatusCode) = ServerResponse.status(status)
 
 	/**
 	 * @see ServerResponse.status

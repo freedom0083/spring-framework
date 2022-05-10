@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -317,49 +317,36 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		AbstractAspectJAdvice springAdvice;
 		// TODO 下面就是处理Spring AOP支持的几种Advice了
 		switch (aspectJAnnotation.getAnnotationType()) {
-			case AtPointcut:
-				// TODO Pointcut
+			case AtPointcut -> {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Processing pointcut '" + candidateAdviceMethod.getName() + "'");
 				}
 				return null;
-			case AtAround:
-				// TODO 用于环绕方法的Advice
-				springAdvice = new AspectJAroundAdvice(
-						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
-				break;
-			case AtBefore:
-				// TODO 用于方法前执行的Advice
-				springAdvice = new AspectJMethodBeforeAdvice(
-						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
-				break;
-			case AtAfter:
-				// TODO 用于方法后执行的Advice
-				springAdvice = new AspectJAfterAdvice(
-						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
-				break;
-			case AtAfterReturning:
-				// TODO 用于方法返回后执行的Advice
+			}
+			case AtAround -> springAdvice = new AspectJAroundAdvice(
+					candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
+			case AtBefore -> springAdvice = new AspectJMethodBeforeAdvice(
+					candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
+			case AtAfter -> springAdvice = new AspectJAfterAdvice(
+					candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
+			case AtAfterReturning -> {
 				springAdvice = new AspectJAfterReturningAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				AfterReturning afterReturningAnnotation = (AfterReturning) aspectJAnnotation.getAnnotation();
 				if (StringUtils.hasText(afterReturningAnnotation.returning())) {
 					springAdvice.setReturningName(afterReturningAnnotation.returning());
 				}
-				break;
-			case AtAfterThrowing:
-				// TODO 用于抛出异常后执行的Advice
+			}
+			case AtAfterThrowing -> {
 				springAdvice = new AspectJAfterThrowingAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				AfterThrowing afterThrowingAnnotation = (AfterThrowing) aspectJAnnotation.getAnnotation();
 				if (StringUtils.hasText(afterThrowingAnnotation.throwing())) {
 					springAdvice.setThrowingName(afterThrowingAnnotation.throwing());
 				}
-				break;
-			default:
-				// TODO 其他的就全不支持了
-				throw new UnsupportedOperationException(
-						"Unsupported advice type on method: " + candidateAdviceMethod);
+			}
+			default -> throw new UnsupportedOperationException(
+					"Unsupported advice type on method: " + candidateAdviceMethod);
 		}
 
 		// Now to configure the advice...

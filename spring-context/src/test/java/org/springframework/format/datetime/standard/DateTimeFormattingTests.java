@@ -16,6 +16,7 @@
 
 package org.springframework.format.datetime.standard;
 
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -63,6 +64,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Juergen Hoeller
  * @author Phillip Webb
  * @author Sam Brannen
+ * @author Kazuki Shimizu
  */
 class DateTimeFormattingTests {
 
@@ -321,6 +323,36 @@ class DateTimeFormattingTests {
 	}
 
 	@Test
+	void isoLocalDateWithInvalidFormat() {
+		MutablePropertyValues propertyValues = new MutablePropertyValues();
+		String propertyName = "isoLocalDate";
+		propertyValues.add(propertyName, "2009-31-10");
+		binder.bind(propertyValues);
+		BindingResult bindingResult = binder.getBindingResult();
+		assertThat(bindingResult.getErrorCount()).isEqualTo(1);
+		FieldError fieldError = bindingResult.getFieldError(propertyName);
+		assertThat(fieldError.unwrap(TypeMismatchException.class))
+			.hasMessageContaining("for property 'isoLocalDate'")
+			.hasCauseInstanceOf(ConversionFailedException.class).getCause()
+				.hasMessageContaining("for value '2009-31-10'")
+				.hasCauseInstanceOf(IllegalArgumentException.class).getCause()
+					.hasMessageContaining("Parse attempt failed for value [2009-31-10]")
+					.hasCauseInstanceOf(DateTimeParseException.class).getCause()
+						// Unable to parse date time value "2009-31-10" using configuration from
+						// @org.springframework.format.annotation.DateTimeFormat(pattern=, style=SS, iso=DATE, fallbackPatterns=[])
+						// We do not check "fallbackPatterns=[]", since the array representation in the toString()
+						// implementation for annotations changed from [] to {} in Java 9.
+						.hasMessageContainingAll(
+							"Unable to parse date time value \"2009-31-10\" using configuration from",
+							"@org.springframework.format.annotation.DateTimeFormat", "iso=DATE")
+						.hasCauseInstanceOf(DateTimeParseException.class).getCause()
+							.hasMessageStartingWith("Text '2009-31-10'")
+							.hasCauseInstanceOf(DateTimeException.class).getCause()
+								.hasMessageContaining("Invalid value for MonthOfYear (valid values 1 - 12): 31")
+								.hasNoCause();
+	}
+
+	@Test
 	void testBindISOTime() {
 		MutablePropertyValues propertyValues = new MutablePropertyValues();
 		propertyValues.add("isoLocalTime", "12:00:00");
@@ -363,6 +395,15 @@ class DateTimeFormattingTests {
 		binder.bind(propertyValues);
 		assertThat(binder.getBindingResult().getErrorCount()).isEqualTo(0);
 		assertThat(binder.getBindingResult().getFieldValue("instant").toString().startsWith("2009-10-31T12:00")).isTrue();
+	}
+
+	@Test
+	void testBindInstantAnnotated() {
+		MutablePropertyValues propertyValues = new MutablePropertyValues();
+		propertyValues.add("styleInstant", "2017-02-21T13:00");
+		binder.bind(propertyValues);
+		assertThat(binder.getBindingResult().getErrorCount()).isEqualTo(0);
+		assertThat(binder.getBindingResult().getFieldValue("styleInstant")).isEqualTo("2017-02-21T13:00");
 	}
 
 	@Test
@@ -437,12 +478,32 @@ class DateTimeFormattingTests {
 	}
 
 	@Test
+	public void testBindYearMonthAnnotatedPattern() {
+		MutablePropertyValues propertyValues = new MutablePropertyValues();
+		propertyValues.add("yearMonthAnnotatedPattern", "12/2007");
+		binder.bind(propertyValues);
+		assertThat(binder.getBindingResult().getErrorCount()).isEqualTo(0);
+		assertThat(binder.getBindingResult().getFieldValue("yearMonthAnnotatedPattern")).isEqualTo("12/2007");
+		assertThat(binder.getBindingResult().getRawFieldValue("yearMonthAnnotatedPattern")).isEqualTo(YearMonth.parse("2007-12"));
+	}
+
+	@Test
 	void testBindMonthDay() {
 		MutablePropertyValues propertyValues = new MutablePropertyValues();
 		propertyValues.add("monthDay", "--12-03");
 		binder.bind(propertyValues);
 		assertThat(binder.getBindingResult().getErrorCount()).isEqualTo(0);
 		assertThat(binder.getBindingResult().getFieldValue("monthDay").toString().equals("--12-03")).isTrue();
+	}
+
+	@Test
+	public void testBindMonthDayAnnotatedPattern() {
+		MutablePropertyValues propertyValues = new MutablePropertyValues();
+		propertyValues.add("monthDayAnnotatedPattern", "1/3");
+		binder.bind(propertyValues);
+		assertThat(binder.getBindingResult().getErrorCount()).isEqualTo(0);
+		assertThat(binder.getBindingResult().getFieldValue("monthDayAnnotatedPattern")).isEqualTo("1/3");
+		assertThat(binder.getBindingResult().getRawFieldValue("monthDayAnnotatedPattern")).isEqualTo(MonthDay.parse("--01-03"));
 	}
 
 	@Nested
@@ -519,9 +580,12 @@ class DateTimeFormattingTests {
 							.hasMessageContainingAll(
 								"Unable to parse date time value \"210302\" using configuration from",
 								"@org.springframework.format.annotation.DateTimeFormat",
-								"yyyy-MM-dd", "M/d/yy", "yyyyMMdd", "yyyy.MM.dd");
+								"yyyy-MM-dd", "M/d/yy", "yyyyMMdd", "yyyy.MM.dd")
+							.hasCauseInstanceOf(DateTimeParseException.class).getCause()
+								.hasMessageStartingWith("Text '210302'")
+								.hasNoCause();
 		}
-}
+	}
 
 
 	public static class DateTimeBean {
@@ -567,6 +631,9 @@ class DateTimeFormattingTests {
 
 		private Instant instant;
 
+		@DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+		private Instant styleInstant;
+
 		private Period period;
 
 		private Duration duration;
@@ -577,7 +644,13 @@ class DateTimeFormattingTests {
 
 		private YearMonth yearMonth;
 
+		@DateTimeFormat(pattern="MM/uuuu")
+		private YearMonth yearMonthAnnotatedPattern;
+
 		private MonthDay monthDay;
+
+		@DateTimeFormat(pattern="M/d")
+		private MonthDay monthDayAnnotatedPattern;
 
 		private final List<DateTimeBean> children = new ArrayList<>();
 
@@ -701,6 +774,14 @@ class DateTimeFormattingTests {
 			this.instant = instant;
 		}
 
+		public Instant getStyleInstant() {
+			return this.styleInstant;
+		}
+
+		public void setStyleInstant(Instant styleInstant) {
+			this.styleInstant = styleInstant;
+		}
+
 		public Period getPeriod() {
 			return this.period;
 		}
@@ -741,12 +822,28 @@ class DateTimeFormattingTests {
 			this.yearMonth = yearMonth;
 		}
 
+		public YearMonth getYearMonthAnnotatedPattern() {
+			return yearMonthAnnotatedPattern;
+		}
+
+		public void setYearMonthAnnotatedPattern(YearMonth yearMonthAnnotatedPattern) {
+			this.yearMonthAnnotatedPattern = yearMonthAnnotatedPattern;
+		}
+
 		public MonthDay getMonthDay() {
 			return this.monthDay;
 		}
 
 		public void setMonthDay(MonthDay monthDay) {
 			this.monthDay = monthDay;
+		}
+
+		public MonthDay getMonthDayAnnotatedPattern() {
+			return monthDayAnnotatedPattern;
+		}
+
+		public void setMonthDayAnnotatedPattern(MonthDay monthDayAnnotatedPattern) {
+			this.monthDayAnnotatedPattern = monthDayAnnotatedPattern;
 		}
 
 		public List<DateTimeBean> getChildren() {

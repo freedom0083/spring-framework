@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
-import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader;
@@ -191,7 +190,6 @@ class ConfigurationClassBeanDefinitionReader {
 	 * Read the given {@link BeanMethod}, registering bean definitions
 	 * with the BeanDefinitionRegistry based on its contents.
 	 */
-	@SuppressWarnings("deprecation")  // for RequiredAnnotationBeanPostProcessor.SKIP_REQUIRED_CHECK_ATTRIBUTE
 	// TODO 注册@Bean标注的方法
 	private void loadBeanDefinitionsForBeanMethod(BeanMethod beanMethod) {
 		ConfigurationClass configClass = beanMethod.getConfigurationClass();
@@ -255,9 +253,9 @@ class ConfigurationClassBeanDefinitionReader {
 		if (metadata.isStatic()) {
 			// static @Bean method
 			// TODO 如果@Bean所标注的方法是Static修饰的静态方法, 表示其为一个静态bean方法(静态工厂方法)
-			if (configClass.getMetadata() instanceof StandardAnnotationMetadata) {
+			if (configClass.getMetadata() instanceof StandardAnnotationMetadata sam) {
 				// TODO @Bean注解的静态方法元数据类型是java标准反射时(StandardAnnotationMetadata), 用其内省类做为bean的全限定名
-				beanDef.setBeanClass(((StandardAnnotationMetadata) configClass.getMetadata()).getIntrospectedClass());
+				beanDef.setBeanClass(sam.getIntrospectedClass());
 			}
 			else {
 				// TODO 其他情况, 把@Bean所在的配置文件的名字做bean的全限定名
@@ -274,23 +272,15 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
-		if (metadata instanceof StandardMethodMetadata) {
+		if (metadata instanceof StandardMethodMetadata sam) {
 			// TODO @Bean标注的方法的元数据是StandardMethodMetadata时, 将其内省对象做为bean的解析过的工厂方法
-			beanDef.setResolvedFactoryMethod(((StandardMethodMetadata) metadata).getIntrospectedMethod());
+			beanDef.setResolvedFactoryMethod(sam.getIntrospectedMethod());
 		}
 		// TODO 设置自动装配模式, 默认为构造器模式
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
-		// TODO 设置skipRequiredCheck
-		beanDef.setAttribute(org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor.
-				SKIP_REQUIRED_CHECK_ATTRIBUTE, Boolean.TRUE);
 		// TODO 处理通用注解, @Lazy, @Primary, @DependsOn, @Role, @Description
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(beanDef, metadata);
 
-		Autowire autowire = bean.getEnum("autowire");
-		// TODO 根据@Bean注解的autowire属性来决定是否重新设置自动装配模式
-		if (autowire.isAutowire()) {
-			beanDef.setAutowireMode(autowire.value());
-		}
 		// TODO autowireCandidate是5.1时加入到@Bean的新属性, 用来设置当前类是否为装配到其他类的候选类, 只适用于按类型装配
 		//  在AbstractBeanDefinition.autowireCandidate中的默认为true
 		boolean autowireCandidate = bean.getBoolean("autowireCandidate");
@@ -349,12 +339,10 @@ class ConfigurationClassBeanDefinitionReader {
 		// -> allow the current bean method to override, since both are at second-pass level.
 		// However, if the bean method is an overloaded case on the same configuration class,
 		// preserve the existing bean definition.
-		if (existingBeanDef instanceof ConfigurationClassBeanDefinition) {
-			// TODO 配置类中@Bean注解的不同方法可以使用相同的名字
-			ConfigurationClassBeanDefinition ccbd = (ConfigurationClassBeanDefinition) existingBeanDef;
+		if (existingBeanDef instanceof ConfigurationClassBeanDefinition ccbd) {
 			if (ccbd.getMetadata().getClassName().equals(
 					beanMethod.getConfigurationClass().getMetadata().getClassName())) {
-				// TODO 对于同一个配置类来说, 如果出现@Bean注解的方法拥有相同的名字的情况, 则本次注册不会覆盖第一个注册的@Bean方法
+				// TODO 配置类中@Bean注解的不同方法可以使用相同的名字, 对于同一个配置类来说, 如果出现@Bean注解的方法拥有相同的名字的情况, 则本次注册不会覆盖第一个注册的@Bean方法
 				//  即, 返回true来表示之前有@Bean方法已经注册了相同的方法名, 当前@Bean方法已经被覆盖过, 不需要再注册, 直接跳过
 				if (ccbd.getFactoryMethodMetadata().getMethodName().equals(ccbd.getFactoryMethodName())) {
 					// TODO 然后再设置一下第一个注册的@Bean方法, 通知其并非唯一, 还有其他同名@Bean方法被覆盖过
@@ -385,8 +373,8 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// At this point, it's a top-level override (probably XML), just having been parsed
 		// before configuration class processing kicks in...
-		if (this.registry instanceof DefaultListableBeanFactory &&
-				!((DefaultListableBeanFactory) this.registry).isAllowBeanDefinitionOverriding()) {
+		if (this.registry instanceof DefaultListableBeanFactory dlbf &&
+				!dlbf.isAllowBeanDefinitionOverriding()) {
 			// TODO 如果设置了不允许覆盖方法, 则会抛出异常
 			throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
 					beanName, "@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
@@ -428,8 +416,7 @@ class ConfigurationClassBeanDefinitionReader {
 					// Instantiate the specified BeanDefinitionReader
 					reader = readerClass.getConstructor(BeanDefinitionRegistry.class).newInstance(this.registry);
 					// Delegate the current ResourceLoader to it if possible
-					if (reader instanceof AbstractBeanDefinitionReader) {
-						AbstractBeanDefinitionReader abdr = ((AbstractBeanDefinitionReader) reader);
+					if (reader instanceof AbstractBeanDefinitionReader abdr) {
 						abdr.setResourceLoader(this.resourceLoader);
 						abdr.setEnvironment(this.environment);
 					}

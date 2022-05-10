@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -164,8 +164,7 @@ public abstract class BeanFactoryUtils {
 	public static String[] beanNamesForTypeIncludingAncestors(ListableBeanFactory lbf, ResolvableType type) {
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		String[] result = lbf.getBeanNamesForType(type);
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type);
@@ -202,8 +201,7 @@ public abstract class BeanFactoryUtils {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);
@@ -229,8 +227,7 @@ public abstract class BeanFactoryUtils {
 	public static String[] beanNamesForTypeIncludingAncestors(ListableBeanFactory lbf, Class<?> type) {
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		String[] result = lbf.getBeanNamesForType(type);
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type);
@@ -273,9 +270,8 @@ public abstract class BeanFactoryUtils {
 		//  2. AbstractApplicationContext: 使用了DefaultListableBeanFactory的getBeanNamesForType()方法
 		//  3. StaticListableBeanFactory: 从缓存中返回匹配的bean集合
 		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
-		if (lbf instanceof HierarchicalBeanFactory) {
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			// TODO 如果容器是HierarchicalBeanFactory类型的, 会进到父容器中取得其中相同类型的bean的名字
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				// TODO 对于容器是HierarchicalBeanFactory类型的情况, 如果其父容器是ListableBeanFactory类型, 则进到父容器去取得相同类型的bean的名字
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
@@ -302,8 +298,7 @@ public abstract class BeanFactoryUtils {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		String[] result = lbf.getBeanNamesForAnnotation(annotationType);
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				String[] parentResult = beanNamesForAnnotationIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), annotationType);
@@ -340,8 +335,7 @@ public abstract class BeanFactoryUtils {
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		Map<String, T> result = new LinkedHashMap<>(4);
 		result.putAll(lbf.getBeansOfType(type));
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				Map<String, T> parentResult = beansOfTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type);
@@ -389,8 +383,7 @@ public abstract class BeanFactoryUtils {
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		Map<String, T> result = new LinkedHashMap<>(4);
 		result.putAll(lbf.getBeansOfType(type, includeNonSingletons, allowEagerInit));
-		if (lbf instanceof HierarchicalBeanFactory) {
-			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+		if (lbf instanceof HierarchicalBeanFactory hbf) {
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
 				Map<String, T> parentResult = beansOfTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);

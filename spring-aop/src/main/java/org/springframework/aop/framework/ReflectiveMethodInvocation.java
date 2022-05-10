@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,11 +168,9 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		// TODO 挨个执行方法拦截器
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
-		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
+		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher dm) {
 			// Evaluate dynamic method matcher here: static part will already have
 			// been evaluated and found to match.
-			InterceptorAndDynamicMethodMatcher dm =
-					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
 			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
 			// TODO InterceptorAndDynamicMethodMatcher类型的拦截器，需要在方法调用时再次使用methodMatcher来判断是否可以拦截此方法.
 			//  只不过这次调用methodMatcher的matches()方法为三个参数的:

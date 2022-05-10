@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,6 @@ package org.springframework.beans.factory.support;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedExceptionAction;
 
 import org.springframework.beans.BeanInstantiationException;
 import org.springframework.beans.BeanUtils;
@@ -73,13 +70,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 						throw new BeanInstantiationException(clazz, "Specified class is an interface");
 					}
 					try {
-						if (System.getSecurityManager() != null) {
-							constructorToUse = AccessController.doPrivileged(
-									(PrivilegedExceptionAction<Constructor<?>>) clazz::getDeclaredConstructor);
-						}
-						else {
-							constructorToUse = clazz.getDeclaredConstructor();
-						}
+						constructorToUse = clazz.getDeclaredConstructor();
 						// TODO 然后把默认的构造器做为解析过的构造器或工厂方法, 放到bean表示的mbd的缓存中
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
@@ -113,14 +104,6 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 			final Constructor<?> ctor, Object... args) {
 
 		if (!bd.hasMethodOverrides()) {
-			// TODO 是实例化的bean没有方法被覆盖过时, 如果没有开启Java安全机制, 直接使用BeanUtils对bean进行实例化
-			if (System.getSecurityManager() != null) {
-				// use own privileged to change accessibility (when security is on)
-				AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-					ReflectionUtils.makeAccessible(ctor);
-					return null;
-				});
-			}
 			return BeanUtils.instantiateClass(ctor, args);
 		}
 		else {
@@ -164,16 +147,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 			@Nullable Object factoryBean, final Method factoryMethod, Object... args) {
 
 		try {
-			if (System.getSecurityManager() != null) {
-				AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-					ReflectionUtils.makeAccessible(factoryMethod);
-					return null;
-				});
-			}
-			else {
-				// TODO 工厂方法设置为可进入
-				ReflectionUtils.makeAccessible(factoryMethod);
-			}
+			ReflectionUtils.makeAccessible(factoryMethod);
 
 			Method priorInvokedFactoryMethod = currentlyInvokedFactoryMethod.get();
 			try {

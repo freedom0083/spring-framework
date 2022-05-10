@@ -293,8 +293,7 @@ public class ApplicationListenerMethodAdapter implements GenericApplicationListe
 				publishEvent(event);
 			}
 		}
-		else if (result instanceof Collection<?>) {
-			Collection<?> events = (Collection<?>) result;
+		else if (result instanceof Collection<?> events) {
 			for (Object event : events) {
 				publishEvent(event);
 			}
@@ -396,7 +395,7 @@ public class ApplicationListenerMethodAdapter implements GenericApplicationListe
 	 * @param message error message to append the HandlerMethod details to
 	 */
 	protected String getDetailedErrorMessage(Object bean, String message) {
-		StringBuilder sb = new StringBuilder(message).append("\n");
+		StringBuilder sb = new StringBuilder(message).append('\n');
 		sb.append("HandlerMethod details: \n");
 		sb.append("Bean [").append(bean.getClass().getName()).append("]\n");
 		sb.append("Method [").append(this.method.toGenericString()).append("]\n");
@@ -426,7 +425,7 @@ public class ApplicationListenerMethodAdapter implements GenericApplicationListe
 		StringBuilder sb = new StringBuilder(getDetailedErrorMessage(bean, message));
 		sb.append("Resolved arguments: \n");
 		for (int i = 0; i < resolvedArgs.length; i++) {
-			sb.append("[").append(i).append("] ");
+			sb.append('[').append(i).append("] ");
 			if (resolvedArgs[i] == null) {
 				sb.append("[null] \n");
 			}

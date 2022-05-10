@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -214,9 +214,8 @@ abstract class AutowireUtils {
 				Object arg = args[i];
 				if (methodParameterType.equals(genericReturnType)) {
 					// TODO 找出与返回类型相同的那个参数
-					if (arg instanceof TypedStringValue) {
+					if (arg instanceof TypedStringValue typedValue) {
 						// TODO 如果当前索引位置的参数类型是TypedStringValue类型时, 对其进行解析
-						TypedStringValue typedValue = ((TypedStringValue) arg);
 						if (typedValue.hasTargetType()) {
 							// TODO 有解析结果, 直接返回
 							return typedValue.getTargetType();
@@ -242,11 +241,10 @@ abstract class AutowireUtils {
 					// TODO 其他情况都返回方法的返回类型
 					return method.getReturnType();
 				}
-				else if (methodParameterType instanceof ParameterizedType) {
+				else if (methodParameterType instanceof ParameterizedType parameterizedType) {
 					// TODO 如果方法的参数类型是参数化类型ParameterizedType,, 即泛型. 例如: List<T>, Map<K,V>等带有参数化的对象,
 					//  就看其中的每个参数是否与返回类型相匹配
-					ParameterizedType parameterizedType = (ParameterizedType) methodParameterType;
-					// TODO 获取<>中实际的类型参数, 返回一个Type数组
+					//  获取<>中实际的类型参数, 返回一个Type数组
 					Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 					for (Type typeArg : actualTypeArguments) {
 						// TODO 开始遍历<>中所有的参数类型
@@ -262,10 +260,8 @@ abstract class AutowireUtils {
 									// TODO 如果是String类型, 则表示为一个Class对象的名
 									className = (String) arg;
 								}
-								else if (arg instanceof TypedStringValue) {
-									// TODO 如果是TypedStringValue类型
-									TypedStringValue typedValue = ((TypedStringValue) arg);
-									// TODO 则取得其持有的目标类型的名字
+								else if (arg instanceof TypedStringValue typedValue) {
+									// TODO 如果是TypedStringValue类型, 则取得其持有的目标类型的名字
 									String targetTypeName = typedValue.getTargetTypeName();
 									if (targetTypeName == null || Class.class.getName().equals(targetTypeName)) {
 										// TODO 参数没有目标类型名, 或者目标类型名是Class时, 用目标值做为Class对象的值

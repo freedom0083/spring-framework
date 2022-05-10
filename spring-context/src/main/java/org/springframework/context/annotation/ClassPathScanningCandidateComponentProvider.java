@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.context.annotation;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -197,8 +198,8 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 	 * {@link Component @Component} meta-annotation including the
 	 * {@link Repository @Repository}, {@link Service @Service}, and
 	 * {@link Controller @Controller} stereotype annotations.
-	 * <p>Also supports Java EE 6's {@link javax.annotation.ManagedBean} and
-	 * JSR-330's {@link javax.inject.Named} annotations, if available.
+	 * <p>Also supports Jakarta EE's {@link jakarta.annotation.ManagedBean} and
+	 * JSR-330's {@link jakarta.inject.Named} annotations, if available.
 	 *
 	 */
 	@SuppressWarnings("unchecked")
@@ -209,17 +210,17 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 		try {
 			// TODO 添加JSR-250支持
 			this.includeFilters.add(new AnnotationTypeFilter(
-					((Class<? extends Annotation>) ClassUtils.forName("javax.annotation.ManagedBean", cl)), false));
-			logger.trace("JSR-250 'javax.annotation.ManagedBean' found and supported for component scanning");
+					((Class<? extends Annotation>) ClassUtils.forName("jakarta.annotation.ManagedBean", cl)), false));
+			logger.trace("JSR-250 'jakarta.annotation.ManagedBean' found and supported for component scanning");
 		}
 		catch (ClassNotFoundException ex) {
-			// JSR-250 1.1 API (as included in Java EE 6) not available - simply skip.
+			// JSR-250 1.1 API (as included in Jakarta EE) not available - simply skip.
 		}
 		try {
 			// TODO 添加JSR-330支持
 			this.includeFilters.add(new AnnotationTypeFilter(
-					((Class<? extends Annotation>) ClassUtils.forName("javax.inject.Named", cl)), false));
-			logger.trace("JSR-330 'javax.inject.Named' annotation found and supported for component scanning");
+					((Class<? extends Annotation>) ClassUtils.forName("jakarta.inject.Named", cl)), false));
+			logger.trace("JSR-330 'jakarta.inject.Named' annotation found and supported for component scanning");
 		}
 		catch (ClassNotFoundException ex) {
 			// JSR-330 API not available - simply skip.
@@ -439,48 +440,46 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 				if (traceEnabled) {
 					logger.trace("Scanning " + resource);
 				}
-				if (resource.isReadable()) {
-					try {
-						// TODO 默认的MetadataReaderFactory实现类为CachingMetadataReaderFactory
-						//  默认返回的是SimpleMetadataReader对象
-						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
-						// TODO 根据includeFilters过滤器和元数据信息来来判断此类是否是可以成为一个侯选类(比如就否有@Component等)
-						if (isCandidateComponent(metadataReader)) {
-							// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 其beanClass属性为元数据中class属性的值, 这里创建的是
-							//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作
-							//  是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
-							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
-							sbd.setSource(resource);
-							// TODO 判断beanDefinition是否为一个可以实例化的具体类
-							//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
-							if (isCandidateComponent(sbd)) {
-								if (debugEnabled) {
-									logger.debug("Identified candidate component class: " + resource);
-								}
-								// TODO 只有可以实例化的类才能加入侯选中
-								candidates.add(sbd);
+				try {
+					// TODO 默认的MetadataReaderFactory实现类为CachingMetadataReaderFactory
+					//  默认返回的是SimpleMetadataReader对象
+					MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
+					// TODO 根据includeFilters过滤器和元数据信息来来判断此类是否是可以成为一个侯选类(比如就否有@Component等)
+					if (isCandidateComponent(metadataReader)) {
+						// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 其beanClass属性为元数据中class属性的值, 这里创建的是
+						//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作
+						//  是GenericBeanDefinition的子类, 并且实现了AnnotatedBeanDefinition接口
+						ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
+						sbd.setSource(resource);
+						// TODO 判断beanDefinition是否为一个可以实例化的具体类
+						//  对于abstract类的情况, 如果在@Lookup注解或<lookup-method />配置了实现, 也是可以的
+						if (isCandidateComponent(sbd)) {
+							if (debugEnabled) {
+								logger.debug("Identified candidate component class: " + resource);
 							}
-							else {
-								if (debugEnabled) {
-									logger.debug("Ignored because not a concrete top-level class: " + resource);
-								}
-							}
+							// TODO 只有可以实例化的类才能加入侯选中
+							candidates.add(sbd);
 						}
 						else {
-							if (traceEnabled) {
-								logger.trace("Ignored because not matching any filter: " + resource);
+							if (debugEnabled) {
+								logger.debug("Ignored because not a concrete top-level class: " + resource);
 							}
 						}
 					}
-					catch (Throwable ex) {
-						throw new BeanDefinitionStoreException(
-								"Failed to read candidate component class: " + resource, ex);
+					else {
+						if (traceEnabled) {
+							logger.trace("Ignored because not matching any filter: " + resource);
+						}
 					}
 				}
-				else {
+				catch (FileNotFoundException ex) {
 					if (traceEnabled) {
-						logger.trace("Ignored because not readable: " + resource);
+						logger.trace("Ignored non-readable " + resource + ": " + ex.getMessage());
 					}
+				}
+				catch (Throwable ex) {
+					throw new BeanDefinitionStoreException(
+							"Failed to read candidate component class: " + resource, ex);
 				}
 			}
 		}

@@ -46,7 +46,7 @@ import org.springframework.util.ObjectUtils;
  * against {@link Qualifier qualifier annotations} on the field or parameter to be autowired.
  * Also supports suggested expression values through a {@link Value value} annotation.
  *
- * <p>Also supports JSR-330's {@link javax.inject.Qualifier} annotation, if available.
+ * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation, if available.
  *
  * @author Mark Fisher
  * @author Juergen Hoeller
@@ -65,7 +65,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	/**
 	 * Create a new QualifierAnnotationAutowireCandidateResolver
 	 * for Spring's standard {@link Qualifier} annotation.
-	 * <p>Also supports JSR-330's {@link javax.inject.Qualifier} annotation, if available.
+	 * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation, if available.
 	 */
 	@SuppressWarnings("unchecked")
 	public QualifierAnnotationAutowireCandidateResolver() {
@@ -73,7 +73,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 		this.qualifierTypes.add(Qualifier.class);
 		try {
 			// TODO 注册JSR-330的javax.inject.Qualifier
-			this.qualifierTypes.add((Class<? extends Annotation>) ClassUtils.forName("javax.inject.Qualifier",
+			this.qualifierTypes.add((Class<? extends Annotation>) ClassUtils.forName("jakarta.inject.Qualifier",
 							QualifierAnnotationAutowireCandidateResolver.class.getClassLoader()));
 		}
 		catch (ClassNotFoundException ex) {

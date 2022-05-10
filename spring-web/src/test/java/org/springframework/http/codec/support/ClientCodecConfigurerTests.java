@@ -61,6 +61,7 @@ import org.springframework.http.codec.json.Jackson2SmileEncoder;
 import org.springframework.http.codec.json.KotlinSerializationJsonDecoder;
 import org.springframework.http.codec.json.KotlinSerializationJsonEncoder;
 import org.springframework.http.codec.multipart.MultipartHttpMessageWriter;
+import org.springframework.http.codec.multipart.PartEventHttpMessageWriter;
 import org.springframework.http.codec.protobuf.ProtobufDecoder;
 import org.springframework.http.codec.protobuf.ProtobufHttpMessageWriter;
 import org.springframework.http.codec.xml.Jaxb2XmlDecoder;
@@ -106,7 +107,7 @@ public class ClientCodecConfigurerTests {
 	@Test
 	public void defaultWriters() {
 		List<HttpMessageWriter<?>> writers = this.configurer.getWriters();
-		assertThat(writers.size()).isEqualTo(13);
+		assertThat(writers.size()).isEqualTo(14);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(ByteArrayEncoder.class);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(ByteBufferEncoder.class);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(DataBufferEncoder.class);
@@ -115,6 +116,7 @@ public class ClientCodecConfigurerTests {
 		assertStringEncoder(getNextEncoder(writers), true);
 		assertThat(writers.get(index.getAndIncrement()).getClass()).isEqualTo(ProtobufHttpMessageWriter.class);
 		assertThat(writers.get(this.index.getAndIncrement()).getClass()).isEqualTo(MultipartHttpMessageWriter.class);
+		assertThat(writers.get(this.index.getAndIncrement()).getClass()).isEqualTo(PartEventHttpMessageWriter.class);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(KotlinSerializationJsonEncoder.class);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(Jackson2JsonEncoder.class);
 		assertThat(getNextEncoder(writers).getClass()).isEqualTo(Jackson2SmileEncoder.class);
@@ -123,12 +125,28 @@ public class ClientCodecConfigurerTests {
 	}
 
 	@Test
-	public void jackson2CodecCustomizations() {
+	public void jackson2CodecCustomization() {
 		Jackson2JsonDecoder decoder = new Jackson2JsonDecoder();
 		Jackson2JsonEncoder encoder = new Jackson2JsonEncoder();
 		this.configurer.defaultCodecs().jackson2JsonDecoder(decoder);
 		this.configurer.defaultCodecs().jackson2JsonEncoder(encoder);
 
+		List<HttpMessageReader<?>> readers = this.configurer.getReaders();
+		Jackson2JsonDecoder actualDecoder = findCodec(readers, Jackson2JsonDecoder.class);
+		assertThat(actualDecoder).isSameAs(decoder);
+		assertThat(findCodec(readers, ServerSentEventHttpMessageReader.class).getDecoder()).isSameAs(decoder);
+
+		List<HttpMessageWriter<?>> writers = this.configurer.getWriters();
+		Jackson2JsonEncoder actualEncoder = findCodec(writers, Jackson2JsonEncoder.class);
+		assertThat(actualEncoder).isSameAs(encoder);
+
+		MultipartHttpMessageWriter multipartWriter = findCodec(writers, MultipartHttpMessageWriter.class);
+		actualEncoder = findCodec(multipartWriter.getPartWriters(), Jackson2JsonEncoder.class);
+		assertThat(actualEncoder).isSameAs(encoder);
+	}
+
+	@Test
+	public void objectMapperCustomization() {
 		ObjectMapper objectMapper = new ObjectMapper();
 		this.configurer.defaultCodecs().configureDefaultCodec(codec -> {
 			if (codec instanceof Jackson2CodecSupport) {
@@ -138,13 +156,14 @@ public class ClientCodecConfigurerTests {
 
 		List<HttpMessageReader<?>> readers = this.configurer.getReaders();
 		Jackson2JsonDecoder actualDecoder = findCodec(readers, Jackson2JsonDecoder.class);
-		assertThat(actualDecoder).isSameAs(decoder);
 		assertThat(actualDecoder.getObjectMapper()).isSameAs(objectMapper);
-		assertThat(findCodec(readers, ServerSentEventHttpMessageReader.class).getDecoder()).isSameAs(decoder);
 
 		List<HttpMessageWriter<?>> writers = this.configurer.getWriters();
 		Jackson2JsonEncoder actualEncoder = findCodec(writers, Jackson2JsonEncoder.class);
-		assertThat(actualEncoder).isSameAs(encoder);
+		assertThat(actualEncoder.getObjectMapper()).isSameAs(objectMapper);
+
+		MultipartHttpMessageWriter multipartWriter = findCodec(writers, MultipartHttpMessageWriter.class);
+		actualEncoder = findCodec(multipartWriter.getPartWriters(), Jackson2JsonEncoder.class);
 		assertThat(actualEncoder.getObjectMapper()).isSameAs(objectMapper);
 	}
 

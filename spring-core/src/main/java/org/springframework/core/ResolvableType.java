@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,11 +48,11 @@ import org.springframework.util.StringUtils;
  * {@link #getGeneric(int...) generic parameters} along with the ability to ultimately
  * {@link #resolve() resolve} to a {@link java.lang.Class}.
  *
- * <p>{@code ResolvableTypes} may be obtained from {@link #forField(Field) fields},
- * {@link #forMethodParameter(Method, int) method parameters},
- * {@link #forMethodReturnType(Method) method returns} or
- * {@link #forClass(Class) classes}. Most methods on this class will themselves return
- * {@link ResolvableType ResolvableTypes}, allowing easy navigation. For example:
+ * <p>A {@code ResolvableType} may be obtained from a {@linkplain #forField(Field) field},
+ * a {@linkplain #forMethodParameter(Method, int) method parameter},
+ * a {@linkplain #forMethodReturnType(Method) method return type}, or a
+ * {@linkplain #forClass(Class) class}. Most methods on this class will themselves return
+ * a {@code ResolvableType}, allowing for easy navigation. For example:
  * <pre class="code">
  * private HashMap&lt;Integer, List&lt;String&gt;&gt; myMap;
  *
@@ -183,7 +183,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Private constructor used to create a new {@link ResolvableType} on a {@link Class} basis.
-	 * Avoids all {@code instanceof} checks in order to create a straight {@link Class} wrapper.
+	 * <p>Avoids all {@code instanceof} checks in order to create a straight {@link Class} wrapper.
 	 * @since 4.2
 	 */
 	private ResolvableType(@Nullable Class<?> clazz) {
@@ -415,7 +415,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Convenience method to return this type as a resolvable {@link Collection} type.
-	 * Returns {@link #NONE} if this type does not implement or extend
+	 * <p>Returns {@link #NONE} if this type does not implement or extend
 	 * {@link Collection}.
 	 * @see #as(Class)
 	 * @see #asMap()
@@ -426,7 +426,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Convenience method to return this type as a resolvable {@link Map} type.
-	 * Returns {@link #NONE} if this type does not implement or extend
+	 * <p>Returns {@link #NONE} if this type does not implement or extend
 	 * {@link Map}.
 	 * @see #as(Class)
 	 * @see #asCollection()
@@ -472,7 +472,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Return a {@link ResolvableType} representing the direct supertype of this type.
-	 * If no supertype is available this method returns {@link #NONE}.
+	 * <p>If no supertype is available this method returns {@link #NONE}.
 	 * <p>Note: The resulting {@link ResolvableType} instance may not be {@link Serializable}.
 	 * @see #getInterfaces()
 	 */
@@ -631,8 +631,7 @@ public class ResolvableType implements Serializable {
 	 */
 	// TODO 判断泛型表达式是否不包含指定的边界
 	private boolean isWildcardWithoutBounds() {
-		if (this.type instanceof WildcardType) {
-			WildcardType wt = (WildcardType) this.type;
+		if (this.type instanceof WildcardType wt) {
 			if (wt.getLowerBounds().length == 0) {
 				// TODO 泛型表达式不包含政界时, 判断其上界
 				Type[] upperBounds = wt.getUpperBounds();
@@ -647,7 +646,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Return a {@link ResolvableType} for the specified nesting level.
-	 * See {@link #getNested(int, Map)} for details.
+	 * <p>See {@link #getNested(int, Map)} for details.
 	 * @param nestingLevel the nesting level
 	 * @return the {@link ResolvableType} type, or {@code #NONE}
 	 */
@@ -954,9 +953,8 @@ public class ResolvableType implements Serializable {
 			// TODO 对于泛型变量类型(泛型中'<>'中T, V这些用来表示任何类型的参数), 直接解析
 			return resolveType().resolveVariable(variable);
 		}
-		if (this.type instanceof ParameterizedType) {
+		if (this.type instanceof ParameterizedType parameterizedType) {
 			// TODO 对于ParameterizedType类型(表示泛型本身), 先取得其中的变量类型TypeVariable, 然后再对其进行解析
-			ParameterizedType parameterizedType = (ParameterizedType) this.type;
 			Class<?> resolved = resolve();
 			if (resolved == null) {
 				// TODO 没有解析结果, 返回null
@@ -1003,11 +1001,10 @@ public class ResolvableType implements Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof ResolvableType)) {
+		if (!(other instanceof ResolvableType otherType)) {
 			return false;
 		}
 
-		ResolvableType otherType = (ResolvableType) other;
 		if (!ObjectUtils.nullSafeEquals(this.type, otherType.type)) {
 			return false;
 		}
@@ -1077,8 +1074,7 @@ public class ResolvableType implements Serializable {
 		if (this.resolved == null) {
 			return "?";
 		}
-		if (this.type instanceof TypeVariable) {
-			TypeVariable<?> variable = (TypeVariable<?>) this.type;
+		if (this.type instanceof TypeVariable<?> variable) {
 			if (this.variableResolver == null || this.variableResolver.resolveVariable(variable) == null) {
 				// Don't bother with variable boundaries for toString()...
 				// Can cause infinite recursions in case of self-references
@@ -1097,7 +1093,7 @@ public class ResolvableType implements Serializable {
 	/**
 	 * Return a {@link ResolvableType} for the specified {@link Class},
 	 * using the full generic type information for assignability checks.
-	 * For example: {@code ResolvableType.forClass(MyArrayList.class)}.
+	 * <p>For example: {@code ResolvableType.forClass(MyArrayList.class)}.
 	 * @param clazz the class to introspect ({@code null} is semantically
 	 * equivalent to {@code Object.class} for typical use cases here)
 	 * @return a {@link ResolvableType} for the specified class
@@ -1112,7 +1108,7 @@ public class ResolvableType implements Serializable {
 	 * Return a {@link ResolvableType} for the specified {@link Class},
 	 * doing assignability checks against the raw class only (analogous to
 	 * {@link Class#isAssignableFrom}, which this serves as a wrapper for.
-	 * For example: {@code ResolvableType.forRawClass(List.class)}.
+	 * <p>For example: {@code ResolvableType.forRawClass(List.class)}.
 	 * @param clazz the class to introspect ({@code null} is semantically
 	 * equivalent to {@code Object.class} for typical use cases here)
 	 * @return a {@link ResolvableType} for the specified class
@@ -1141,7 +1137,7 @@ public class ResolvableType implements Serializable {
 	/**
 	 * Return a {@link ResolvableType} for the specified base type
 	 * (interface or base class) with a given implementation class.
-	 * For example: {@code ResolvableType.forClass(List.class, MyArrayList.class)}.
+	 * <p>For example: {@code ResolvableType.forClass(List.class, MyArrayList.class)}.
 	 * @param baseType the base type (must not be {@code null})
 	 * @param implementationClass the implementation class
 	 * @return a {@link ResolvableType} for the specified base type backed by the
@@ -1183,7 +1179,7 @@ public class ResolvableType implements Serializable {
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.notNull(generics, "Generics array must not be null");
 		TypeVariable<?>[] variables = clazz.getTypeParameters();
-		Assert.isTrue(variables.length == generics.length, "Mismatched number of generics specified");
+		Assert.isTrue(variables.length == generics.length, () -> "Mismatched number of generics specified for " + clazz.toGenericString());
 
 		Type[] arguments = new Type[generics.length];
 		for (int i = 0; i < generics.length; i++) {
@@ -1338,7 +1334,7 @@ public class ResolvableType implements Serializable {
 
 	/**
 	 * Return a {@link ResolvableType} for the specified {@link Method} return type.
-	 * Use this variant when the class that declares the method includes generic
+	 * <p>Use this variant when the class that declares the method includes generic
 	 * parameter variables that are satisfied by the implementation class.
 	 * @param method the source for the method return type
 	 * @param implementationClass the implementation class
@@ -1699,10 +1695,9 @@ public class ResolvableType implements Serializable {
 			if (this == other) {
 				return true;
 			}
-			if (!(other instanceof ParameterizedType)) {
+			if (!(other instanceof ParameterizedType otherType)) {
 				return false;
 			}
-			ParameterizedType otherType = (ParameterizedType) other;
 			return (otherType.getOwnerType() == null && this.rawType.equals(otherType.getRawType()) &&
 					Arrays.equals(this.typeArguments, otherType.getActualTypeArguments()));
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -445,12 +445,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	//  类型为Advisor以及Interceptor, 名称以通配符指定的prefix的所有bean. Interceptor类型的bean最终会包装为Advisor)加入到缓存中.
 	//  如果是非单例的, 每次都会为拦截方法创建一个新的PrototypePlaceholderAdvisor
 	private synchronized void initializeAdvisorChain() throws AopConfigException, BeansException {
-		if (this.advisorChainInitialized) {
-			// TODO 如果Advisor链被初始化过, 则无需再次进行
-			return;
-		}
-
-		if (!ObjectUtils.isEmpty(this.interceptorNames)) {
+		if (!this.advisorChainInitialized && !ObjectUtils.isEmpty(this.interceptorNames)) {
 			if (this.beanFactory == null) {
 				throw new IllegalStateException("No BeanFactory available anymore (probably due to serialization) " +
 						"- cannot resolve interceptor names " + Arrays.asList(this.interceptorNames));
@@ -497,9 +492,10 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 					addAdvisorOnChainCreation(advice);
 				}
 			}
+
+			// TODO 初始化动作只进行一次. 所以在初始化结束后, 设置标志位
+			this.advisorChainInitialized = true;
 		}
-		// TODO 初始化动作只进行一次. 所以在初始化结束后, 设置标志位
-		this.advisorChainInitialized = true;
 	}
 
 
@@ -515,8 +511,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		List<Advisor> freshAdvisors = new ArrayList<>(advisors.length);
 		for (Advisor advisor : advisors) {
 			// TODO 遍历所有的Advisor
-			if (advisor instanceof PrototypePlaceholderAdvisor) {
-				PrototypePlaceholderAdvisor pa = (PrototypePlaceholderAdvisor) advisor;
+			if (advisor instanceof PrototypePlaceholderAdvisor pa) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Refreshing bean named '" + pa.getBeanName() + "'");
 				}

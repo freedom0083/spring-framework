@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -181,8 +181,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			NodeList nl = root.getChildNodes();
 			for (int i = 0; i < nl.getLength(); i++) {
 				Node node = nl.item(i);
-				if (node instanceof Element) {
-					Element ele = (Element) node;
+				if (node instanceof Element ele) {
 					if (delegate.isDefaultNamespace(ele)) {
 						// TODO xml的元素属于默认命名空间时(如: <import />、<alias />、<bean />、<beans />等)
 						//  直接解析默认元素, 这里只解析了<import />、<alias />、<bean />、<beans />这4个元素

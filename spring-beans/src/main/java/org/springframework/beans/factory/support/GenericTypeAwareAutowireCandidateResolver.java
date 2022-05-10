@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -181,9 +181,8 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 	protected RootBeanDefinition getResolvedDecoratedDefinition(RootBeanDefinition rbd) {
 		// TODO 取得代理目标的holder
 		BeanDefinitionHolder decDef = rbd.getDecoratedDefinition();
-		if (decDef != null && this.beanFactory instanceof ConfigurableListableBeanFactory) {
+		if (decDef != null && this.beanFactory instanceof ConfigurableListableBeanFactory clbf) {
 			// TODO 有代理目标, 且当前容器是ConfigurableListableBeanFactory类型时
-			ConfigurableListableBeanFactory clbf = (ConfigurableListableBeanFactory) this.beanFactory;
 			if (clbf.containsBeanDefinition(decDef.getBeanName())) {
 				// TODO 当前容器中已经注册了代理目标时, 取得代理目标的mbd
 				BeanDefinition dbd = clbf.getMergedBeanDefinition(decDef.getBeanName());

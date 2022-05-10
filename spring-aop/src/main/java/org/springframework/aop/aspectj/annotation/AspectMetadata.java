@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,8 +63,8 @@ public class AspectMetadata implements Serializable {
 	private final Class<?> aspectClass;
 
 	/**
-	 * AspectJ reflection information (AspectJ 5 / Java 5 specific).
-	 * Re-resolved on deserialization since it isn't serializable itself.
+	 * AspectJ reflection information.
+	 * <p>Re-resolved on deserialization since it isn't serializable itself.
 	 */
 	// TODO 包装了被@Aspect所注解的切面, 其内部封装了关于这个切面的一些数据, 方法(位于org.aspectj下)
 	private transient AjType<?> ajType;
@@ -113,15 +113,14 @@ public class AspectMetadata implements Serializable {
 		this.ajType = ajType;
 		// TODO 下面就是对切面的实例类型进行处理了, 目前只支持下面这四种类型
 		switch (this.ajType.getPerClause().getKind()) {
-			case SINGLETON:
+			case SINGLETON -> {
 				// TODO singleton表示切面只有一个实例, 所以其切点表达式perClausePointcut设置为TruePointcut.INSTANCE
 				this.perClausePointcut = Pointcut.TRUE;
-				return;
-			case PERTARGET:
+			}
+			case PERTARGET, PERTHIS -> {
 				// TODO pertarget表示每个切点表达式匹配的连接点所对应的目标对象都会创建一个新的切面实例, 比如:
 				//  pertarget: @Aspect("pertarget(切点表达式)"), 这里的切点表达式不能是接口
-			case PERTHIS:
-				// TODO perthis表示每个切点表达式匹配的连接点所对应的aop对象(代理对象)都会创建一个新的切面实例, 比如
+				//  perthis表示每个切点表达式匹配的连接点所对应的aop对象(代理对象)都会创建一个新的切面实例, 比如
 				//  @Aspect("perthis(切点表达式)"), 这里的切点表达式可以是接口
 				//  这两种情况都需要把切面的Scope定义为prototype
 				AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut();
@@ -130,16 +129,15 @@ public class AspectMetadata implements Serializable {
 				ajexp.setExpression(findPerClause(aspectClass));
 				ajexp.setPointcutDeclarationScope(aspectClass);
 				this.perClausePointcut = ajexp;
-				return;
-			case PERTYPEWITHIN:
+			}
+			case PERTYPEWITHIN -> {
 				// Works with a type pattern
 				// TODO 组成的、合成得切点表达式
 				this.perClausePointcut = new ComposablePointcut(new TypePatternClassFilter(findPerClause(aspectClass)));
-				return;
-			default:
-				// TODO Aspect的其余实例类型, 目前Spring AOP暂不支持
-				throw new AopConfigException(
-						"PerClause " + ajType.getPerClause().getKind() + " not supported by Spring AOP for " + aspectClass);
+			}
+			// TODO Aspect的其余实例类型, 目前Spring AOP暂不支持
+			default -> throw new AopConfigException(
+					"PerClause " + ajType.getPerClause().getKind() + " not supported by Spring AOP for " + aspectClass);
 		}
 	}
 

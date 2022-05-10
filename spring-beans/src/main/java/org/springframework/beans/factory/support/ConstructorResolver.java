@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -321,13 +319,13 @@ class ConstructorResolver {
 				}
 				// TODO 异常列表里没有记录任何异常时, 则抛出BeanCreationException
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-						"Could not resolve matching constructor " +
+						"Could not resolve matching constructor on bean class [" + mbd.getBeanClassName() + "] " +
 						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities)");
 			}
 			else if (ambiguousConstructors != null && !mbd.isLenientConstructorResolution()) {
 				// TODO 严格模式下出现有歧义的构造器时, 也抛出BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-						"Ambiguous constructor matches found in bean '" + beanName + "' " +
+						"Ambiguous constructor matches found on bean class [" + mbd.getBeanClassName() + "] " +
 						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities): " +
 						ambiguousConstructors);
 			}
@@ -360,15 +358,8 @@ class ConstructorResolver {
 		try {
 			// TODO 从容器中取得实例化策略
 			InstantiationStrategy strategy = this.beanFactory.getInstantiationStrategy();
-			if (System.getSecurityManager() != null) {
-				return AccessController.doPrivileged((PrivilegedAction<Object>) () ->
-						strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse),
-						this.beanFactory.getAccessControlContext());
-			}
-			else {
-				// TODO 没有设置安全管理器时, 直接使用策略进行实例化
-				return strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse);
-			}
+			// TODO 直接使用策略进行实例化
+			return strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse);
 		}
 		catch (Throwable ex) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
@@ -441,15 +432,8 @@ class ConstructorResolver {
 	//  1. 允许非公有方法: 通过ReflectionUtils工具类, 取得所有定义的方法
 	//  2. 不允许非公有方法: 直接调用类对象取得所有公有方法
 	private Method[] getCandidateMethods(Class<?> factoryClass, RootBeanDefinition mbd) {
-		if (System.getSecurityManager() != null) {
-			return AccessController.doPrivileged((PrivilegedAction<Method[]>) () ->
-					(mbd.isNonPublicAccessAllowed() ?
-						ReflectionUtils.getAllDeclaredMethods(factoryClass) : factoryClass.getMethods()));
-		}
-		else {
-			return (mbd.isNonPublicAccessAllowed() ?
-					ReflectionUtils.getAllDeclaredMethods(factoryClass) : factoryClass.getMethods());
-		}
+		return (mbd.isNonPublicAccessAllowed() ?
+				ReflectionUtils.getAllDeclaredMethods(factoryClass) : factoryClass.getMethods());
 	}
 
 	/**
@@ -805,7 +789,7 @@ class ConstructorResolver {
 				// TODO 把最终的参数类型缓存转化为','分割的字符串, 然后抛出'No matching factory method found: '的BeanCreationException异常
 				String argDesc = StringUtils.collectionToCommaDelimitedString(argTypes);
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-						"No matching factory method found: " +
+						"No matching factory method found on class [" + factoryClass.getName() + "]: " +
 						(mbd.getFactoryBeanName() != null ?
 							"factory bean '" + mbd.getFactoryBeanName() + "'; " : "") +
 						"factory method '" + mbd.getFactoryMethodName() + "(" + argDesc + ")'. " +
@@ -817,13 +801,13 @@ class ConstructorResolver {
 			else if (void.class == factoryMethodToUse.getReturnType()) {
 				// TODO 找到的工厂方法的返回类型是void时, 抛出'Invalid factory method'的BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-						"Invalid factory method '" + mbd.getFactoryMethodName() +
-						"': needs to have a non-void return type!");
+						"Invalid factory method '" + mbd.getFactoryMethodName() + "' on class [" +
+						factoryClass.getName() + "]: needs to have a non-void return type!");
 			}
 			else if (ambiguousFactoryMethods != null) {
 				// TODO 严格模式下出现有歧义的工厂方法时, 抛出'Ambiguous factory method matches found'的BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-						"Ambiguous factory method matches found in bean '" + beanName + "' " +
+						"Ambiguous factory method matches found on class [" + factoryClass.getName() + "] " +
 						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities): " +
 						ambiguousFactoryMethods);
 			}
@@ -856,16 +840,8 @@ class ConstructorResolver {
 			@Nullable Object factoryBean, Method factoryMethod, Object[] args) {
 
 		try {
-			if (System.getSecurityManager() != null) {
-				return AccessController.doPrivileged((PrivilegedAction<Object>) () ->
-						this.beanFactory.getInstantiationStrategy().instantiate(
-								mbd, beanName, this.beanFactory, factoryBean, factoryMethod, args),
-						this.beanFactory.getAccessControlContext());
-			}
-			else {
-				return this.beanFactory.getInstantiationStrategy().instantiate(
-						mbd, beanName, this.beanFactory, factoryBean, factoryMethod, args);
-			}
+			return this.beanFactory.getInstantiationStrategy().instantiate(
+					mbd, beanName, this.beanFactory, factoryBean, factoryMethod, args);
 		}
 		catch (Throwable ex) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
@@ -1322,7 +1298,7 @@ class ConstructorResolver {
 
 
 	/**
-	 * Delegate for checking Java 6's {@link ConstructorProperties} annotation.
+	 * Delegate for checking Java's {@link ConstructorProperties} annotation.
 	 */
 	private static class ConstructorPropertiesChecker {
 
