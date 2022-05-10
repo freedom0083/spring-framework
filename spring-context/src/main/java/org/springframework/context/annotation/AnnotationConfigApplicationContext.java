@@ -70,7 +70,7 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		//  2. FlightRecorderApplicationStartup: 利用JFR来对容器的启动进行监控；
 		StartupStep createAnnotatedBeanDefReader = this.getApplicationStartup().start("spring.context.annotated-bean-reader.create");
 		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
-		//  根据情况注册一些用RootBeanDefinition(AbstractBeanDefinition)类型用于处理注解的后处理器:
+		//  根据情况注册一些RootBeanDefinition(AbstractBeanDefinition)类型用于处理注解的后处理器:
 		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
 		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
 		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的

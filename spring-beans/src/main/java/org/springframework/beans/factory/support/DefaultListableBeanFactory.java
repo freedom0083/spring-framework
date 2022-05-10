@@ -557,7 +557,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	public String[] getBeanNamesForType(@Nullable Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 		if (!isConfigurationFrozen() || type == null || !allowEagerInit) {
 			// TODO 以下情况发生时, 会根据包装为ResolvableType的type类型来取得bean名字的集合:
-			//  1. 不缓存bean definition的元数据信息;
+			//  1. 配置操作还没被冻结;
 			//  2. 或者没有指定type;
 			//  3. 或者不支持急加载;
 			return doGetBeanNamesForType(ResolvableType.forRawClass(type), includeNonSingletons, allowEagerInit);
@@ -606,7 +606,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						//     2.2 并且工厂类不需要急加载来确定类型
 						// TODO 判断一下当前mbd是否为工厂类
 						boolean isFactoryBean = isFactoryBean(beanName, mbd);
-						// TODO 取得当前mbd的代理的目标
+						// TODO 取得当前mbd的代理的目标, 如果是代理类, 可以取得值
 						BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 						boolean matchFound = false;
 						boolean allowFactoryBeanInit = (allowEagerInit || containsSingleton(beanName));
@@ -1096,6 +1096,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 			}
 			else if (!beanDefinition.equals(existingDefinition)) {
+				// TODO 被代理后, bd会出现与窗口中不相等的情况
 				if (logger.isDebugEnabled()) {
 					logger.debug("Overriding bean definition for bean '" + beanName +
 							"' with a different definition: replacing [" + existingDefinition +
@@ -1134,7 +1135,6 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
 				// TODO 如果开始了bean初始化了动作, 即alreadyCreate已经有元素时, 需要锁map来安全的进行注册
 				synchronized (this.beanDefinitionMap) {
-					// TODO 先放到缓存中
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
 					updatedDefinitions.addAll(this.beanDefinitionNames);

@@ -200,7 +200,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 			Object retVal;
 
 			if (this.advised.exposeProxy) {
-				// TODO 对于可以暴露为一个Threadlocal的代理来说, 可以通过AopContext进行查询. 这里就是设置AopContext
+				// TODO 对于可以暴露的代理, proxy会放到Threadlocal里, 可以通过AopContext进行查询. 这里就是设置AopContext
 				// Make invocation available if necessary.
 				oldProxy = AopContext.setCurrentProxy(proxy);
 				setProxyContext = true;

@@ -307,7 +307,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		String[] candidateNames = registry.getBeanDefinitionNames();
 		// TODO 对每个侯选bean进行处理
 		for (String beanName : candidateNames) {
-			// TODO 从注册中心拿出bean对应的bd
+			// TODO 从注册中心拿出bean对应的bd, 其实就是根据名字从容器beanDefinitionMap里把bd拿出来
 			BeanDefinition beanDef = registry.getBeanDefinition(beanName);
 			if (beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE) != null) {
 				if (logger.isDebugEnabled()) {
@@ -327,7 +327,6 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Sort by previously determined @Order value, if applicable
-		// TODO 进行排序
 		configCandidates.sort((bd1, bd2) -> {
 			int i1 = ConfigurationClassUtils.getOrder(bd1.getBeanDefinition());
 			int i2 = ConfigurationClassUtils.getOrder(bd2.getBeanDefinition());
@@ -457,12 +456,15 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 				// Configuration class (full or lite) or a configuration-derived @Bean method
 				// -> eagerly resolve bean class at this point, unless it's a 'lite' configuration
 				// or component class without @Bean methods.
+				// TODO
+				//  true: lite类型下不带@Bean注解
+				//  false: 非lite类型, 或无法得到Bean的注解，或注解里带有@Bean
 				boolean liteConfigurationCandidateWithoutBeanMethods =
 						(ConfigurationClassUtils.CONFIGURATION_CLASS_LITE.equals(configClassAttr) &&
 							annotationMetadata != null && !ConfigurationClassUtils.hasBeanMethods(annotationMetadata));
 				if (!liteConfigurationCandidateWithoutBeanMethods) {
 					try {
-						// TODO 'class'不是引用时, 重新加载一下
+						// TODO 对于lite类型下不带@Bean注解, 且'class'设置的还是全限定名的bd, 需要通过全限定名重新加载一下
 						abd.resolveBeanClass(this.beanClassLoader);
 					}
 					catch (Throwable ex) {

@@ -449,9 +449,9 @@ public class BeanDefinitionParserDelegate {
 			checkNameUniqueness(beanName, aliases, ele);
 		}
 		// TODO 开始解析<bean />, 解析完成后返回一个GenericBeanDefinition类型的beanDefinition, 其中bd的beanClass属性会有以下几种情况:
-		//  1. 如果配置中没有指定'class'属性, 即className为空时, bd的beanClass为null
-		//  2. 如果reader设置了类加载器, 则为className指定的class
-		//  3. 如果reader没有设置类加载器, 直接为className指定的字符串
+		//  a. class实例: 由readerContext指定的类加载器所加载的bean实例
+		//  b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
+		//  c. null: bean没有指定'class'属性的情况
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 		if (beanDefinition != null) {
 			// TODO 解析成功时, 就要判断是否设置了beanName, 即是否有'id', 或'name'属性
@@ -539,9 +539,9 @@ public class BeanDefinitionParserDelegate {
 
 		try {
 			// TODO 创建一个GenericBeanDefinition类型的bd, bd的beanClass属性会有以下几种情况:
-			//  1. 如果配置中没有指定'class'属性, 即className为空时, bd的beanClass为null
-			//  2. 如果reader设置了类加载器, 则为className指定的class
-			//  3. 如果reader没有设置了加载器, 直接为className指定的字符串
+			//  a. class实例: 由readerContext指定的类加载器所加载的bean实例
+			//  b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
+			//  c. null: bean没有指定'class'属性的情况
 			AbstractBeanDefinition bd = createBeanDefinition(className, parent);
 			// TODO 解析元素的属性放到bd中, 比如: scope, abstract, lazy-init, autowire-candidate, factory-bean, factory-method等等
 			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);
@@ -695,7 +695,7 @@ public class BeanDefinitionParserDelegate {
 		//  1. parentName: 由参数parentName所指定的双亲, 可能为空
 		//  2. beanClass: 有三种可能:
 		//                a. class实例: 由readerContext指定的类加载器所加载的bean实例
-		//                b. class名: readerContext没指定类加载器时, 直接使用className的值
+		//                b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
 		//                c. null: bean没有指定'class'属性的情况
 		return BeanDefinitionReaderUtils.createBeanDefinition(
 				parentName, className, this.readerContext.getBeanClassLoader());

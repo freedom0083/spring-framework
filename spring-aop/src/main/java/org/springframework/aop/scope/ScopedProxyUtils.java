@@ -66,7 +66,8 @@ public abstract class ScopedProxyUtils {
 		// "hiding" the target bean in an internal target definition.
 		// TODO 生成一个用于返回的代理holder
 		RootBeanDefinition proxyDefinition = new RootBeanDefinition(ScopedProxyFactoryBean.class);
-		// TODO 将目标类注册为代理类的被装饰的beanDefinition
+		// TODO 将目标类注册为代理类的被装饰的beanDefinition.
+		//  为什么不直接用的传进来的definition? 看起来好像传进来的definition是带别名的
 		proxyDefinition.setDecoratedDefinition(new BeanDefinitionHolder(targetDefinition, targetBeanName));
 		// TODO 设置原始bean
 		proxyDefinition.setOriginatingBeanDefinition(targetDefinition);

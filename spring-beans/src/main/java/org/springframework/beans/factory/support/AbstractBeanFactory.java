@@ -260,9 +260,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// Eagerly check singleton cache for manually registered singletons.
 		// TODO 按以下顺序尝试从缓存中取得对应的单例实例:
-		//  1. singletonObjects: bean单例缓存, bean名 -> bean实例
-		//  2. earlySingletonObjects: 正在创建过程中的bean单例缓存, 用于做循环引用检测, bean名 -> bean实例
-		//  3. singletonFactories: 存储创建bean的工厂的缓存, bean名 -> ObjectFactory
+		//  1. singletonObjects: 第一级缓存, 存放的是已经创建成功的单例bean, bean名 -> bean实例
+		//  2. earlySingletonObjects: 第二级缓存, 存放的是提前暴露的单例bean, 这个bean还没有实例化结束, 是不完整的(比如还没有设置属性), bean名 -> bean实例
+		//  3. singletonFactories: 第三级缓存, 存放的是创建bean的工厂类. 创建bean时, 先把自己的工厂类放进缓存, 然后才开始创建, bean名 -> ObjectFactory
+		//     从这里找到后, 会从工厂取出bean实例放入第二缓存, 然后再将工厂类从第三级缓存中清除
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
 			// TODO args只有在bean是prototype类型, 同时用构造方式或工厂方法取得bean时才会有值, 所以这里表示的是缓存命中, 且为单例的情况?? mark
@@ -1744,7 +1745,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// TODO mbd是class引用, 而不是全限定名时, 直接返回其对应的bean引用
 				return mbd.getBeanClass();
 			}
-			// TODO 系统中找不到security设置时, 直接根据类型从mbd中的全限定名取得对应的class
+			// TODO 根据类型从mbd中的全限定名取得对应的class
 			return doResolveBeanClass(mbd, typesToMatch);
 		}
 		catch (ClassNotFoundException ex) {

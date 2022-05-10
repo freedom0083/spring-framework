@@ -149,7 +149,9 @@ public abstract class AnnotationConfigUtils {
 	 */
 	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
 			BeanDefinitionRegistry registry, @Nullable Object source) {
-
+		// TODO 根据registry类型取得DefaultListableBeanFactory:
+		//  1. 如果是DefaultListableBeanFactory类型，直接返回;
+		//  2. 如果是GenericApplicationContext类型，则返回的是其中的DefaultListableBeanFactory
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
 		if (beanFactory != null) {
 			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {

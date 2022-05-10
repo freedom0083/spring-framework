@@ -299,9 +299,9 @@ class ConfigurationClassBeanDefinitionReader {
 		beanDef.setDestroyMethodName(destroyMethodName);
 
 		// Consider scoping
+		// TODO 有@Scope注解时设置代理模式
 		ScopedProxyMode proxyMode = ScopedProxyMode.NO;
 		AnnotationAttributes attributes = AnnotationConfigUtils.attributesFor(metadata, Scope.class);
-		// TODO 有@Scope注解时设置代理模式
 		if (attributes != null) {
 			beanDef.setScope(attributes.getString("value"));
 			proxyMode = attributes.getEnum("proxyMode");

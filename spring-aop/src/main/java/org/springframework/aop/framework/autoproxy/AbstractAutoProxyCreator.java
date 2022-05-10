@@ -317,8 +317,14 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Override
 	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
 		if (bean != null) {
+			// TODO 如果提供了beanName, 则cacheKey会直接使用这个beanName(是FactoryBean时前面会加上&)
+			//  否则, cacheKey就是bean的实例了
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
 			if (this.earlyProxyReferences.remove(cacheKey) != bean) {
+				// TODO 这里可能会返回一个代理类. 容器有Advisor(如果支持AspectJ, @Aspect切面中的@Around, @Before, @After,
+				//  @AfterReturning, @AfterThrowing这些Advice方法, 以及@DeclareParents字段也会被创建成Advisor)时,
+				//  会为bean生成代理(对于Advice方法包装成的Advisor, 还要判断这些Advisor是否可以应用于当前操作bean, 只有适用时才会为其生成代理).
+				//  如果没有, 或者bean不需要代理, 或者bean是基础设施类时, 不会为bean创建代理
 				return wrapIfNecessary(bean, beanName, cacheKey);
 			}
 		}
@@ -501,6 +507,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			// Explicit handling of JDK proxy targets and lambdas (for introduction advice scenarios)
 			if (Proxy.isProxyClass(beanClass) || ClassUtils.isLambdaClass(beanClass)) {
 				// Must allow for introductions; can't just set interfaces to the proxy's interfaces only.
+				// TODO 在配置了proxy-target-class=true后, 如果要处理的bean是个代理, 或是Lambda表达式, 则把其所有接口加到代理工厂里
 				for (Class<?> ifc : beanClass.getInterfaces()) {
 					proxyFactory.addInterface(ifc);
 				}

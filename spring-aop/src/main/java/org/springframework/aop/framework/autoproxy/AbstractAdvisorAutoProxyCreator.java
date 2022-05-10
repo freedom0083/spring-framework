@@ -70,8 +70,6 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 		this.advisorRetrievalHelper = new BeanFactoryAdvisorRetrievalHelperAdapter(beanFactory);
 	}
 
-	// TODO 取得容器中所有的Advisor. 对于普通的Advisor, 会对没有实例化的Advisor进行实例化操作. 如果支持AspectJ, 则还会为@Aspect切面
-	//  中的@Around, @Before, @After, @AfterReturning, @AfterThrowing这些Advice方法, 以及@DeclareParents字段创建Advisor
 	@Override
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(

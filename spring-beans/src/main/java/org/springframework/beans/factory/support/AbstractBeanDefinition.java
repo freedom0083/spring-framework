@@ -471,7 +471,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		}
 		// TODO 有名字时, 委托给ClassUtils使用传入的类加载器对指定名字的类进行加载
 		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
-		// TODO 加载的类赋给beanClass(合并后的bd的beanClass)
+		// TODO 加载的类赋给beanClass
 		this.beanClass = resolvedClass;
 		return resolvedClass;
 	}

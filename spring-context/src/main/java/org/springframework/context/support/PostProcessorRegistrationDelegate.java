@@ -285,7 +285,7 @@ final class PostProcessorRegistrationDelegate {
 		// a bean is not eligible for getting processed by all BeanPostProcessors.
 		int beanProcessorTargetCount = beanFactory.getBeanPostProcessorCount() + 1 + postProcessorNames.length;
 		// TODO BeanPostProcessorChecker主要是为了在后处理器实例化期间(所有的后处理器还没全部处理完), 在处理某个bean时起到一个通知作用,
-		//  表示还有后处理器没处理完，所以当前处理的这个bean, 可能还不能被所有后处理器进行处理, 一个通知
+		//  表示还有后处理器没处理完，所以当前处理的这个bean, 可能还不能被所有后处理器进行处理
 		beanFactory.addBeanPostProcessor(new BeanPostProcessorChecker(beanFactory, beanProcessorTargetCount));
 
 		// Separate between BeanPostProcessors that implement PriorityOrdered,

@@ -201,7 +201,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 			//  允许提前暴露的bean会在创建时进入earlySingletonObjects缓存
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
-				// TODO 如果提前暴露的单例缓存(第二级缓存)里也没有取得bean, 也开始提前显露支持时, 后面的操作就需要在单例缓存(第一级缓存)上进行同步
+				// TODO 如果提前暴露的单例缓存(第二级缓存)里也没有取得bean, 也支持提前显露时, 后面的操作就需要在单例缓存(第一级缓存)上进行同步
 				synchronized (this.singletonObjects) {
 					// Consistent creation of early reference within full singleton lock
 					// TODO 然后再取一次, 先从单例缓存(第一级缓存)里取

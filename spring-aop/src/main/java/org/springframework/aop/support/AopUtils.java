@@ -237,7 +237,7 @@ public abstract class AopUtils {
 
 		IntroductionAwareMethodMatcher introductionAwareMethodMatcher = null;
 		if (methodMatcher instanceof IntroductionAwareMethodMatcher) {
-			// TODO 切点表示的如果是用来处理引用装配的MethodCher, 则进行一下转换, IntroductionAwareMethodMatcher有4个实现:
+			// TODO 切点表示的如果是用来处理引用装配的MethodMatcher, 则进行一下转换, IntroductionAwareMethodMatcher有4个实现:
 			//  1. AspectJExpressionPointcut: 用于AspectJ表达式
 			//  2. MethodMatchers$ClassFilterAwareUnionIntroductionAwareMethodMatcher: 联合了两个方法匹配器, 其中之一必需是
 			//     IntroductionAwareMethodMatcher. 每个方法匹配器支持一个相关的类过滤器
