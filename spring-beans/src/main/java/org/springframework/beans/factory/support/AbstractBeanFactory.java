@@ -230,7 +230,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param name the name of the bean to retrieve 要取得的bean的名字
 	 * @param requiredType the required type of the bean to retrieve 要取得的bean的类型
 	 * @param args arguments to use when creating a bean instance using explicit arguments
-	 * (only applied when creating a new instance as opposed to retrieving an existing one) 为bean设置的参数值
+	 * (only applied when creating a new instance as opposed to retrieving an existing one) 为bean设置的参数值, 仅在创建Bean
+	 *             时有值
 	 * @return an instance of the bean
 	 * @throws BeansException if the bean could not be created
 	 */
@@ -257,9 +258,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
 		// TODO transformedBeanName()用来规范化要取得的bean的名字, 此方法做了两件事:
-		//  1. 去掉'&': Spring中工厂类是以'&'开头的(表示为一个引用, 而非bean). 使用getBean("&xxx")方法时, 得到的会是bean工厂, 而
-		//             使用getBean("xxx")方法得到的是bean本身, 或者bean工厂中的对象(最终返回的是beanFactory.getObject()).
-		//             这里去掉'&'后, 后面再取的bean就是bean工厂中的对象了
+		//  1. 去掉'&': Spring中工厂类是以'&'开头的(表示为一个引用, 而非bean). 使用getBean("&xxx")方法时, 得到的会是FactoryBean,
+		//             而使用getBean("xxx")方法得到的是bean本身, 或者FactoryBean中的对象(最终返回的是beanFactory.getObject()).
+		//             这里去掉'&'后, 后面再取的bean就是FactoryBean中的对象了
 		//  2. 取得最终名: bean的映射可能会出现别名嵌套, 即bean A映射成了别名B, B又被映射成了C, 即: A -> B -> C的情况
 		//                如果传入的名字是B或C, 最终得到的名字会是最初的名字A
 		String beanName = transformedBeanName(name);
@@ -296,14 +297,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {
-				// TODO spring无法处理prototype的bean的循环依赖, 如果当前创建的prototype类型的bean已经在创建列表内,
+				// TODO spring无法处理prototype的bean的循环依赖, 如果创建过beanName的prototype类型的bean,
 				//  就表示出现了循环引用问题, 需要抛出异常
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
 			// Check if bean definition exists in this factory.
-			// TODO 取得父容器
 			BeanFactory parentBeanFactory = getParentBeanFactory();
+			// TODO 先从当前窗口里看看要得到的bd是否存在
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
 				// TODO 当前容器的注册中心beanDefinitionMap没有要取得到bean时, 从父容器加载bean. 下面几种容器实现了getBean():
@@ -327,7 +328,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// TODO 后面的情况就是父容器不是AbstractBeanFactory的情况了, 会根据容器类型使用对应的getBean()实现
 				else if (args != null) {
 					// Delegation to parent with explicit args.
-					// TODO 取得bean时, 可以同时会bean属性设置值, 用于工厂方法, 或构造函数上. 对于这种情况, 需要将要设置的参数传递
+					// TODO 取得bean时, 可以同时为bean属性设置值, 用于工厂方法, 或构造函数上. 对于这种情况, 需要将要设置的参数传递
 					//  给父容器, 所以调用父容器对应的getBean(String, Object... args)方法
 					return (T) parentBeanFactory.getBean(nameToLookup, args);
 				}
@@ -1331,7 +1332,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Efficiently check whether bean definition exists in this factory.
 		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
 			// TODO 注册中心beanDefinitionMap没有对应的bean, 并且其父容器是ConfigurableBeanFactory类型时,
-			//  从父容器中取得指定bean的(如果有双亲, 则会返回合并了双亲属性的RootBeanDefinition)
+			//  从父容器中取得指定的bean(如果有双亲, 则会返回合并了双亲属性的RootBeanDefinition)
 			//  这里表示当前容器没有要取得的bean时, 会一步步递归进入父容器, 直到最深层
 			return ((ConfigurableBeanFactory) getParentBeanFactory()).getMergedBeanDefinition(beanName);
 		}
@@ -1357,7 +1358,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// TODO 委托给父容器进行判断
 			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);
 		}
-		// TODO 取得一个合并了双亲属性的bd, 然后再判断是否为
+		// TODO 取得一个合并了双亲属性的bd, 然后再判断是否为FactoryBean
 		return isFactoryBean(beanName, getMergedLocalBeanDefinition(beanName));
 	}
 
@@ -1385,7 +1386,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	@SuppressWarnings("unchecked")
 	protected void beforePrototypeCreation(String beanName) {
-		// TODO 取得当前线程中正在创建的对象
+		// TODO 取得当前线程中正在创建的 prototype 类型的bean对象
 		Object curVal = this.prototypesCurrentlyInCreation.get();
 		if (curVal == null) {
 			// TODO 没有, 则把要创建的对象放到当前线程中
@@ -1793,7 +1794,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						() -> doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
 			}
 			else {
-				// TODO 系统中找不到security设置时, 直接根据类型从mbd中取得对应的class
+				// TODO 系统中找不到security设置时, 直接根据类型从mbd中的全限定名取得对应的class
 				return doResolveBeanClass(mbd, typesToMatch);
 			}
 		}
@@ -1869,7 +1870,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 			if (freshResolve) {
-				// TODO 需要重新对类进行加载的情况
+				// TODO 需要重新对类进行加载的情况, 替换过ClassLoader或解析后mbd的beanClass属性设置的是字面量，才会进到这里
 				// When resolving against a temporary class loader, exit early in order
 				// to avoid storing the resolved Class in the bean definition.
 				if (dynamicLoader != null) {
@@ -1889,7 +1890,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Resolve regularly, caching the result in the BeanDefinition...
-		// TODO 走到这, 表示bean的配置文件中没有设置class属性, 只有id. 下面就交给AbstractBeanDefinition根据mbd进行加载了
+		// TODO 下面就交给AbstractBeanDefinition根据mbd进行加载了
 		return mbd.resolveBeanClass(beanClassLoader);
 	}
 

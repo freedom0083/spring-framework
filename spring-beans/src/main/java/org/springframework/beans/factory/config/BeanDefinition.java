@@ -158,6 +158,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	/**
 	 * Return the bean names that this bean depends on.
 	 */
+	// TODO 设置该Bean通过depends-on=""设置的依赖的所有Bean
 	@Nullable
 	String[] getDependsOn();
 
@@ -168,6 +169,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * if the specified bean is not marked as an autowire candidate. As a consequence,
 	 * autowiring by name will nevertheless inject a bean if the name matches.
 	 */
+	// TODO 设置该Bean是否可以注入到其他Bean中, 只对类似注入有类. 为名称注入时, 即使是false也可以注入到其他Bean
 	void setAutowireCandidate(boolean autowireCandidate);
 
 	/**
@@ -192,6 +194,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * This the name of the bean to call the specified factory method on.
 	 * @see #setFactoryMethodName
 	 */
+	// TODO 该Bean是采用工厂方法生成(非反射生成)时, 指定工厂名
 	void setFactoryBeanName(@Nullable String factoryBeanName);
 
 	/**
@@ -208,11 +211,13 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * @see #setFactoryBeanName
 	 * @see #setBeanClassName
 	 */
+	// TODO 设置工厂类中的工厂方法名
 	void setFactoryMethodName(@Nullable String factoryMethodName);
 
 	/**
 	 * Return a factory method, if any.
 	 */
+	// TODO 取得工厂类中的工厂方法名
 	@Nullable
 	String getFactoryMethodName();
 

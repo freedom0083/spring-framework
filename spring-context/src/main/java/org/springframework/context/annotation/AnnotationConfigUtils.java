@@ -291,7 +291,7 @@ public abstract class AnnotationConfigUtils {
 		}
 		// TODO 区分一下代理模式是Java动态代理, 还是cglib
 		boolean proxyTargetClass = scopedProxyMode.equals(ScopedProxyMode.TARGET_CLASS);
-		// TODO 创建bean的代理, 将其外装到代理的holder中返回. 如果用的是cglib机制, 还会设置proxyTargetClass属性, 用于后面AOP操作
+		// TODO 创建bean的代理, 将其包装到代理的holder中返回. 如果用的是cglib机制, 还会设置proxyTargetClass属性, 用于后面AOP操作
 		return ScopedProxyCreator.createScopedProxy(definition, registry, proxyTargetClass);
 	}
 

@@ -579,18 +579,23 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				beanPostProcess.end();
 
 				// Initialize message source for this context.
+				// TODO 初始化messageResource
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+				// TODO 初始化事件广播器
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
+				// TODO 让子类可以对Bean进行自定义处理的钩子
 				onRefresh();
 
 				// Check for listener beans and register them.
+				// TODO 注册实现了ApplicationListener接口的事件监听器
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
+				// TODO 初始化所有非懒加载的单例bean
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
@@ -647,6 +652,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Validate that all properties marked as required are resolvable:
 		// see ConfigurablePropertyResolver#setRequiredProperties
+		// TODO 校验上面加载的配置文件
 		getEnvironment().validateRequiredProperties();
 
 		// Store pre-refresh ApplicationListeners...
@@ -680,7 +686,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see #getBeanFactory()
 	 */
 	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
-		// TODO refreshBeanFactory对于不同类型的ApplicationContext有不同处理
+		// TODO refreshBeanFactory, 先关闭存在的旧的BeanFactory, 然后创建新的BeanFactory, 对于不同类型的ApplicationContext有不同处理
 		//  1. AbstractRefreshableApplicationContext: 通过使用reader的方式来创建一个用于解析文件的类, 比如:
 		//     a. XmlBeanDefinitionReader: 解析xml中的bean定义并注册到容器中(beanDefinitionMap)
 		//     b. AnnotatedBeanDefinitionReader: 解析配置类并注册到容器中
@@ -749,7 +755,6 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			// TODO 如果包含AspectJ的Bean, 则在bean初始化前进行织入操作(静态代理)
 			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
 			// Set a temporary ClassLoader for type matching.
-			// TODO LTW时会设置一个用于处理类型匹配的临时的类加载器
 			// TODO LTW时会设置一个用于处理类型匹配的临时的类加载器
 			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
 		}
@@ -941,6 +946,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
 		// Initialize conversion service for this context.
+		// TODO 初始化 conversionService Bean
 		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
 				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
 			beanFactory.setConversionService(
@@ -955,6 +961,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Initialize LoadTimeWeaverAware beans early to allow for registering their transformers early.
+		// TODO 初始化所有LTW的Bean
 		String[] weaverAwareNames = beanFactory.getBeanNamesForType(LoadTimeWeaverAware.class, false, false);
 		for (String weaverAwareName : weaverAwareNames) {
 			getBean(weaverAwareName);
@@ -964,9 +971,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.setTempClassLoader(null);
 
 		// Allow for caching all bean definition metadata, not expecting further changes.
+		// TODO 冻结配置相关的操作了, 不能再出现bean定义解析、加载、注册这类操作了
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		// TODO 初始化所有非懒加载的单例bean
 		beanFactory.preInstantiateSingletons();
 	}
 

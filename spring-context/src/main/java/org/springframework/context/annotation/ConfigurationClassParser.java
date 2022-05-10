@@ -323,7 +323,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
-		// TODO 处理@Import指定的类, 具体有哪此类是存储在getImports()返回的一个set中, 这个set包含了当前配置类, 及其包含的其他注解
+		// TODO 处理@Import指定的类, 具体有哪些类是存储在getImports()返回的一个set中, 这个set包含了当前配置类, 及其包含的其他注解
 		//  比如@EnableXXX中, 所有@Import指向的类
 		processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
 

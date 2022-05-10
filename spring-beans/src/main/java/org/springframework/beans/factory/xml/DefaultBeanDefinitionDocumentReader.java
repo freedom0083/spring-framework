@@ -126,14 +126,16 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// the new (child) delegate with a reference to the parent for fallback purposes,
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
+		// TODO 此方法会被递归调用, 所以配置文件中<beans />内部可以定义<beans />, 这个方法的root不一定是xml的根节点,
+		//  也可能是嵌套在里面的<beans />节点, 所以这里需要定义上层的解析代理
 		BeanDefinitionParserDelegate parent = this.delegate;
-		// TODO 很根据xml的元素生成一个带有默认属性的BeanDefinitionParserDelegate代理
+		// TODO 根据xml的元素生成一个带有默认属性的BeanDefinitionParserDelegate代理
 		this.delegate = createDelegate(getReaderContext(), root, parent);
 
 		if (this.delegate.isDefaultNamespace(root)) {
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
 			if (StringUtils.hasText(profileSpec)) {
-				// TODO 如果定义了<profile />, 则对其值进行处理
+				// TODO 处理根节点的<beans ... profile="dev" />
 				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(
 						profileSpec, BeanDefinitionParserDelegate.MULTI_VALUE_ATTRIBUTE_DELIMITERS);
 				// We cannot use Profiles.of(...) since profile expressions are not supported

@@ -420,6 +420,7 @@ public class BeanDefinitionParserDelegate {
 	 * if there were errors during parse. Errors are reported to the
 	 * {@link org.springframework.beans.factory.parsing.ProblemReporter}.
 	 */
+	// TODO containingBean为null，表示解析的是顶层<bean />
 	@Nullable
 	public BeanDefinitionHolder parseBeanDefinitionElement(Element ele, @Nullable BeanDefinition containingBean) {
 		// TODO 取得id属性对应的值
@@ -450,7 +451,7 @@ public class BeanDefinitionParserDelegate {
 		// TODO 开始解析<bean />, 解析完成后返回一个GenericBeanDefinition类型的beanDefinition, 其中bd的beanClass属性会有以下几种情况:
 		//  1. 如果配置中没有指定'class'属性, 即className为空时, bd的beanClass为null
 		//  2. 如果reader设置了类加载器, 则为className指定的class
-		//  3. 如果reader没有设置了加载器, 直接为className指定的字符串
+		//  3. 如果reader没有设置类加载器, 直接为className指定的字符串
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 		if (beanDefinition != null) {
 			// TODO 解析成功时, 就要判断是否设置了beanName, 即是否有'id', 或'name'属性

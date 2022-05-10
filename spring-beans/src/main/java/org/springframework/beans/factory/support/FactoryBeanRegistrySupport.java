@@ -134,7 +134,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 							}
 							finally {
 								// TODO 回调函数, 目前缺省实现是: 将bean从正在创建缓存singletonsCurrentlyInCreation中注销
-								//  如果注销失败, 并且还不在排除列表里时, , 抛出IllegalStateException异常
+								//  如果注销失败, 并且还不在排除列表里时, 抛出IllegalStateException异常
 								afterSingletonCreation(beanName);
 							}
 						}

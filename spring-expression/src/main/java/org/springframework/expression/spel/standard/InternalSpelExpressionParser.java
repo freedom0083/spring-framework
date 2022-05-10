@@ -136,7 +136,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			// TODO 处理token的位置, 0表示从第一个token开始
 			this.tokenStreamPointer = 0;
 			this.constructedNodes.clear();
-			// TODO 按优先级解析toke, 并建立一个抽象语法树, eatExpression()执行后得到的是抽象语法树的根,
+			// TODO 按优先级解析token, 并建立一个抽象语法树, eatExpression()执行后得到的是抽象语法树的根,
 			//  整个解析过程是层层嵌套的(*调用关系与优先级是相反的):
 			//    调用关系: 赋值 -> 逻辑或 -> 逻辑与 -> 关系运算 -> 求和运算 -> 乘积运算 -> 平方运算 -> 一元运算或字面量
 			//    优先级: 一元运算或字面量 -> 平方运算 -> 乘积运算 -> 求和运算 -> 关系运算 -> 逻辑与 -> 逻辑或 -> 赋值
@@ -393,7 +393,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		// TODO 处理一元表达式(只需要一个操作数), 最高优先级:
 		//  PLUS -> '+', MINUS -> '-', NOT -> '!', INC -> '++', DEC -> '--'
 		if (peekToken(TokenKind.PLUS, TokenKind.MINUS, TokenKind.NOT)) {
-			// TODO 当前token是'+', '-', '!'操作符时, 拿出对应的操作符token, 同时token集合的指向后一个token
+			// TODO 当前token是'+', '-', '!'操作符时, 拿出对应的操作符token, 同时token集合指向后一个token
 			Token t = takeToken();
 			// TODO 然后递归后面的token
 			SpelNodeImpl expr = eatUnaryExpression();

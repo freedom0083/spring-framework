@@ -124,7 +124,7 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 	protected void loadBeanDefinitions(XmlBeanDefinitionReader reader) throws BeansException, IOException {
 		Resource[] configResources = getConfigResources();
 		if (configResources != null) {
-			// TODO 先解析一下Resource指定的bean, 这个方法是有返回值的,返回的是本次注册bean的数量
+			// TODO 先解析一下Resource指定的bean, 这个方法是有返回值的, 返回的是本次注册bean的数量
 			reader.loadBeanDefinitions(configResources);
 		}
 		// TODO configLocations is xml file location which provided when ApplicationContext instantiation

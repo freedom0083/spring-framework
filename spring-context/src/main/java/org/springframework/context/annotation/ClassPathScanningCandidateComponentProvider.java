@@ -444,7 +444,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 						// TODO 默认的MetadataReaderFactory实现类为CachingMetadataReaderFactory
 						//  默认返回的是SimpleMetadataReader对象
 						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
-						// TODO 根据includeFilters过滤器和元数据信息来来判断取类是否是可以成为一个侯选类(比如就否有@Component等)
+						// TODO 根据includeFilters过滤器和元数据信息来来判断此类是否是可以成为一个侯选类(比如就否有@Component等)
 						if (isCandidateComponent(metadataReader)) {
 							// TODO 为通过扫描的可能成为侯选的类创建beanDefinition, 其beanClass属性为元数据中class属性的值, 这里创建的是
 							//  ScannedGenericBeanDefinition类型的beanDefinition, 其使用ASM ClassReader来进行反射操作

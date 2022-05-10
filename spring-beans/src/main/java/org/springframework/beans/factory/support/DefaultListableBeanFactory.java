@@ -1027,12 +1027,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		// Trigger initialization of all non-lazy singleton beans...
 		for (String beanName : beanNames) {
+			// TODO 合并父Bean中的配置
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			// TODO 只处理非abstract、非懒加载的单例Bean
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
-				// TODO 判断当前处理的bean是否是工厂类
 				if (isFactoryBean(beanName)) {
+					// TODO 当前处理的Bean是FactoryBean时, 初始化这个FactoryBean, 方式就是beanName前加上'&'
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					if (bean instanceof FactoryBean) {
+						// TODO 初始化后，返回的如果还是FactoryBean, 则可以判断一下这个FactoryBean创建的Bean是否为急加载
 						FactoryBean<?> factory = (FactoryBean<?>) bean;
 						boolean isEagerInit;
 						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
@@ -1045,17 +1048,21 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 									((SmartFactoryBean<?>) factory).isEagerInit());
 						}
 						if (isEagerInit) {
+							// TODO 最终判断结果为急加载时，开始对Bean进行初始化
+							//  直接用beanName时，初始化的是这个FactoryBean创建的bean实例
 							getBean(beanName);
 						}
 					}
 				}
 				else {
+					// TODO 普通Bean的初始化
 					getBean(beanName);
 				}
 			}
 		}
 
 		// Trigger post-initialization callback for all applicable beans...
+		// TODO 到此为止，所有的bean已经初始化完毕, 下面准备通过SmartInitializingSingleton.afterSingletionsInstantiated()处理回调了
 		for (String beanName : beanNames) {
 			Object singletonInstance = getSingleton(beanName);
 			if (singletonInstance instanceof SmartInitializingSingleton) {

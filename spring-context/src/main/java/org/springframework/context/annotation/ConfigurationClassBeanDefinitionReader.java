@@ -278,7 +278,7 @@ class ConfigurationClassBeanDefinitionReader {
 			// TODO @Bean标注的方法的元数据是StandardMethodMetadata时, 将其内省对象做为bean的解析过的工厂方法
 			beanDef.setResolvedFactoryMethod(((StandardMethodMetadata) metadata).getIntrospectedMethod());
 		}
-		// TODO 设置自动装配模式的模式, 默认为构造器模式
+		// TODO 设置自动装配模式, 默认为构造器模式
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
 		// TODO 设置skipRequiredCheck
 		beanDef.setAttribute(org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor.

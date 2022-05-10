@@ -120,7 +120,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	@Override
 	protected final void refreshBeanFactory() throws BeansException {
 		if (hasBeanFactory()) {
-			// TODO 在beanFactory存在时, 会先进行清理动作, 然后再创建新的beanFactory
+			// TODO 当前ApplicationContext存在beanFactory时, 会先进行清理动作, 会销毁所有Bean, 然后再创建新的beanFactory
 			destroyBeans();
 			closeBeanFactory();
 		}
@@ -130,7 +130,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			beanFactory.setSerializationId(getId());
 			// TODO 设置是否支持覆盖和循环引用
 			customizeBeanFactory(beanFactory);
-			// TODO 同样根据使用不同的配置方式分为两种:
+			// TODO 加载Bean到BeanFactory, 同样根据使用不同的配置方式分为两种:
 			//  1. 对于使用非配置类方式的情况来说, 总体思路都是创建一个reader, 然后用reader来解析配置文件.
 			//     reader可以解析字符串形式的路径, 或者直接使用Resource. 无论使用哪种方式, 最终都会转化为对Resource的解析.
 			//     即, 使用AbstractBeanDefinitionReader#loadBeanDefinitions(Resource)来进行解析和注册工作:
@@ -138,8 +138,8 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			//     GroovyWebApplicationContext, XmlWebApplicationContext: 这俩只能处理字符串形式的path
 			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext创建了用于解析动作的reader和扫描动作的scanner:
 			//     a. reader: AnnotatedBeanDefinitionReader会注册实现了BeanDefinitionRegistryPostProcessor接口的后处理器,
-			//     通过实现postProcessBeanDefinitionRegistry()方法来实现自定义bean注册的功能,
-			//     比如解析配置类的ConfigurationClassPostProcessor后处理器靠其来在后面执行后处理器等.
+			//        通过实现postProcessBeanDefinitionRegistry()方法来实现自定义bean注册的功能,
+			//        比如解析配置类的ConfigurationClassPostProcessor后处理器靠其来在后面执行后处理器等.
 			//     b. scanner: ClassPathBeanDefinitionScanner来扫描指定包下的@Component, @Repository, @Controller等
 			//  这一步实际上和使用AnnotationConfigApplicationContext完全相同
 			loadBeanDefinitions(beanFactory);
@@ -229,6 +229,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	 */
 	protected void customizeBeanFactory(DefaultListableBeanFactory beanFactory) {
 		if (this.allowBeanDefinitionOverriding != null) {
+			// TODO 如果允许覆盖，则不同配置文件里的Bean使用相同id或name时会发生覆盖
 			beanFactory.setAllowBeanDefinitionOverriding(this.allowBeanDefinitionOverriding);
 		}
 		if (this.allowCircularReferences != null) {

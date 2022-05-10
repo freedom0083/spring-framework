@@ -79,11 +79,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
 	/** Cache of singleton factories: bean name to ObjectFactory. */
-	// TODO 单例工厂缓存, bean名 -> 工厂类
+	// TODO 单例工厂缓存, 可以通过工厂生成出想要的bean, bean名 -> 工厂类
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/** Cache of early singleton objects: bean name to bean instance. */
-	// TODO 提前暴露的单例对象缓存, 表示正在加载的bean, bean名 -> 引用
+	// TODO 提前暴露的单例对象缓存, 表示正在加载的bean, 属性还未填充, bean名 -> 引用
 	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
 	/** Set of registered singletons, containing the bean names in registration order. */
@@ -194,26 +194,30 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	// TODO 根据名字取得容器中注册的原生的单例对象, 提供对提前暴露的支持
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
-		// TODO 首先从单例缓存里尝试取得bean
+		// TODO 首先从单例缓存(第一级缓存)里尝试取得bean, 这个缓存都是创建好的单例bean
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+			// TODO 如果单例缓存(第一级缓存)里没取到bean, 这个bean正处于创建过程中时, 尝试从提前暴露的单例缓存(第二级缓存)里取,
+			//  允许提前暴露的bean会在创建时进入earlySingletonObjects缓存
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
-				// TODO 如果没有取得bean, 但bean正处在初始化过程, 即在缓存singletonsCurrentlyInCreation中时, 后面的操作就需要在单例缓存上进行同步
+				// TODO 如果提前暴露的单例缓存(第二级缓存)里也没有取得bean, 也开始提前显露支持时, 后面的操作就需要在单例缓存(第一级缓存)上进行同步
 				synchronized (this.singletonObjects) {
 					// Consistent creation of early reference within full singleton lock
-					// TODO 允许提前暴露的bean会在创建时进入earlySingletonObjects缓存, 如果缓存中有要取得的bean, 表示其正在加载, 无需处理, 直接返回即可
+					// TODO 然后再取一次, 先从单例缓存(第一级缓存)里取
 					singletonObject = this.singletonObjects.get(beanName);
 					if (singletonObject == null) {
+						// TODO 取不到时，再从提前暴露的单例缓存(第二级缓存)里取
 						singletonObject = this.earlySingletonObjects.get(beanName);
 						if (singletonObject == null) {
-							// TODO 如果还是没找到, 并且支持提前暴露时(支持提前初始化的方法会调用addSingletonFactory()将对应的ObjectFactory
-							//  初始化策略存在singletonFactories), 尝试从singletonFactories缓存取得对应的ObjectFactory. 如果没取到, 返回的就是null
+							// TODO 如果还是没找到, 这时就要singletonFactories缓存(第三级缓存)里取了
+							//  singletonFactories缓存(第三级缓存)里存的都是调用addSingletonFactory()的ObjectFactory初始化策略
+							//  如果这里也没有, 那就是真的没有了
 							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 							if (singletonFactory != null) {
 								// TODO 如果singletonFactories中存在预先设置的ObjectFactory, 则根据factory实现的getObject()返回对象
 								singletonObject = singletonFactory.getObject();
-								// TODO 然后将其加入到earlySingletonObjects缓存中, 并从singletonFactories缓存中删除
+								// TODO 然后将其加入到提前暴露的单例缓存(第二级缓存), 并从singletonFactories缓存中删除
 								this.earlySingletonObjects.put(beanName, singletonObject);
 								this.singletonFactories.remove(beanName);
 							}
@@ -259,8 +263,13 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					this.suppressedExceptions = new LinkedHashSet<>();
 				}
 				try {
-					// TODO 这边就开始创建bean了, 用的是ObjectFactory提供的实现, ObjectFactory是个函数接口, 可以接收一个lambda表达式
-					//  真实的创建过程是由调用方执行的
+					// TODO 到这, 就是真正开始创建bean了. 这里用的是参数ObjectFactory.getObject()来取得一个单例对象.
+					//  ObjectFactory是个泛型的函数接口, 定义了一个getObject()来返回一个只定类型的对象. AbstractBeanFactory在调用
+					//  此方法时, 传了一个lambda表示式进来, 这个lambda表达式就是真正创建Bean对象的地方:
+					//    try {
+					//        return createBean(beanName, mbd, args);
+					//    }
+					//  最终这里会创建出一个完整的, 被填充了属性、后处理器加工后的一个bean实例(也有可能是个FactoryBean)
 					singletonObject = singletonFactory.getObject();
 					newSingleton = true;
 				}
@@ -293,7 +302,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					addSingleton(beanName, singletonObject);
 				}
 			}
-			// TODO 返回创建好的单例实例, 是个原始bean
+			// TODO 返回创建好的单例实例
 			return singletonObject;
 		}
 	}

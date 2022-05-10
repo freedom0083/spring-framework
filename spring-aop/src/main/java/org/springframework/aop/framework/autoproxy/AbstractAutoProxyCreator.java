@@ -529,7 +529,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (classLoader instanceof SmartClassLoader && classLoader != beanClass.getClassLoader()) {
 			classLoader = ((SmartClassLoader) classLoader).getOriginalClassLoader();
 		}
-		// TODO 开始创建代理
+		// TODO 创建代理并返回
 		return proxyFactory.getProxy(classLoader);
 	}
 

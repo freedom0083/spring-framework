@@ -52,7 +52,7 @@ import org.springframework.util.Assert;
  * @see ChildBeanDefinition
  */
 @SuppressWarnings("serial")
-// TODO 代表一个xml, java Config来的BeanDefinition
+// TODO 代表一个xml, java Config的BeanDefinition
 public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
