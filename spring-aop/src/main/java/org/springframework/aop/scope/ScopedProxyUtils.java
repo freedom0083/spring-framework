@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,8 +90,8 @@ public abstract class ScopedProxyUtils {
 		// TODO 代理类继承目标类的自动注入属性, primary属性, 以及可能存在的qualifier属性
 		proxyDefinition.setAutowireCandidate(targetDefinition.isAutowireCandidate());
 		proxyDefinition.setPrimary(targetDefinition.isPrimary());
-		if (targetDefinition instanceof AbstractBeanDefinition) {
-			proxyDefinition.copyQualifiersFrom((AbstractBeanDefinition) targetDefinition);
+		if (targetDefinition instanceof AbstractBeanDefinition abd) {
+			proxyDefinition.copyQualifiersFrom(abd);
 		}
 		// TODO 然后禁止目标类自动注入, 以及不能识别为primary
 		// The target bean should be ignored in favor of the scoped proxy.

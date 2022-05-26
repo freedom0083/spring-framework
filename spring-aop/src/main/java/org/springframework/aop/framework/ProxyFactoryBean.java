@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -448,7 +448,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		if (!this.advisorChainInitialized && !ObjectUtils.isEmpty(this.interceptorNames)) {
 			if (this.beanFactory == null) {
 				throw new IllegalStateException("No BeanFactory available anymore (probably due to serialization) " +
-						"- cannot resolve interceptor names " + Arrays.asList(this.interceptorNames));
+						"- cannot resolve interceptor names " + Arrays.toString(this.interceptorNames));
 			}
 
 			// Globals can't be last unless we specified a targetSource using the property...
@@ -461,15 +461,14 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			for (String name : this.interceptorNames) {
 				// TODO 遍历所有的拦截器(Advisor)
 				if (name.endsWith(GLOBAL_SUFFIX)) {
-					if (!(this.beanFactory instanceof ListableBeanFactory)) {
+					if (!(this.beanFactory instanceof ListableBeanFactory lbf)) {
 						throw new AopConfigException(
 								"Can only use global advisors or interceptors with a ListableBeanFactory");
 					}
 					// TODO 支持通配符. 如果拦截器名字是以'*'结尾的, 则会从全局容器(当前容器及其父容器)中取得所有以此拦截器名开头的
 					//  Advisor/Interceptor加入到Advisor缓存里(此过程会把所有的Advice/Interceptor封装成Advisor). 还会对
 					//  InterceptorAdvisor是否实现了指定接口进行了判断
-					addGlobalAdvisors((ListableBeanFactory) this.beanFactory,
-							name.substring(0, name.length() - GLOBAL_SUFFIX.length()));
+					addGlobalAdvisors(lbf, name.substring(0, name.length() - GLOBAL_SUFFIX.length()));
 				}
 
 				else {
@@ -511,17 +510,17 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		List<Advisor> freshAdvisors = new ArrayList<>(advisors.length);
 		for (Advisor advisor : advisors) {
 			// TODO 遍历所有的Advisor
-			if (advisor instanceof PrototypePlaceholderAdvisor pa) {
+			if (advisor instanceof PrototypePlaceholderAdvisor ppa) {
 				if (logger.isDebugEnabled()) {
-					logger.debug("Refreshing bean named '" + pa.getBeanName() + "'");
+					logger.debug("Refreshing bean named '" + ppa.getBeanName() + "'");
 				}
 				// Replace the placeholder with a fresh prototype instance resulting from a getBean lookup
 				if (this.beanFactory == null) {
 					throw new IllegalStateException("No BeanFactory available anymore (probably due to " +
-							"serialization) - cannot resolve prototype advisor '" + pa.getBeanName() + "'");
+							"serialization) - cannot resolve prototype advisor '" + ppa.getBeanName() + "'");
 				}
 				// TODO 从容器里拿PrototypePlaceholderAdvisor类型的Advisor
-				Object bean = this.beanFactory.getBean(pa.getBeanName());
+				Object bean = this.beanFactory.getBean(ppa.getBeanName());
 				// TODO 包装成Advisor后, 加入到结果集
 				Advisor refreshedAdvisor = namedBeanToAdvisor(bean);
 				freshAdvisors.add(refreshedAdvisor);
@@ -606,7 +605,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			// TODO 从容器里拿出代理目标对象
 			Object target = this.beanFactory.getBean(this.targetName);
 			// TODO 如果代理不是TargetSource类型, 则用其创建一个SingletonTargetSource返回
-			return (target instanceof TargetSource ? (TargetSource) target : new SingletonTargetSource(target));
+			return (target instanceof TargetSource targetSource ? targetSource : new SingletonTargetSource(target));
 		}
 	}
 
