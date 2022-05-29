@@ -18,6 +18,7 @@ package org.springframework.aot.hint.support;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -26,6 +27,7 @@ import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeHint;
 import org.springframework.aot.hint.TypeHint.Builder;
+import org.springframework.aot.hint.annotation.Reflective;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.SynthesizedAnnotation;
@@ -55,24 +57,31 @@ public abstract class RuntimeHintsUtils {
 	 * @see SynthesizedAnnotation
 	 */
 	public static void registerAnnotation(RuntimeHints hints, Class<?> annotationType) {
+		hints.reflection().registerType(annotationType, ANNOTATION_HINT);
 		Set<Class<?>> allAnnotations = new LinkedHashSet<>();
-		allAnnotations.add(annotationType);
-		collectAliasedAnnotations(allAnnotations, annotationType);
+		collectAliasedAnnotations(new HashSet<>(), allAnnotations, annotationType);
 		allAnnotations.forEach(annotation -> hints.reflection().registerType(annotation, ANNOTATION_HINT));
-		if (allAnnotations.size() > 1) {
+		if (allAnnotations.size() > 0) {
 			hints.proxies().registerJdkProxy(annotationType, SynthesizedAnnotation.class);
 		}
 	}
 
-	private static void collectAliasedAnnotations(Set<Class<?>> types, Class<?> annotationType) {
+	private static void collectAliasedAnnotations(Set<Class<?>> seen, Set<Class<?>> types, Class<?> annotationType) {
+		if (seen.contains(annotationType) || Reflective.class.equals(annotationType)) {
+			return;
+		}
+		seen.add(annotationType);
 		for (Method method : annotationType.getDeclaredMethods()) {
 			MergedAnnotations methodAnnotations = MergedAnnotations.from(method);
 			if (methodAnnotations.isPresent(AliasFor.class)) {
-				Class<?> aliasedAnnotation = methodAnnotations.get(AliasFor.class).getClass("annotation");
-				boolean process = (aliasedAnnotation != Annotation.class && !types.contains(aliasedAnnotation));
-				if (process) {
-					types.add(aliasedAnnotation);
-					collectAliasedAnnotations(types, aliasedAnnotation);
+				Class<?> annotationAttribute = methodAnnotations.get(AliasFor.class).getClass("annotation");
+				Class<?> targetAnnotation = (annotationAttribute != Annotation.class
+						? annotationAttribute : annotationType);
+				if (!types.contains(targetAnnotation)) {
+					types.add(targetAnnotation);
+					if (!targetAnnotation.equals(annotationType)) {
+						collectAliasedAnnotations(seen, types, targetAnnotation);
+					}
 				}
 			}
 		}
