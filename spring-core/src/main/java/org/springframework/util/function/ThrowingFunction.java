@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,24 +80,29 @@ public interface ThrowingFunction<T, R> extends Function<T, R> {
 	 */
 	default ThrowingFunction<T, R> throwing(BiFunction<String, Exception, RuntimeException> exceptionWrapper) {
 		return new ThrowingFunction<>() {
-
 			@Override
 			public R applyWithException(T t) throws Exception {
 				return ThrowingFunction.this.applyWithException(t);
 			}
-
 			@Override
 			public R apply(T t) {
 				return apply(t, exceptionWrapper);
 			}
-
 		};
 	}
 
 	/**
-	 * Lambda friendly convenience method that can be used to create
+	 * Lambda friendly convenience method that can be used to create a
 	 * {@link ThrowingFunction} where the {@link #apply(Object)} method wraps
-	 * any thrown checked exceptions using the given {@code exceptionWrapper}.
+	 * any checked exception thrown by the supplied lambda expression or method
+	 * reference.
+	 * <p>This method can be especially useful when working with method references.
+	 * It allows you to easily convert a method that throws a checked exception
+	 * into an instance compatible with a regular {@link Function}.
+	 * <p>For example:
+	 * <pre class="code">
+	 * stream.map(ThrowingFunction.of(Example::methodThatCanThrowCheckedException));
+	 * </pre>
 	 * @param <T> the type of the input to the function
 	 * @param <R> the type of the result of the function
 	 * @param function the source function
@@ -108,9 +113,16 @@ public interface ThrowingFunction<T, R> extends Function<T, R> {
 	}
 
 	/**
-	 * Lambda friendly convenience method that can be used to create
+	 * Lambda friendly convenience method that can be used to create a
 	 * {@link ThrowingFunction} where the {@link #apply(Object)} method wraps
 	 * any thrown checked exceptions using the given {@code exceptionWrapper}.
+	 * <p>This method can be especially useful when working with method references.
+	 * It allows you to easily convert a method that throws a checked exception
+	 * into an instance compatible with a regular {@link Function}.
+	 * <p>For example:
+	 * <pre class="code">
+	 * stream.map(ThrowingFunction.of(Example::methodThatCanThrowCheckedException, IllegalStateException::new));
+	 * </pre>
 	 * @param <T> the type of the input to the function
 	 * @param <R> the type of the result of the function
 	 * @param function the source function

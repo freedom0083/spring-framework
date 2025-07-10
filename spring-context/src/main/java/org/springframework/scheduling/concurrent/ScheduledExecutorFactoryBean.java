@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.support.DelegatingErrorHandlingRunnable;
 import org.springframework.scheduling.support.TaskUtils;
 import org.springframework.util.Assert;
@@ -38,7 +39,7 @@ import org.springframework.util.ObjectUtils;
  *
  * <p>Allows for registration of {@link ScheduledExecutorTask ScheduledExecutorTasks},
  * automatically starting the {@link ScheduledExecutorService} on initialization and
- * cancelling it on destruction of the context. In scenarios that only require static
+ * canceling it on destruction of the context. In scenarios that only require static
  * registration of tasks at startup, there is no need to access the
  * {@link ScheduledExecutorService} instance itself in application code at all;
  * {@code ScheduledExecutorFactoryBean} is then just being used for lifecycle integration.
@@ -76,8 +77,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 	private int poolSize = 1;
 
-	@Nullable
-	private ScheduledExecutorTask[] scheduledExecutorTasks;
+	private ScheduledExecutorTask @Nullable [] scheduledExecutorTasks;
 
 	private boolean removeOnCancelPolicy = false;
 
@@ -85,8 +85,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 	private boolean exposeUnconfigurableExecutor = false;
 
-	@Nullable
-	private ScheduledExecutorService exposedExecutor;
+	private @Nullable ScheduledExecutorService exposedExecutor;
 
 
 	/**
@@ -153,8 +152,8 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 				createExecutor(this.poolSize, threadFactory, rejectedExecutionHandler);
 
 		if (this.removeOnCancelPolicy) {
-			if (executor instanceof ScheduledThreadPoolExecutor) {
-				((ScheduledThreadPoolExecutor) executor).setRemoveOnCancelPolicy(true);
+			if (executor instanceof ScheduledThreadPoolExecutor threadPoolExecutor) {
+				threadPoolExecutor.setRemoveOnCancelPolicy(true);
 			}
 			else {
 				logger.debug("Could not apply remove-on-cancel policy - not a ScheduledThreadPoolExecutor");
@@ -187,7 +186,16 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 	protected ScheduledExecutorService createExecutor(
 			int poolSize, ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
 
-		return new ScheduledThreadPoolExecutor(poolSize, threadFactory, rejectedExecutionHandler);
+		return new ScheduledThreadPoolExecutor(poolSize, threadFactory, rejectedExecutionHandler) {
+			@Override
+			protected void beforeExecute(Thread thread, Runnable task) {
+				ScheduledExecutorFactoryBean.this.beforeExecute(thread, task);
+			}
+			@Override
+			protected void afterExecute(Runnable task, Throwable ex) {
+				ScheduledExecutorFactoryBean.this.afterExecute(task, ex);
+			}
+		};
 	}
 
 	/**
@@ -232,8 +240,7 @@ public class ScheduledExecutorFactoryBean extends ExecutorConfigurationSupport
 
 
 	@Override
-	@Nullable
-	public ScheduledExecutorService getObject() {
+	public @Nullable ScheduledExecutorService getObject() {
 		return this.exposedExecutor;
 	}
 

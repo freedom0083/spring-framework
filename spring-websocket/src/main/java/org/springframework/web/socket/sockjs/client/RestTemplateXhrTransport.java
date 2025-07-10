@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
@@ -31,10 +34,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.StreamingHttpOutputMessage;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
-import org.springframework.util.concurrent.SettableListenableFuture;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.ResponseExtractor;
@@ -99,7 +100,7 @@ public class RestTemplateXhrTransport extends AbstractXhrTransport {
 	@Override
 	protected void connectInternal(final TransportRequest transportRequest, final WebSocketHandler handler,
 			final URI receiveUrl, final HttpHeaders handshakeHeaders, final XhrClientSockJsSession session,
-			final SettableListenableFuture<WebSocketSession> connectFuture) {
+			final CompletableFuture<WebSocketSession> connectFuture) {
 
 		getTaskExecutor().execute(() -> {
 			HttpHeaders httpHeaders = transportRequest.getHttpRequestHeaders();
@@ -120,7 +121,7 @@ public class RestTemplateXhrTransport extends AbstractXhrTransport {
 				}
 				catch (Exception ex) {
 					if (!connectFuture.isDone()) {
-						connectFuture.setException(ex);
+						connectFuture.completeExceptionally(ex);
 					}
 					else {
 						session.handleTransportError(ex);
@@ -167,8 +168,7 @@ public class RestTemplateXhrTransport extends AbstractXhrTransport {
 
 		private final HttpHeaders headers;
 
-		@Nullable
-		private final String body;
+		private final @Nullable String body;
 
 		public XhrRequestCallback(HttpHeaders headers) {
 			this(headers, null);
@@ -183,8 +183,8 @@ public class RestTemplateXhrTransport extends AbstractXhrTransport {
 		public void doWithRequest(ClientHttpRequest request) throws IOException {
 			request.getHeaders().putAll(this.headers);
 			if (this.body != null) {
-				if (request instanceof StreamingHttpOutputMessage) {
-					((StreamingHttpOutputMessage) request).setBody(outputStream ->
+				if (request instanceof StreamingHttpOutputMessage streamingOutputMessage) {
+					streamingOutputMessage.setBody(outputStream ->
 							StreamUtils.copy(this.body, SockJsFrame.CHARSET, outputStream));
 				}
 				else {
@@ -207,7 +207,7 @@ public class RestTemplateXhrTransport extends AbstractXhrTransport {
 		}
 
 		@Override
-		public Object extractData(ClientHttpResponse response) throws IOException {
+		public @Nullable Object extractData(ClientHttpResponse response) throws IOException {
 			HttpStatusCode httpStatus = response.getStatusCode();
 			if (httpStatus != HttpStatus.OK) {
 				throw new HttpServerErrorException(

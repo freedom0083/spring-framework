@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -34,7 +35,6 @@ import org.springframework.beans.factory.parsing.BeanComponentDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
@@ -77,11 +77,9 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private XmlReaderContext readerContext;
+	private @Nullable XmlReaderContext readerContext;
 
-	@Nullable
-	private BeanDefinitionParserDelegate delegate;
+	private @Nullable BeanDefinitionParserDelegate delegate;
 
 
 	/**
@@ -109,8 +107,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * Invoke the {@link org.springframework.beans.factory.parsing.SourceExtractor}
 	 * to pull the source metadata from the supplied {@link Element}.
 	 */
-	@Nullable
-	protected Object extractSource(Element ele) {
+	protected @Nullable Object extractSource(Element ele) {
 		return getReaderContext().extractSource(ele);
 	}
 
@@ -129,10 +126,11 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// TODO 此方法会被递归调用, 所以配置文件中<beans />内部可以定义<beans />, 这个方法的root不一定是xml的根节点,
 		//  也可能是嵌套在里面的<beans />节点, 所以这里需要定义上层的解析代理
 		BeanDefinitionParserDelegate parent = this.delegate;
+		BeanDefinitionParserDelegate current = createDelegate(getReaderContext(), root, parent);
 		// TODO 根据xml的元素生成一个带有默认属性的BeanDefinitionParserDelegate代理
-		this.delegate = createDelegate(getReaderContext(), root, parent);
+		this.delegate = current;
 
-		if (this.delegate.isDefaultNamespace(root)) {
+		if (current.isDefaultNamespace(root)) {
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
 			if (StringUtils.hasText(profileSpec)) {
 				// TODO 处理根节点的<beans ... profile="dev" />
@@ -153,7 +151,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// TODO 对xml的预处理, 勾子方法, 什么也没做
 		preProcessXml(root);
 		// TODO 开始解析xml, "import", "alias", "bean"
-		parseBeanDefinitions(root, this.delegate);
+		parseBeanDefinitions(root, current);
 		// TODO 对xml的后处理, 勾子方法, 什么都没做
 		postProcessXml(root);
 
@@ -232,7 +230,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			return;
 		}
 
-		// Resolve system properties: e.g. "${user.dir}"
+		// Resolve system properties: for example, "${user.dir}"
 		location = getReaderContext().getEnvironment().resolveRequiredPlaceholders(location);
 
 		Set<Resource> actualResources = new LinkedHashSet<>(4);

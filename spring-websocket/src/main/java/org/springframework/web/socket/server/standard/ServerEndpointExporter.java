@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,17 +27,17 @@ import jakarta.websocket.DeploymentException;
 import jakarta.websocket.server.ServerContainer;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.server.ServerEndpointConfig;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.support.WebApplicationObjectSupport;
 
 /**
  * Detects beans of type {@link jakarta.websocket.server.ServerEndpointConfig} and registers
- * with the standard Java WebSocket runtime. Also detects beans annotated with
+ * with the standard Jakarta WebSocket runtime. Also detects beans annotated with
  * {@link ServerEndpoint} and registers them as well. Although not required, it is likely
  * annotated endpoints should have their {@code configurator} property set to
  * {@link SpringConfigurator}.
@@ -56,17 +56,15 @@ import org.springframework.web.context.support.WebApplicationObjectSupport;
 public class ServerEndpointExporter extends WebApplicationObjectSupport
 		implements InitializingBean, SmartInitializingSingleton {
 
-	@Nullable
-	private List<Class<?>> annotatedEndpointClasses;
+	private @Nullable List<Class<?>> annotatedEndpointClasses;
 
-	@Nullable
-	private ServerContainer serverContainer;
+	private @Nullable ServerContainer serverContainer;
 
 
 	/**
 	 * Explicitly list annotated endpoint types that should be registered on startup. This
 	 * can be done if you wish to turn off a Servlet container's scan for endpoints, which
-	 * goes through all 3rd party jars in the, and rely on Spring configuration instead.
+	 * goes through all 3rd party jars in the classpath, and rely on Spring configuration instead.
 	 * @param annotatedEndpointClasses {@link ServerEndpoint}-annotated types
 	 */
 	public void setAnnotatedEndpointClasses(Class<?>... annotatedEndpointClasses) {
@@ -84,8 +82,7 @@ public class ServerEndpointExporter extends WebApplicationObjectSupport
 	/**
 	 * Return the JSR-356 {@link ServerContainer} to use for endpoint registration.
 	 */
-	@Nullable
-	protected ServerContainer getServerContainer() {
+	protected @Nullable ServerContainer getServerContainer() {
 		return this.serverContainer;
 	}
 

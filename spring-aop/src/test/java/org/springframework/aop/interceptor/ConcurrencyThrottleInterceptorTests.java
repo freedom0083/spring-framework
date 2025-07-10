@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.springframework.aop.interceptor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.springframework.aop.framework.Advised;
 import org.springframework.aop.framework.ProxyFactory;
@@ -30,21 +32,23 @@ import org.springframework.core.testfixture.io.SerializationTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
+ * Tests for {@link ConcurrencyThrottleInterceptor}.
+ *
  * @author Juergen Hoeller
  * @author Chris Beams
  * @since 06.04.2004
  */
-public class ConcurrencyThrottleInterceptorTests {
+class ConcurrencyThrottleInterceptorTests {
 
-	protected static final Log logger = LogFactory.getLog(ConcurrencyThrottleInterceptorTests.class);
+	private static final Log logger = LogFactory.getLog(ConcurrencyThrottleInterceptorTests.class);
 
-	public static final int NR_OF_THREADS = 100;
+	private static final int NR_OF_THREADS = 100;
 
-	public static final int NR_OF_ITERATIONS = 1000;
+	private static final int NR_OF_ITERATIONS = 1000;
 
 
 	@Test
-	public void testSerializable() throws Exception {
+	void interceptorMustBeSerializable() throws Exception {
 		DerivedTestBean tb = new DerivedTestBean();
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.setInterfaces(ITestBean.class);
@@ -62,17 +66,9 @@ public class ConcurrencyThrottleInterceptorTests {
 		serializedProxy.getAge();
 	}
 
-	@Test
-	public void testMultipleThreadsWithLimit1() {
-		testMultipleThreads(1);
-	}
-
-	@Test
-	public void testMultipleThreadsWithLimit10() {
-		testMultipleThreads(10);
-	}
-
-	private void testMultipleThreads(int concurrencyLimit) {
+	@ParameterizedTest
+	@ValueSource(ints = {1, 10})
+	void multipleThreadsWithLimit(int concurrencyLimit) {
 		TestBean tb = new TestBean();
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.setInterfaces(ITestBean.class);
@@ -95,7 +91,7 @@ public class ConcurrencyThrottleInterceptorTests {
 				ex.printStackTrace();
 			}
 			threads[i] = new ConcurrencyThread(proxy,
-					i % 2 == 0 ? new OutOfMemoryError() : new IllegalStateException());
+					(i % 2 == 0 ? new OutOfMemoryError() : new IllegalStateException()));
 			threads[i].start();
 		}
 		for (int i = 0; i < NR_OF_THREADS; i++) {
@@ -111,8 +107,8 @@ public class ConcurrencyThrottleInterceptorTests {
 
 	private static class ConcurrencyThread extends Thread {
 
-		private ITestBean proxy;
-		private Throwable ex;
+		private final ITestBean proxy;
+		private final Throwable ex;
 
 		public ConcurrencyThread(ITestBean proxy, Throwable ex) {
 			this.proxy = proxy;

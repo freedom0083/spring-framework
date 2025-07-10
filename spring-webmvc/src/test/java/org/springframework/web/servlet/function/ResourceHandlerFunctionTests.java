@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,18 +46,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Arjen Poutsma
  */
-public class ResourceHandlerFunctionTests {
+class ResourceHandlerFunctionTests {
 
 	private final Resource resource = new ClassPathResource("response.txt", getClass());
 
-	private final ResourceHandlerFunction handlerFunction = new ResourceHandlerFunction(this.resource);
+	private final ResourceHandlerFunction handlerFunction = new ResourceHandlerFunction(this.resource, (r, h) -> {});
 
 	private ServerResponse.Context context;
 
 	private ResourceHttpMessageConverter messageConverter;
 
+
 	@BeforeEach
-	public void createContext() {
+	void createContext() {
 		this.messageConverter = new ResourceHttpMessageConverter();
 		ResourceRegionHttpMessageConverter regionConverter = new ResourceRegionHttpMessageConverter();
 		this.context = () -> Arrays.asList(messageConverter, regionConverter);
@@ -65,7 +66,7 @@ public class ResourceHandlerFunctionTests {
 
 
 	@Test
-	public void get() throws IOException, ServletException {
+	void get() throws IOException, ServletException {
 		MockHttpServletRequest servletRequest = PathPatternsTestUtils.initRequest("GET", "/", true);
 		ServerRequest request = new DefaultServerRequest(servletRequest, Collections.singletonList(messageConverter));
 
@@ -89,7 +90,7 @@ public class ResourceHandlerFunctionTests {
 	}
 
 	@Test
-	public void getRange() throws IOException, ServletException {
+	void getRange() throws IOException, ServletException {
 		MockHttpServletRequest servletRequest = PathPatternsTestUtils.initRequest("GET", "/", true);
 		servletRequest.addHeader("Range", "bytes=0-5");
 		ServerRequest request = new DefaultServerRequest(servletRequest, Collections.singletonList(messageConverter));
@@ -118,7 +119,7 @@ public class ResourceHandlerFunctionTests {
 	}
 
 	@Test
-	public void getInvalidRange() throws IOException, ServletException {
+	void getInvalidRange() throws IOException, ServletException {
 		MockHttpServletRequest servletRequest = PathPatternsTestUtils.initRequest("GET", "/", true);
 		servletRequest.addHeader("Range", "bytes=0-10, 0-10, 0-10, 0-10, 0-10, 0-10");
 		ServerRequest request = new DefaultServerRequest(servletRequest, Collections.singletonList(messageConverter));
@@ -144,7 +145,7 @@ public class ResourceHandlerFunctionTests {
 	}
 
 	@Test
-	public void head() throws IOException, ServletException {
+	void head() throws IOException, ServletException {
 		MockHttpServletRequest servletRequest = PathPatternsTestUtils.initRequest("HEAD", "/", true);
 		ServerRequest request = new DefaultServerRequest(servletRequest, Collections.singletonList(messageConverter));
 
@@ -162,13 +163,13 @@ public class ResourceHandlerFunctionTests {
 
 		assertThat(servletResponse.getStatus()).isEqualTo(200);
 		byte[] actualBytes = servletResponse.getContentAsByteArray();
-		assertThat(actualBytes.length).isEqualTo(0);
+		assertThat(actualBytes).isEmpty();
 		assertThat(servletResponse.getContentType()).isEqualTo(MediaType.TEXT_PLAIN_VALUE);
 		assertThat(servletResponse.getContentLength()).isEqualTo(this.resource.contentLength());
 	}
 
 	@Test
-	public void options() throws ServletException, IOException {
+	void options() throws ServletException, IOException {
 		MockHttpServletRequest servletRequest = PathPatternsTestUtils.initRequest("OPTIONS", "/", true);
 		ServerRequest request = new DefaultServerRequest(servletRequest, Collections.singletonList(messageConverter));
 
@@ -185,7 +186,7 @@ public class ResourceHandlerFunctionTests {
 		String[] methods = StringUtils.tokenizeToStringArray(allowHeader, ",");
 		assertThat(methods).containsExactlyInAnyOrder("GET","HEAD","OPTIONS");
 		byte[] actualBytes = servletResponse.getContentAsByteArray();
-		assertThat(actualBytes.length).isEqualTo(0);
+		assertThat(actualBytes).isEmpty();
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import org.springframework.jmx.support.RegistrationPolicy;
 
 /**
  * Enables default exporting of all standard {@code MBean}s from the Spring context, as
- * well as well all {@code @ManagedResource} annotated beans.
+ * well as all {@code @ManagedResource} annotated beans.
  *
  * <p>The resulting {@link org.springframework.jmx.export.MBeanExporter MBeanExporter}
  * bean is defined under the name "mbeanExporter". Alternatively, consider defining a

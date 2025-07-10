@@ -217,6 +217,7 @@ public class ClassWriter extends ClassVisitor {
   /**
    * Indicates what must be automatically computed in {@link MethodWriter}. Must be one of {@link
    * MethodWriter#COMPUTE_NOTHING}, {@link MethodWriter#COMPUTE_MAX_STACK_AND_LOCAL}, {@link
+   * MethodWriter#COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES}, {@link
    * MethodWriter#COMPUTE_INSERTED_FRAMES}, or {@link MethodWriter#COMPUTE_ALL_FRAMES}.
    */
   private int compute;
@@ -263,13 +264,7 @@ public class ClassWriter extends ClassVisitor {
     super(/* latest api = */ Opcodes.ASM9);
     this.flags = flags;
     symbolTable = classReader == null ? new SymbolTable(this) : new SymbolTable(this, classReader);
-    if ((flags & COMPUTE_FRAMES) != 0) {
-      compute = MethodWriter.COMPUTE_ALL_FRAMES;
-    } else if ((flags & COMPUTE_MAXS) != 0) {
-      compute = MethodWriter.COMPUTE_MAX_STACK_AND_LOCAL;
-    } else {
-      compute = MethodWriter.COMPUTE_NOTHING;
-    }
+    setFlags(flags);
   }
 
   // -----------------------------------------------------------------------------------------------
@@ -773,7 +768,7 @@ public class ClassWriter extends ClassVisitor {
     lastRecordComponent = null;
     firstAttribute = null;
     compute = hasFrames ? MethodWriter.COMPUTE_INSERTED_FRAMES : MethodWriter.COMPUTE_NOTHING;
-    new ClassReader(classFile, 0, /* checkClassVersion = */ false)
+    new ClassReader(classFile, 0, /* checkClassVersion= */ false)
         .accept(
             this,
             attributes,
@@ -842,7 +837,7 @@ public class ClassWriter extends ClassVisitor {
    * constant pool already contains a similar item. <i>This method is intended for {@link Attribute}
    * sub classes, and is normally not needed by class generators or adapters.</i>
    *
-   * @param value the internal name of the class.
+   * @param value the internal name of the class (see {@link Type#getInternalName()}).
    * @return the index of a new or already existing class reference item.
    */
   public int newClass(final String value) {
@@ -894,7 +889,8 @@ public class ClassWriter extends ClassVisitor {
    *     Opcodes#H_GETSTATIC}, {@link Opcodes#H_PUTFIELD}, {@link Opcodes#H_PUTSTATIC}, {@link
    *     Opcodes#H_INVOKEVIRTUAL}, {@link Opcodes#H_INVOKESTATIC}, {@link Opcodes#H_INVOKESPECIAL},
    *     {@link Opcodes#H_NEWINVOKESPECIAL} or {@link Opcodes#H_INVOKEINTERFACE}.
-   * @param owner the internal name of the field or method owner class.
+   * @param owner the internal name of the field or method owner class (see {@link
+   *     Type#getInternalName()}).
    * @param name the name of the field or method.
    * @param descriptor the descriptor of the field or method.
    * @return the index of a new or already existing method type reference item.
@@ -916,7 +912,8 @@ public class ClassWriter extends ClassVisitor {
    *     Opcodes#H_GETSTATIC}, {@link Opcodes#H_PUTFIELD}, {@link Opcodes#H_PUTSTATIC}, {@link
    *     Opcodes#H_INVOKEVIRTUAL}, {@link Opcodes#H_INVOKESTATIC}, {@link Opcodes#H_INVOKESPECIAL},
    *     {@link Opcodes#H_NEWINVOKESPECIAL} or {@link Opcodes#H_INVOKEINTERFACE}.
-   * @param owner the internal name of the field or method owner class.
+   * @param owner the internal name of the field or method owner class (see {@link
+   *     Type#getInternalName()}).
    * @param name the name of the field or method.
    * @param descriptor the descriptor of the field or method.
    * @param isInterface true if the owner is an interface.
@@ -978,7 +975,7 @@ public class ClassWriter extends ClassVisitor {
    * constant pool already contains a similar item. <i>This method is intended for {@link Attribute}
    * sub classes, and is normally not needed by class generators or adapters.</i>
    *
-   * @param owner the internal name of the field's owner class.
+   * @param owner the internal name of the field's owner class (see {@link Type#getInternalName()}).
    * @param name the field's name.
    * @param descriptor the field's descriptor.
    * @return the index of a new or already existing field reference item.
@@ -992,7 +989,8 @@ public class ClassWriter extends ClassVisitor {
    * constant pool already contains a similar item. <i>This method is intended for {@link Attribute}
    * sub classes, and is normally not needed by class generators or adapters.</i>
    *
-   * @param owner the internal name of the method's owner class.
+   * @param owner the internal name of the method's owner class (see {@link
+   *     Type#getInternalName()}).
    * @param name the method's name.
    * @param descriptor the method's descriptor.
    * @param isInterface {@literal true} if {@code owner} is an interface.
@@ -1016,6 +1014,28 @@ public class ClassWriter extends ClassVisitor {
     return symbolTable.addConstantNameAndType(name, descriptor);
   }
 
+  /**
+   * Changes the computation strategy of method properties like max stack size, max number of local
+   * variables, and frames.
+   *
+   * <p><b>WARNING</b>: {@link #setFlags(int)} method changes the behavior of new method visitors
+   * returned from {@link #visitMethod(int, String, String, String, String[])}. The behavior will be
+   * changed only after the next method visitor is returned. All the previously returned method
+   * visitors keep their previous behavior.
+   *
+   * @param flags option flags that can be used to modify the default behavior of this class. Must
+   *     be zero or more of {@link #COMPUTE_MAXS} and {@link #COMPUTE_FRAMES}.
+   */
+  public final void setFlags(final int flags) {
+    if ((flags & ClassWriter.COMPUTE_FRAMES) != 0) {
+      compute = MethodWriter.COMPUTE_ALL_FRAMES;
+    } else if ((flags & ClassWriter.COMPUTE_MAXS) != 0) {
+      compute = MethodWriter.COMPUTE_MAX_STACK_AND_LOCAL;
+    } else {
+      compute = MethodWriter.COMPUTE_NOTHING;
+    }
+  }
+
   // -----------------------------------------------------------------------------------------------
   // Default method to compute common super classes when computing stack map frames
   // -----------------------------------------------------------------------------------------------
@@ -1028,9 +1048,10 @@ public class ClassWriter extends ClassVisitor {
    * currently being generated by this ClassWriter, which can of course not be loaded since it is
    * under construction.
    *
-   * @param type1 the internal name of a class.
-   * @param type2 the internal name of another class.
-   * @return the internal name of the common super class of the two given classes.
+   * @param type1 the internal name of a class (see {@link Type#getInternalName()}).
+   * @param type2 the internal name of another class (see {@link Type#getInternalName()}).
+   * @return the internal name of the common super class of the two given classes (see {@link
+   *     Type#getInternalName()}).
    */
   protected String getCommonSuperClass(final String type1, final String type2) {
     ClassLoader classLoader = getClassLoader();

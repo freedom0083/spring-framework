@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,12 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.web.servlet.handler.PathPatternsTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * @author Arjen Poutsma
@@ -41,7 +43,7 @@ class PathResourceLookupFunctionTests {
 		ServerRequest request = initRequest("GET", "/resources/response.txt");
 
 		Optional<Resource> result = function.apply(request);
-		assertThat(result.isPresent()).isTrue();
+		assertThat(result).isPresent();
 
 		File expected = new ClassPathResource("response.txt", getClass()).getFile();
 		assertThat(result.get().getFile()).isEqualTo(expected);
@@ -54,7 +56,7 @@ class PathResourceLookupFunctionTests {
 		ServerRequest request = initRequest("GET", "/resources/child/response.txt");
 
 		Optional<Resource> result = function.apply(request);
-		assertThat(result.isPresent()).isTrue();
+		assertThat(result).isPresent();
 
 		File expected = new ClassPathResource("org/springframework/web/servlet/function/child/response.txt").getFile();
 		assertThat(result.get().getFile()).isEqualTo(expected);
@@ -67,7 +69,7 @@ class PathResourceLookupFunctionTests {
 		ServerRequest request = initRequest("GET", "/resources/foo.txt");
 
 		Optional<Resource> result = function.apply(request);
-		assertThat(result.isPresent()).isFalse();
+		assertThat(result).isNotPresent();
 	}
 
 	@Test
@@ -91,7 +93,7 @@ class PathResourceLookupFunctionTests {
 		ServerRequest request = initRequest("GET", "/resources/foo");
 
 		Optional<Resource> result = customLookupFunction.apply(request);
-		assertThat(result.isPresent()).isTrue();
+		assertThat(result).isPresent();
 
 		assertThat(result.get().getFile()).isEqualTo(defaultResource.getFile());
 	}
@@ -100,6 +102,19 @@ class PathResourceLookupFunctionTests {
 		return new DefaultServerRequest(
 				PathPatternsTestUtils.initRequest(httpMethod, requestUri, true),
 				Collections.emptyList());
+	}
+
+	@Test
+	@SuppressWarnings("removal")
+	void withPathResource() {
+		org.springframework.core.io.PathResource location = new org.springframework.core.io.PathResource("/static/");
+		assertThatNoException().isThrownBy(() -> new PathResourceLookupFunction("/resources/**", location));
+	}
+
+	@Test
+	void withFileSystemResource() {
+		FileSystemResource location = new FileSystemResource("/static/");
+		assertThatNoException().isThrownBy(() -> new PathResourceLookupFunction("/resources/**", location));
 	}
 
 }

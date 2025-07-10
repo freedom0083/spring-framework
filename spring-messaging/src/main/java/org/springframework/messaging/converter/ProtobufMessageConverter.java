@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import java.util.Map;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
@@ -67,13 +67,15 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 	 */
 	public static final MimeType PROTOBUF = new MimeType("application", "x-protobuf", DEFAULT_CHARSET);
 
+	private static final boolean protobufJsonFormatPresent =
+			ClassUtils.isPresent("com.google.protobuf.util.JsonFormat", ProtobufMessageConverter.class.getClassLoader());
 
 	private static final Map<Class<?>, Method> methodCache = new ConcurrentReferenceHashMap<>();
 
+
 	final ExtensionRegistry extensionRegistry;
 
-	@Nullable
-	private final ProtobufFormatSupport protobufFormatSupport;
+	private final @Nullable ProtobufFormatSupport protobufFormatSupport;
 
 
 	/**
@@ -98,7 +100,7 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 		if (formatSupport != null) {
 			this.protobufFormatSupport = formatSupport;
 		}
-		else if (ClassUtils.isPresent("com.google.protobuf.util.JsonFormat", getClass().getClassLoader())) {
+		else if (protobufJsonFormatPresent) {
 			this.protobufFormatSupport = new ProtobufJavaUtilSupport(null, null);
 		}
 		else {
@@ -241,7 +243,7 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 
 		private final JsonFormat.Printer printer;
 
-		public ProtobufJavaUtilSupport(@Nullable JsonFormat.Parser parser, @Nullable JsonFormat.Printer printer) {
+		public ProtobufJavaUtilSupport(JsonFormat.@Nullable Parser parser, JsonFormat.@Nullable Printer printer) {
 			this.parser = (parser != null ? parser : JsonFormat.parser());
 			this.printer = (printer != null ? printer : JsonFormat.printer());
 		}
@@ -262,7 +264,12 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 				throws IOException, MessageConversionException {
 
 			if (contentType.isCompatibleWith(APPLICATION_JSON)) {
-				this.parser.merge(message.getPayload().toString(), builder);
+				if (message.getPayload() instanceof byte[] bytes) {
+					this.parser.merge(new String(bytes, charset), builder);
+				}
+				else {
+					this.parser.merge(message.getPayload().toString(), builder);
+				}
 			}
 			else {
 				throw new MessageConversionException(

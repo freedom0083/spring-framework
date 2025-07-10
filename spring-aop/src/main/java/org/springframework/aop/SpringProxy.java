@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2007 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.springframework.aop;
 
 /**
  * Marker interface implemented by all AOP proxies. Used to detect
- * whether or not objects are Spring-generated proxies.
+ * whether objects are Spring-generated proxies.
  *
  * @author Rob Harrop
  * @since 2.0.1

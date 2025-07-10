@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.PersistenceUnitInfo;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanClassLoaderAware;
@@ -52,12 +53,12 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.SmartFactoryBean;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -65,7 +66,9 @@ import org.springframework.util.CollectionUtils;
 /**
  * Abstract {@link org.springframework.beans.factory.FactoryBean} that creates
  * a local JPA {@link jakarta.persistence.EntityManagerFactory} instance within
- * a Spring application context.
+ * a Spring application context. As of 7.0, it additionally exposes a shared
+ * {@link jakarta.persistence.EntityManager} instance through {@link SmartFactoryBean},
+ * making {@code EntityManager} available for dependency injection as well.
  *
  * <p>Encapsulates the common functionality between the different JPA bootstrap
  * contracts (standalone as well as container).
@@ -79,7 +82,7 @@ import org.springframework.util.CollectionUtils;
  * interface, as autodetected by Spring's
  * {@link org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor},
  * for AOP-based translation of native exceptions to Spring DataAccessExceptions.
- * Hence, the presence of e.g. LocalEntityManagerFactoryBean automatically enables
+ * Hence, the presence of, for example, LocalEntityManagerFactoryBean automatically enables
  * a PersistenceExceptionTranslationPostProcessor to translate JPA exceptions.
  *
  * @author Juergen Hoeller
@@ -90,57 +93,48 @@ import org.springframework.util.CollectionUtils;
  */
 @SuppressWarnings("serial")
 public abstract class AbstractEntityManagerFactoryBean implements
-		FactoryBean<EntityManagerFactory>, BeanClassLoaderAware, BeanFactoryAware, BeanNameAware,
-		InitializingBean, DisposableBean, EntityManagerFactoryInfo, PersistenceExceptionTranslator, Serializable {
+		SmartFactoryBean<EntityManagerFactory>, BeanClassLoaderAware, BeanFactoryAware,
+		BeanNameAware, InitializingBean, SmartInitializingSingleton, DisposableBean,
+		EntityManagerFactoryInfo, PersistenceExceptionTranslator, Serializable {
 
 	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private PersistenceProvider persistenceProvider;
+	private @Nullable PersistenceProvider persistenceProvider;
 
-	@Nullable
-	private String persistenceUnitName;
+	private @Nullable String persistenceUnitName;
 
 	private final Map<String, Object> jpaPropertyMap = new HashMap<>();
 
-	@Nullable
-	private Class<? extends EntityManagerFactory> entityManagerFactoryInterface;
+	private @Nullable Class<? extends EntityManagerFactory> entityManagerFactoryInterface;
 
-	@Nullable
-	private Class<? extends EntityManager> entityManagerInterface;
+	private @Nullable Class<? extends EntityManager> entityManagerInterface;
 
-	@Nullable
-	private JpaDialect jpaDialect;
+	private @Nullable JpaDialect jpaDialect;
 
-	@Nullable
-	private JpaVendorAdapter jpaVendorAdapter;
+	private @Nullable JpaVendorAdapter jpaVendorAdapter;
 
-	@Nullable
-	private Consumer<EntityManager> entityManagerInitializer;
+	private @Nullable Consumer<EntityManager> entityManagerInitializer;
 
-	@Nullable
-	private AsyncTaskExecutor bootstrapExecutor;
+	private @Nullable AsyncTaskExecutor bootstrapExecutor;
 
 	private ClassLoader beanClassLoader = getClass().getClassLoader();
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
-	@Nullable
-	private String beanName;
+	private @Nullable String beanName;
 
 	/** Raw EntityManagerFactory as returned by the PersistenceProvider. */
-	@Nullable
-	private EntityManagerFactory nativeEntityManagerFactory;
+	private @Nullable EntityManagerFactory nativeEntityManagerFactory;
 
 	/** Future for lazily initializing raw target EntityManagerFactory. */
-	@Nullable
-	private Future<EntityManagerFactory> nativeEntityManagerFactoryFuture;
+	private @Nullable Future<EntityManagerFactory> nativeEntityManagerFactoryFuture;
 
 	/** Exposed client-level EntityManagerFactory proxy. */
-	@Nullable
-	private EntityManagerFactory entityManagerFactory;
+	private @Nullable EntityManagerFactory entityManagerFactory;
+
+	/** Exposed client-level shared EntityManager proxy. */
+	private @Nullable EntityManager sharedEntityManager;
 
 
 	/**
@@ -170,8 +164,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	@Override
-	@Nullable
-	public PersistenceProvider getPersistenceProvider() {
+	public @Nullable PersistenceProvider getPersistenceProvider() {
 		return this.persistenceProvider;
 	}
 
@@ -187,8 +180,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	@Override
-	@Nullable
-	public String getPersistenceUnitName() {
+	public @Nullable String getPersistenceUnitName() {
 		return this.persistenceUnitName;
 	}
 
@@ -218,10 +210,10 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	/**
-	 * Allow Map access to the JPA properties to be passed to the persistence
+	 * Allow {@code Map} access to the JPA properties to be passed to the persistence
 	 * provider, with the option to add or override specific entries.
 	 * <p>Useful for specifying entries directly, for example via
-	 * "jpaPropertyMap[myKey]".
+	 * {@code jpaPropertyMap[myKey]}.
 	 */
 	public Map<String, Object> getJpaPropertyMap() {
 		return this.jpaPropertyMap;
@@ -253,8 +245,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	@Override
-	@Nullable
-	public Class<? extends EntityManager> getEntityManagerInterface() {
+	public @Nullable Class<? extends EntityManager> getEntityManagerInterface() {
 		return this.entityManagerInterface;
 	}
 
@@ -270,8 +261,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	@Override
-	@Nullable
-	public JpaDialect getJpaDialect() {
+	public @Nullable JpaDialect getJpaDialect() {
 		return this.jpaDialect;
 	}
 
@@ -289,8 +279,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * Return the JpaVendorAdapter implementation for this EntityManagerFactory,
 	 * or {@code null} if not known.
 	 */
-	@Nullable
-	public JpaVendorAdapter getJpaVendorAdapter() {
+	public @Nullable JpaVendorAdapter getJpaVendorAdapter() {
 		return this.jpaVendorAdapter;
 	}
 
@@ -299,7 +288,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * by the exposed {@code EntityManagerFactory}.
 	 * <p>This is an alternative to a {@code JpaVendorAdapter}-level
 	 * {@code postProcessEntityManager} implementation, enabling convenient
-	 * customizations for application purposes, e.g. setting Hibernate filters.
+	 * customizations for application purposes, for example, setting Hibernate filters.
 	 * @since 5.3
 	 * @see JpaVendorAdapter#postProcessEntityManager
 	 * @see JpaTransactionManager#setEntityManagerInitializer
@@ -310,7 +299,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 
 	/**
 	 * Specify an asynchronous executor for background bootstrapping,
-	 * e.g. a {@link org.springframework.core.task.SimpleAsyncTaskExecutor}.
+	 * for example, a {@link org.springframework.core.task.SimpleAsyncTaskExecutor}.
 	 * <p>{@code EntityManagerFactory} initialization will then switch into background
 	 * bootstrap mode, with a {@code EntityManagerFactory} proxy immediately returned for
 	 * injection purposes instead of waiting for the JPA provider's bootstrapping to complete.
@@ -318,6 +307,8 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * then block until the JPA provider's bootstrapping completed, if not ready by then.
 	 * For maximum benefit, make sure to avoid early {@code EntityManagerFactory} calls
 	 * in init methods of related beans, even for metadata introspection purposes.
+	 * <p>As of 6.2, JPA initialization is enforced before context refresh completion,
+	 * waiting for asynchronous bootstrapping to complete by then.
 	 * @since 4.3
 	 */
 	public void setBootstrapExecutor(@Nullable AsyncTaskExecutor bootstrapExecutor) {
@@ -328,8 +319,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * Return the asynchronous executor for background bootstrapping, if any.
 	 * @since 4.3
 	 */
-	@Nullable
-	public AsyncTaskExecutor getBootstrapExecutor() {
+	public @Nullable AsyncTaskExecutor getBootstrapExecutor() {
 		return this.bootstrapExecutor;
 	}
 
@@ -348,9 +338,17 @@ public abstract class AbstractEntityManagerFactoryBean implements
 		this.beanFactory = beanFactory;
 	}
 
+	protected @Nullable BeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+
 	@Override
 	public void setBeanName(String name) {
 		this.beanName = name;
+	}
+
+	protected @Nullable String getBeanName() {
+		return this.beanName;
 	}
 
 
@@ -401,6 +399,13 @@ public abstract class AbstractEntityManagerFactoryBean implements
 		// application-managed EntityManager proxy that automatically joins
 		// existing transactions.
 		this.entityManagerFactory = createEntityManagerFactoryProxy(this.nativeEntityManagerFactory);
+		this.sharedEntityManager = SharedEntityManagerCreator.createSharedEntityManager(this.entityManagerFactory);
+	}
+
+	@Override
+	public void afterSingletonsInstantiated() {
+		// Enforce completion of asynchronous JPA initialization before context refresh completion.
+		getNativeEntityManagerFactory();
 	}
 
 	private EntityManagerFactory buildNativeEntityManagerFactory() {
@@ -417,7 +422,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 				if (cause != null) {
 					String message = ex.getMessage();
 					String causeString = cause.toString();
-					if (!message.endsWith(causeString)) {
+					if (message != null && !message.endsWith(causeString)) {
 						ex = new PersistenceException(message + "; nested exception is " + causeString, cause);
 					}
 				}
@@ -482,7 +487,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * Delegate an incoming invocation from the proxy, dispatching to EntityManagerFactoryInfo
 	 * or the native EntityManagerFactory accordingly.
 	 */
-	Object invokeProxyMethod(Method method, @Nullable Object[] args) throws Throwable {
+	Object invokeProxyMethod(Method method, Object @Nullable [] args) throws Throwable {
 		if (method.getDeclaringClass().isAssignableFrom(EntityManagerFactoryInfo.class)) {
 			return method.invoke(this, args);
 		}
@@ -544,8 +549,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * @see EntityManagerFactoryUtils#convertJpaAccessExceptionIfPossible
 	 */
 	@Override
-	@Nullable
-	public DataAccessException translateExceptionIfPossible(RuntimeException ex) {
+	public @Nullable DataAccessException translateExceptionIfPossible(RuntimeException ex) {
 		JpaDialect jpaDialect = getJpaDialect();
 		return (jpaDialect != null ? jpaDialect.translateExceptionIfPossible(ex) :
 				EntityManagerFactoryUtils.convertJpaAccessExceptionIfPossible(ex));
@@ -608,14 +612,12 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	}
 
 	@Override
-	@Nullable
-	public PersistenceUnitInfo getPersistenceUnitInfo() {
+	public @Nullable PersistenceUnitInfo getPersistenceUnitInfo() {
 		return null;
 	}
 
 	@Override
-	@Nullable
-	public DataSource getDataSource() {
+	public @Nullable DataSource getDataSource() {
 		return null;
 	}
 
@@ -624,8 +626,7 @@ public abstract class AbstractEntityManagerFactoryBean implements
 	 * Return the singleton EntityManagerFactory.
 	 */
 	@Override
-	@Nullable
-	public EntityManagerFactory getObject() {
+	public @Nullable EntityManagerFactory getObject() {
 		return this.entityManagerFactory;
 	}
 
@@ -634,9 +635,23 @@ public abstract class AbstractEntityManagerFactoryBean implements
 		return (this.entityManagerFactory != null ? this.entityManagerFactory.getClass() : EntityManagerFactory.class);
 	}
 
+	/**
+	 * Return either the singleton EntityManagerFactory or the shared EntityManager proxy.
+	 */
 	@Override
-	public boolean isSingleton() {
-		return true;
+	public <S> @Nullable S getObject(Class<S> type) throws Exception {
+		if (EntityManager.class.isAssignableFrom(type)) {
+			return (type.isInstance(this.sharedEntityManager) ? type.cast(this.sharedEntityManager) : null);
+		}
+		return SmartFactoryBean.super.getObject(type);
+	}
+
+	@Override
+	public boolean supportsType(Class<?> type) {
+		if (EntityManager.class.isAssignableFrom(type)) {
+			return type.isInstance(this.sharedEntityManager);
+		}
+		return SmartFactoryBean.super.supportsType(type);
 	}
 
 
@@ -709,15 +724,17 @@ public abstract class AbstractEntityManagerFactoryBean implements
 		}
 
 		@Override
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+		public @Nullable Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			switch (method.getName()) {
-				case "equals":
+				case "equals" -> {
 					// Only consider equal when proxies are identical.
 					return (proxy == args[0]);
-				case "hashCode":
+				}
+				case "hashCode" -> {
 					// Use hashCode of EntityManagerFactory proxy.
 					return System.identityHashCode(proxy);
-				case "unwrap":
+				}
+				case "unwrap" -> {
 					// Handle JPA 2.1 unwrap method - could be a proxy match.
 					Class<?> targetClass = (Class<?>) args[0];
 					if (targetClass == null) {
@@ -726,7 +743,11 @@ public abstract class AbstractEntityManagerFactoryBean implements
 					else if (targetClass.isInstance(proxy)) {
 						return proxy;
 					}
-					break;
+				}
+				case "getName" -> {
+					// Handle JPA 3.2 getName method locally.
+					return this.entityManagerFactoryBean.getPersistenceUnitName();
+				}
 			}
 
 			try {

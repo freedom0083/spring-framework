@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@ import java.io.Writer;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.jsp.JspWriter;
 import jakarta.servlet.jsp.tagext.BodyContent;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Mock implementation of the {@link jakarta.servlet.jsp.tagext.BodyContent} class.
@@ -69,8 +68,8 @@ public class MockBodyContent extends BodyContent {
 	}
 
 	private static JspWriter adaptJspWriter(@Nullable Writer targetWriter, @Nullable HttpServletResponse response) {
-		if (targetWriter instanceof JspWriter) {
-			return (JspWriter) targetWriter;
+		if (targetWriter instanceof JspWriter jspWriter) {
+			return jspWriter;
 		}
 		else {
 			return new MockJspWriter(response, targetWriter);

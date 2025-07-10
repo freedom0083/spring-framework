@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.springframework.dao;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Exception thrown on incorrect usage of the API, such as failing to
@@ -32,7 +34,7 @@ public class InvalidDataAccessApiUsageException extends NonTransientDataAccessEx
 	 * Constructor for InvalidDataAccessApiUsageException.
 	 * @param msg the detail message
 	 */
-	public InvalidDataAccessApiUsageException(String msg) {
+	public InvalidDataAccessApiUsageException(@Nullable String msg) {
 		super(msg);
 	}
 
@@ -41,7 +43,7 @@ public class InvalidDataAccessApiUsageException extends NonTransientDataAccessEx
 	 * @param msg the detail message
 	 * @param cause the root cause from the data access API in use
 	 */
-	public InvalidDataAccessApiUsageException(String msg, Throwable cause) {
+	public InvalidDataAccessApiUsageException(@Nullable String msg, @Nullable Throwable cause) {
 		super(msg, cause);
 	}
 

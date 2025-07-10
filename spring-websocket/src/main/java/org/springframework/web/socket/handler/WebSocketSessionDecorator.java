@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,9 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketExtension;
@@ -59,15 +60,15 @@ public class WebSocketSessionDecorator implements WebSocketSession {
 
 	public WebSocketSession getLastSession() {
 		WebSocketSession result = this.delegate;
-		while (result instanceof WebSocketSessionDecorator) {
-			result = ((WebSocketSessionDecorator) result).getDelegate();
+		while (result instanceof WebSocketSessionDecorator webSocketSessionDecorator) {
+			result = webSocketSessionDecorator.getDelegate();
 		}
 		return result;
 	}
 
 	public static WebSocketSession unwrap(WebSocketSession session) {
-		if (session instanceof WebSocketSessionDecorator) {
-			return ((WebSocketSessionDecorator) session).getLastSession();
+		if (session instanceof WebSocketSessionDecorator webSocketSessionDecorator) {
+			return webSocketSessionDecorator.getLastSession();
 		}
 		else {
 			return session;
@@ -80,8 +81,7 @@ public class WebSocketSessionDecorator implements WebSocketSession {
 	}
 
 	@Override
-	@Nullable
-	public URI getUri() {
+	public @Nullable URI getUri() {
 		return this.delegate.getUri();
 	}
 
@@ -96,22 +96,22 @@ public class WebSocketSessionDecorator implements WebSocketSession {
 	}
 
 	@Override
-	public Principal getPrincipal() {
+	public @Nullable Principal getPrincipal() {
 		return this.delegate.getPrincipal();
 	}
 
 	@Override
-	public InetSocketAddress getLocalAddress() {
+	public @Nullable InetSocketAddress getLocalAddress() {
 		return this.delegate.getLocalAddress();
 	}
 
 	@Override
-	public InetSocketAddress getRemoteAddress() {
+	public @Nullable InetSocketAddress getRemoteAddress() {
 		return this.delegate.getRemoteAddress();
 	}
 
 	@Override
-	public String getAcceptedProtocol() {
+	public @Nullable String getAcceptedProtocol() {
 		return this.delegate.getAcceptedProtocol();
 	}
 

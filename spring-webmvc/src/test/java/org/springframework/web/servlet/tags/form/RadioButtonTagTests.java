@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.beans.PropertyEditorSupport;
 import java.io.StringReader;
 import java.util.Collections;
 
-import jakarta.servlet.jsp.JspException;
 import jakarta.servlet.jsp.tagext.Tag;
 import org.dom4j.Document;
 import org.dom4j.Element;
@@ -47,7 +46,6 @@ class RadioButtonTagTests extends AbstractFormTagTests {
 	private TestBean bean;
 
 	@Override
-	@SuppressWarnings("serial")
 	protected void onSetUp() {
 		this.tag = new RadioButtonTag() {
 			@Override
@@ -244,18 +242,18 @@ class RadioButtonTagTests extends AbstractFormTagTests {
 	}
 
 	@Test
-	void dynamicTypeAttribute() throws JspException {
+	void dynamicTypeAttribute() {
 		assertThatIllegalArgumentException().isThrownBy(() ->
 				this.tag.setDynamicAttribute(null, "type", "email"))
 			.withMessage("Attribute type=\"email\" is not allowed");
 	}
 
 	private void assertTagOpened(String output) {
-		assertThat(output.contains("<input ")).isTrue();
+		assertThat(output).contains("<input ");
 	}
 
 	private void assertTagClosed(String output) {
-		assertThat(output.contains("/>")).isTrue();
+		assertThat(output).contains("/>");
 	}
 
 	private Float getFloat() {

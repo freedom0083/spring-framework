@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.http;
 
 import java.net.URI;
+import java.util.Map;
 
 /**
  * Represents an HTTP request message, consisting of a
@@ -35,21 +36,16 @@ public interface HttpRequest extends HttpMessage {
 	HttpMethod getMethod();
 
 	/**
-	 * Return the HTTP method of the request as a String value.
-	 * @return the HTTP method as a plain String
-	 * @since 5.0
-	 * @see #getMethod()
-	 * @deprecated as of Spring Framework 6.0 in favor of {@link #getMethod()} and
-	 * {@link HttpMethod#name()}
-	 */
-	@Deprecated
-	String getMethodValue();
-
-	/**
 	 * Return the URI of the request (including a query string if any,
 	 * but only if it is well-formed for a URI representation).
 	 * @return the URI of the request (never {@code null})
 	 */
 	URI getURI();
+
+	/**
+	 * Return a mutable map of request attributes for this request.
+	 * @since 6.2
+	 */
+	Map<String, Object> getAttributes();
 
 }

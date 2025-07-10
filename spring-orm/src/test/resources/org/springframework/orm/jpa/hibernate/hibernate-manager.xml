@@ -15,7 +15,7 @@
 		</property>
 		<property name="jpaPropertyMap">
 			<props>
-				<prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate5.SpringSessionContext</prop>
+				<prop key="hibernate.current_session_context_class">org.springframework.orm.jpa.hibernate.SpringSessionContext</prop>
 				<prop key="hibernate.cache.provider_class">org.hibernate.cache.HashtableCacheProvider</prop>
 			</props>
 		</property>
@@ -28,9 +28,7 @@
 		<property name="entityManagerFactory" ref="entityManagerFactory"/>
 	</bean>
 
-	<bean id="sessionFactory" factory-bean="entityManagerFactory" factory-method="getSessionFactory"/>
-
-	<bean id="hibernateStatistics" factory-bean="sessionFactory" factory-method="getStatistics"/>
+	<bean id="hibernateStatistics" factory-bean="entityManagerFactory" factory-method="getStatistics" lazy-init="true"/>
 
 	<bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"/>
 

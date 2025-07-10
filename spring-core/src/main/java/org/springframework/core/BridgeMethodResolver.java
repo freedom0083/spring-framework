@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,15 @@
 package org.springframework.core;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.ReflectionUtils;
@@ -50,40 +52,78 @@ import org.springframework.util.ReflectionUtils.MethodFilter;
  */
 public final class BridgeMethodResolver {
 
-	private static final Map<Method, Method> cache = new ConcurrentReferenceHashMap<>();
+	private static final Map<Object, Method> cache = new ConcurrentReferenceHashMap<>();
 
 	private BridgeMethodResolver() {
 	}
 
 
 	/**
-	 * Find the original method for the supplied {@link Method bridge Method}.
+	 * Find the local original method for the supplied {@link Method bridge Method}.
 	 * <p>It is safe to call this method passing in a non-bridge {@link Method} instance.
 	 * In such a case, the supplied {@link Method} instance is returned directly to the caller.
 	 * Callers are <strong>not</strong> required to check for bridging before calling this method.
-	 * @param bridgeMethod the method to introspect
+	 * @param bridgeMethod the method to introspect against its declaring class
 	 * @return the original method (either the bridged method or the passed-in method
 	 * if no more specific one could be found)
+	 * @see #getMostSpecificMethod(Method, Class)
 	 */
 	public static Method findBridgedMethod(Method bridgeMethod) {
-		if (!bridgeMethod.isBridge()) {
-			// TODO 不处理非桥接方法, 直接返回
+		return resolveBridgeMethod(bridgeMethod, bridgeMethod.getDeclaringClass());
+	}
+
+	/**
+	 * Determine the most specific method for the supplied {@link Method bridge Method}
+	 * in the given class hierarchy, even if not available on the local declaring class.
+	 * <p>This is effectively a combination of {@link ClassUtils#getMostSpecificMethod}
+	 * and {@link #findBridgedMethod}, resolving the original method even if no bridge
+	 * method has been generated at the same class hierarchy level (a known difference
+	 * between the Eclipse compiler and regular javac).
+	 * @param bridgeMethod the method to introspect against the given target class
+	 * @param targetClass the target class to find the most specific method on
+	 * @return the most specific method corresponding to the given bridge method
+	 * (can be the original method if no more specific one could be found)
+	 * @since 6.1.3
+	 * @see #findBridgedMethod
+	 * @see org.springframework.util.ClassUtils#getMostSpecificMethod
+	 */
+	public static Method getMostSpecificMethod(Method bridgeMethod, @Nullable Class<?> targetClass) {
+		if (targetClass != null &&
+				!ClassUtils.getUserClass(bridgeMethod.getDeclaringClass()).isAssignableFrom(targetClass) &&
+				!Proxy.isProxyClass(bridgeMethod.getDeclaringClass())) {
+			// From a different class hierarchy, and not a JDK or CGLIB proxy either -> return as-is.
 			return bridgeMethod;
 		}
+
+		Method specificMethod = ClassUtils.getMostSpecificMethod(bridgeMethod, targetClass);
+		return resolveBridgeMethod(specificMethod,
+				(targetClass != null ? targetClass : specificMethod.getDeclaringClass()));
+	}
+
+	private static Method resolveBridgeMethod(Method bridgeMethod, Class<?> targetClass) {
+		boolean localBridge = (targetClass == bridgeMethod.getDeclaringClass());
+		Class<?> userClass = targetClass;
+		if (!bridgeMethod.isBridge() && localBridge) {
+			userClass = ClassUtils.getUserClass(targetClass);
+			if (userClass == targetClass) {
+				// TODO 不处理非桥接方法, 直接返回
+				return bridgeMethod;
+			}
+		}
+
+		Object cacheKey = (localBridge ? bridgeMethod : new MethodClassKey(bridgeMethod, targetClass));
 		// TODO 先取缓存, 取到后直接返回
-		Method bridgedMethod = cache.get(bridgeMethod);
+		Method bridgedMethod = cache.get(cacheKey);
 		if (bridgedMethod == null) {
 			// Gather all methods with matching name and parameter size.
 			List<Method> candidateMethods = new ArrayList<>();
 			// TODO 没取到时, 先拿到所有的桥接方法放到缓存中
-			MethodFilter filter = candidateMethod ->
-					isBridgedCandidateFor(candidateMethod, bridgeMethod);
-			ReflectionUtils.doWithMethods(bridgeMethod.getDeclaringClass(), candidateMethods::add, filter);
+			MethodFilter filter = (candidateMethod -> isBridgedCandidateFor(candidateMethod, bridgeMethod));
+			ReflectionUtils.doWithMethods(userClass, candidateMethods::add, filter);
 			if (!candidateMethods.isEmpty()) {
 				// TODO 然后定位到唯一的方法
-				bridgedMethod = candidateMethods.size() == 1 ?
-						candidateMethods.get(0) :
-						searchCandidates(candidateMethods, bridgeMethod);
+				bridgedMethod = (candidateMethods.size() == 1 ? candidateMethods.get(0) :
+						searchCandidates(candidateMethods, bridgeMethod));
 			}
 			if (bridgedMethod == null) {
 				// A bridge method was passed in but we couldn't find the bridged method.
@@ -92,14 +132,14 @@ public final class BridgeMethodResolver {
 				bridgedMethod = bridgeMethod;
 			}
 			// TODO 放入缓存, 然后返回
-			cache.put(bridgeMethod, bridgedMethod);
+			cache.put(cacheKey, bridgedMethod);
 		}
 		return bridgedMethod;
 	}
 
 	/**
 	 * Returns {@code true} if the supplied '{@code candidateMethod}' can be
-	 * considered a validate candidate for the {@link Method} that is {@link Method#isBridge() bridged}
+	 * considered a valid candidate for the {@link Method} that is {@link Method#isBridge() bridged}
 	 * by the supplied {@link Method bridge Method}. This method performs inexpensive
 	 * checks and can be used to quickly filter for a set of possible matches.
 	 */
@@ -115,8 +155,7 @@ public final class BridgeMethodResolver {
 	 * @param bridgeMethod the bridge method
 	 * @return the bridged method, or {@code null} if none found
 	 */
-	@Nullable
-	private static Method searchCandidates(List<Method> candidateMethods, Method bridgeMethod) {
+	private static @Nullable Method searchCandidates(List<Method> candidateMethods, Method bridgeMethod) {
 		if (candidateMethods.isEmpty()) {
 			return null;
 		}
@@ -127,8 +166,8 @@ public final class BridgeMethodResolver {
 				return candidateMethod;
 			}
 			else if (previousMethod != null) {
-				sameSig = sameSig &&
-						Arrays.equals(candidateMethod.getGenericParameterTypes(), previousMethod.getGenericParameterTypes());
+				sameSig = sameSig && Arrays.equals(
+						candidateMethod.getGenericParameterTypes(), previousMethod.getGenericParameterTypes());
 			}
 			previousMethod = candidateMethod;
 		}
@@ -136,7 +175,7 @@ public final class BridgeMethodResolver {
 	}
 
 	/**
-	 * Determines whether or not the bridge {@link Method} is the bridge for the
+	 * Determines whether the bridge {@link Method} is the bridge for the
 	 * supplied candidate {@link Method}.
 	 */
 	static boolean isBridgeMethodFor(Method bridgeMethod, Method candidateMethod, Class<?> declaringClass) {
@@ -164,12 +203,13 @@ public final class BridgeMethodResolver {
 			Class<?> candidateParameter = candidateParameters[i];
 			if (candidateParameter.isArray()) {
 				// An array type: compare the component type.
-				if (!candidateParameter.getComponentType().equals(genericParameter.getComponentType().toClass())) {
+				if (!candidateParameter.componentType().equals(genericParameter.getComponentType().toClass())) {
 					return false;
 				}
 			}
 			// A non-array type: compare the type itself.
-			if (!ClassUtils.resolvePrimitiveIfNecessary(candidateParameter).equals(ClassUtils.resolvePrimitiveIfNecessary(genericParameter.toClass()))) {
+			if (!ClassUtils.resolvePrimitiveIfNecessary(candidateParameter).equals(
+					ClassUtils.resolvePrimitiveIfNecessary(genericParameter.toClass()))) {
 				return false;
 			}
 		}
@@ -181,8 +221,11 @@ public final class BridgeMethodResolver {
 	 * matches that of the supplied bridge method.
 	 * @throws IllegalStateException if the generic declaration cannot be found
 	 */
-	@Nullable
-	private static Method findGenericDeclaration(Method bridgeMethod) {
+	private static @Nullable Method findGenericDeclaration(Method bridgeMethod) {
+		if (!bridgeMethod.isBridge()) {
+			return bridgeMethod;
+		}
+
 		// Search parent types for method that has same signature as bridge.
 		Class<?> superclass = bridgeMethod.getDeclaringClass().getSuperclass();
 		while (superclass != null && Object.class != superclass) {
@@ -197,8 +240,7 @@ public final class BridgeMethodResolver {
 		return searchInterfaces(interfaces, bridgeMethod);
 	}
 
-	@Nullable
-	private static Method searchInterfaces(Class<?>[] interfaces, Method bridgeMethod) {
+	private static @Nullable Method searchInterfaces(Class<?>[] interfaces, Method bridgeMethod) {
 		for (Class<?> ifc : interfaces) {
 			Method method = searchForMatch(ifc, bridgeMethod);
 			if (method != null && !method.isBridge()) {
@@ -219,8 +261,7 @@ public final class BridgeMethodResolver {
 	 * that of the supplied {@link Method}, then this matching {@link Method} is returned,
 	 * otherwise {@code null} is returned.
 	 */
-	@Nullable
-	private static Method searchForMatch(Class<?> type, Method bridgeMethod) {
+	private static @Nullable Method searchForMatch(Class<?> type, Method bridgeMethod) {
 		try {
 			return type.getDeclaredMethod(bridgeMethod.getName(), bridgeMethod.getParameterTypes());
 		}
@@ -232,13 +273,18 @@ public final class BridgeMethodResolver {
 	/**
 	 * Compare the signatures of the bridge method and the method which it bridges. If
 	 * the parameter and return types are the same, it is a 'visibility' bridge method
-	 * introduced in Java 6 to fix https://bugs.java.com/view_bug.do?bug_id=6342411.
-	 * See also https://stas-blogspot.blogspot.com/2010/03/java-bridge-methods-explained.html
+	 * introduced in Java 6 to fix <a href="https://bugs.openjdk.org/browse/JDK-6342411">
+	 * JDK-6342411</a>.
 	 * @return whether signatures match as described
 	 */
 	public static boolean isVisibilityBridgeMethodPair(Method bridgeMethod, Method bridgedMethod) {
 		if (bridgeMethod == bridgedMethod) {
+			// Same method: for common purposes, return true to proceed as if it was a visibility bridge.
 			return true;
+		}
+		if (ClassUtils.getUserClass(bridgeMethod.getDeclaringClass()) != bridgeMethod.getDeclaringClass()) {
+			// Method on generated subclass: return false to consistently ignore it for visibility purposes.
+			return false;
 		}
 		return (bridgeMethod.getReturnType().equals(bridgedMethod.getReturnType()) &&
 				bridgeMethod.getParameterCount() == bridgedMethod.getParameterCount() &&

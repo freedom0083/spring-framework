@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.lang.Contract;
 
 /**
  * Utility to work with generic type parameters.
@@ -36,12 +38,18 @@ import org.springframework.lang.Nullable;
  */
 public abstract class TypeUtils {
 
+	private static final Type[] IMPLICIT_LOWER_BOUNDS = { null };
+
+	private static final Type[] IMPLICIT_UPPER_BOUNDS = { Object.class };
+
 	/**
 	 * Check if the right-hand side type may be assigned to the left-hand side
 	 * type following the Java generics rules.
-	 * @param lhsType the target type
-	 * @param rhsType the value type that should be assigned to the target type
-	 * @return true if rhs is assignable to lhs
+	 * @param lhsType the target type (left-hand side (LHS) type)
+	 * @param rhsType the value type (right-hand side (RHS) type) that should
+	 * be assigned to the target type
+	 * @return {@code true} if {@code rhsType} is assignable to {@code lhsType}
+	 * @see ClassUtils#isAssignable(Class, Class)
 	 */
 	public static boolean isAssignable(Type lhsType, Type rhsType) {
 		Assert.notNull(lhsType, "Left-hand side type must not be null");
@@ -69,7 +77,7 @@ public abstract class TypeUtils {
 			else if (lhsClass.isArray() && rhsType instanceof GenericArrayType rhsGenericArrayType) {
 				Type rhsComponent = rhsGenericArrayType.getGenericComponentType();
 
-				return isAssignable(lhsClass.getComponentType(), rhsComponent);
+				return isAssignable(lhsClass.componentType(), rhsComponent);
 			}
 		}
 
@@ -91,7 +99,7 @@ public abstract class TypeUtils {
 			Type lhsComponent = lhsGenericArrayType.getGenericComponentType();
 
 			if (rhsType instanceof Class<?> rhsClass && rhsClass.isArray()) {
-				return isAssignable(lhsComponent, rhsClass.getComponentType());
+				return isAssignable(lhsComponent, rhsClass.componentType());
 			}
 			else if (rhsType instanceof GenericArrayType rhsGenericArrayType) {
 				Type rhsComponent = rhsGenericArrayType.getGenericComponentType();
@@ -133,35 +141,17 @@ public abstract class TypeUtils {
 	}
 
 	private static boolean isAssignable(WildcardType lhsType, Type rhsType) {
-		Type[] lUpperBounds = lhsType.getUpperBounds();
+		Type[] lUpperBounds = getUpperBounds(lhsType);
 
-		// supply the implicit upper bound if none are specified
-		if (lUpperBounds.length == 0) {
-			lUpperBounds = new Type[] { Object.class };
-		}
-
-		Type[] lLowerBounds = lhsType.getLowerBounds();
-
-		// supply the implicit lower bound if none are specified
-		if (lLowerBounds.length == 0) {
-			lLowerBounds = new Type[] { null };
-		}
+		Type[] lLowerBounds = getLowerBounds(lhsType);
 
 		if (rhsType instanceof WildcardType rhsWcType) {
 			// both the upper and lower bounds of the right-hand side must be
 			// completely enclosed in the upper and lower bounds of the left-
 			// hand side.
-			Type[] rUpperBounds = rhsWcType.getUpperBounds();
+			Type[] rUpperBounds = getUpperBounds(rhsWcType);
 
-			if (rUpperBounds.length == 0) {
-				rUpperBounds = new Type[] { Object.class };
-			}
-
-			Type[] rLowerBounds = rhsWcType.getLowerBounds();
-
-			if (rLowerBounds.length == 0) {
-				rLowerBounds = new Type[] { null };
-			}
+			Type[] rLowerBounds = getLowerBounds(rhsWcType);
 
 			for (Type lBound : lUpperBounds) {
 				for (Type rBound : rUpperBounds) {
@@ -208,6 +198,21 @@ public abstract class TypeUtils {
 		return true;
 	}
 
+	private static Type[] getLowerBounds(WildcardType wildcardType) {
+		Type[] lowerBounds = wildcardType.getLowerBounds();
+
+		// supply the implicit lower bound if none are specified
+		return (lowerBounds.length == 0 ? IMPLICIT_LOWER_BOUNDS : lowerBounds);
+	}
+
+	private static Type[] getUpperBounds(WildcardType wildcardType) {
+		Type[] upperBounds = wildcardType.getUpperBounds();
+
+		// supply the implicit upper bound if none are specified
+		return (upperBounds.length == 0 ? IMPLICIT_UPPER_BOUNDS : upperBounds);
+	}
+
+	@Contract("_, null -> true; null, _ -> false")
 	public static boolean isAssignableBound(@Nullable Type lhsType, @Nullable Type rhsType) {
 		if (rhsType == null) {
 			return true;

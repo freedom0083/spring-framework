@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Assist with configuring {@code HandlerMapping}'s with path matching options.
@@ -31,15 +31,9 @@ import org.springframework.lang.Nullable;
  */
 public class PathMatchConfigurer {
 
-	@Nullable
-	private Boolean trailingSlashMatch;
+	private @Nullable Boolean caseSensitiveMatch;
 
-
-	@Nullable
-	private Boolean caseSensitiveMatch;
-
-	@Nullable
-	private Map<String, Predicate<Class<?>>> pathPrefixes;
+	private @Nullable Map<String, Predicate<Class<?>>> pathPrefixes;
 
 
 	/**
@@ -49,16 +43,6 @@ public class PathMatchConfigurer {
 	 */
 	public PathMatchConfigurer setUseCaseSensitiveMatch(Boolean caseSensitiveMatch) {
 		this.caseSensitiveMatch = caseSensitiveMatch;
-		return this;
-	}
-
-	/**
-	 * Whether to match to URLs irrespective of the presence of a trailing slash.
-	 * If enabled a method mapped to "/users" also matches to "/users/".
-	 * <p>The default value is {@code true}.
-	 */
-	public PathMatchConfigurer setUseTrailingSlashMatch(Boolean trailingSlashMatch) {
-		this.trailingSlashMatch = trailingSlashMatch;
 		return this;
 	}
 
@@ -82,18 +66,11 @@ public class PathMatchConfigurer {
 	}
 
 
-	@Nullable
-	protected Boolean isUseTrailingSlashMatch() {
-		return this.trailingSlashMatch;
-	}
-
-	@Nullable
-	protected Boolean isUseCaseSensitiveMatch() {
+	protected @Nullable Boolean isUseCaseSensitiveMatch() {
 		return this.caseSensitiveMatch;
 	}
 
-	@Nullable
-	protected Map<String, Predicate<Class<?>>> getPathPrefixes() {
+	protected @Nullable Map<String, Predicate<Class<?>>> getPathPrefixes() {
 		return this.pathPrefixes;
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,24 +30,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Chris Beams
  */
-public class NestedBeansElementAttributeRecursionTests {
+class NestedBeansElementAttributeRecursionTests {
 
 	@Test
-	public void defaultLazyInit() {
+	void defaultLazyInit() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		new XmlBeanDefinitionReader(bf).loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-lazy-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-lazy-context.xml", getClass()));
 
 		assertLazyInits(bf);
 	}
 
 	@Test
-	public void defaultLazyInitWithNonValidatingParser() {
+	void defaultLazyInitWithNonValidatingParser() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(bf);
 		xmlBeanDefinitionReader.setValidating(false);
 		xmlBeanDefinitionReader.loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-lazy-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-lazy-context.xml", getClass()));
 
 		assertLazyInits(bf);
 	}
@@ -67,21 +67,21 @@ public class NestedBeansElementAttributeRecursionTests {
 	}
 
 	@Test
-	public void defaultMerge() {
+	void defaultMerge() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		new XmlBeanDefinitionReader(bf).loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-merge-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-merge-context.xml", getClass()));
 
 		assertMerge(bf);
 	}
 
 	@Test
-	public void defaultMergeWithNonValidatingParser() {
+	void defaultMergeWithNonValidatingParser() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(bf);
 		xmlBeanDefinitionReader.setValidating(false);
 		xmlBeanDefinitionReader.loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-merge-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-merge-context.xml", getClass()));
 
 		assertMerge(bf);
 	}
@@ -106,21 +106,21 @@ public class NestedBeansElementAttributeRecursionTests {
 	}
 
 	@Test
-	public void defaultAutowireCandidates() {
+	void defaultAutowireCandidates() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		new XmlBeanDefinitionReader(bf).loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-autowire-candidates-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-autowire-candidates-context.xml", getClass()));
 
 		assertAutowireCandidates(bf);
 	}
 
 	@Test
-	public void defaultAutowireCandidatesWithNonValidatingParser() {
+	void defaultAutowireCandidatesWithNonValidatingParser() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(bf);
 		xmlBeanDefinitionReader.setValidating(false);
 		xmlBeanDefinitionReader.loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-autowire-candidates-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-autowire-candidates-context.xml", getClass()));
 
 		assertAutowireCandidates(bf);
 	}
@@ -146,10 +146,10 @@ public class NestedBeansElementAttributeRecursionTests {
 	}
 
 	@Test
-	public void initMethod() {
+	void initMethod() {
 		DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
 		new XmlBeanDefinitionReader(bf).loadBeanDefinitions(
-				new ClassPathResource("NestedBeansElementAttributeRecursionTests-init-destroy-context.xml", this.getClass()));
+				new ClassPathResource("NestedBeansElementAttributeRecursionTests-init-destroy-context.xml", getClass()));
 
 		InitDestroyBean beanA = bf.getBean("beanA", InitDestroyBean.class);
 		InitDestroyBean beanB = bf.getBean("beanB", InitDestroyBean.class);

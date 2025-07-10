@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,13 +46,21 @@ import java.util.Properties;
  * "defaultEncoding" and "fileEncodings" properties).
  *
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  * @since 10.03.2004
  * @see java.util.Properties
  * @see java.util.Properties#load
  * @see java.util.Properties#store
- * @see org.springframework.core.io.support.ResourcePropertiesPersister
  */
 public class DefaultPropertiesPersister implements PropertiesPersister {
+
+	/**
+	 * A convenient constant for a default {@code DefaultPropertiesPersister} instance,
+	 * as used in Spring's common resource support.
+	 * @since 6.0
+	 */
+	public static final DefaultPropertiesPersister INSTANCE = new DefaultPropertiesPersister();
+
 
 	@Override
 	public void load(Properties props, InputStream is) throws IOException {

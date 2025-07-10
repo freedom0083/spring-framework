@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.ErrorHandler;
 import org.springframework.util.ReflectionUtils;
 
@@ -63,8 +63,8 @@ public abstract class TaskUtils {
 	public static DelegatingErrorHandlingRunnable decorateTaskWithErrorHandler(
 			Runnable task, @Nullable ErrorHandler errorHandler, boolean isRepeatingTask) {
 
-		if (task instanceof DelegatingErrorHandlingRunnable) {
-			return (DelegatingErrorHandlingRunnable) task;
+		if (task instanceof DelegatingErrorHandlingRunnable dehRunnable) {
+			return dehRunnable;
 		}
 		ErrorHandler eh = (errorHandler != null ? errorHandler : getDefaultErrorHandler(isRepeatingTask));
 		return new DelegatingErrorHandlingRunnable(task, eh);

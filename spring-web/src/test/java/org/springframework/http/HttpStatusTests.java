@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class HttpStatusTests {
 		statusCodes.put(100, "CONTINUE");
 		statusCodes.put(101, "SWITCHING_PROTOCOLS");
 		statusCodes.put(102, "PROCESSING");
-		statusCodes.put(103, "CHECKPOINT");
+		statusCodes.put(103, "EARLY_HINTS");
 
 		statusCodes.put(200, "OK");
 		statusCodes.put(201, "CREATED");
@@ -55,7 +55,6 @@ class HttpStatusTests {
 		statusCodes.put(302, "FOUND");
 		statusCodes.put(303, "SEE_OTHER");
 		statusCodes.put(304, "NOT_MODIFIED");
-		statusCodes.put(305, "USE_PROXY");
 		statusCodes.put(307, "TEMPORARY_REDIRECT");
 		statusCodes.put(308, "PERMANENT_REDIRECT");
 
@@ -78,9 +77,6 @@ class HttpStatusTests {
 		statusCodes.put(416, "REQUESTED_RANGE_NOT_SATISFIABLE");
 		statusCodes.put(417, "EXPECTATION_FAILED");
 		statusCodes.put(418, "I_AM_A_TEAPOT");
-		statusCodes.put(419, "INSUFFICIENT_SPACE_ON_RESOURCE");
-		statusCodes.put(420, "METHOD_FAILURE");
-		statusCodes.put(421, "DESTINATION_LOCKED");
 		statusCodes.put(422, "UNPROCESSABLE_ENTITY");
 		statusCodes.put(423, "LOCKED");
 		statusCodes.put(424, "FAILED_DEPENDENCY");
@@ -120,10 +116,6 @@ class HttpStatusTests {
 	void fromEnumToMap() {
 		for (HttpStatus status : HttpStatus.values()) {
 			int code = status.value();
-			// The following status codes have more than one corresponding HttpStatus enum constant.
-			if (code == 302 || code == 413 || code == 414) {
-				continue;
-			}
 			assertThat(statusCodes).as("Map has no value for [" + code + "]").containsKey(code);
 			assertThat(status.name()).as("Invalid name for [" + code + "]").isEqualTo(statusCodes.get(code));
 		}

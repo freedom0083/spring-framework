@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ class ReflectionUtilsTests {
 		assertThat(testBean.getName()).isEqualTo("FooBar");
 
 		ReflectionUtils.setField(field, testBean, null);
-		assertThat((Object) testBean.getName()).isNull();
+		assertThat(testBean.getName()).isNull();
 	}
 
 	@Test
@@ -176,7 +176,7 @@ class ReflectionUtilsTests {
 		src.setName("freddie");
 		src.setAge(15);
 		src.setSpouse(new TestObject());
-		assertThat(src.getAge() == dest.getAge()).isFalse();
+		assertThat(src.getAge()).isNotEqualTo(dest.getAge());
 
 		ReflectionUtils.shallowCopyFieldState(src, dest);
 		assertThat(dest.getAge()).isEqualTo(src.getAge());
@@ -305,13 +305,13 @@ class ReflectionUtilsTests {
 		class Parent {
 			@SuppressWarnings("unused")
 			public Number m1() {
-				return Integer.valueOf(42);
+				return 42;
 			}
 		}
 		class Leaf extends Parent {
 			@Override
 			public Integer m1() {
-				return Integer.valueOf(42);
+				return 42;
 			}
 		}
 		Method[] methods = ReflectionUtils.getUniqueDeclaredMethods(Leaf.class);
@@ -334,7 +334,7 @@ class ReflectionUtilsTests {
 		private List<Method> methods = new ArrayList<>();
 
 		@Override
-		public void doWith(Method m) throws IllegalArgumentException, IllegalAccessException {
+		public void doWith(Method m) throws IllegalArgumentException {
 			this.methodNames.add(m.getName());
 			this.methods.add(m);
 		}
@@ -378,7 +378,7 @@ class ReflectionUtilsTests {
 
 	private static class A {
 
-		@SuppressWarnings("unused")
+		@SuppressWarnings({ "unused", "RedundantThrows" })
 		private void foo(Integer i) throws RemoteException {
 		}
 	}

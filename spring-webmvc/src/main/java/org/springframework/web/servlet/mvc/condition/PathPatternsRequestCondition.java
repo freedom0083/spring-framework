@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.server.PathContainer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.ServletRequestPathUtils;
 import org.springframework.web.util.pattern.PathPattern;
@@ -51,6 +52,9 @@ public final class PathPatternsRequestCondition extends AbstractRequestCondition
 			new TreeSet<>(Collections.singleton(new PathPatternParser().parse("")));
 
 	private static final Set<String> EMPTY_PATH = Collections.singleton("");
+
+	private static final SortedSet<PathPattern> ROOT_PATH_PATTERNS =
+			new TreeSet<>(List.of(new PathPatternParser().parse(""), new PathPatternParser().parse("/")));
 
 
 	private final SortedSet<PathPattern> patterns;
@@ -75,11 +79,9 @@ public final class PathPatternsRequestCondition extends AbstractRequestCondition
 			return EMPTY_PATH_PATTERN;
 		}
 		SortedSet<PathPattern> result = new TreeSet<>();
-		for (String path : patterns) {
-			if (StringUtils.hasText(path) && !path.startsWith("/")) {
-				path = "/" + path;
-			}
-			result.add(parser.parse(path));
+		for (String pattern : patterns) {
+			pattern = parser.initFullPathPattern(pattern);
+			result.add(parser.parse(pattern));
 		}
 		return result;
 	}
@@ -146,20 +148,18 @@ public final class PathPatternsRequestCondition extends AbstractRequestCondition
 	}
 
 	/**
-	 * Returns a new instance with URL patterns from the current instance
-	 * ("this") and the "other" instance as follows:
+	 * Combine the patterns of the current and of the other instances as follows:
 	 * <ul>
-	 * <li>If there are patterns in both instances, combine the patterns in
-	 * "this" with the patterns in "other" using
-	 * {@link PathPattern#combine(PathPattern)}.
-	 * <li>If only one instance has patterns, use them.
-	 * <li>If neither instance has patterns, use an empty String (i.e. "").
+	 * <li>If only one instance has patterns, use those.
+	 * <li>If both have patterns, combine patterns from "this" instance with
+	 * patterns from the other instance via {@link PathPattern#combine(PathPattern)}.
+	 * <li>If neither has patterns, use {@code ""} and {@code "/"} as root path patterns.
 	 * </ul>
 	 */
 	@Override
 	public PathPatternsRequestCondition combine(PathPatternsRequestCondition other) {
 		if (isEmptyPathMapping() && other.isEmptyPathMapping()) {
-			return this;
+			return new PathPatternsRequestCondition(ROOT_PATH_PATTERNS);
 		}
 		else if (other.isEmptyPathMapping()) {
 			return this;
@@ -187,15 +187,13 @@ public final class PathPatternsRequestCondition extends AbstractRequestCondition
 	 * or {@code null} if no patterns match.
 	 */
 	@Override
-	@Nullable
-	public PathPatternsRequestCondition getMatchingCondition(HttpServletRequest request) {
+	public @Nullable PathPatternsRequestCondition getMatchingCondition(HttpServletRequest request) {
 		PathContainer path = ServletRequestPathUtils.getParsedRequestPath(request).pathWithinApplication();
 		SortedSet<PathPattern> matches = getMatchingPatterns(path);
 		return (matches != null ? new PathPatternsRequestCondition(matches) : null);
 	}
 
-	@Nullable
-	private SortedSet<PathPattern> getMatchingPatterns(PathContainer path) {
+	private @Nullable SortedSet<PathPattern> getMatchingPatterns(PathContainer path) {
 		TreeSet<PathPattern> result = null;
 		for (PathPattern pattern : this.patterns) {
 			if (pattern.matches(path)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2013 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.springframework.messaging;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Exception that indicates an error occurred during message delivery.
@@ -37,11 +39,11 @@ public class MessageDeliveryException extends MessagingException {
 		super(undeliveredMessage, description);
 	}
 
-	public MessageDeliveryException(Message<?> message, Throwable cause) {
+	public MessageDeliveryException(Message<?> message, @Nullable Throwable cause) {
 		super(message, cause);
 	}
 
-	public MessageDeliveryException(Message<?> undeliveredMessage, String description, Throwable cause) {
+	public MessageDeliveryException(Message<?> undeliveredMessage, String description, @Nullable Throwable cause) {
 		super(undeliveredMessage, description, cause);
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,16 +36,17 @@ public class MissingRequestValueException extends ServerWebInputException {
 
 
 	public MissingRequestValueException(String name, Class<?> type, String label, MethodParameter parameter) {
-		super("Required " + label + " '" + name + "' is not present.", parameter);
+		super("Required " + label + " '" + name + "' is not present.", parameter,
+				null, null, new Object[] {label, name});
+
 		this.name = name;
 		this.type = type;
 		this.label = label;
-		getBody().withDetail(getReason());
 	}
 
 
 	/**
-	 * Return the name of the missing value, e.g. the name of the missing request
+	 * Return the name of the missing value, for example, the name of the missing request
 	 * header, or cookie, etc.
 	 */
 	public String getName() {
@@ -60,7 +61,7 @@ public class MissingRequestValueException extends ServerWebInputException {
 	}
 
 	/**
-	 * Return a label that describes the request value, e.g. "request header",
+	 * Return a label that describes the request value, for example, "request header",
 	 * "cookie value", etc. Use this to create a custom message.
 	 */
 	public String getLabel() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import java.util.Collection;
 import java.util.Map;
 
 import jakarta.servlet.jsp.JspException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.PropertyAccessorFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.servlet.support.BindStatus;
@@ -43,7 +43,7 @@ import org.springframework.web.servlet.support.BindStatus;
  * the {@code labelProperty}). These properties are then used when
  * rendering each element of the array/{@link Collection} as an '{@code option}'.
  * If either property name is omitted, the value of {@link Object#toString()} of
- * the corresponding array/{@link Collection} element is used instead.  However,
+ * the corresponding array/{@link Collection} element is used instead. However,
  * if the item is an enum, {@link Enum#name()} is used as the default value.
  * </p>
  * <h3>Using a {@link Map}:</h3>
@@ -94,11 +94,9 @@ class OptionWriter {
 
 	private final BindStatus bindStatus;
 
-	@Nullable
-	private final String valueProperty;
+	private final @Nullable String valueProperty;
 
-	@Nullable
-	private final String labelProperty;
+	private final @Nullable String labelProperty;
 
 	private final boolean htmlEscape;
 
@@ -139,7 +137,7 @@ class OptionWriter {
 		else if (this.optionSource instanceof Map) {
 			renderFromMap(tagWriter);
 		}
-		else if (this.optionSource instanceof Class && ((Class<?>) this.optionSource).isEnum()) {
+		else if (this.optionSource instanceof Class<?> clazz && clazz.isEnum()) {
 			renderFromEnum(tagWriter);
 		}
 		else {
@@ -205,8 +203,8 @@ class OptionWriter {
 			if (this.valueProperty != null) {
 				value = wrapper.getPropertyValue(this.valueProperty);
 			}
-			else if (item instanceof Enum) {
-				value = ((Enum<?>) item).name();
+			else if (item instanceof Enum<?> enumValue) {
+				value = enumValue.name();
 			}
 			else {
 				value = item;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import org.springframework.http.HttpHeaders;
  * <p>The origin of a multipart request may be a browser form in which case each
  * part is either a {@link FormFieldPart} or a {@link FilePart}.
  *
- * <p>Multipart requests may also be used outside of a browser for data of any
- * content type (e.g. JSON, PDF, etc).
+ * <p>Multipart requests may also be used outside a browser for data of any
+ * content type (for example, JSON, PDF, etc).
  *
  * @author Sebastien Deleuze
  * @author Rossen Stoyanchev

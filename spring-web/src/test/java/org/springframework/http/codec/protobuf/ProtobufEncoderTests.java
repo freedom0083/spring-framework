@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,18 +37,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.core.ResolvableType.forClass;
 
 /**
- * Unit tests for {@link ProtobufEncoder}.
+ * Tests for {@link ProtobufEncoder}.
  *
  * @author Sebastien Deleuze
  */
-public class ProtobufEncoderTests extends AbstractEncoderTests<ProtobufEncoder> {
+class ProtobufEncoderTests extends AbstractEncoderTests<ProtobufEncoder> {
 
-	private final static MimeType PROTOBUF_MIME_TYPE = new MimeType("application", "x-protobuf");
+	private static final MimeType PROTOBUF_MIME_TYPE = new MimeType("application", "x-protobuf");
 
-	private Msg msg1 =
+	private final Msg msg1 =
 			Msg.newBuilder().setFoo("Foo").setBlah(SecondMsg.newBuilder().setBlah(123).build()).build();
 
-	private Msg msg2 =
+	private final Msg msg2 =
 			Msg.newBuilder().setFoo("Bar").setBlah(SecondMsg.newBuilder().setBlah(456).build()).build();
 
 
@@ -58,9 +58,10 @@ public class ProtobufEncoderTests extends AbstractEncoderTests<ProtobufEncoder> 
 
 	@Override
 	@Test
-	public void canEncode() {
+	protected void canEncode() {
 		assertThat(this.encoder.canEncode(forClass(Msg.class), null)).isTrue();
 		assertThat(this.encoder.canEncode(forClass(Msg.class), PROTOBUF_MIME_TYPE)).isTrue();
+		assertThat(this.encoder.canEncode(forClass(Msg.class), MediaType.parseMediaType("application/vnd.example.public.v1+x-protobuf"))).isTrue();
 		assertThat(this.encoder.canEncode(forClass(Msg.class), MediaType.APPLICATION_OCTET_STREAM)).isTrue();
 		assertThat(this.encoder.canEncode(forClass(Msg.class), MediaType.APPLICATION_JSON)).isFalse();
 		assertThat(this.encoder.canEncode(forClass(Object.class), PROTOBUF_MIME_TYPE)).isFalse();
@@ -68,7 +69,7 @@ public class ProtobufEncoderTests extends AbstractEncoderTests<ProtobufEncoder> 
 
 	@Override
 	@Test
-	public void encode() {
+	protected void encode() {
 		Mono<Message> input = Mono.just(this.msg1);
 
 		testEncodeAll(input, Msg.class, step -> step
@@ -88,7 +89,7 @@ public class ProtobufEncoderTests extends AbstractEncoderTests<ProtobufEncoder> 
 	}
 
 	@Test
-	public void encodeStream() {
+	void encodeStream() {
 		Flux<Message> input = Flux.just(this.msg1, this.msg2);
 
 		testEncodeAll(input, Msg.class, step -> step

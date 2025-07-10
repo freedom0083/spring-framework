@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
+import org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener;
 import org.springframework.test.context.support.DirtiesContextTestExecutionListener;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
 import org.springframework.test.context.testng.TrackingTestNGTestListener;
@@ -67,7 +68,7 @@ class ClassLevelDirtiesContextTestNGTests {
 	}
 
 	@Test
-	void verifyDirtiesContextBehavior() throws Exception {
+	void verifyDirtiesContextBehavior() {
 
 		assertBehaviorForCleanTestCase();
 
@@ -162,12 +163,18 @@ class ClassLevelDirtiesContextTestNGTests {
 
 	// -------------------------------------------------------------------
 
-	@TestExecutionListeners(listeners = { DependencyInjectionTestExecutionListener.class,
-		DirtiesContextTestExecutionListener.class }, inheritListeners = false)
 	@ContextConfiguration
-	static abstract class BaseTestCase extends AbstractTestNGSpringContextTests {
+	// Ensure that we do not include the EventPublishingTestExecutionListener
+	// since it will access the ApplicationContext for each method in the
+	// TestExecutionListener API, thus distorting our cache hit/miss results.
+	@TestExecutionListeners({
+		DirtiesContextBeforeModesTestExecutionListener.class,
+		DependencyInjectionTestExecutionListener.class,
+		DirtiesContextTestExecutionListener.class
+	})
+	abstract static class BaseTestCase extends AbstractTestNGSpringContextTests {
 
-		@Configuration
+		@Configuration(proxyBeanMethods = false)
 		static class Config {
 			/* no beans */
 		}

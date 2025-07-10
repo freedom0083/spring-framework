@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,28 +18,35 @@ package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ListableBeanFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodIntrospector;
+import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
@@ -47,11 +54,13 @@ import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
-import org.springframework.http.converter.xml.SourceHttpMessageConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.ui.ModelMap;
+import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils.MethodFilter;
+import org.springframework.validation.method.MethodValidator;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -63,7 +72,6 @@ import org.springframework.web.bind.support.WebBindingInitializer;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.ServletWebRequest;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.context.request.async.AsyncWebRequest;
 import org.springframework.web.context.request.async.CallableProcessingInterceptor;
 import org.springframework.web.context.request.async.DeferredResultProcessingInterceptor;
@@ -74,8 +82,10 @@ import org.springframework.web.method.ControllerAdviceBean;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.method.annotation.ErrorsMethodArgumentResolver;
 import org.springframework.web.method.annotation.ExpressionValueMethodArgumentResolver;
+import org.springframework.web.method.annotation.HandlerMethodValidator;
 import org.springframework.web.method.annotation.InitBinderDataBinderFactory;
 import org.springframework.web.method.annotation.MapMethodProcessor;
+import org.springframework.web.method.annotation.ModelAttributeMethodProcessor;
 import org.springframework.web.method.annotation.ModelFactory;
 import org.springframework.web.method.annotation.ModelMethodProcessor;
 import org.springframework.web.method.annotation.RequestHeaderMapMethodArgumentResolver;
@@ -90,8 +100,11 @@ import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite;
 import org.springframework.web.method.support.InvocableHandlerMethod;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.View;
+import org.springframework.web.servlet.ViewResolver;
 import org.springframework.web.servlet.mvc.annotation.ModelAndViewResolver;
 import org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -118,13 +131,6 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		implements BeanFactoryAware, InitializingBean {
 
 	/**
-	 * Boolean flag controlled by a {@code spring.xml.ignore} system property that instructs Spring to
-	 * ignore XML, i.e. to not initialize the XML-related infrastructure.
-	 * <p>The default is "false".
-	 */
-	private static final boolean shouldIgnoreXml = SpringProperties.getFlag("spring.xml.ignore");
-
-	/**
 	 * MethodFilter that matches {@link InitBinder @InitBinder} methods.
 	 */
 	public static final MethodFilter INIT_BINDER_METHODS = method ->
@@ -137,46 +143,43 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			(!AnnotatedElementUtils.hasAnnotation(method, RequestMapping.class) &&
 					AnnotatedElementUtils.hasAnnotation(method, ModelAttribute.class));
 
+	private static final boolean BEAN_VALIDATION_PRESENT =
+			ClassUtils.isPresent("jakarta.validation.Validator", HandlerMethod.class.getClassLoader());
 
-	@Nullable
-	private List<HandlerMethodArgumentResolver> customArgumentResolvers;
 
-	@Nullable
-	private HandlerMethodArgumentResolverComposite argumentResolvers;
+	private @Nullable List<HandlerMethodArgumentResolver> customArgumentResolvers;
 
-	@Nullable
-	private HandlerMethodArgumentResolverComposite initBinderArgumentResolvers;
+	private @Nullable HandlerMethodArgumentResolverComposite argumentResolvers;
 
-	@Nullable
-	private List<HandlerMethodReturnValueHandler> customReturnValueHandlers;
+	private @Nullable HandlerMethodArgumentResolverComposite initBinderArgumentResolvers;
 
-	@Nullable
-	private HandlerMethodReturnValueHandlerComposite returnValueHandlers;
+	private @Nullable List<HandlerMethodReturnValueHandler> customReturnValueHandlers;
 
-	@Nullable
-	private List<ModelAndViewResolver> modelAndViewResolvers;
+	private @Nullable HandlerMethodReturnValueHandlerComposite returnValueHandlers;
+
+	private @Nullable List<ModelAndViewResolver> modelAndViewResolvers;
 
 	private ContentNegotiationManager contentNegotiationManager = new ContentNegotiationManager();
 
-	private List<HttpMessageConverter<?>> messageConverters;
+	private final List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
 
 	private final List<Object> requestResponseBodyAdvice = new ArrayList<>();
 
-	@Nullable
-	private WebBindingInitializer webBindingInitializer;
+	private @Nullable WebBindingInitializer webBindingInitializer;
 
-	private AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor("MvcAsync");
+	private final List<ErrorResponse.Interceptor> errorResponseInterceptors = new ArrayList<>();
 
-	@Nullable
-	private Long asyncRequestTimeout;
+	private @Nullable MethodValidator methodValidator;
+
+	private AsyncTaskExecutor taskExecutor = new MvcSimpleAsyncTaskExecutor();
+
+	private @Nullable Long asyncRequestTimeout;
 
 	private CallableProcessingInterceptor[] callableInterceptors = new CallableProcessingInterceptor[0];
 
 	private DeferredResultProcessingInterceptor[] deferredResultInterceptors = new DeferredResultProcessingInterceptor[0];
 
 	private ReactiveAdapterRegistry reactiveAdapterRegistry = ReactiveAdapterRegistry.getSharedInstance();
-
-	private boolean ignoreDefaultModelOnRedirect = false;
 
 	private int cacheSecondsForSessionAttributeHandlers = 0;
 
@@ -186,8 +189,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 
 	private ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
-	@Nullable
-	private ConfigurableBeanFactory beanFactory;
+	private @Nullable ConfigurableBeanFactory beanFactory;
 
 	private final Map<Class<?>, SessionAttributesHandler> sessionAttributesHandlerCache = new ConcurrentHashMap<>(64);
 
@@ -198,22 +200,6 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	private final Map<Class<?>, Set<Method>> modelAttributeCache = new ConcurrentHashMap<>(64);
 
 	private final Map<ControllerAdviceBean, Set<Method>> modelAttributeAdviceCache = new LinkedHashMap<>();
-
-
-	public RequestMappingHandlerAdapter() {
-		this.messageConverters = new ArrayList<>(4);
-		this.messageConverters.add(new ByteArrayHttpMessageConverter());
-		this.messageConverters.add(new StringHttpMessageConverter());
-		if (!shouldIgnoreXml) {
-			try {
-				this.messageConverters.add(new SourceHttpMessageConverter<>());
-			}
-			catch (Error err) {
-				// Ignore when no TransformerFactory implementation is available
-			}
-		}
-		this.messageConverters.add(new AllEncompassingFormHttpMessageConverter());
-	}
 
 
 	/**
@@ -228,8 +214,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	/**
 	 * Return the custom argument resolvers, or {@code null}.
 	 */
-	@Nullable
-	public List<HandlerMethodArgumentResolver> getCustomArgumentResolvers() {
+	public @Nullable List<HandlerMethodArgumentResolver> getCustomArgumentResolvers() {
 		return this.customArgumentResolvers;
 	}
 
@@ -251,8 +236,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 * Return the configured argument resolvers, or possibly {@code null} if
 	 * not initialized yet via {@link #afterPropertiesSet()}.
 	 */
-	@Nullable
-	public List<HandlerMethodArgumentResolver> getArgumentResolvers() {
+	public @Nullable List<HandlerMethodArgumentResolver> getArgumentResolvers() {
 		return (this.argumentResolvers != null ? this.argumentResolvers.getResolvers() : null);
 	}
 
@@ -273,8 +257,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 * Return the argument resolvers for {@code @InitBinder} methods, or possibly
 	 * {@code null} if not initialized yet via {@link #afterPropertiesSet()}.
 	 */
-	@Nullable
-	public List<HandlerMethodArgumentResolver> getInitBinderArgumentResolvers() {
+	public @Nullable List<HandlerMethodArgumentResolver> getInitBinderArgumentResolvers() {
 		return (this.initBinderArgumentResolvers != null ? this.initBinderArgumentResolvers.getResolvers() : null);
 	}
 
@@ -290,8 +273,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	/**
 	 * Return the custom return value handlers, or {@code null}.
 	 */
-	@Nullable
-	public List<HandlerMethodReturnValueHandler> getCustomReturnValueHandlers() {
+	public @Nullable List<HandlerMethodReturnValueHandler> getCustomReturnValueHandlers() {
 		return this.customReturnValueHandlers;
 	}
 
@@ -313,8 +295,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 * Return the configured handlers, or possibly {@code null} if not
 	 * initialized yet via {@link #afterPropertiesSet()}.
 	 */
-	@Nullable
-	public List<HandlerMethodReturnValueHandler> getReturnValueHandlers() {
+	public @Nullable List<HandlerMethodReturnValueHandler> getReturnValueHandlers() {
 		return (this.returnValueHandlers != null ? this.returnValueHandlers.getHandlers() : null);
 	}
 
@@ -339,8 +320,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	/**
 	 * Return the configured {@link ModelAndViewResolver ModelAndViewResolvers}, or {@code null}.
 	 */
-	@Nullable
-	public List<ModelAndViewResolver> getModelAndViewResolvers() {
+	public @Nullable List<ModelAndViewResolver> getModelAndViewResolvers() {
 		return this.modelAndViewResolvers;
 	}
 
@@ -358,7 +338,8 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 * request and response.
 	 */
 	public void setMessageConverters(List<HttpMessageConverter<?>> messageConverters) {
-		this.messageConverters = messageConverters;
+		this.messageConverters.clear();
+		this.messageConverters.addAll(messageConverters);
 	}
 
 	/**
@@ -401,18 +382,38 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	/**
 	 * Return the configured WebBindingInitializer, or {@code null} if none.
 	 */
-	@Nullable
-	public WebBindingInitializer getWebBindingInitializer() {
+	public @Nullable WebBindingInitializer getWebBindingInitializer() {
 		return this.webBindingInitializer;
+	}
+
+	/**
+	 * Configure a list of {@link ErrorResponse.Interceptor}'s to apply when
+	 * rendering an RFC 9457 {@link org.springframework.http.ProblemDetail}
+	 * error response.
+	 * @param interceptors the interceptors to use
+	 * @since 6.2
+	 */
+	public void setErrorResponseInterceptors(List<ErrorResponse.Interceptor> interceptors) {
+		this.errorResponseInterceptors.clear();
+		this.errorResponseInterceptors.addAll(interceptors);
+	}
+
+	/**
+	 * Return the {@link #setErrorResponseInterceptors(List) configured}
+	 * {@link ErrorResponse.Interceptor}'s.
+	 * @since 6.2
+	 */
+	public List<ErrorResponse.Interceptor> getErrorResponseInterceptors() {
+		return this.errorResponseInterceptors;
 	}
 
 	/**
 	 * Set the default {@link AsyncTaskExecutor} to use when a controller method
 	 * return a {@link Callable}. Controller methods can override this default on
 	 * a per-request basis by returning an {@link WebAsyncTask}.
-	 * <p>By default a {@link SimpleAsyncTaskExecutor} instance is used.
-	 * It's recommended to change that default in production as the simple executor
-	 * does not re-use threads.
+	 * <p>If your application has controllers with such return types, please
+	 * configure an {@link AsyncTaskExecutor} as the one used by default is not
+	 * suitable for production under load.
 	 */
 	public void setTaskExecutor(AsyncTaskExecutor taskExecutor) {
 		this.taskExecutor = taskExecutor;
@@ -462,24 +463,6 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 */
 	public ReactiveAdapterRegistry getReactiveAdapterRegistry() {
 		return this.reactiveAdapterRegistry;
-	}
-
-	/**
-	 * By default the content of the "default" model is used both during
-	 * rendering and redirect scenarios. Alternatively a controller method
-	 * can declare a {@link RedirectAttributes} argument and use it to provide
-	 * attributes for a redirect.
-	 * <p>Setting this flag to {@code true} guarantees the "default" model is
-	 * never used in a redirect scenario even if a RedirectAttributes argument
-	 * is not declared. Setting it to {@code false} means the "default" model
-	 * may be used in a redirect if the controller method doesn't declare a
-	 * RedirectAttributes argument.
-	 * <p>The default setting is {@code false} but new applications should
-	 * consider setting it to {@code true}.
-	 * @see RedirectAttributes
-	 */
-	public void setIgnoreDefaultModelOnRedirect(boolean ignoreDefaultModelOnRedirect) {
-		this.ignoreDefaultModelOnRedirect = ignoreDefaultModelOnRedirect;
 	}
 
 	/**
@@ -536,7 +519,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 
 	/**
 	 * Set the ParameterNameDiscoverer to use for resolving method parameter names if needed
-	 * (e.g. for default attribute names).
+	 * (for example, for default attribute names).
 	 * <p>Default is a {@link org.springframework.core.DefaultParameterNameDiscoverer}.
 	 */
 	public void setParameterNameDiscoverer(ParameterNameDiscoverer parameterNameDiscoverer) {
@@ -557,8 +540,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	/**
 	 * Return the owning factory of this bean instance, or {@code null} if none.
 	 */
-	@Nullable
-	protected ConfigurableBeanFactory getBeanFactory() {
+	protected @Nullable ConfigurableBeanFactory getBeanFactory() {
 		return this.beanFactory;
 	}
 
@@ -567,6 +549,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	public void afterPropertiesSet() {
 		// Do this first, it may add ResponseBody advice beans
 		initControllerAdviceCache();
+		initMessageConverters();
 
 		if (this.argumentResolvers == null) {
 			List<HandlerMethodArgumentResolver> resolvers = getDefaultArgumentResolvers();
@@ -580,6 +563,23 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			List<HandlerMethodReturnValueHandler> handlers = getDefaultReturnValueHandlers();
 			this.returnValueHandlers = new HandlerMethodReturnValueHandlerComposite().addHandlers(handlers);
 		}
+		if (BEAN_VALIDATION_PRESENT) {
+			List<HandlerMethodArgumentResolver> resolvers = this.argumentResolvers.getResolvers();
+			this.methodValidator = HandlerMethodValidator.from(
+					this.webBindingInitializer, this.parameterNameDiscoverer,
+					methodParamPredicate(resolvers, ModelAttributeMethodProcessor.class),
+					methodParamPredicate(resolvers, RequestParamMethodArgumentResolver.class));
+		}
+	}
+
+	private void initMessageConverters() {
+		if (!this.messageConverters.isEmpty()) {
+			return;
+		}
+		this.messageConverters.add(new ByteArrayHttpMessageConverter());
+		this.messageConverters.add(new StringHttpMessageConverter());
+
+		this.messageConverters.add(new AllEncompassingFormHttpMessageConverter());
 	}
 
 	private void initControllerAdviceCache() {
@@ -734,10 +734,11 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		handlers.add(new ModelMethodProcessor());
 		handlers.add(new ViewMethodReturnValueHandler());
 		handlers.add(new ResponseBodyEmitterReturnValueHandler(getMessageConverters(),
-				this.reactiveAdapterRegistry, this.taskExecutor, this.contentNegotiationManager));
+				this.reactiveAdapterRegistry, this.taskExecutor, this.contentNegotiationManager,
+				initViewResolvers(), initLocaleResolver()));
 		handlers.add(new StreamingResponseBodyReturnValueHandler());
 		handlers.add(new HttpEntityMethodProcessor(getMessageConverters(),
-				this.contentNegotiationManager, this.requestResponseBodyAdvice));
+				this.contentNegotiationManager, this.requestResponseBodyAdvice, this.errorResponseInterceptors));
 		handlers.add(new HttpHeadersReturnValueHandler());
 		handlers.add(new CallableMethodReturnValueHandler());
 		handlers.add(new DeferredResultMethodReturnValueHandler());
@@ -746,7 +747,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		// Annotation-based return value types
 		handlers.add(new ServletModelAttributeMethodProcessor(false));
 		handlers.add(new RequestResponseBodyMethodProcessor(getMessageConverters(),
-				this.contentNegotiationManager, this.requestResponseBodyAdvice));
+				this.contentNegotiationManager, this.requestResponseBodyAdvice, this.errorResponseInterceptors));
 
 		// Multi-purpose return value types
 		handlers.add(new ViewNameMethodReturnValueHandler());
@@ -768,6 +769,44 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		return handlers;
 	}
 
+	private List<ViewResolver> initViewResolvers() {
+		if (getBeanFactory() instanceof ListableBeanFactory lbf) {
+			Map<String, ViewResolver> matchingBeans =
+					BeanFactoryUtils.beansOfTypeIncludingAncestors(lbf, ViewResolver.class, true, false);
+			if (!matchingBeans.isEmpty()) {
+				List<ViewResolver> viewResolvers = new ArrayList<>(matchingBeans.values());
+				AnnotationAwareOrderComparator.sort(viewResolvers);
+				return viewResolvers;
+			}
+		}
+		return Collections.emptyList();
+	}
+
+	private @Nullable LocaleResolver initLocaleResolver() {
+		if (getBeanFactory() != null) {
+			try {
+				return getBeanFactory().getBean(
+						DispatcherServlet.LOCALE_RESOLVER_BEAN_NAME, LocaleResolver.class);
+			}
+			catch (NoSuchBeanDefinitionException ignored) {
+			}
+		}
+		return null;
+	}
+
+	private static Predicate<MethodParameter> methodParamPredicate(
+			List<HandlerMethodArgumentResolver> resolvers, Class<?> resolverType) {
+
+		return parameter -> {
+			for (HandlerMethodArgumentResolver resolver : resolvers) {
+				if (resolver.supportsParameter(parameter)) {
+					return resolverType.isInstance(resolver);
+				}
+			}
+			return false;
+		};
+	}
+
 
 	/**
 	 * Always return {@code true} since any method argument and return value
@@ -783,7 +822,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	}
 
 	@Override
-	protected ModelAndView handleInternal(HttpServletRequest request,
+	protected @Nullable ModelAndView handleInternal(HttpServletRequest request,
 			HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
 
 		ModelAndView mav;
@@ -820,17 +859,6 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		return mav;
 	}
 
-	/**
-	 * This implementation always returns -1. An {@code @RequestMapping} method can
-	 * calculate the lastModified value, call {@link WebRequest#checkNotModified(long)},
-	 * and return {@code null} if the result of that call is {@code true}.
-	 */
-	@Override
-	@SuppressWarnings("deprecation")
-	protected long getLastModifiedInternal(HttpServletRequest request, HandlerMethod handlerMethod) {
-		return -1;
-	}
-
 
 	/**
 	 * Return the {@link SessionAttributesHandler} instance for the given handler type
@@ -848,60 +876,61 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 * @since 4.2
 	 * @see #createInvocableHandlerMethod(HandlerMethod)
 	 */
-	@Nullable
-	protected ModelAndView invokeHandlerMethod(HttpServletRequest request,
+	protected @Nullable ModelAndView invokeHandlerMethod(HttpServletRequest request,
 			HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
 
-		ServletWebRequest webRequest = new ServletWebRequest(request, response);
-		try {
-			WebDataBinderFactory binderFactory = getDataBinderFactory(handlerMethod);
-			ModelFactory modelFactory = getModelFactory(handlerMethod, binderFactory);
+		WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+		AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);
+		asyncWebRequest.setTimeout(this.asyncRequestTimeout);
 
-			ServletInvocableHandlerMethod invocableMethod = createInvocableHandlerMethod(handlerMethod);
-			if (this.argumentResolvers != null) {
-				invocableMethod.setHandlerMethodArgumentResolvers(this.argumentResolvers);
-			}
-			if (this.returnValueHandlers != null) {
-				invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
-			}
-			invocableMethod.setDataBinderFactory(binderFactory);
-			invocableMethod.setParameterNameDiscoverer(this.parameterNameDiscoverer);
+		asyncManager.setTaskExecutor(this.taskExecutor);
+		asyncManager.setAsyncWebRequest(asyncWebRequest);
+		asyncManager.registerCallableInterceptors(this.callableInterceptors);
+		asyncManager.registerDeferredResultInterceptors(this.deferredResultInterceptors);
 
-			ModelAndViewContainer mavContainer = new ModelAndViewContainer();
-			mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
-			modelFactory.initModel(webRequest, mavContainer, invocableMethod);
-			mavContainer.setIgnoreDefaultModelOnRedirect(this.ignoreDefaultModelOnRedirect);
+		// Obtain wrapped response to enforce lifecycle rule from Servlet spec, section 2.3.3.4
+		response = asyncWebRequest.getNativeResponse(HttpServletResponse.class);
 
-			AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);
-			asyncWebRequest.setTimeout(this.asyncRequestTimeout);
+		ServletWebRequest webRequest = (asyncWebRequest instanceof ServletWebRequest ?
+				(ServletWebRequest) asyncWebRequest : new ServletWebRequest(request, response));
 
-			WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
-			asyncManager.setTaskExecutor(this.taskExecutor);
-			asyncManager.setAsyncWebRequest(asyncWebRequest);
-			asyncManager.registerCallableInterceptors(this.callableInterceptors);
-			asyncManager.registerDeferredResultInterceptors(this.deferredResultInterceptors);
+		WebDataBinderFactory binderFactory = getDataBinderFactory(handlerMethod);
+		ModelFactory modelFactory = getModelFactory(handlerMethod, binderFactory);
 
-			if (asyncManager.hasConcurrentResult()) {
-				Object result = asyncManager.getConcurrentResult();
-				mavContainer = (ModelAndViewContainer) asyncManager.getConcurrentResultContext()[0];
-				asyncManager.clearConcurrentResult();
-				LogFormatUtils.traceDebug(logger, traceOn -> {
-					String formatted = LogFormatUtils.formatValue(result, !traceOn);
-					return "Resume with async result [" + formatted + "]";
-				});
-				invocableMethod = invocableMethod.wrapConcurrentResult(result);
-			}
-
-			invocableMethod.invokeAndHandle(webRequest, mavContainer);
-			if (asyncManager.isConcurrentHandlingStarted()) {
-				return null;
-			}
-
-			return getModelAndView(mavContainer, modelFactory, webRequest);
+		ServletInvocableHandlerMethod invocableMethod = createInvocableHandlerMethod(handlerMethod);
+		if (this.argumentResolvers != null) {
+			invocableMethod.setHandlerMethodArgumentResolvers(this.argumentResolvers);
 		}
-		finally {
-			webRequest.requestCompleted();
+		if (this.returnValueHandlers != null) {
+			invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
 		}
+		invocableMethod.setDataBinderFactory(binderFactory);
+		invocableMethod.setParameterNameDiscoverer(this.parameterNameDiscoverer);
+		invocableMethod.setMethodValidator(this.methodValidator);
+
+		ModelAndViewContainer mavContainer = new ModelAndViewContainer();
+		mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
+		modelFactory.initModel(webRequest, mavContainer, invocableMethod);
+
+		if (asyncManager.hasConcurrentResult()) {
+			Object result = asyncManager.getConcurrentResult();
+			Object[] resultContext = asyncManager.getConcurrentResultContext();
+			Assert.state(resultContext != null && resultContext.length > 0, "Missing result context");
+			mavContainer = (ModelAndViewContainer) resultContext[0];
+			asyncManager.clearConcurrentResult();
+			LogFormatUtils.traceDebug(logger, traceOn -> {
+				String formatted = LogFormatUtils.formatValue(result, !traceOn);
+				return "Resume with async result [" + formatted + "]";
+			});
+			invocableMethod = invocableMethod.wrapConcurrentResult(result);
+		}
+
+		invocableMethod.invokeAndHandle(webRequest, mavContainer);
+		if (asyncManager.isConcurrentHandlingStarted()) {
+			return null;
+		}
+
+		return getModelAndView(mavContainer, modelFactory, webRequest);
 	}
 
 	/**
@@ -970,7 +999,9 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			Object bean = handlerMethod.getBean();
 			initBinderMethods.add(createInitBinderMethod(bean, method));
 		}
-		return createDataBinderFactory(initBinderMethods);
+		DefaultDataBinderFactory factory = createDataBinderFactory(initBinderMethods);
+		factory.setMethodValidationApplicable(this.methodValidator != null && handlerMethod.shouldValidateArguments());
+		return factory;
 	}
 
 	private InvocableHandlerMethod createInitBinderMethod(Object bean, Method method) {
@@ -997,8 +1028,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 		return new ServletRequestDataBinderFactory(binderMethods, getWebBindingInitializer());
 	}
 
-	@Nullable
-	private ModelAndView getModelAndView(ModelAndViewContainer mavContainer,
+	private @Nullable ModelAndView getModelAndView(ModelAndViewContainer mavContainer,
 			ModelFactory modelFactory, NativeWebRequest webRequest) throws Exception {
 
 		modelFactory.updateModel(webRequest, mavContainer);
@@ -1018,6 +1048,39 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			}
 		}
 		return mav;
+	}
+
+
+	/**
+	 * A default Spring MVC AsyncTaskExecutor that warns if used.
+	 */
+	@SuppressWarnings("serial")
+	private class MvcSimpleAsyncTaskExecutor extends SimpleAsyncTaskExecutor {
+
+		private static boolean taskExecutorWarning = true;
+
+		MvcSimpleAsyncTaskExecutor() {
+			super("MvcAsync");
+		}
+
+		@Override
+		public void execute(Runnable task) {
+			if (taskExecutorWarning && logger.isWarnEnabled()) {
+				synchronized (this) {
+					if (taskExecutorWarning) {
+						logger.warn("""
+								!!!
+								Performing asynchronous handling through the default Spring MVC SimpleAsyncTaskExecutor.
+								This executor is not suitable for production use under load.
+								Please, configure an AsyncTaskExecutor through the WebMvc config.
+								-------------------------------
+								!!!""");
+						taskExecutorWarning = false;
+					}
+				}
+			}
+			super.execute(task);
+		}
 	}
 
 }

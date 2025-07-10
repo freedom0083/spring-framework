@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,26 +26,33 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.core.ResolvableType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * A root bean definition represents the merged bean definition that backs
- * a specific bean in a Spring BeanFactory at runtime. It might have been created
- * from multiple original bean definitions that inherit from each other,
- * typically registered as {@link GenericBeanDefinition GenericBeanDefinitions}.
+ * A root bean definition represents the <b>merged bean definition at runtime</b>
+ * that backs a specific bean in a Spring BeanFactory. It might have been created
+ * from multiple original bean definitions that inherit from each other, for example,
+ * {@link GenericBeanDefinition GenericBeanDefinitions} from XML declarations.
  * A root bean definition is essentially the 'unified' bean definition view at runtime.
  *
- * <p>Root bean definitions may also be used for registering individual bean definitions
- * in the configuration phase. However, since Spring 2.5, the preferred way to register
- * bean definitions programmatically is the {@link GenericBeanDefinition} class.
- * GenericBeanDefinition has the advantage that it allows to dynamically define
- * parent dependencies, not 'hard-coding' the role as a root bean definition.
+ * <p>Root bean definitions may also be used for <b>registering individual bean
+ * definitions in the configuration phase.</b> This is particularly applicable for
+ * programmatic definitions derived from factory methods (for example, {@code @Bean} methods)
+ * and instance suppliers (for example, lambda expressions) which come with extra type metadata
+ * (see {@link #setTargetType(ResolvableType)}/{@link #setResolvedFactoryMethod(Method)}).
+ *
+ * <p>Note: The preferred choice for bean definitions derived from declarative sources
+ * (for example, XML definitions) is the flexible {@link GenericBeanDefinition} variant.
+ * GenericBeanDefinition comes with the advantage that it allows for dynamically
+ * defining parent dependencies, not 'hard-coding' the role as a root bean definition,
+ * even supporting parent relationship changes in the bean post-processor phase.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -57,13 +64,11 @@ import org.springframework.util.Assert;
 // TODO 代表一个xml, java Config的BeanDefinition
 public class RootBeanDefinition extends AbstractBeanDefinition {
 
-	@Nullable
 	// TODO bean的代理目标. 只有bean是个代理时才会有此值
-	private BeanDefinitionHolder decoratedDefinition;
+	private @Nullable BeanDefinitionHolder decoratedDefinition;
 
-	@Nullable
 	// TODO bean上的注解元素
-	private AnnotatedElement qualifiedElement;
+	private @Nullable AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */
 	volatile boolean stale;
@@ -75,24 +80,20 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	//  false: 表示配置类中@Bean标注的方法出现同名的情况.
 	boolean isFactoryMethodUnique;
 
-	@Nullable
 	// TODO bean的ResolvableType类型. 封装了java.lang.reflect.Type, 提供了更多的与类型相关的操作, 比如: 泛型相关的操作等
-	volatile ResolvableType targetType;
+	volatile @Nullable ResolvableType targetType;
 
 	/** Package-visible field for caching the determined Class of a given bean definition. */
-	@Nullable
 	// TODO bean的实际Class对象
-	volatile Class<?> resolvedTargetType;
+	volatile @Nullable Class<?> resolvedTargetType;
 
 	/** Package-visible field for caching if the bean is a factory bean. */
-	@Nullable
 	// TODO bean是否为工厂类
-	volatile Boolean isFactoryBean;
+	volatile @Nullable Boolean isFactoryBean;
 
 	/** Package-visible field for caching the return type of a generically typed factory method. */
-	@Nullable
 	// TODO 用来实例化bean的工厂方法的返回类型
-	volatile ResolvableType factoryMethodReturnType;
+	volatile @Nullable ResolvableType factoryMethodReturnType;
 
 	/** Package-visible field for caching a unique factory method candidate for introspection. */
 	// TODO 为内省机制缓存的唯一工厂方法, 以下几个地方会对其进行设置:
@@ -100,20 +101,17 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	//     有机会为bean返回一个代理. 在这个方法中, 如果容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor类型的
 	//     后处理器, 并且要创建的bean的mbd是由Spring容器创建的的情况下,
 	//  2.
-	@Nullable
-	volatile Method factoryMethodToIntrospect;
+	volatile @Nullable Method factoryMethodToIntrospect;
 
 	/** Package-visible field for caching a resolved destroy method name (also for inferred). */
-	@Nullable
-	volatile String resolvedDestroyMethodName;
+	volatile @Nullable String resolvedDestroyMethodName;
 
 	/** Common lock for the four constructor fields below. */
 	final Object constructorArgumentLock = new Object();
 
 	/** Package-visible field for caching the resolved constructor or factory method. */
-	@Nullable
 	// TODO	解析好的, 用于实例化bean的构造器或工厂方法
-	Executable resolvedConstructorOrFactoryMethod;
+	@Nullable Executable resolvedConstructorOrFactoryMethod;
 
 	/** Package-visible field that marks the constructor arguments as resolved. */
 	// TODO 标识用于实例化bean所需要的参数是否解析完毕
@@ -121,13 +119,11 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	/** Package-visible field for caching fully resolved constructor arguments. */
 	// TODO 实例化bean时需要的解析好的参数
-	@Nullable
-	Object[] resolvedConstructorArguments;
+	@Nullable Object @Nullable [] resolvedConstructorArguments;
 
 	/** Package-visible field for caching partly prepared constructor arguments. */
-	// TODO 实例化bean时需要的待解析参数
 	@Nullable
-	Object[] preparedConstructorArguments;
+	@Nullable Object @Nullable [] preparedConstructorArguments;
 
 	/** Common lock for the two post-processing fields below. */
 	final Object postProcessingLock = new Object();
@@ -136,18 +132,14 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	boolean postProcessed = false;
 
 	/** Package-visible field that indicates a before-instantiation post-processor having kicked in. */
-	@Nullable
 	// TODO bean是否需要前置处理
-	volatile Boolean beforeInstantiationResolved;
+	volatile @Nullable Boolean beforeInstantiationResolved;
 
-	@Nullable
-	private Set<Member> externallyManagedConfigMembers;
+	private @Nullable Set<Member> externallyManagedConfigMembers;
 
-	@Nullable
-	private Set<String> externallyManagedInitMethods;
+	private @Nullable Set<String> externallyManagedInitMethods;
 
-	@Nullable
-	private Set<String> externallyManagedDestroyMethods;
+	private @Nullable Set<String> externallyManagedDestroyMethods;
 
 
 	/**
@@ -175,7 +167,9 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 * @param beanType the type of bean to instantiate
 	 * @since 6.0
 	 * @see #setTargetType(ResolvableType)
+	 * @deprecated as of 6.0.11, in favor of an extra {@link #setTargetType(ResolvableType)} call
 	 */
+	@Deprecated(since = "6.0.11")
 	public RootBeanDefinition(@Nullable ResolvableType beanType) {
 		setTargetType(beanType);
 	}
@@ -289,7 +283,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 
 	@Override
-	public String getParentName() {
+	public @Nullable String getParentName() {
 		return null;
 	}
 
@@ -310,8 +304,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/**
 	 * Return the target definition that is being decorated by this bean definition, if any.
 	 */
-	@Nullable
-	public BeanDefinitionHolder getDecoratedDefinition() {
+	public @Nullable BeanDefinitionHolder getDecoratedDefinition() {
 		return this.decoratedDefinition;
 	}
 
@@ -331,8 +324,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 * Otherwise, the factory method and target class will be checked.
 	 * @since 4.3.3
 	 */
-	@Nullable
-	public AnnotatedElement getQualifiedElement() {
+	public @Nullable AnnotatedElement getQualifiedElement() {
 		return this.qualifiedElement;
 	}
 
@@ -340,7 +332,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 * Specify a generics-containing target type of this bean definition, if known in advance.
 	 * @since 4.3.3
 	 */
-	public void setTargetType(ResolvableType targetType) {
+	public void setTargetType(@Nullable ResolvableType targetType) {
 		this.targetType = targetType;
 	}
 
@@ -357,8 +349,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 * (either specified in advance or resolved on first instantiation).
 	 * @since 3.2.2
 	 */
-	@Nullable
-	public Class<?> getTargetType() {
+	public @Nullable Class<?> getTargetType() {
 		if (this.resolvedTargetType != null) {
 			// TODO 如果bean的Class对象已经解析过了, 直接从缓存中返回bean的类型
 			return this.resolvedTargetType;
@@ -388,7 +379,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 		if (returnType != null) {
 			return returnType;
 		}
-		Method factoryMethod = this.factoryMethodToIntrospect;
+		Method factoryMethod = getResolvedFactoryMethod();
 		if (factoryMethod != null) {
 			return ResolvableType.forMethodReturnType(factoryMethod);
 		}
@@ -398,13 +389,27 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/**
 	 * Determine preferred constructors to use for default construction, if any.
 	 * Constructor arguments will be autowired if necessary.
+	 * <p>As of 6.1, the default implementation of this method takes the
+	 * {@link #PREFERRED_CONSTRUCTORS_ATTRIBUTE} attribute into account.
+	 * Subclasses are encouraged to preserve this through a {@code super} call,
+	 * either before or after their own preferred constructor determination.
 	 * @return one or more preferred constructors, or {@code null} if none
 	 * (in which case the regular no-arg default constructor will be called)
 	 * @since 5.1
 	 */
-	@Nullable
-	public Constructor<?>[] getPreferredConstructors() {
-		return null;
+	public Constructor<?> @Nullable [] getPreferredConstructors() {
+		Object attribute = getAttribute(PREFERRED_CONSTRUCTORS_ATTRIBUTE);
+		if (attribute == null) {
+			return null;
+		}
+		if (attribute instanceof Constructor<?> constructor) {
+			return new Constructor<?>[] {constructor};
+		}
+		if (attribute instanceof Constructor<?>[] constructors) {
+			return constructors;
+		}
+		throw new IllegalArgumentException("Invalid value type for attribute '" +
+				PREFERRED_CONSTRUCTORS_ATTRIBUTE + "': " + attribute.getClass().getName());
 	}
 
 	/**
@@ -440,15 +445,33 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 */
 	public void setResolvedFactoryMethod(@Nullable Method method) {
 		this.factoryMethodToIntrospect = method;
+		if (method != null) {
+			setUniqueFactoryMethodName(method.getName());
+		}
 	}
 
 	/**
 	 * Return the resolved factory method as a Java Method object, if available.
 	 * @return the factory method, or {@code null} if not found or not resolved yet
 	 */
-	@Nullable
-	public Method getResolvedFactoryMethod() {
-		return this.factoryMethodToIntrospect;
+	public @Nullable Method getResolvedFactoryMethod() {
+		Method factoryMethod = this.factoryMethodToIntrospect;
+		if (factoryMethod == null &&
+				getInstanceSupplier() instanceof InstanceSupplier<?> instanceSupplier) {
+			factoryMethod = instanceSupplier.getFactoryMethod();
+		}
+		return factoryMethod;
+	}
+
+	/**
+	 * Mark this bean definition as post-processed,
+	 * i.e. processed by {@link MergedBeanDefinitionPostProcessor}.
+	 * @since 6.0
+	 */
+	public void markAsPostProcessed() {
+		synchronized (this.postProcessingLock) {
+			this.postProcessed = true;
+		}
 	}
 
 	/**
@@ -487,14 +510,15 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	/**
 	 * Register an externally managed configuration initialization method &mdash;
-	 * for example, a method annotated with JSR-250's
+	 * for example, a method annotated with Jakarta's
 	 * {@link jakarta.annotation.PostConstruct} annotation.
-	 * <p>The supplied {@code initMethod} may be the
-	 * {@linkplain Method#getName() simple method name} for non-private methods or the
+	 * <p>The supplied {@code initMethod} may be a
+	 * {@linkplain Method#getName() simple method name} or a
 	 * {@linkplain org.springframework.util.ClassUtils#getQualifiedMethodName(Method)
-	 * qualified method name} for {@code private} methods. A qualified name is
-	 * necessary for {@code private} methods in order to disambiguate between
-	 * multiple private methods with the same name within a class hierarchy.
+	 * qualified method name} for package-private and {@code private} methods.
+	 * A qualified name is necessary for package-private and {@code private} methods
+	 * in order to disambiguate between multiple such methods with the same name
+	 * within a type hierarchy.
 	 */
 	public void registerExternallyManagedInitMethod(String initMethod) {
 		synchronized (this.postProcessingLock) {
@@ -533,23 +557,12 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 			if (isExternallyManagedInitMethod(initMethod)) {
 				return true;
 			}
-			if (this.externallyManagedInitMethods != null) {
-				for (String candidate : this.externallyManagedInitMethods) {
-					int indexOfDot = candidate.lastIndexOf('.');
-					if (indexOfDot >= 0) {
-						String methodName = candidate.substring(indexOfDot + 1);
-						if (methodName.equals(initMethod)) {
-							return true;
-						}
-					}
-				}
-			}
-			return false;
+			return hasAnyExternallyManagedMethod(this.externallyManagedInitMethods, initMethod);
 		}
 	}
 
 	/**
-	 * Return all externally managed initialization methods (as an immutable Set).
+	 * Get all externally managed initialization methods (as an immutable Set).
 	 * <p>See {@link #registerExternallyManagedInitMethod} for details
 	 * regarding the format for the initialization methods in the returned set.
 	 * @since 5.3.11
@@ -560,6 +573,15 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 					Collections.unmodifiableSet(new LinkedHashSet<>(this.externallyManagedInitMethods)) :
 					Collections.emptySet());
 		}
+	}
+
+	/**
+	 * Resolve the inferred destroy method if necessary.
+	 * @since 6.0
+	 */
+	public void resolveDestroyMethodIfNecessary() {
+		setDestroyMethodNames(DisposableBeanAdapter
+				.inferDestroyMethodsIfNecessary(getResolvableType().toClass(), this));
 	}
 
 	/**
@@ -610,19 +632,23 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 			if (isExternallyManagedDestroyMethod(destroyMethod)) {
 				return true;
 			}
-			if (this.externallyManagedDestroyMethods != null) {
-				for (String candidate : this.externallyManagedDestroyMethods) {
-					int indexOfDot = candidate.lastIndexOf('.');
-					if (indexOfDot >= 0) {
-						String methodName = candidate.substring(indexOfDot + 1);
-						if (methodName.equals(destroyMethod)) {
-							return true;
-						}
+			return hasAnyExternallyManagedMethod(this.externallyManagedDestroyMethods, destroyMethod);
+		}
+	}
+
+	private static boolean hasAnyExternallyManagedMethod(@Nullable Set<String> candidates, String methodName) {
+		if (candidates != null) {
+			for (String candidate : candidates) {
+				int indexOfDot = candidate.lastIndexOf('.');
+				if (indexOfDot > 0) {
+					String candidateMethodName = candidate.substring(indexOfDot + 1);
+					if (candidateMethodName.equals(methodName)) {
+						return true;
 					}
 				}
 			}
-			return false;
 		}
+		return false;
 	}
 
 	/**

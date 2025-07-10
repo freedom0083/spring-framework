@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.ConversionNotSupportedException;
 import org.springframework.beans.TypeMismatchException;
@@ -30,9 +31,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
-import org.springframework.lang.Nullable;
-import org.springframework.validation.BindException;
-import org.springframework.validation.BindingResult;
+import org.springframework.validation.method.MethodValidationException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -41,15 +40,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.ServletRequestBindingException;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.handler.AbstractHandlerExceptionResolver;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.util.DisconnectedClientHelper;
 import org.springframework.web.util.WebUtils;
 
 /**
@@ -60,74 +62,86 @@ import org.springframework.web.util.WebUtils;
  * <p>This exception resolver is enabled by default in the common Spring
  * {@link org.springframework.web.servlet.DispatcherServlet}.
  *
+ * <h3>Supported Exceptions</h3>
  * <table>
- * <caption>Supported Exceptions</caption>
  * <thead>
  * <tr>
- * <th class="colFirst">Exception</th>
- * <th class="colLast">HTTP Status Code</th>
+ * <th class="table-header col-first">Exception</th>
+ * <th class="table-header col-last">HTTP Status Code</th>
  * </tr>
  * </thead>
  * <tbody>
- * <tr class="altColor">
- * <td><p>HttpRequestMethodNotSupportedException</p></td>
- * <td><p>405 (SC_METHOD_NOT_ALLOWED)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">HttpRequestMethodNotSupportedException</div></td>
+ * <td><div class="block">405 (SC_METHOD_NOT_ALLOWED)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>HttpMediaTypeNotSupportedException</p></td>
- * <td><p>415 (SC_UNSUPPORTED_MEDIA_TYPE)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">HttpMediaTypeNotSupportedException</div></td>
+ * <td><div class="block">415 (SC_UNSUPPORTED_MEDIA_TYPE)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>HttpMediaTypeNotAcceptableException</p></td>
- * <td><p>406 (SC_NOT_ACCEPTABLE)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">HttpMediaTypeNotAcceptableException</div></td>
+ * <td><div class="block">406 (SC_NOT_ACCEPTABLE)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>MissingPathVariableException</p></td>
- * <td><p>500 (SC_INTERNAL_SERVER_ERROR)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">MissingPathVariableException</div></td>
+ * <td><div class="block">500 (SC_INTERNAL_SERVER_ERROR)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>MissingServletRequestParameterException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">MissingServletRequestParameterException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>MissingServletRequestPartException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">MissingServletRequestPartException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>ServletRequestBindingException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">ServletRequestBindingException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>ConversionNotSupportedException</p></td>
- * <td><p>500 (SC_INTERNAL_SERVER_ERROR)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">ConversionNotSupportedException</div></td>
+ * <td><div class="block">500 (SC_INTERNAL_SERVER_ERROR)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>TypeMismatchException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">TypeMismatchException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>HttpMessageNotReadableException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">HttpMessageNotReadableException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>HttpMessageNotWritableException</p></td>
- * <td><p>500 (SC_INTERNAL_SERVER_ERROR)</p></td>
+ * <tr class="even-row-color">
+ * <td><div class="block">HttpMessageNotWritableException</div></td>
+ * <td><div class="block">500 (SC_INTERNAL_SERVER_ERROR)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>MethodArgumentNotValidException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">MethodArgumentNotValidException</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>BindException</p></td>
- * <td><p>400 (SC_BAD_REQUEST)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">{@link MethodValidationException}</div></td>
+ * <td><div class="block">500 (SC_INTERNAL_SERVER_ERROR)</div></td>
  * </tr>
- * <tr class="rowColor">
- * <td><p>NoHandlerFoundException</p></td>
- * <td><p>404 (SC_NOT_FOUND)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">{@link HandlerMethodValidationException}</div></td>
+ * <td><div class="block">400 (SC_BAD_REQUEST)</div></td>
  * </tr>
- * <tr class="altColor">
- * <td><p>AsyncRequestTimeoutException</p></td>
- * <td><p>503 (SC_SERVICE_UNAVAILABLE)</p></td>
+ * <tr class="odd-row-color">
+ * <td><div class="block">NoHandlerFoundException</div></td>
+ * <td><div class="block">404 (SC_NOT_FOUND)</div></td>
+ * </tr>
+ * <tr class="even-row-color">
+ * <td><div class="block">NoResourceFoundException</div></td>
+ * <td><div class="block">404 (SC_NOT_FOUND)</div></td>
+ * </tr>
+ * <tr class="odd-row-color">
+ * <td><div class="block">AsyncRequestTimeoutException</div></td>
+ * <td><div class="block">503 (SC_SERVICE_UNAVAILABLE)</div></td>
+ * </tr>
+ * <tr class="even-row-color">
+ * <td><div class="block">AsyncRequestNotUsableException</div></td>
+ * <td><div class="block">Not applicable</div></td>
  * </tr>
  * </tbody>
  * </table>
@@ -163,80 +177,77 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 
 
 	@Override
-	@Nullable
-	protected ModelAndView doResolveException(
+	protected @Nullable ModelAndView doResolveException(
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler, Exception ex) {
 
 		try {
 			// ErrorResponse exceptions that expose HTTP response details
-			if (ex instanceof ErrorResponse) {
+			if (ex instanceof ErrorResponse errorResponse) {
 				ModelAndView mav = null;
-				if (ex instanceof HttpRequestMethodNotSupportedException) {
-					mav = handleHttpRequestMethodNotSupported(
-							(HttpRequestMethodNotSupportedException) ex, request, response, handler);
+				if (ex instanceof HttpRequestMethodNotSupportedException theEx) {
+					mav = handleHttpRequestMethodNotSupported(theEx, request, response, handler);
 				}
-				else if (ex instanceof HttpMediaTypeNotSupportedException) {
-					mav = handleHttpMediaTypeNotSupported(
-							(HttpMediaTypeNotSupportedException) ex, request, response, handler);
+				else if (ex instanceof HttpMediaTypeNotSupportedException theEx) {
+					mav = handleHttpMediaTypeNotSupported(theEx, request, response, handler);
 				}
-				else if (ex instanceof HttpMediaTypeNotAcceptableException) {
-					mav = handleHttpMediaTypeNotAcceptable(
-							(HttpMediaTypeNotAcceptableException) ex, request, response, handler);
+				else if (ex instanceof HttpMediaTypeNotAcceptableException theEx) {
+					mav = handleHttpMediaTypeNotAcceptable(theEx, request, response, handler);
 				}
-				else if (ex instanceof MissingPathVariableException) {
-					mav = handleMissingPathVariable(
-							(MissingPathVariableException) ex, request, response, handler);
+				else if (ex instanceof MissingPathVariableException theEx) {
+					mav = handleMissingPathVariable(theEx, request, response, handler);
 				}
-				else if (ex instanceof MissingServletRequestParameterException) {
-					mav = handleMissingServletRequestParameter(
-							(MissingServletRequestParameterException) ex, request, response, handler);
+				else if (ex instanceof MissingServletRequestParameterException theEx) {
+					mav = handleMissingServletRequestParameter(theEx, request, response, handler);
 				}
-				else if (ex instanceof MissingServletRequestPartException) {
-					mav = handleMissingServletRequestPartException(
-							(MissingServletRequestPartException) ex, request, response, handler);
+				else if (ex instanceof MissingServletRequestPartException theEx) {
+					mav = handleMissingServletRequestPartException(theEx, request, response, handler);
 				}
-				else if (ex instanceof ServletRequestBindingException) {
-					mav = handleServletRequestBindingException(
-							(ServletRequestBindingException) ex, request, response, handler);
+				else if (ex instanceof ServletRequestBindingException theEx) {
+					mav = handleServletRequestBindingException(theEx, request, response, handler);
 				}
-				else if (ex instanceof MethodArgumentNotValidException) {
-					mav = handleMethodArgumentNotValidException(
-							(MethodArgumentNotValidException) ex, request, response, handler);
+				else if (ex instanceof MethodArgumentNotValidException theEx) {
+					mav = handleMethodArgumentNotValidException(theEx, request, response, handler);
 				}
-				else if (ex instanceof NoHandlerFoundException) {
-					mav = handleNoHandlerFoundException(
-							(NoHandlerFoundException) ex, request, response, handler);
+				else if (ex instanceof HandlerMethodValidationException theEx) {
+					mav = handleHandlerMethodValidationException(theEx, request, response, handler);
 				}
-				else if (ex instanceof AsyncRequestTimeoutException) {
-					mav = handleAsyncRequestTimeoutException(
-							(AsyncRequestTimeoutException) ex, request, response, handler);
+				else if (ex instanceof NoHandlerFoundException theEx) {
+					mav = handleNoHandlerFoundException(theEx, request, response, handler);
+				}
+				else if (ex instanceof NoResourceFoundException theEx) {
+					mav = handleNoResourceFoundException(theEx, request, response, handler);
+				}
+				else if (ex instanceof AsyncRequestTimeoutException theEx) {
+					mav = handleAsyncRequestTimeoutException(theEx, request, response, handler);
 				}
 
-				if (mav == null) {
-					return handleErrorResponse((ErrorResponse) ex, request, response, handler);
-				}
+				return (mav != null ? mav :
+						handleErrorResponse(errorResponse, request, response, handler));
 			}
 
 			// Other, lower level exceptions
 
-			if (ex instanceof ConversionNotSupportedException) {
-				return handleConversionNotSupported(
-						(ConversionNotSupportedException) ex, request, response, handler);
+			if (ex instanceof ConversionNotSupportedException theEx) {
+				return handleConversionNotSupported(theEx, request, response, handler);
 			}
-			else if (ex instanceof TypeMismatchException) {
-				return handleTypeMismatch(
-						(TypeMismatchException) ex, request, response, handler);
+			else if (ex instanceof TypeMismatchException theEx) {
+				return handleTypeMismatch(theEx, request, response, handler);
 			}
-			else if (ex instanceof HttpMessageNotReadableException) {
-				return handleHttpMessageNotReadable(
-						(HttpMessageNotReadableException) ex, request, response, handler);
+			else if (ex instanceof HttpMessageNotReadableException theEx) {
+				return handleHttpMessageNotReadable(theEx, request, response, handler);
 			}
-			else if (ex instanceof HttpMessageNotWritableException) {
-				return handleHttpMessageNotWritable(
-						(HttpMessageNotWritableException) ex, request, response, handler);
+			else if (ex instanceof HttpMessageNotWritableException theEx) {
+				return handleHttpMessageNotWritable(theEx, request, response, handler);
 			}
-			else if (ex instanceof BindException) {
-				return handleBindException((BindException) ex, request, response, handler);
+			else if (ex instanceof MethodValidationException theEx) {
+				return handleMethodValidationException(theEx, request, response, handler);
+			}
+			else if (ex instanceof AsyncRequestNotUsableException) {
+				return handleAsyncRequestNotUsableException(
+						(AsyncRequestNotUsableException) ex, request, response, handler);
+			}
+			else if (DisconnectedClientHelper.isClientDisconnectedException(ex)) {
+				return handleDisconnectedClientException(ex, request, response, handler);
 			}
 		}
 		catch (Exception handlerEx) {
@@ -257,11 +268,11 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param response current HTTP response
 	 * @param handler the executed handler, or {@code null} if none chosen
 	 * at the time of the exception (for example, if multipart resolution failed)
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+	protected @Nullable ModelAndView handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -277,11 +288,11 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleHttpMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex,
+	protected @Nullable ModelAndView handleHttpMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -290,18 +301,18 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	/**
 	 * Handle the case where no
 	 * {@linkplain org.springframework.http.converter.HttpMessageConverter message converters}
-	 * were found that were acceptable for the client (expressed via the {@code Accept} header.
+	 * were found that were acceptable for the client (expressed via the {@code Accept} header).
 	 * <p>The default implementation returns {@code null} in which case the
 	 * exception is handled in {@link #handleErrorResponse}.
 	 * @param ex the HttpMediaTypeNotAcceptableException to be handled
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleHttpMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex,
+	protected @Nullable ModelAndView handleHttpMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -315,12 +326,12 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 * @since 4.2
 	 */
-	@Nullable
-	protected ModelAndView handleMissingPathVariable(MissingPathVariableException ex,
+	protected @Nullable ModelAndView handleMissingPathVariable(MissingPathVariableException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -334,11 +345,11 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+	protected @Nullable ModelAndView handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -351,18 +362,18 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleMissingServletRequestPartException(MissingServletRequestPartException ex,
+	protected @Nullable ModelAndView handleMissingServletRequestPartException(MissingServletRequestPartException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
 	}
 
 	/**
-	 * Handle the case when an unrecoverable binding exception occurs - e.g.
+	 * Handle the case when an unrecoverable binding exception occurs - for example,
 	 * required header, required cookie.
 	 * <p>The default implementation returns {@code null} in which case the
 	 * exception is handled in {@link #handleErrorResponse}.
@@ -370,11 +381,11 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleServletRequestBindingException(ServletRequestBindingException ex,
+	protected @Nullable ModelAndView handleServletRequestBindingException(ServletRequestBindingException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -388,11 +399,30 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
-	@Nullable
-	protected ModelAndView handleMethodArgumentNotValidException(MethodArgumentNotValidException ex,
+	protected @Nullable ModelAndView handleMethodArgumentNotValidException(MethodArgumentNotValidException ex,
+			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
+
+		return null;
+	}
+
+	/**
+	 * Handle the case where method validation for a controller method failed.
+	 * <p>The default implementation returns {@code null} in which case the
+	 * exception is handled in {@link #handleErrorResponse}.
+	 * @param ex the exception to be handled
+	 * @param request current HTTP request
+	 * @param response current HTTP response
+	 * @param handler the executed handler
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
+	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
+	 * @since 6.1
+	 */
+	protected @Nullable ModelAndView handleHandlerMethodValidationException(HandlerMethodValidationException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
@@ -407,15 +437,34 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param response current HTTP response
 	 * @param handler the executed handler, or {@code null} if none chosen
 	 * at the time of the exception (for example, if multipart resolution failed)
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 * @since 4.0
 	 */
-	@Nullable
-	protected ModelAndView handleNoHandlerFoundException(NoHandlerFoundException ex,
+	protected @Nullable ModelAndView handleNoHandlerFoundException(NoHandlerFoundException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		pageNotFoundLogger.warn(ex.getMessage());
+		return null;
+	}
+
+	/**
+	 * Handle the case where no static resource was found.
+	 * <p>The default implementation returns {@code null} in which case the
+	 * exception is handled in {@link #handleErrorResponse}.
+	 * @param ex the {@link NoResourceFoundException} to be handled
+	 * @param request current HTTP request
+	 * @param response current HTTP response
+	 * @param handler the resource handler
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
+	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
+	 * @since 6.1
+	 */
+	protected @Nullable ModelAndView handleNoResourceFoundException(NoResourceFoundException ex,
+			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
+
 		return null;
 	}
 
@@ -428,28 +477,65 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param response current HTTP response
 	 * @param handler the executed handler, or {@code null} if none chosen
 	 * at the time of the exception (for example, if multipart resolution failed)
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled, or
+	 * {@code null} indicating the exception should be handled in {@link #handleErrorResponse}
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 * @since 4.2.8
 	 */
-	@Nullable
-	protected ModelAndView handleAsyncRequestTimeoutException(AsyncRequestTimeoutException ex,
+	protected @Nullable ModelAndView handleAsyncRequestTimeoutException(AsyncRequestTimeoutException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
 		return null;
 	}
 
 	/**
+	 * Handle the case of an I/O failure from the ServletOutputStream.
+	 * <p>By default, do nothing since the response is not usable.
+	 * @param ex the {@link AsyncRequestTimeoutException} to be handled
+	 * @param request current HTTP request
+	 * @param response current HTTP response
+	 * @param handler the executed handler, or {@code null} if none chosen
+	 * at the time of the exception (for example, if multipart resolution failed)
+	 * @return an empty ModelAndView indicating the exception was handled
+	 * @since 5.3.33
+	 */
+	protected ModelAndView handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex,
+			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) {
+
+		return new ModelAndView();
+	}
+
+	/**
+	 * Handle an Exception that indicates the client has gone away. This is
+	 * typically an {@link IOException} of a specific subtype or with a message
+	 * specific to the underlying Servlet container. Those are detected through
+	 * {@link DisconnectedClientHelper#isClientDisconnectedException(Throwable)}
+	 * <p>By default, do nothing since the response is not usable.
+	 * @param ex the {@code Exception} to be handled
+	 * @param request current HTTP request
+	 * @param response current HTTP response
+	 * @param handler the executed handler, or {@code null} if none chosen
+	 * at the time of the exception (for example, if multipart resolution failed)
+	 * @return an empty ModelAndView indicating the exception was handled
+	 * @since 6.2
+	 */
+	protected ModelAndView handleDisconnectedClientException(
+			Exception ex, HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) {
+
+		return new ModelAndView();
+	}
+
+	/**
 	 * Handle an {@link ErrorResponse} exception.
 	 * <p>The default implementation sets status and the headers of the response
 	 * to those obtained from the {@code ErrorResponse}. If available, the
-	 * {@link ProblemDetail#getDetail()}  is used as the message for
+	 * {@link ProblemDetail#getDetail()} is used as the message for
 	 * {@link HttpServletResponse#sendError(int, String)}.
 	 * @param errorResponse the exception to be handled
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 * @since 6.0
 	 */
@@ -469,8 +555,8 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 				response.sendError(status);
 			}
 		}
-		else {
-			logger.warn("Ignoring exception, response committed. : " + errorResponse);
+		else if (logger.isWarnEnabled()) {
+			logger.warn("Ignoring exception, response committed already: " + errorResponse);
 		}
 
 		return new ModelAndView();
@@ -485,7 +571,7 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
 	protected ModelAndView handleConversionNotSupported(ConversionNotSupportedException ex,
@@ -503,7 +589,7 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
 	protected ModelAndView handleTypeMismatch(TypeMismatchException ex,
@@ -523,20 +609,25 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
 	protected ModelAndView handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
-		response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+		if (!response.isCommitted()) {
+			response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+		}
+		else if (logger.isWarnEnabled()) {
+			logger.warn("Ignoring exception, response committed already: " + ex);
+		}
 		return new ModelAndView();
 	}
 
 	/**
 	 * Handle the case where a
 	 * {@linkplain org.springframework.http.converter.HttpMessageConverter message converter}
-	 * cannot write to an HTTP request.
+	 * cannot write to an HTTP response.
 	 * <p>The default implementation sends an HTTP 500 error, and returns an empty {@code ModelAndView}.
 	 * Alternatively, a fallback view could be chosen, or the HttpMessageNotWritableException could
 	 * be rethrown as-is.
@@ -544,31 +635,39 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
 	 */
 	protected ModelAndView handleHttpMessageNotWritable(HttpMessageNotWritableException ex,
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
-		sendServerError(ex, request, response);
+		if (!response.isCommitted()) {
+			sendServerError(ex, request, response);
+		}
+		else if (logger.isWarnEnabled()) {
+			logger.warn("Ignoring exception, response committed already: " + ex);
+		}
 		return new ModelAndView();
 	}
 
 	/**
-	 * Handle the case where an {@linkplain ModelAttribute @ModelAttribute} method
-	 * argument has binding or validation errors and is not followed by another
-	 * method argument of type {@link BindingResult}.
-	 * <p>By default, an HTTP 400 error is sent back to the client.
+	 * Handle the case where method validation failed on a component that is
+	 * not a web controller, for example, on some underlying service.
+	 * <p>The default implementation sends an HTTP 500 error, and returns an empty {@code ModelAndView}.
+	 * Alternatively, a fallback view could be chosen, or the HttpMessageNotWritableException could
+	 * be rethrown as-is.
+	 * @param ex the exception to be handled
 	 * @param request current HTTP request
 	 * @param response current HTTP response
 	 * @param handler the executed handler
-	 * @return an empty ModelAndView indicating the exception was handled
+	 * @return an empty {@code ModelAndView} indicating the exception was handled
 	 * @throws IOException potentially thrown from {@link HttpServletResponse#sendError}
+	 * @since 6.1
 	 */
-	protected ModelAndView handleBindException(BindException ex, HttpServletRequest request,
-			HttpServletResponse response, @Nullable Object handler) throws IOException {
+	protected ModelAndView handleMethodValidationException(MethodValidationException ex,
+			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler) throws IOException {
 
-		response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+		sendServerError(ex, request, response);
 		return new ModelAndView();
 	}
 
@@ -581,6 +680,17 @@ public class DefaultHandlerExceptionResolver extends AbstractHandlerExceptionRes
 
 		request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex);
 		response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+	}
+
+	@Override
+	protected void logException(Exception ex, HttpServletRequest request) {
+		if (ex instanceof NoHandlerFoundException || ex instanceof NoResourceFoundException) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(buildLogMessage(ex, request));
+			}
+			return;
+		}
+		super.logException(ex, request);
 	}
 
 }

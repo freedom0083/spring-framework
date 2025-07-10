@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,14 @@ import java.lang.reflect.Type;
 import jakarta.json.bind.Jsonb;
 import jakarta.json.bind.JsonbBuilder;
 import jakarta.json.bind.JsonbConfig;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
  * Implementation of {@link org.springframework.http.converter.HttpMessageConverter}
  * that can read and write JSON using the
- * <a href="http://json-b.net/">JSON Binding API</a>.
+ * <a href="https://javaee.github.io/jsonb-spec/">JSON Binding API</a>.
  *
  * <p>This converter can be used to bind to typed beans or untyped {@code HashMap}s.
  * By default, it supports {@code application/json} and {@code application/*+json} with
@@ -110,4 +110,8 @@ public class JsonbHttpMessageConverter extends AbstractJsonHttpMessageConverter 
 		}
 	}
 
+	@Override
+	protected boolean supportsRepeatableWrites(Object o) {
+		return true;
+	}
 }

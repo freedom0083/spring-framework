@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package org.springframework.messaging.simp.stomp;
 
-import org.springframework.lang.Nullable;
+import java.util.function.Consumer;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a STOMP session with operations to send messages,
@@ -82,7 +84,7 @@ public interface StompSession {
 	/**
 	 * An overloaded version of {@link #subscribe(String, StompFrameHandler)}
 	 * with full {@link StompHeaders} instead of just a destination.
-	 * @param headers the headers for the subscribe message frame
+	 * @param headers the headers for the subscribed message frame
 	 * @param handler the handler for received messages
 	 * @return a handle to use to unsubscribe and/or track receipts
 	 */
@@ -134,21 +136,31 @@ public interface StompSession {
 		 * Return the receipt id, or {@code null} if the STOMP frame for which
 		 * the handle was returned did not have a "receipt" header.
 		 */
-		@Nullable
-		String getReceiptId();
+		@Nullable String getReceiptId();
 
 		/**
 		 * Task to invoke when a receipt is received.
+		 * @param task the task to invoke
 		 * @throws java.lang.IllegalArgumentException if the receiptId is {@code null}
 		 */
-		void addReceiptTask(Runnable runnable);
+		void addReceiptTask(Runnable task);
+
+		/**
+		 * Variant of {@link #addReceiptTask(Runnable)} with a {@link Consumer}
+		 * of the headers from the {@code RECEIPT} frame.
+		 * @param task the consumer to invoke
+		 * @throws java.lang.IllegalArgumentException if the receiptId is {@code null}
+		 * @since 5.3.23
+		 */
+		void addReceiptTask(Consumer<StompHeaders> task);
 
 		/**
 		 * Task to invoke when a receipt is not received in the configured time.
+		 * @param task the task to invoke
 		 * @throws java.lang.IllegalArgumentException if the receiptId is {@code null}
 		 * @see org.springframework.messaging.simp.stomp.StompClientSupport#setReceiptTimeLimit(long)
 		 */
-		void addReceiptLostTask(Runnable runnable);
+		void addReceiptLostTask(Runnable task);
 	}
 
 
@@ -160,8 +172,7 @@ public interface StompSession {
 		/**
 		 * Return the id for the subscription.
 		 */
-		@Nullable
-		String getSubscriptionId();
+		@Nullable String getSubscriptionId();
 
 		/**
 		 * Return the headers used on the SUBSCRIBE frame.

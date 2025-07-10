@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,35 +20,37 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link ParameterNameDiscoverer} implementation which uses JDK 8's reflection facilities
  * for introspecting parameter names (based on the "-parameters" compiler flag).
  *
+ * <p>This is a key element of {@link DefaultParameterNameDiscoverer} where it is being
+ * combined with {@link KotlinReflectionParameterNameDiscoverer} if Kotlin is present.
+ *
  * @author Juergen Hoeller
  * @since 4.0
  * @see java.lang.reflect.Method#getParameters()
  * @see java.lang.reflect.Parameter#getName()
+ * @see KotlinReflectionParameterNameDiscoverer
+ * @see DefaultParameterNameDiscoverer
  */
 // TODO 基于Java 8反射的标准参数名探测器, 需要为编译器使用'-parameters'参数
 public class StandardReflectionParameterNameDiscoverer implements ParameterNameDiscoverer {
 
 	@Override
-	@Nullable
-	public String[] getParameterNames(Method method) {
+	public @Nullable String @Nullable [] getParameterNames(Method method) {
 		return getParameterNames(method.getParameters());
 	}
 
 	@Override
-	@Nullable
-	public String[] getParameterNames(Constructor<?> ctor) {
+	public @Nullable String @Nullable [] getParameterNames(Constructor<?> ctor) {
 		return getParameterNames(ctor.getParameters());
 	}
 
-	@Nullable
 	// TODO 遍历方法的所有参数. 在指定了Java 8中javac命令的-parameters选项后参数后, 会把所有的形参都加到返回结果集中
-	private String[] getParameterNames(Parameter[] parameters) {
+	private String @Nullable [] getParameterNames(Parameter[] parameters) {
 		String[] parameterNames = new String[parameters.length];
 		for (int i = 0; i < parameters.length; i++) {
 			Parameter param = parameters[i];

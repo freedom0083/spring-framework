@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.Writable;
 import groovy.xml.StreamingMarkupBuilder;
+import org.jspecify.annotations.Nullable;
 import org.w3c.dom.Element;
 
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -68,7 +69,7 @@ class GroovyDynamicElementReader extends GroovyObjectSupport {
 
 
 	@Override
-	public Object invokeMethod(String name, Object obj) {
+	public @Nullable Object invokeMethod(String name, Object obj) {
 		Object[] args = (Object[]) obj;
 		if (name.equals("doCall")) {
 			@SuppressWarnings("unchecked")
@@ -88,6 +89,7 @@ class GroovyDynamicElementReader extends GroovyObjectSupport {
 			String myNamespace = this.rootNamespace;
 			Map<String, String> myNamespaces = this.xmlNamespaces;
 
+			@SuppressWarnings("serial")
 			Closure<Object> callable = new Closure<>(this) {
 				@Override
 				public Object call(Object... arguments) {

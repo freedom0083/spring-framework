@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -162,7 +162,7 @@ public class FilterTests {
 				.exchange()
 				.expectStatus().isOk()
 				.expectHeader().contentLength(53)
-				.expectHeader().valueEquals("ETag", "\"0e37becb4f0c90709cb2e1efcc61eaa00\"")
+				.expectHeader().valueEquals("ETag", "\"08ff7f2f1f370ada7db137770dada33a0\"")
 				.expectBody().json("{\"name\":\"Lukas\",\"someDouble\":0.0,\"someBoolean\":false}");
 	}
 
@@ -197,7 +197,7 @@ public class FilterTests {
 		}
 	}
 
-	private class ContinueFilter extends OncePerRequestFilter {
+	private static class ContinueFilter extends OncePerRequestFilter {
 
 		@Override
 		protected void doFilterInternal(HttpServletRequest request,
@@ -235,11 +235,11 @@ public class FilterTests {
 		}
 	}
 
-	private class RedirectFilter extends OncePerRequestFilter {
+	private static class RedirectFilter extends OncePerRequestFilter {
 
 		@Override
 		protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-				FilterChain filterChain) throws ServletException, IOException {
+				FilterChain filterChain) throws IOException {
 
 			response.sendRedirect("/login");
 		}

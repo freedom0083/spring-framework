@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,12 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.CallableStatementCreatorFactory;
 import org.springframework.jdbc.core.ParameterMapper;
 import org.springframework.jdbc.core.SqlParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -49,7 +50,7 @@ public abstract class SqlCall extends RdbmsOperation {
 
 	/**
 	 * Flag used to indicate that the sql for this call should be used exactly as
-	 * it is defined. No need to add the escape syntax and parameter place holders.
+	 * it is defined. No need to add the escape syntax and parameter placeholders.
 	 */
 	private boolean sqlReadyForUse = false;
 
@@ -58,15 +59,13 @@ public abstract class SqlCall extends RdbmsOperation {
 	 * String of form {call add_invoice(?, ?, ?)} or {? = call get_invoice_count(?)}
 	 * if isFunction is set to true. Updated after each parameter is added.
 	 */
-	@Nullable
-	private String callString;
+	private @Nullable String callString;
 
 	/**
 	 * Object enabling us to create CallableStatementCreators
 	 * efficiently, based on this class's declared parameters.
 	 */
-	@Nullable
-	private CallableStatementCreatorFactory callableStatementFactory;
+	private @Nullable CallableStatementCreatorFactory callableStatementFactory;
 
 
 	/**
@@ -177,14 +176,13 @@ public abstract class SqlCall extends RdbmsOperation {
 	/**
 	 * Get the call string.
 	 */
-	@Nullable
-	public String getCallString() {
+	public @Nullable String getCallString() {
 		return this.callString;
 	}
 
 	/**
 	 * Return a CallableStatementCreator to perform an operation
-	 * with this parameters.
+	 * with these parameters.
 	 * @param inParams parameters. May be {@code null}.
 	 */
 	protected CallableStatementCreator newCallableStatementCreator(@Nullable Map<String, ?> inParams) {

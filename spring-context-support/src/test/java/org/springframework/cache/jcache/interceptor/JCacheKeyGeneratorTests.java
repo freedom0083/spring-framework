@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.cache.jcache.interceptor;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.cache.annotation.CacheDefaults;
@@ -44,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Stephane Nicoll
  */
-public class JCacheKeyGeneratorTests {
+class JCacheKeyGeneratorTests {
 
 	private TestKeyGenerator keyGenerator;
 
@@ -53,7 +52,7 @@ public class JCacheKeyGeneratorTests {
 	private Cache cache;
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
 		this.keyGenerator = context.getBean(TestKeyGenerator.class);
 		this.simpleService = context.getBean(SimpleService.class);
@@ -62,7 +61,7 @@ public class JCacheKeyGeneratorTests {
 	}
 
 	@Test
-	public void getSimple() {
+	void getSimple() {
 		this.keyGenerator.expect(1L);
 		Object first = this.simpleService.get(1L);
 		Object second = this.simpleService.get(1L);
@@ -73,7 +72,7 @@ public class JCacheKeyGeneratorTests {
 	}
 
 	@Test
-	public void getFlattenVararg() {
+	void getFlattenVararg() {
 		this.keyGenerator.expect(1L, "foo", "bar");
 		Object first = this.simpleService.get(1L, "foo", "bar");
 		Object second = this.simpleService.get(1L, "foo", "bar");
@@ -84,7 +83,7 @@ public class JCacheKeyGeneratorTests {
 	}
 
 	@Test
-	public void getFiltered() {
+	void getFiltered() {
 		this.keyGenerator.expect(1L);
 		Object first = this.simpleService.getFiltered(1L, "foo", "bar");
 		Object second = this.simpleService.getFiltered(1L, "foo", "bar");
@@ -120,7 +119,7 @@ public class JCacheKeyGeneratorTests {
 
 	@CacheDefaults(cacheName = "test")
 	public static class SimpleService {
-		private AtomicLong counter = new AtomicLong();
+		private final AtomicLong counter = new AtomicLong();
 
 		@CacheResult
 		public Object get(long id) {
@@ -150,9 +149,9 @@ public class JCacheKeyGeneratorTests {
 
 		@Override
 		public Object generate(Object target, Method method, Object... params) {
-			assertThat(Arrays.equals(expectedParams, params)).as("Unexpected parameters: expected: "
-					+ Arrays.toString(this.expectedParams) + " but got: " + Arrays.toString(params)).isTrue();
+			assertThat(params).as("Unexpected parameters").isEqualTo(expectedParams);
 			return new SimpleKey(params);
 		}
 	}
+
 }

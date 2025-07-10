@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.ResourceUtils;
 
 /**
@@ -45,8 +46,7 @@ import org.springframework.util.ResourceUtils;
  */
 public class FileUrlResource extends UrlResource implements WritableResource {
 
-	@Nullable
-	private volatile File file;
+	private volatile @Nullable File file;
 
 
 	/**

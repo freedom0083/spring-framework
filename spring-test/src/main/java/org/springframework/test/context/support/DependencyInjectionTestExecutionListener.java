@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,15 @@ package org.springframework.test.context.support;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.CommonAnnotationBeanPostProcessor;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.Conventions;
 import org.springframework.test.context.TestContext;
+import org.springframework.test.context.aot.AotTestContextInitializers;
 
 /**
  * {@code TestExecutionListener} which provides support for dependency
@@ -34,14 +40,20 @@ import org.springframework.test.context.TestContext;
 public class DependencyInjectionTestExecutionListener extends AbstractTestExecutionListener {
 
 	/**
+	 * The {@link #getOrder() order} value for this listener: {@value}.
+	 * @since 6.2.3
+	 */
+	public static final int ORDER = 2000;
+
+	/**
 	 * Attribute name for a {@link TestContext} attribute which indicates
-	 * whether or not the dependencies of a test instance should be
+	 * whether the dependencies of a test instance should be
 	 * <em>reinjected</em> in
 	 * {@link #beforeTestMethod(TestContext) beforeTestMethod()}. Note that
 	 * dependencies will be injected in
 	 * {@link #prepareTestInstance(TestContext) prepareTestInstance()} in any
 	 * case.
-	 * <p>Clients of a {@link TestContext} (e.g., other
+	 * <p>Clients of a {@link TestContext} (for example, other
 	 * {@link org.springframework.test.context.TestExecutionListener TestExecutionListeners})
 	 * may therefore choose to set this attribute to signal that dependencies
 	 * should be reinjected <em>between</em> execution of individual test
@@ -53,13 +65,22 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 
 	private static final Log logger = LogFactory.getLog(DependencyInjectionTestExecutionListener.class);
 
+	private final AotTestContextInitializers aotTestContextInitializers = new AotTestContextInitializers();
+
 
 	/**
-	 * Returns {@code 2000}.
+	 * Returns {@value #ORDER}, which ensures that the {@code DependencyInjectionTestExecutionListener}
+	 * is ordered after the
+	 * {@link DirtiesContextBeforeModesTestExecutionListener DirtiesContextBeforeModesTestExecutionListener}
+	 * and the {@link org.springframework.test.context.bean.override.BeanOverrideTestExecutionListener
+	 * BeanOverrideTestExecutionListener} and before the
+	 * {@link org.springframework.test.context.observation.MicrometerObservationRegistryTestExecutionListener
+	 * MicrometerObservationRegistryTestExecutionListener} and the
+	 * {@link DirtiesContextTestExecutionListener DirtiesContextTestExecutionListener}.
 	 */
 	@Override
 	public final int getOrder() {
-		return 2000;
+		return ORDER;
 	}
 
 	/**
@@ -77,10 +98,18 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 	 */
 	@Override
 	public void prepareTestInstance(TestContext testContext) throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("Performing dependency injection for test context [" + testContext + "].");
+		if (logger.isTraceEnabled()) {
+			logger.trace("Performing dependency injection for test context " + testContext);
 		}
-		injectDependencies(testContext);
+		else if (logger.isDebugEnabled()) {
+			logger.debug("Performing dependency injection for test class " + testContext.getTestClass().getName());
+		}
+		if (runningInAotMode(testContext.getTestClass())) {
+			injectDependenciesInAotMode(testContext);
+		}
+		else {
+			injectDependencies(testContext);
+		}
 	}
 
 	/**
@@ -93,10 +122,18 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 	@Override
 	public void beforeTestMethod(TestContext testContext) throws Exception {
 		if (Boolean.TRUE.equals(testContext.getAttribute(REINJECT_DEPENDENCIES_ATTRIBUTE))) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Reinjecting dependencies for test context [" + testContext + "].");
+			if (logger.isTraceEnabled()) {
+				logger.trace("Reinjecting dependencies for test context " + testContext);
 			}
-			injectDependencies(testContext);
+			else if (logger.isDebugEnabled()) {
+				logger.debug("Reinjecting dependencies for test class " + testContext.getTestClass().getName());
+			}
+			if (runningInAotMode(testContext.getTestClass())) {
+				injectDependenciesInAotMode(testContext);
+			}
+			else {
+				injectDependencies(testContext);
+			}
 		}
 	}
 
@@ -119,6 +156,34 @@ public class DependencyInjectionTestExecutionListener extends AbstractTestExecut
 		beanFactory.autowireBeanProperties(bean, AutowireCapableBeanFactory.AUTOWIRE_NO, false);
 		beanFactory.initializeBean(bean, clazz.getName() + AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX);
 		testContext.removeAttribute(REINJECT_DEPENDENCIES_ATTRIBUTE);
+	}
+
+	private void injectDependenciesInAotMode(TestContext testContext) throws Exception {
+		ApplicationContext applicationContext = testContext.getApplicationContext();
+		if (!(applicationContext instanceof GenericApplicationContext gac)) {
+			throw new IllegalStateException("AOT ApplicationContext must be a GenericApplicationContext instead of " +
+						applicationContext.getClass().getName());
+		}
+
+		Object bean = testContext.getTestInstance();
+		String beanName = testContext.getTestClass().getName() + AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX;
+
+		ConfigurableListableBeanFactory beanFactory = gac.getBeanFactory();
+		AutowiredAnnotationBeanPostProcessor autowiredAnnotationBpp = new AutowiredAnnotationBeanPostProcessor();
+		autowiredAnnotationBpp.setBeanFactory(beanFactory);
+		autowiredAnnotationBpp.processInjection(bean);
+		CommonAnnotationBeanPostProcessor commonAnnotationBpp = new CommonAnnotationBeanPostProcessor();
+		commonAnnotationBpp.setBeanFactory(beanFactory);
+		commonAnnotationBpp.processInjection(bean);
+		beanFactory.initializeBean(bean, beanName);
+		testContext.removeAttribute(REINJECT_DEPENDENCIES_ATTRIBUTE);
+	}
+
+	/**
+	 * Determine if we are running in AOT mode for the supplied test class.
+	 */
+	private boolean runningInAotMode(Class<?> testClass) {
+		return this.aotTestContextInitializers.isSupportedTestClass(testClass);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,11 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.SpringProperties;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
 /**
@@ -38,7 +38,10 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  *
  * @author Stephane Nicoll
  * @since 5.0
+ * @deprecated as of 6.1, in favor of the AOT engine.
  */
+@Deprecated(since = "6.1", forRemoval = true)
+@SuppressWarnings("removal")
 public final class CandidateComponentsIndexLoader {
 
 	/**
@@ -80,8 +83,7 @@ public final class CandidateComponentsIndexLoader {
 	 * @throws IllegalArgumentException if any module index cannot
 	 * be loaded or if an error occurs while creating {@link CandidateComponentsIndex}
 	 */
-	@Nullable
-	public static CandidateComponentsIndex loadIndex(@Nullable ClassLoader classLoader) {
+	public static @Nullable CandidateComponentsIndex loadIndex(@Nullable ClassLoader classLoader) {
 		ClassLoader classLoaderToUse = classLoader;
 		if (classLoaderToUse == null) {
 			classLoaderToUse = CandidateComponentsIndexLoader.class.getClassLoader();
@@ -89,8 +91,7 @@ public final class CandidateComponentsIndexLoader {
 		return cache.computeIfAbsent(classLoaderToUse, CandidateComponentsIndexLoader::doLoadIndex);
 	}
 
-	@Nullable
-	private static CandidateComponentsIndex doLoadIndex(ClassLoader classLoader) {
+	private static @Nullable CandidateComponentsIndex doLoadIndex(ClassLoader classLoader) {
 		if (shouldIgnoreIndex) {
 			return null;
 		}

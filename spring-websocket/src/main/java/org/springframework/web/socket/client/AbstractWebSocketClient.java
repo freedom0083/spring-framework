@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,18 @@ package org.springframework.web.socket.client;
 
 import java.net.URI;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.web.socket.WebSocketExtension;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketHttpHeaders;
@@ -44,35 +44,32 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public abstract class AbstractWebSocketClient implements WebSocketClient {
 
-	private static final Set<String> specialHeaders = new HashSet<>();
-
-	static {
-		specialHeaders.add("cache-control");
-		specialHeaders.add("connection");
-		specialHeaders.add("host");
-		specialHeaders.add("sec-websocket-extensions");
-		specialHeaders.add("sec-websocket-key");
-		specialHeaders.add("sec-websocket-protocol");
-		specialHeaders.add("sec-websocket-version");
-		specialHeaders.add("pragma");
-		specialHeaders.add("upgrade");
-	}
+	private static final Set<String> specialHeaders = Set.of(
+			"cache-control",
+			"connection",
+			"host",
+			"sec-websocket-extensions",
+			"sec-websocket-key",
+			"sec-websocket-protocol",
+			"sec-websocket-version",
+			"pragma",
+			"upgrade");
 
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
 
 	@Override
-	public ListenableFuture<WebSocketSession> doHandshake(WebSocketHandler webSocketHandler,
-			String uriTemplate, Object... uriVars) {
+	public CompletableFuture<WebSocketSession> execute(WebSocketHandler webSocketHandler,
+			String uriTemplate, @Nullable Object... uriVars) {
 
 		Assert.notNull(uriTemplate, "'uriTemplate' must not be null");
 		URI uri = UriComponentsBuilder.fromUriString(uriTemplate).buildAndExpand(uriVars).encode().toUri();
-		return doHandshake(webSocketHandler, null, uri);
+		return execute(webSocketHandler, null, uri);
 	}
 
 	@Override
-	public final ListenableFuture<WebSocketSession> doHandshake(WebSocketHandler webSocketHandler,
+	public final CompletableFuture<WebSocketSession> execute(WebSocketHandler webSocketHandler,
 			@Nullable WebSocketHttpHeaders headers, URI uri) {
 
 		Assert.notNull(webSocketHandler, "WebSocketHandler must not be null");
@@ -85,7 +82,7 @@ public abstract class AbstractWebSocketClient implements WebSocketClient {
 		HttpHeaders headersToUse = new HttpHeaders();
 		if (headers != null) {
 			headers.forEach((header, values) -> {
-				if (values != null && !specialHeaders.contains(header.toLowerCase())) {
+				if (values != null && !specialHeaders.contains(header.toLowerCase(Locale.ROOT))) {
 					headersToUse.put(header, values);
 				}
 			});
@@ -96,7 +93,7 @@ public abstract class AbstractWebSocketClient implements WebSocketClient {
 		List<WebSocketExtension> extensions =
 				(headers != null ? headers.getSecWebSocketExtensions() : Collections.emptyList());
 
-		return doHandshakeInternal(webSocketHandler, headersToUse, uri, subProtocols, extensions,
+		return executeInternal(webSocketHandler, headersToUse, uri, subProtocols, extensions,
 				Collections.emptyMap());
 	}
 
@@ -117,10 +114,10 @@ public abstract class AbstractWebSocketClient implements WebSocketClient {
 	 * @param subProtocols requested sub-protocols, or an empty list
 	 * @param extensions requested WebSocket extensions, or an empty list
 	 * @param attributes the attributes to associate with the WebSocketSession, i.e. via
-	 * {@link WebSocketSession#getAttributes()}; currently always an empty map.
-	 * @return the established WebSocket session wrapped in a ListenableFuture.
+	 * {@link WebSocketSession#getAttributes()}; currently always an empty map
+	 * @return the established WebSocket session wrapped in a {@code CompletableFuture}.
 	 */
-	protected abstract ListenableFuture<WebSocketSession> doHandshakeInternal(WebSocketHandler webSocketHandler,
+	protected abstract CompletableFuture<WebSocketSession> executeInternal(WebSocketHandler webSocketHandler,
 			HttpHeaders headers, URI uri, List<String> subProtocols, List<WebSocketExtension> extensions,
 			Map<String, Object> attributes);
 

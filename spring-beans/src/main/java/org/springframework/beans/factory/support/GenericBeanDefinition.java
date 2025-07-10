@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,23 @@
 
 package org.springframework.beans.factory.support;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 /**
- * GenericBeanDefinition is a one-stop shop for standard bean definition purposes.
- * Like any bean definition, it allows for specifying a class plus optionally
+ * GenericBeanDefinition is a one-stop shop for declarative bean definition purposes.
+ * Like all common bean definitions, it allows for specifying a class plus optionally
  * constructor argument values and property values. Additionally, deriving from a
  * parent bean definition can be flexibly configured through the "parentName" property.
  *
  * <p>In general, use this {@code GenericBeanDefinition} class for the purpose of
- * registering user-visible bean definitions (which a post-processor might operate on,
- * potentially even reconfiguring the parent name). Use {@code RootBeanDefinition} /
- * {@code ChildBeanDefinition} where parent/child relationships happen to be pre-determined.
+ * registering declarative bean definitions (for example, XML definitions which a bean
+ * post-processor might operate on, potentially even reconfiguring the parent name).
+ * Use {@code RootBeanDefinition}/{@code ChildBeanDefinition} where parent/child
+ * relationships happen to be pre-determined, and prefer {@link RootBeanDefinition}
+ * specifically for programmatic definitions derived from factory methods/suppliers.
  *
  * @author Juergen Hoeller
  * @since 2.5
@@ -39,10 +42,10 @@ import org.springframework.util.ObjectUtils;
  */
 @SuppressWarnings("serial")
 // TODO spring2.5后注册bean的首选, 允许动态的设置父bean. 可以作为RootBeanDefinition与ChildBeanDefinition的替代品
-public class GenericBeanDefinition extends AbstractBeanDefinition {
+public class
+GenericBeanDefinition extends AbstractBeanDefinition {
 
-	@Nullable
-	private String parentName;
+	private @Nullable String parentName;
 
 
 	/**
@@ -73,8 +76,7 @@ public class GenericBeanDefinition extends AbstractBeanDefinition {
 	}
 
 	@Override
-	@Nullable
-	public String getParentName() {
+	public @Nullable String getParentName() {
 		return this.parentName;
 	}
 
@@ -86,13 +88,8 @@ public class GenericBeanDefinition extends AbstractBeanDefinition {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof GenericBeanDefinition that)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.parentName, that.parentName) && super.equals(other));
+		return (this == other || (other instanceof GenericBeanDefinition that &&
+				ObjectUtils.nullSafeEquals(this.parentName, that.parentName) && super.equals(other)));
 	}
 
 	@Override

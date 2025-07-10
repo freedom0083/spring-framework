@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.expression.spel.support;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.expression.TypeComparator;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.NumberUtils;
 
@@ -36,6 +37,8 @@ import org.springframework.util.NumberUtils;
  * @since 3.0
  */
 public class StandardTypeComparator implements TypeComparator {
+
+	static final StandardTypeComparator INSTANCE = new StandardTypeComparator();
 
 	@Override
 	public boolean canCompare(@Nullable Object left, @Nullable Object right) {
@@ -53,7 +56,7 @@ public class StandardTypeComparator implements TypeComparator {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public int compare(@Nullable Object left, @Nullable Object right) throws SpelEvaluationException {
 		// If one is null, check if the other is
 		if (left == null) {
@@ -100,8 +103,8 @@ public class StandardTypeComparator implements TypeComparator {
 		}
 
 		try {
-			if (left instanceof Comparable) {
-				return ((Comparable<Object>) left).compareTo(right);
+			if (left instanceof Comparable comparable) {
+				return comparable.compareTo(right);
 			}
 		}
 		catch (ClassCastException ex) {

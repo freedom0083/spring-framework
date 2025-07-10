@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import java.util.Map;
  * <pre class="code">
  * ConfigurableEnvironment environment = new StandardEnvironment();
  * MutablePropertySources propertySources = environment.getPropertySources();
- * Map&lt;String, String&gt; myMap = new HashMap&lt;&gt;();
+ * Map&lt;String, Object&gt; myMap = new HashMap&lt;&gt;();
  * myMap.put("xyz", "myValue");
  * propertySources.addFirst(new MapPropertySource("MY_MAP", myMap));
  * </pre>
@@ -137,13 +137,13 @@ public interface ConfigurableEnvironment extends Environment, ConfigurableProper
 	Map<String, Object> getSystemEnvironment();
 
 	/**
-	 * Append the given parent environment's active profiles, default profiles and
+	 * Append the given parent environment's active profiles, default profiles, and
 	 * property sources to this (child) environment's respective collections of each.
 	 * <p>For any identically-named {@code PropertySource} instance existing in both
 	 * parent and child, the child instance is to be preserved and the parent instance
 	 * discarded. This has the effect of allowing overriding of property sources by the
-	 * child as well as avoiding redundant searches through common property source types,
-	 * e.g. system environment and system properties.
+	 * child as well as avoiding redundant searches through common property source types
+	 * &mdash; for example, system environment and system properties.
 	 * <p>Active and default profile names are also filtered for duplicates, to avoid
 	 * confusion and redundant storage.
 	 * <p>The parent environment remains unmodified in any case. Note that any changes to

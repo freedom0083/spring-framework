@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,12 @@ import groovy.lang.Script;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.CompilationCustomizer;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.scripting.ScriptCompilationException;
 import org.springframework.scripting.ScriptFactory;
 import org.springframework.scripting.ScriptSource;
@@ -61,23 +61,17 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 
 	private final String scriptSourceLocator;
 
-	@Nullable
-	private GroovyObjectCustomizer groovyObjectCustomizer;
+	private @Nullable GroovyObjectCustomizer groovyObjectCustomizer;
 
-	@Nullable
-	private CompilerConfiguration compilerConfiguration;
+	private @Nullable CompilerConfiguration compilerConfiguration;
 
-	@Nullable
-	private GroovyClassLoader groovyClassLoader;
+	private @Nullable GroovyClassLoader groovyClassLoader;
 
-	@Nullable
-	private Class<?> scriptClass;
+	private @Nullable Class<?> scriptClass;
 
-	@Nullable
-	private Class<?> scriptResultClass;
+	private @Nullable Class<?> scriptResultClass;
 
-	@Nullable
-	private CachedResultHolder cachedResult;
+	private @Nullable CachedResultHolder cachedResult;
 
 	private final Object scriptClassMonitor = new Object();
 
@@ -151,17 +145,16 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) {
-		if (beanFactory instanceof ConfigurableListableBeanFactory) {
-			((ConfigurableListableBeanFactory) beanFactory).ignoreDependencyType(MetaClass.class);
+		if (beanFactory instanceof ConfigurableListableBeanFactory clbf) {
+			clbf.ignoreDependencyType(MetaClass.class);
 		}
 	}
 
 	@Override
 	public void setBeanClassLoader(ClassLoader classLoader) {
-		if (classLoader instanceof GroovyClassLoader &&
-				(this.compilerConfiguration == null ||
-						((GroovyClassLoader) classLoader).hasCompatibleConfiguration(this.compilerConfiguration))) {
-			this.groovyClassLoader = (GroovyClassLoader) classLoader;
+		if (classLoader instanceof GroovyClassLoader gcl && (this.compilerConfiguration == null ||
+				gcl.hasCompatibleConfiguration(this.compilerConfiguration))) {
+			this.groovyClassLoader = gcl;
 		}
 		else {
 			this.groovyClassLoader = buildGroovyClassLoader(classLoader);
@@ -202,8 +195,7 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 	 * @return {@code null} always
 	 */
 	@Override
-	@Nullable
-	public Class<?>[] getScriptInterfaces() {
+	public Class<?> @Nullable [] getScriptInterfaces() {
 		return null;
 	}
 
@@ -222,8 +214,7 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 	 * @see groovy.lang.GroovyClassLoader
 	 */
 	@Override
-	@Nullable
-	public Object getScriptedObject(ScriptSource scriptSource, @Nullable Class<?>... actualInterfaces)
+	public @Nullable Object getScriptedObject(ScriptSource scriptSource, Class<?> @Nullable ... actualInterfaces)
 			throws IOException, ScriptCompilationException {
 
 		synchronized (this.scriptClassMonitor) {
@@ -254,7 +245,7 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 				}
 				scriptClassToExecute = this.scriptClass;
 
-				// Process re-execution outside of the synchronized block.
+				// Process re-execution outside the synchronized block.
 				return executeScript(scriptSource, scriptClassToExecute);
 			}
 			catch (CompilationFailedException ex) {
@@ -266,8 +257,7 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 	}
 
 	@Override
-	@Nullable
-	public Class<?> getScriptedObjectType(ScriptSource scriptSource)
+	public @Nullable Class<?> getScriptedObjectType(ScriptSource scriptSource)
 			throws IOException, ScriptCompilationException {
 
 		synchronized (this.scriptClassMonitor) {
@@ -315,23 +305,22 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 	 * or the result of running the script instance)
 	 * @throws ScriptCompilationException in case of instantiation failure
 	 */
-	@Nullable
-	protected Object executeScript(ScriptSource scriptSource, Class<?> scriptClass) throws ScriptCompilationException {
+	protected @Nullable Object executeScript(ScriptSource scriptSource, Class<?> scriptClass) throws ScriptCompilationException {
 		try {
-			GroovyObject goo = (GroovyObject) ReflectionUtils.accessibleConstructor(scriptClass).newInstance();
+			GroovyObject groovyObj = (GroovyObject) ReflectionUtils.accessibleConstructor(scriptClass).newInstance();
 
 			if (this.groovyObjectCustomizer != null) {
 				// Allow metaclass and other customization.
-				this.groovyObjectCustomizer.customize(goo);
+				this.groovyObjectCustomizer.customize(groovyObj);
 			}
 
-			if (goo instanceof Script) {
+			if (groovyObj instanceof Script script) {
 				// A Groovy script, probably creating an instance: let's execute it.
-				return ((Script) goo).run();
+				return script.run();
 			}
 			else {
 				// An instance of the scripted class: let's return it as-is.
-				return goo;
+				return groovyObj;
 			}
 		}
 		catch (NoSuchMethodException ex) {
@@ -364,8 +353,7 @@ public class GroovyScriptFactory implements ScriptFactory, BeanFactoryAware, Bea
 	 */
 	private static class CachedResultHolder {
 
-		@Nullable
-		public final Object object;
+		public final @Nullable Object object;
 
 		public CachedResultHolder(@Nullable Object object) {
 			this.object = object;

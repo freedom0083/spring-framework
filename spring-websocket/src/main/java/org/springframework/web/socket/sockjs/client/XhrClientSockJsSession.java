@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.util.Assert;
-import org.springframework.util.concurrent.SettableListenableFuture;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketExtension;
@@ -54,8 +56,12 @@ public class XhrClientSockJsSession extends AbstractClientSockJsSession {
 	private int binaryMessageSizeLimit = -1;
 
 
+	/**
+	 * Create a new {@code XhrClientSockJsSession}.
+	 * @since 6.0
+	 */
 	public XhrClientSockJsSession(TransportRequest request, WebSocketHandler handler,
-			XhrTransport transport, SettableListenableFuture<WebSocketSession> connectFuture) {
+			XhrTransport transport, CompletableFuture<WebSocketSession> connectFuture) {
 
 		super(request, handler, connectFuture);
 		Assert.notNull(transport, "XhrTransport is required");
@@ -73,18 +79,18 @@ public class XhrClientSockJsSession extends AbstractClientSockJsSession {
 	}
 
 	@Override
-	public InetSocketAddress getLocalAddress() {
+	public @Nullable InetSocketAddress getLocalAddress() {
 		return null;
 	}
 
 	@Override
-	public InetSocketAddress getRemoteAddress() {
+	public @Nullable InetSocketAddress getRemoteAddress() {
 		URI uri = getUri();
 		return (uri != null ? new InetSocketAddress(uri.getHost(), uri.getPort()) : null);
 	}
 
 	@Override
-	public String getAcceptedProtocol() {
+	public @Nullable String getAcceptedProtocol() {
 		return null;
 	}
 

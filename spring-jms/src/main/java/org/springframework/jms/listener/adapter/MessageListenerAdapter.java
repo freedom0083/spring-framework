@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageListener;
 import jakarta.jms.Session;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.jms.listener.SessionAwareMessageListener;
 import org.springframework.jms.listener.SubscriptionNameProvider;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.SimpleMessageConverter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.MethodInvoker;
 import org.springframework.util.ObjectUtils;
@@ -36,7 +36,7 @@ import org.springframework.util.ObjectUtils;
  * Message listener adapter that delegates the handling of messages to target
  * listener methods via reflection, with flexible message type conversion.
  * Allows listener methods to operate on message content types, completely
- * independent from the JMS API.
+ * independent of the JMS API.
  *
  * <p>By default, the content of incoming JMS messages gets extracted before
  * being passed into the target listener method, to let the target method
@@ -197,19 +197,19 @@ public class MessageListenerAdapter extends AbstractAdaptableMessageListener imp
 	 * @throws JMSException if thrown by JMS API methods
 	 */
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public void onMessage(Message message, @Nullable Session session) throws JMSException {
 		// Check whether the delegate is a MessageListener impl itself.
 		// In that case, the adapter will simply act as a pass-through.
 		Object delegate = getDelegate();
 		if (delegate != this) {
-			if (delegate instanceof SessionAwareMessageListener) {
+			if (delegate instanceof SessionAwareMessageListener samListener) {
 				Assert.state(session != null, "Session is required for SessionAwareMessageListener");
-				((SessionAwareMessageListener<Message>) delegate).onMessage(message, session);
+				samListener.onMessage(message, session);
 				return;
 			}
-			if (delegate instanceof MessageListener) {
-				((MessageListener) delegate).onMessage(message);
+			if (delegate instanceof MessageListener listener) {
+				listener.onMessage(message);
 				return;
 			}
 		}
@@ -232,8 +232,8 @@ public class MessageListenerAdapter extends AbstractAdaptableMessageListener imp
 	@Override
 	public String getSubscriptionName() {
 		Object delegate = getDelegate();
-		if (delegate != this && delegate instanceof SubscriptionNameProvider) {
-			return ((SubscriptionNameProvider) delegate).getSubscriptionName();
+		if (delegate != this && delegate instanceof SubscriptionNameProvider provider) {
+			return provider.getSubscriptionName();
 		}
 		else {
 			return delegate.getClass().getName();
@@ -284,8 +284,7 @@ public class MessageListenerAdapter extends AbstractAdaptableMessageListener imp
 	 * @see #getListenerMethodName
 	 * @see #buildListenerArguments
 	 */
-	@Nullable
-	protected Object invokeListenerMethod(String methodName, Object[] arguments) throws JMSException {
+	protected @Nullable Object invokeListenerMethod(String methodName, Object[] arguments) throws JMSException {
 		try {
 			MethodInvoker methodInvoker = new MethodInvoker();
 			methodInvoker.setTargetObject(getDelegate());
@@ -296,8 +295,8 @@ public class MessageListenerAdapter extends AbstractAdaptableMessageListener imp
 		}
 		catch (InvocationTargetException ex) {
 			Throwable targetEx = ex.getTargetException();
-			if (targetEx instanceof JMSException) {
-				throw (JMSException) targetEx;
+			if (targetEx instanceof JMSException jmsException) {
+				throw jmsException;
 			}
 			else {
 				throw new ListenerExecutionFailedException(

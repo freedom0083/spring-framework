@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import io.rsocket.loadbalance.LoadbalanceTarget;
 import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -37,7 +38,6 @@ import reactor.core.publisher.Mono;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.codec.Decoder;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.rsocket.annotation.support.RSocketMessageHandler;
 import org.springframework.util.MimeType;
 
@@ -64,8 +64,7 @@ public interface RSocketRequester extends Disposable {
 	 * or via one of the (deprecated) connect methods on the
 	 * {@code RSocketRequester} builder, or otherwise return {@code null}.
 	 */
-	@Nullable
-	RSocket rsocket();
+	@Nullable RSocket rsocket();
 
 	/**
 	 * Return the data {@code MimeType} selected for the underlying RSocket
@@ -84,14 +83,19 @@ public interface RSocketRequester extends Disposable {
 	MimeType metadataMimeType();
 
 	/**
+	 * Return the configured {@link RSocketStrategies}.
+	 */
+	RSocketStrategies strategies();
+
+	/**
 	 * Begin to specify a new request with the given route to a remote handler.
-	 * <p>The route can be a template with placeholders, e.g.
+	 * <p>The route can be a template with placeholders, for example,
 	 * {@code "flight.{code}"} in which case the supplied route variables are
 	 * formatted via {@code toString()} and expanded into the template.
 	 * If a formatted variable contains a "." it is replaced with the escape
-	 * sequence "%2E" to avoid treating it as separator by the responder .
+	 * sequence "%2E" to avoid treating it as separator by the responder.
 	 * <p>If the connection is set to use composite metadata, the route is
-	 * encoded as {@code "message/x.rsocket.routing.v0"}. Otherwise the route
+	 * encoded as {@code "message/x.rsocket.routing.v0"}. Otherwise, the route
 	 * is encoded according to the mime type for the connection.
 	 * @param route the route expressing a remote handler mapping
 	 * @param routeVars variables to be expanded into the route template
@@ -105,7 +109,7 @@ public interface RSocketRequester extends Disposable {
 	 * to a {@link Publisher} via {@link ReactiveAdapterRegistry}.
 	 * @param metadata the metadata value to encode
 	 * @param mimeType the mime type that describes the metadata;
-	 * This is required for connection using composite metadata. Otherwise the
+	 * This is required for connection using composite metadata. Otherwise, the
 	 * value is encoded according to the mime type for the connection and this
 	 * argument may be left as {@code null}.
 	 */
@@ -306,9 +310,9 @@ public interface RSocketRequester extends Disposable {
 		 * @param port the server port
 		 * @return an {@code RSocketRequester} for the connection
 		 * @see TcpClientTransport
-		 * @deprecated as of 5.3 in favor of {@link #tcp(String, int)}
+		 * @deprecated in favor of {@link #tcp(String, int)}
 		 */
-		@Deprecated
+		@Deprecated(since = "5.3")
 		Mono<RSocketRequester> connectTcp(String host, int port);
 
 		/**
@@ -316,18 +320,18 @@ public interface RSocketRequester extends Disposable {
 		 * @param uri the RSocket server endpoint URI
 		 * @return an {@code RSocketRequester} for the connection
 		 * @see WebsocketClientTransport
-		 * @deprecated as of 5.3 in favor of {@link #websocket(URI)}
+		 * @deprecated in favor of {@link #websocket(URI)}
 		 */
-		@Deprecated
+		@Deprecated(since = "5.3")
 		Mono<RSocketRequester> connectWebSocket(URI uri);
 
 		/**
 		 * Connect to the server with the given {@code ClientTransport}.
 		 * @param transport the client transport to use
 		 * @return an {@code RSocketRequester} for the connection
-		 * @deprecated as of 5.3 in favor of {@link #transport(ClientTransport)}
+		 * @deprecated in favor of {@link #transport(ClientTransport)}
 		 */
-		@Deprecated
+		@Deprecated(since = "5.3")
 		Mono<RSocketRequester> connect(ClientTransport transport);
 
 	}
@@ -434,7 +438,7 @@ public interface RSocketRequester extends Disposable {
 		 * <p>If the return type is {@code Mono<Void>}, the {@code Mono} will
 		 * complete after all data is consumed.
 		 * <p><strong>Note:</strong> This method will raise an error if
-		 * the request payload is a multi-valued {@link Publisher} as there is
+		 * the request payload is a multivalued {@link Publisher} as there is
 		 * no many-to-one RSocket interaction.
 		 * @param dataType the expected data type for the response
 		 * @param <T> parameter for the expected data type

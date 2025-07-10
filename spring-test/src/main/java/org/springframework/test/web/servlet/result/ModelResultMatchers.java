@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package org.springframework.test.web.servlet.result;
 
 import org.hamcrest.Matcher;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.ui.ModelMap;
@@ -214,8 +214,8 @@ public class ModelResultMatchers {
 		return result -> {
 			ModelAndView mav = getModelAndView(result);
 			for (Object value : mav.getModel().values()) {
-				if (value instanceof Errors) {
-					assertFalse("Unexpected binding/validation errors: " + value, ((Errors) value).hasErrors());
+				if (value instanceof Errors errors) {
+					assertFalse("Unexpected binding/validation errors: " + value, errors.hasErrors());
 				}
 			}
 		};
@@ -252,8 +252,8 @@ public class ModelResultMatchers {
 	private int getErrorCount(ModelMap model) {
 		int count = 0;
 		for (Object value : model.values()) {
-			if (value instanceof Errors) {
-				count += ((Errors) value).getErrorCount();
+			if (value instanceof Errors errors) {
+				count += errors.getErrorCount();
 			}
 		}
 		return count;

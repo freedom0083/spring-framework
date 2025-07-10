@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,35 +20,36 @@ import java.util.List;
 
 import javax.lang.model.SourceVersion;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
  * A {@link TypeReference} based on fully qualified name.
  *
  * @author Stephane Nicoll
+ * @since 6.0
  */
 final class SimpleTypeReference extends AbstractTypeReference {
 
 	private static final List<String> PRIMITIVE_NAMES = List.of("boolean", "byte",
 			"short", "int", "long", "char", "float", "double", "void");
 
-	@Nullable
-	private String canonicalName;
+	private @Nullable String canonicalName;
 
 	SimpleTypeReference(String packageName, String simpleName, @Nullable TypeReference enclosingType) {
 		super(packageName, simpleName, enclosingType);
 	}
 
 	static SimpleTypeReference of(String className) {
-		Assert.notNull(className, "ClassName must not be null");
+		Assert.notNull(className, "'className' must not be null");
 		if (!isValidClassName(className)) {
 			throw new IllegalStateException("Invalid class name '" + className + "'");
 		}
 		if (!className.contains("$")) {
 			return createTypeReference(className);
 		}
-		String[] elements = className.split("\\$");
+		String[] elements = className.split("(?<!\\$)\\$(?!\\$)");
 		SimpleTypeReference typeReference = createTypeReference(elements[0]);
 		for (int i = 1; i < elements.length; i++) {
 			typeReference = new SimpleTypeReference(typeReference.getPackageName(), elements[i], typeReference);
@@ -72,7 +73,7 @@ final class SimpleTypeReference extends AbstractTypeReference {
 			return new SimpleTypeReference(className.substring(0, i), className.substring(i + 1), null);
 		}
 		else {
-			String packageName = isPrimitive(className) ? "java.lang" : "";
+			String packageName = (isPrimitive(className) ? "java.lang" : "");
 			return new SimpleTypeReference(packageName, className, null);
 		}
 	}
@@ -100,7 +101,7 @@ final class SimpleTypeReference extends AbstractTypeReference {
 		if (type == null) {
 			return;
 		}
-		String typeName = (type.getEnclosingType() != null) ? "." + type.getSimpleName() : type.getSimpleName();
+		String typeName = (type.getEnclosingType() != null ? "." + type.getSimpleName() : type.getSimpleName());
 		sb.insert(0, typeName);
 		buildName(type.getEnclosingType(), sb);
 	}

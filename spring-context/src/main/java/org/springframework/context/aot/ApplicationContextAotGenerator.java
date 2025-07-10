@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
 
 package org.springframework.context.aot;
 
+import java.util.function.Supplier;
+
 import org.springframework.aot.generate.GenerationContext;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.cglib.core.ReflectUtils;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.javapoet.ClassName;
-import org.springframework.javapoet.JavaFile;
 
 /**
  * Process an {@link ApplicationContext} and its {@link BeanFactory} to generate
@@ -36,26 +39,38 @@ import org.springframework.javapoet.JavaFile;
 public class ApplicationContextAotGenerator {
 
 	/**
-	 * Refresh the specified {@link GenericApplicationContext} and generate the
-	 * necessary code to restore the state of its {@link BeanFactory}, using the
-	 * specified {@link GenerationContext}.
-	 * @param applicationContext the application context to handle
+	 * Process the specified {@link GenericApplicationContext} ahead-of-time using
+	 * the specified {@link GenerationContext}.
+	 * <p>Return the {@link ClassName} of the {@link ApplicationContextInitializer}
+	 * to use to restore an optimized state of the application context.
+	 * @param applicationContext the non-refreshed application context to process
 	 * @param generationContext the generation context to use
-	 * @param generatedInitializerClassName the class name to use for the
-	 * generated application context initializer
+	 * @return the {@code ClassName} of the {@code ApplicationContextInitializer}
+	 * entry point
 	 */
-	public void generateApplicationContext(GenericApplicationContext applicationContext,
-			GenerationContext generationContext,
-			ClassName generatedInitializerClassName) {
+	public ClassName processAheadOfTime(GenericApplicationContext applicationContext,
+			GenerationContext generationContext) {
 
-		applicationContext.refreshForAotProcessing();
-		DefaultListableBeanFactory beanFactory = applicationContext
-				.getDefaultListableBeanFactory();
-		ApplicationContextInitializationCodeGenerator codeGenerator = new ApplicationContextInitializationCodeGenerator();
-		new BeanFactoryInitializationAotContributions(beanFactory).applyTo(generationContext,
-				codeGenerator);
-		JavaFile javaFile = codeGenerator.generateJavaFile(generatedInitializerClassName);
-		generationContext.getGeneratedFiles().addSourceFile(javaFile);
+		return withCglibClassHandler(new CglibClassHandler(generationContext), () -> {
+			applicationContext.refreshForAotProcessing(generationContext.getRuntimeHints());
+			ApplicationContextInitializationCodeGenerator codeGenerator =
+					new ApplicationContextInitializationCodeGenerator(applicationContext, generationContext);
+			DefaultListableBeanFactory beanFactory = applicationContext.getDefaultListableBeanFactory();
+			new BeanFactoryInitializationAotContributions(beanFactory).applyTo(generationContext, codeGenerator);
+			return codeGenerator.getGeneratedClass().getName();
+		});
+	}
+
+	private <T> T withCglibClassHandler(CglibClassHandler cglibClassHandler, Supplier<T> task) {
+		try {
+			ReflectUtils.setLoadedClassHandler(cglibClassHandler::handleLoadedClass);
+			ReflectUtils.setGeneratedClassHandler(cglibClassHandler::handleGeneratedClass);
+			return task.get();
+		}
+		finally {
+			ReflectUtils.setLoadedClassHandler(null);
+			ReflectUtils.setGeneratedClassHandler(null);
+		}
 	}
 
 }

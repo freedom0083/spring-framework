@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.invocation.AbstractExceptionHandlerMethodResolver;
 
 /**
- * A sub-class of {@link AbstractExceptionHandlerMethodResolver} that looks for
+ * A subclass of {@link AbstractExceptionHandlerMethodResolver} that looks for
  * {@link MessageExceptionHandler}-annotated methods in a given class. The actual
  * exception types handled are extracted either from the annotation, if present,
  * or from the method signature as a fallback option.

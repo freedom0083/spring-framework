@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package org.springframework.aop.aspectj;
 
+import java.util.Objects;
+
 import org.aspectj.weaver.tools.PointcutParser;
 import org.aspectj.weaver.tools.TypePatternMatcher;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.ClassFilter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -37,8 +39,7 @@ public class TypePatternClassFilter implements ClassFilter {
 
 	private String typePattern = "";
 
-	@Nullable
-	private TypePatternMatcher aspectJTypePatternMatcher;
+	private @Nullable TypePatternMatcher aspectJTypePatternMatcher;
 
 
 	/**
@@ -117,14 +118,14 @@ public class TypePatternClassFilter implements ClassFilter {
 	}
 
 	@Override
-	public boolean equals(Object other) {
-		return (this == other || (other instanceof TypePatternClassFilter &&
-				ObjectUtils.nullSafeEquals(this.typePattern, ((TypePatternClassFilter) other).typePattern)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof TypePatternClassFilter that &&
+				ObjectUtils.nullSafeEquals(this.typePattern, that.typePattern)));
 	}
 
 	@Override
 	public int hashCode() {
-		return ObjectUtils.nullSafeHashCode(this.typePattern);
+		return Objects.hashCode(this.typePattern);
 	}
 
 	@Override

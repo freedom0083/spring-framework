@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -36,10 +37,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.result.view.RedirectView;
+import org.springframework.web.reactive.result.view.View;
 import org.springframework.web.reactive.result.view.ViewResolver;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -105,7 +107,7 @@ final class DefaultRenderingResponseBuilder implements RenderingResponse.Builder
 	@Override
 	public RenderingResponse.Builder modelAttribute(Object attribute) {
 		Assert.notNull(attribute, "Attribute must not be null");
-		if (attribute instanceof Collection && ((Collection<?>) attribute).isEmpty()) {
+		if (attribute instanceof Collection<?> collection && collection.isEmpty()) {
 			return this;
 		}
 		return modelAttribute(Conventions.getVariableName(attribute), attribute);
@@ -194,11 +196,21 @@ final class DefaultRenderingResponseBuilder implements RenderingResponse.Builder
 					.switchIfEmpty(Mono.error(() ->
 							new IllegalArgumentException("Could not resolve view with name '" + name() + "'")))
 					.flatMap(view -> {
+						setStatus(view);
 						List<MediaType> mediaTypes = view.getSupportedMediaTypes();
 						return view.render(model(),
 								contentType == null && !mediaTypes.isEmpty() ? mediaTypes.get(0) : contentType,
 								exchange);
 					});
+		}
+
+		private void setStatus(View view) {
+			if (view instanceof RedirectView redirectView) {
+				HttpStatusCode statusCode = statusCode();
+				if (statusCode.is3xxRedirection()) {
+					redirectView.setStatusCode(statusCode);
+				}
+			}
 		}
 
 	}

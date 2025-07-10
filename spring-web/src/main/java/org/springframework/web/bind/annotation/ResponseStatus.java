@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ import org.springframework.http.HttpStatus;
  * {@link #reason} that should be returned.
  *
  * <p>The status code is applied to the HTTP response when the handler
- * method is invoked and overrides status information set by other means,
- * like {@code ResponseEntity} or {@code "redirect:"}.
+ * method is invoked, but does not override status information set by other
+ * means, such as {@code ResponseEntity} or {@code "redirect:"}.
  *
  * <p><strong>Warning</strong>: when using this annotation on an exception
  * class, or when setting the {@code reason} attribute of this annotation,
@@ -80,7 +80,8 @@ public @interface ResponseStatus {
 	/**
 	 * The <em>reason</em> to be used for the response.
 	 * <p>Defaults to an empty string which will be ignored. Set the reason to a
-	 * non-empty value to have it used for the response.
+	 * non-empty value to have it used to send a Servlet container error page.
+	 * In this case, the return value of the handler method will be ignored.
 	 * @see jakarta.servlet.http.HttpServletResponse#sendError(int, String)
 	 */
 	String reason() default "";

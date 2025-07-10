@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,16 +42,16 @@ import static org.assertj.core.api.Assertions.within;
  * @author Rossen Stoyanchev
  * @author Sebastien Deleuze
  */
-public class JsonbMessageConverterTests {
+class JsonbMessageConverterTests {
 
 	@Test
-	public void defaultConstructor() {
+	void defaultConstructor() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		assertThat(converter.getSupportedMimeTypes()).contains(new MimeType("application", "json"));
 	}
 
 	@Test
-	public void fromMessage() {
+	void fromMessage() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "{\"array\":[\"Foo\",\"Bar\"]," +
 				"\"number\":42,\"string\":\"Foo\",\"bool\":true,\"fraction\":42.0}";
@@ -66,7 +66,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageUntyped() {
+	void fromMessageUntyped() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "{\"array\":[\"Foo\",\"Bar\"]," +
 				"\"number\":42,\"string\":\"Foo\",\"bool\":true,\"fraction\":42.0}";
@@ -82,7 +82,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageMatchingInstance() {
+	void fromMessageMatchingInstance() {
 		MyBean myBean = new MyBean();
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		Message<?> message = MessageBuilder.withPayload(myBean).build();
@@ -90,7 +90,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageInvalidJson() {
+	void fromMessageInvalidJson() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "FooBar";
 		Message<?> message = MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8)).build();
@@ -99,7 +99,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageValidJsonWithUnknownProperty() {
+	void fromMessageValidJsonWithUnknownProperty() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "{\"string\":\"string\",\"unknownProperty\":\"value\"}";
 		Message<?> message = MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8)).build();
@@ -108,7 +108,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageToList() throws Exception {
+	void fromMessageToList() throws Exception {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "[1, 2, 3, 4, 5, 6, 7, 8, 9]";
 		Message<?> message = MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8)).build();
@@ -122,7 +122,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void fromMessageToMessageWithPojo() throws Exception {
+	void fromMessageToMessageWithPojo() throws Exception {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		String payload = "{\"string\":\"foo\"}";
 		Message<?> message = MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8)).build();
@@ -131,12 +131,12 @@ public class JsonbMessageConverterTests {
 		MethodParameter param = new MethodParameter(method, 0);
 		Object actual = converter.fromMessage(message, MyBean.class, param);
 
-		assertThat(actual instanceof MyBean).isTrue();
+		assertThat(actual).isInstanceOf(MyBean.class);
 		assertThat(((MyBean) actual).getString()).isEqualTo("foo");
 	}
 
 	@Test
-	public void toMessage() {
+	void toMessage() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		MyBean payload = new MyBean();
 		payload.setString("Foo");
@@ -148,16 +148,16 @@ public class JsonbMessageConverterTests {
 		Message<?> message = converter.toMessage(payload, null);
 		String actual = new String((byte[]) message.getPayload(), StandardCharsets.UTF_8);
 
-		assertThat(actual.contains("\"string\":\"Foo\"")).isTrue();
-		assertThat(actual.contains("\"number\":42")).isTrue();
-		assertThat(actual.contains("fraction\":42.0")).isTrue();
-		assertThat(actual.contains("\"array\":[\"Foo\",\"Bar\"]")).isTrue();
-		assertThat(actual.contains("\"bool\":true")).isTrue();
+		assertThat(actual).contains("\"string\":\"Foo\"");
+		assertThat(actual).contains("\"number\":42");
+		assertThat(actual).contains("fraction\":42.0");
+		assertThat(actual).contains("\"array\":[\"Foo\",\"Bar\"]");
+		assertThat(actual).contains("\"bool\":true");
 		assertThat(message.getHeaders().get(MessageHeaders.CONTENT_TYPE, MimeType.class)).as("Invalid content-type").isEqualTo(new MimeType("application", "json"));
 	}
 
 	@Test
-	public void toMessageUtf16() {
+	void toMessageUtf16() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		MimeType contentType = new MimeType("application", "json", StandardCharsets.UTF_16BE);
 		Map<String, Object> map = new HashMap<>();
@@ -171,7 +171,7 @@ public class JsonbMessageConverterTests {
 	}
 
 	@Test
-	public void toMessageUtf16String() {
+	void toMessageUtf16String() {
 		JsonbMessageConverter converter = new JsonbMessageConverter();
 		converter.setSerializedPayloadClass(String.class);
 

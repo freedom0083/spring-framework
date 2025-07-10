@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,12 @@ import org.springframework.web.util.WebUtils;
  * not sent, but rather a {@code 304 "Not Modified"} status instead.
  *
  * <p>Since the ETag is based on the response content, the response
- * (e.g. a {@link org.springframework.web.servlet.View}) is still rendered.
+ * (for example, a {@link org.springframework.web.servlet.View}) is still rendered.
  * As such, this filter only saves bandwidth, not server performance.
+ *
+ * <p>State-changing HTTP methods and other HTTP conditional request headers such as
+ * {@code If-Match} and {@code If-Unmodified-Since} are outside the scope of this filter.
+ * Please consider using {@link ServletWebRequest#checkNotModified(String, long)} instead.
  *
  * @author Arjen Poutsma
  * @author Rossen Stoyanchev
@@ -129,7 +133,7 @@ public class ShallowEtagHeaderFilter extends OncePerRequestFilter {
 
 	/**
 	 * Whether an ETag should be calculated for the given request and response
-	 * exchange. By default this is {@code true} if all of the following match:
+	 * exchange. By default, this is {@code true} if all the following match:
 	 * <ul>
 	 * <li>Response is not committed.</li>
 	 * <li>Response status codes is in the {@code 2xx} series.</li>

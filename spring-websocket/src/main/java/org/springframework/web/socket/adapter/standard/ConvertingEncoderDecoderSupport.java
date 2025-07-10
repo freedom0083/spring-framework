@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import jakarta.websocket.Decoder;
 import jakarta.websocket.EncodeException;
 import jakarta.websocket.Encoder;
 import jakarta.websocket.EndpointConfig;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,6 @@ import org.springframework.core.GenericTypeResolver;
 import org.springframework.core.convert.ConversionException;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.ContextLoader;
 
@@ -84,10 +84,8 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	 * @see jakarta.websocket.Decoder#init(EndpointConfig)
 	 */
 	public void init(EndpointConfig config) {
-		ApplicationContext applicationContext = getApplicationContext();
-		if (applicationContext instanceof ConfigurableApplicationContext) {
-			ConfigurableListableBeanFactory beanFactory =
-					((ConfigurableApplicationContext) applicationContext).getBeanFactory();
+		if (getApplicationContext() instanceof ConfigurableApplicationContext cac) {
+			ConfigurableListableBeanFactory beanFactory = cac.getBeanFactory();
 			beanFactory.autowireBean(this);
 		}
 	}
@@ -101,7 +99,7 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	}
 
 	/**
-	 * Strategy method used to obtain the {@link ConversionService}. By default this
+	 * Strategy method used to obtain the {@link ConversionService}. By default, this
 	 * method expects a bean named {@code 'webSocketConversionService'} in the
 	 * {@link #getApplicationContext() active ApplicationContext}.
 	 * @return the {@link ConversionService} (never null)
@@ -119,20 +117,19 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	}
 
 	/**
-	 * Returns the active {@link ApplicationContext}. Be default this method obtains
+	 * Returns the active {@link ApplicationContext}. By default, this method obtains
 	 * the context via {@link ContextLoader#getCurrentWebApplicationContext()}, which
 	 * finds the ApplicationContext loaded via {@link ContextLoader} typically in a
 	 * Servlet container environment. When not running in a Servlet container and
 	 * not using {@link ContextLoader}, this method should be overridden.
 	 * @return the {@link ApplicationContext} or {@code null}
 	 */
-	@Nullable
-	protected ApplicationContext getApplicationContext() {
+	protected @Nullable ApplicationContext getApplicationContext() {
 		return ContextLoader.getCurrentWebApplicationContext();
 	}
 
 	/**
-	 * Returns the type being converted. By default the type is resolved using
+	 * Returns the type being converted. By default, the type is resolved using
 	 * the generic arguments of the class.
 	 */
 	protected TypeDescriptor getType() {
@@ -140,7 +137,7 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	}
 
 	/**
-	 * Returns the websocket message type. By default the type is resolved using
+	 * Returns the websocket message type. By default, the type is resolved using
 	 * the generic arguments of the class.
 	 */
 	protected TypeDescriptor getMessageType() {
@@ -162,8 +159,7 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	 * @see jakarta.websocket.Encoder.Binary#encode(Object)
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public M encode(T object) throws EncodeException {
+	public @Nullable M encode(T object) throws EncodeException {
 		try {
 			return (M) getConversionService().convert(object, getType(), getMessageType());
 		}
@@ -188,18 +184,17 @@ public abstract class ConvertingEncoderDecoderSupport<T, M> {
 	 * @see jakarta.websocket.Decoder.Binary#decode(ByteBuffer)
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public T decode(M message) throws DecodeException {
+	public @Nullable T decode(M message) throws DecodeException {
 		try {
 			return (T) getConversionService().convert(message, getMessageType(), getType());
 		}
 		catch (ConversionException ex) {
-			if (message instanceof String) {
-				throw new DecodeException((String) message,
+			if (message instanceof String string) {
+				throw new DecodeException(string,
 						"Unable to decode websocket message using ConversionService", ex);
 			}
-			if (message instanceof ByteBuffer) {
-				throw new DecodeException((ByteBuffer) message,
+			if (message instanceof ByteBuffer byteBuffer) {
+				throw new DecodeException(byteBuffer,
 						"Unable to decode websocket message using ConversionService", ex);
 			}
 			throw ex;

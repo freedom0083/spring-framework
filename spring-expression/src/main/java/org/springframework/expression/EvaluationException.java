@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.springframework.expression;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represent an exception that occurs during expression evaluation.
@@ -38,7 +40,7 @@ public class EvaluationException extends ExpressionException {
 	 * @param message description of the problem that occurred
 	 * @param cause the underlying cause of this exception
 	 */
-	public EvaluationException(String message, Throwable cause) {
+	public EvaluationException(String message, @Nullable Throwable cause) {
 		super(message,cause);
 	}
 
@@ -66,7 +68,7 @@ public class EvaluationException extends ExpressionException {
 	 * @param message description of the problem that occurred
 	 * @param cause the underlying cause of this exception
 	 */
-	public EvaluationException(int position, String message, Throwable cause) {
+	public EvaluationException(int position, String message, @Nullable Throwable cause) {
 		super(position, message, cause);
 	}
 

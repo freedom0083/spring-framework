@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.test.web.client.samples.matchers;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -190,8 +189,8 @@ public class XpathRequestMatchersIntegrationTests {
 		executeAndVerify();
 	}
 
-	private void executeAndVerify() throws URISyntaxException {
-		this.restTemplate.put(new URI("/composers"), this.people);
+	private void executeAndVerify() {
+		this.restTemplate.put(URI.create("/composers"), this.people);
 		this.mockServer.verify();
 	}
 

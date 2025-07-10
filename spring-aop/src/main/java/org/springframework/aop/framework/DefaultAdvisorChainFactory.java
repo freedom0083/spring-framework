@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.aopalliance.intercept.Interceptor;
 import org.aopalliance.intercept.MethodInterceptor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.Advisor;
 import org.springframework.aop.IntroductionAdvisor;
@@ -32,7 +33,6 @@ import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.PointcutAdvisor;
 import org.springframework.aop.framework.adapter.AdvisorAdapterRegistry;
 import org.springframework.aop.framework.adapter.GlobalAdvisorAdapterRegistry;
-import org.springframework.lang.Nullable;
 
 /**
  * A simple but definitive way of working out an advice chain for a Method,
@@ -46,6 +46,13 @@ import org.springframework.lang.Nullable;
  */
 @SuppressWarnings("serial")
 public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializable {
+
+	/**
+	 * Singleton instance of this class.
+	 * @since 6.0.10
+	 */
+	public static final DefaultAdvisorChainFactory INSTANCE = new DefaultAdvisorChainFactory();
+
 
 	// TODO 取得所有的方法拦截器. 会遍历所有的Advisor:
 	//  1. PointcutAdvisor: 切点类型的Advisor会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及MethodBeforeAdviceAdapter,
@@ -76,14 +83,14 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 					// TODO 对于切点类型的Advisor, 如果已经过滤过了, 或者设置的切点与代理目标类匹配时, 就可以对目标类的方法进行匹配测试了
 					MethodMatcher mm = pointcutAdvisor.getPointcut().getMethodMatcher();
 					boolean match;
-					if (mm instanceof IntroductionAwareMethodMatcher) {
+					if (mm instanceof IntroductionAwareMethodMatcher iamm) {
 						// TODO 方法匹配器是IntroductionAwareMethodMatcher类型时, 要处理引入
 						if (hasIntroductions == null) {
 							// TODO 还没有处理过引入时, 会解析一下, 看这些Advisor中是否有能匹配上代理类的IntroductionAdvisor
 							hasIntroductions = hasMatchingIntroductions(advisors, actualClass);
 						}
 						// TODO 然后进行方法级的匹配测试
-						match = ((IntroductionAwareMethodMatcher) mm).matches(method, actualClass, hasIntroductions);
+						match = iamm.matches(method, actualClass, hasIntroductions);
 					}
 					else {
 						// TODO 不用处理Introduction时, 直接匹配就行
@@ -136,10 +143,8 @@ public class DefaultAdvisorChainFactory implements AdvisorChainFactory, Serializ
 	// TODO 用于引入的Advisor里是否有可以匹配目标类的
 	private static boolean hasMatchingIntroductions(Advisor[] advisors, Class<?> actualClass) {
 		for (Advisor advisor : advisors) {
-			if (advisor instanceof IntroductionAdvisor ia) {
-				if (ia.getClassFilter().matches(actualClass)) {
-					return true;
-				}
+			if (advisor instanceof IntroductionAdvisor ia && ia.getClassFilter().matches(actualClass)) {
+				return true;
 			}
 		}
 		return false;

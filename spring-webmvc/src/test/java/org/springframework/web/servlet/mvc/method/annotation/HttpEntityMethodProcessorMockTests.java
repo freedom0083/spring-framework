@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -96,20 +95,20 @@ import static org.springframework.web.servlet.HandlerMapping.PRODUCIBLE_MEDIA_TY
  * @author Rossen Stoyanchev
  * @author Brian Clozel
  */
-public class HttpEntityMethodProcessorMockTests {
+class HttpEntityMethodProcessorMockTests {
 
 	private static final ZoneId GMT = ZoneId.of("GMT");
 
 
 	private HttpEntityMethodProcessor processor;
 
-	private HttpMessageConverter<String> stringHttpMessageConverter;
+	private HttpMessageConverter<String> stringHttpMessageConverter = mock();
 
-	private HttpMessageConverter<Resource> resourceMessageConverter;
+	private HttpMessageConverter<Resource> resourceMessageConverter = mock();
 
-	private HttpMessageConverter<Object> resourceRegionMessageConverter;
+	private HttpMessageConverter<Object> resourceRegionMessageConverter = mock();
 
-	private HttpMessageConverter<Object> jsonMessageConverter;
+	private HttpMessageConverter<Object> jsonMessageConverter = mock();
 
 	private MethodParameter paramHttpEntity;
 
@@ -135,31 +134,25 @@ public class HttpEntityMethodProcessorMockTests {
 
 	private MethodParameter returnTypeProblemDetail;
 
-	private ModelAndViewContainer mavContainer;
+	private ModelAndViewContainer mavContainer = new ModelAndViewContainer();
 
-	private MockHttpServletRequest servletRequest;
+	private MockHttpServletRequest servletRequest = new MockHttpServletRequest("GET", "/foo");
 
-	private MockHttpServletResponse servletResponse;
+	private MockHttpServletResponse servletResponse = new MockHttpServletResponse();
 
-	private ServletWebRequest webRequest;
+	private ServletWebRequest webRequest = new ServletWebRequest(servletRequest, servletResponse);
 
 
 	@BeforeEach
-	@SuppressWarnings("unchecked")
-	public void setup() throws Exception {
-
-		stringHttpMessageConverter = mock(HttpMessageConverter.class);
+	void setup() throws Exception {
 		given(stringHttpMessageConverter.getSupportedMediaTypes()).willReturn(Collections.singletonList(TEXT_PLAIN));
 
-		resourceMessageConverter = mock(HttpMessageConverter.class);
 		given(resourceMessageConverter.getSupportedMediaTypes()).willReturn(Collections.singletonList(MediaType.ALL));
 		given(resourceMessageConverter.getSupportedMediaTypes(any())).willReturn(Collections.singletonList(MediaType.ALL));
 
-		resourceRegionMessageConverter = mock(HttpMessageConverter.class);
 		given(resourceRegionMessageConverter.getSupportedMediaTypes()).willReturn(Collections.singletonList(MediaType.ALL));
 		given(resourceRegionMessageConverter.getSupportedMediaTypes(any())).willReturn(Collections.singletonList(MediaType.ALL));
 
-		jsonMessageConverter = mock(HttpMessageConverter.class);
 		given(jsonMessageConverter.getSupportedMediaTypes()).willReturn(Collections.singletonList(MediaType.APPLICATION_PROBLEM_JSON));
 		given(jsonMessageConverter.getSupportedMediaTypes(any())).willReturn(Collections.singletonList(MediaType.APPLICATION_PROBLEM_JSON));
 
@@ -167,7 +160,7 @@ public class HttpEntityMethodProcessorMockTests {
 				stringHttpMessageConverter, resourceMessageConverter, resourceRegionMessageConverter, jsonMessageConverter));
 
 		Method handle1 = getClass().getMethod("handle1", HttpEntity.class, ResponseEntity.class,
-				Integer.TYPE, RequestEntity.class);
+				int.class, RequestEntity.class);
 
 		paramHttpEntity = new MethodParameter(handle1, 0);
 		paramRequestEntity = new MethodParameter(handle1, 3);
@@ -181,16 +174,11 @@ public class HttpEntityMethodProcessorMockTests {
 		returnTypeResponseEntityResource = new MethodParameter(getClass().getMethod("handle5"), -1);
 		returnTypeErrorResponse = new MethodParameter(getClass().getMethod("handle6"), -1);
 		returnTypeProblemDetail = new MethodParameter(getClass().getMethod("handle7"), -1);
-
-		mavContainer = new ModelAndViewContainer();
-		servletRequest = new MockHttpServletRequest("GET", "/foo");
-		servletResponse = new MockHttpServletResponse();
-		webRequest = new ServletWebRequest(servletRequest, servletResponse);
 	}
 
 
 	@Test
-	public void supportsParameter() {
+	void supportsParameter() {
 		assertThat(processor.supportsParameter(paramHttpEntity)).as("HttpEntity parameter not supported").isTrue();
 		assertThat(processor.supportsParameter(paramRequestEntity)).as("RequestEntity parameter not supported").isTrue();
 		assertThat(processor.supportsParameter(paramResponseEntity)).as("ResponseEntity parameter supported").isFalse();
@@ -198,7 +186,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void supportsReturnType() {
+	void supportsReturnType() {
 		assertThat(processor.supportsReturnType(returnTypeResponseEntity)).as("ResponseEntity return type not supported").isTrue();
 		assertThat(processor.supportsReturnType(returnTypeHttpEntity)).as("HttpEntity return type not supported").isTrue();
 		assertThat(processor.supportsReturnType(returnTypeHttpEntitySubclass)).as("Custom HttpEntity subclass not supported").isTrue();
@@ -209,7 +197,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldResolveHttpEntityArgument() throws Exception {
+	void shouldResolveHttpEntityArgument() throws Exception {
 		String body = "Foo";
 
 		MediaType contentType = TEXT_PLAIN;
@@ -221,13 +209,13 @@ public class HttpEntityMethodProcessorMockTests {
 
 		Object result = processor.resolveArgument(paramHttpEntity, mavContainer, webRequest, null);
 
-		assertThat(result instanceof HttpEntity).isTrue();
+		assertThat(result).isInstanceOf(HttpEntity.class);
 		assertThat(mavContainer.isRequestHandled()).as("The requestHandled flag shouldn't change").isFalse();
 		assertThat(((HttpEntity<?>) result).getBody()).as("Invalid argument").isEqualTo(body);
 	}
 
 	@Test
-	public void shouldResolveRequestEntityArgument() throws Exception {
+	void shouldResolveRequestEntityArgument() throws Exception {
 		String body = "Foo";
 
 		MediaType contentType = TEXT_PLAIN;
@@ -243,7 +231,7 @@ public class HttpEntityMethodProcessorMockTests {
 
 		Object result = processor.resolveArgument(paramRequestEntity, mavContainer, webRequest, null);
 
-		assertThat(result instanceof RequestEntity).isTrue();
+		assertThat(result).isInstanceOf(RequestEntity.class);
 		assertThat(mavContainer.isRequestHandled()).as("The requestHandled flag shouldn't change").isFalse();
 		RequestEntity<?> requestEntity = (RequestEntity<?>) result;
 		assertThat(requestEntity.getMethod()).as("Invalid method").isEqualTo(HttpMethod.GET);
@@ -254,7 +242,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldFailResolvingWhenConverterCannotRead() throws Exception {
+	void shouldFailResolvingWhenConverterCannotRead() {
 		MediaType contentType = TEXT_PLAIN;
 		servletRequest.setMethod("POST");
 		servletRequest.addHeader("Content-Type", contentType.toString());
@@ -267,7 +255,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldFailResolvingWhenContentTypeNotSupported() throws Exception {
+	void shouldFailResolvingWhenContentTypeNotSupported() {
 		servletRequest.setMethod("POST");
 		servletRequest.setContent("some content".getBytes(StandardCharsets.UTF_8));
 		assertThatExceptionOfType(HttpMediaTypeNotSupportedException.class).isThrownBy(() ->
@@ -275,7 +263,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleReturnValue() throws Exception {
+	void shouldHandleReturnValue() throws Exception {
 		String body = "Foo";
 		ResponseEntity<String> returnValue = new ResponseEntity<>(body, HttpStatus.OK);
 		MediaType accepted = TEXT_PLAIN;
@@ -289,7 +277,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleErrorResponse() throws Exception {
+	void shouldHandleErrorResponse() throws Exception {
 		ErrorResponseException ex = new ErrorResponseException(HttpStatus.BAD_REQUEST);
 		ex.getHeaders().add("foo", "bar");
 		servletRequest.addHeader("Accept", APPLICATION_PROBLEM_JSON_VALUE);
@@ -307,7 +295,6 @@ public class HttpEntityMethodProcessorMockTests {
 				.as("Instance was not set to the request path")
 				.isEqualTo(servletRequest.getRequestURI());
 
-
 		// But if instance is set, it should be respected
 		ex.getBody().setInstance(URI.create("/something/else"));
 		processor.handleReturnValue(ex, returnTypeProblemDetail, mavContainer, webRequest);
@@ -320,7 +307,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleProblemDetail() throws Exception {
+	void shouldHandleProblemDetail() throws Exception {
 		ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
 		servletRequest.addHeader("Accept", APPLICATION_PROBLEM_JSON_VALUE);
 		given(jsonMessageConverter.canWrite(ProblemDetail.class, APPLICATION_PROBLEM_JSON)).willReturn(true);
@@ -350,7 +337,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleReturnValueWithProducibleMediaType() throws Exception {
+	void shouldHandleReturnValueWithProducibleMediaType() throws Exception {
 		String body = "Foo";
 		ResponseEntity<String> returnValue = new ResponseEntity<>(body, HttpStatus.OK);
 		servletRequest.addHeader("Accept", "text/*");
@@ -365,11 +352,11 @@ public class HttpEntityMethodProcessorMockTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void shouldHandleReturnValueWithResponseBodyAdvice() throws Exception {
+	void shouldHandleReturnValueWithResponseBodyAdvice() throws Exception {
 		servletRequest.addHeader("Accept", "text/*");
 		servletRequest.setAttribute(PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE, Collections.singleton(MediaType.TEXT_HTML));
 		ResponseEntity<String> returnValue = new ResponseEntity<>(HttpStatus.OK);
-		ResponseBodyAdvice<String> advice = mock(ResponseBodyAdvice.class);
+		ResponseBodyAdvice<String> advice = mock();
 		given(advice.supports(any(), any())).willReturn(true);
 		given(advice.beforeBodyWrite(any(), any(), any(), any(), any(), any())).willReturn("Foo");
 
@@ -386,7 +373,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldFailHandlingWhenContentTypeNotSupported() throws Exception {
+	void shouldFailHandlingWhenContentTypeNotSupported() {
 		String body = "Foo";
 		ResponseEntity<String> returnValue = new ResponseEntity<>(body, HttpStatus.OK);
 		MediaType accepted = MediaType.APPLICATION_ATOM_XML;
@@ -401,7 +388,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test // gh-23205
-	public void shouldFailWithServerErrorIfContentTypeFromResponseEntity() {
+	void shouldFailWithServerErrorIfContentTypeFromResponseEntity() {
 		ResponseEntity<String> returnValue = ResponseEntity.ok()
 				.contentType(MediaType.APPLICATION_XML)
 				.body("<foo/>");
@@ -417,7 +404,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test // gh-23287
-	public void shouldFailWithServerErrorIfContentTypeFromProducibleAttribute() {
+	void shouldFailWithServerErrorIfContentTypeFromProducibleAttribute() {
 		Set<MediaType> mediaTypes = Collections.singleton(MediaType.APPLICATION_XML);
 		servletRequest.setAttribute(PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE, mediaTypes);
 
@@ -434,7 +421,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldFailHandlingWhenConverterCannotWrite() throws Exception {
+	void shouldFailHandlingWhenConverterCannotWrite() {
 		String body = "Foo";
 		ResponseEntity<String> returnValue = new ResponseEntity<>(body, HttpStatus.OK);
 		MediaType accepted = TEXT_PLAIN;
@@ -450,7 +437,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-9142
-	public void shouldFailHandlingWhenAcceptHeaderIllegal() throws Exception {
+	void shouldFailHandlingWhenAcceptHeaderIllegal() {
 		ResponseEntity<String> returnValue = new ResponseEntity<>("Body", HttpStatus.ACCEPTED);
 		servletRequest.addHeader("Accept", "01");
 
@@ -459,7 +446,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleResponseHeaderNoBody() throws Exception {
+	void shouldHandleResponseHeaderNoBody() throws Exception {
 		HttpHeaders headers = new HttpHeaders();
 		headers.set("headerName", "headerValue");
 		ResponseEntity<String> returnValue = new ResponseEntity<>(headers, HttpStatus.ACCEPTED);
@@ -471,7 +458,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleResponseHeaderAndBody() throws Exception {
+	void shouldHandleResponseHeaderAndBody() throws Exception {
 		HttpHeaders responseHeaders = new HttpHeaders();
 		responseHeaders.set("header", "headerValue");
 		ResponseEntity<String> returnValue = new ResponseEntity<>("body", responseHeaders, HttpStatus.ACCEPTED);
@@ -482,11 +469,11 @@ public class HttpEntityMethodProcessorMockTests {
 		ArgumentCaptor<HttpOutputMessage> outputMessage = ArgumentCaptor.forClass(HttpOutputMessage.class);
 		verify(stringHttpMessageConverter).write(eq("body"), eq(TEXT_PLAIN), outputMessage.capture());
 		assertThat(mavContainer.isRequestHandled()).isTrue();
-		assertThat(outputMessage.getValue().getHeaders().get("header").get(0)).isEqualTo("headerValue");
+		assertThat(outputMessage.getValue().getHeaders().get("header")).containsExactly("headerValue");
 	}
 
 	@Test
-	public void shouldHandleLastModifiedWithHttp304() throws Exception {
+	void shouldHandleLastModifiedWithHttp304() throws Exception {
 		long currentTime = new Date().getTime();
 		long oneMinuteAgo = currentTime - (1000 * 60);
 		ZonedDateTime dateTime = ofEpochMilli(currentTime).atZone(GMT);
@@ -500,7 +487,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void handleEtagWithHttp304() throws Exception {
+	void handleEtagWithHttp304() throws Exception {
 		String etagValue = "\"deadb33f8badf00d\"";
 		servletRequest.addHeader(HttpHeaders.IF_NONE_MATCH, etagValue);
 		ResponseEntity<String> returnValue = ResponseEntity.ok().eTag(etagValue).body("body");
@@ -512,8 +499,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void handleEtagWithHttp304AndEtagFilterHasNoImpact() throws Exception {
-
+	void handleEtagWithHttp304AndEtagFilterHasNoImpact() throws Exception {
 		String eTagValue = "\"deadb33f8badf00d\"";
 
 		FilterChain chain = (req, res) -> {
@@ -534,7 +520,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-14559
-	public void shouldHandleInvalidIfNoneMatchWithHttp200() throws Exception {
+	void shouldHandleInvalidIfNoneMatchWithHttp200() throws Exception {
 		String etagValue = "\"deadb33f8badf00d\"";
 		servletRequest.addHeader(HttpHeaders.IF_NONE_MATCH, "unquoted");
 		ResponseEntity<String> returnValue = ResponseEntity.ok().eTag(etagValue).body("body");
@@ -546,7 +532,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleETagAndLastModifiedWithHttp304() throws Exception {
+	void shouldHandleETagAndLastModifiedWithHttp304() throws Exception {
 		long currentTime = new Date().getTime();
 		long oneMinuteAgo = currentTime - (1000 * 60);
 		String etagValue = "\"deadb33f8badf00d\"";
@@ -563,7 +549,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleNotModifiedResponse() throws Exception {
+	void shouldHandleNotModifiedResponse() throws Exception {
 		long currentTime = new Date().getTime();
 		long oneMinuteAgo = currentTime - (1000 * 60);
 		String etagValue = "\"deadb33f8badf00d\"";
@@ -577,7 +563,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleChangedETagAndLastModified() throws Exception {
+	void shouldHandleChangedETagAndLastModified() throws Exception {
 		long currentTime = new Date().getTime();
 		long oneMinuteAgo = currentTime - (1000 * 60);
 		String etagValue = "\"deadb33f8badf00d\"";
@@ -595,7 +581,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-13496
-	public void shouldHandleConditionalRequestIfNoneMatchWildcard() throws Exception {
+	void shouldHandleConditionalRequestIfNoneMatchWildcard() throws Exception {
 		String wildcardValue = "*";
 		String etagValue = "\"some-etag\"";
 		servletRequest.setMethod("POST");
@@ -609,7 +595,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-13626
-	public void shouldHandleGetIfNoneMatchWildcard() throws Exception {
+	void shouldHandleGetIfNoneMatchWildcard() throws Exception {
 		String wildcardValue = "*";
 		String etagValue = "\"some-etag\"";
 		servletRequest.addHeader(HttpHeaders.IF_NONE_MATCH, wildcardValue);
@@ -622,7 +608,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-13626
-	public void shouldHandleIfNoneMatchIfMatch() throws Exception {
+	void shouldHandleIfNoneMatchIfMatch() throws Exception {
 		String etagValue = "\"some-etag\"";
 		servletRequest.addHeader(HttpHeaders.IF_NONE_MATCH, etagValue);
 		servletRequest.addHeader(HttpHeaders.IF_MATCH, "ifmatch");
@@ -635,7 +621,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  // SPR-13626
-	public void shouldHandleIfNoneMatchIfUnmodifiedSince() throws Exception {
+	void shouldHandleIfNoneMatchIfUnmodifiedSince() throws Exception {
 		String etagValue = "\"some-etag\"";
 		servletRequest.addHeader(HttpHeaders.IF_NONE_MATCH, etagValue);
 		ZonedDateTime dateTime = ofEpochMilli(new Date().getTime()).atZone(GMT);
@@ -649,7 +635,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleResource() throws Exception {
+	void shouldHandleResource() throws Exception {
 		ResponseEntity<Resource> returnValue = ResponseEntity
 				.ok(new ByteArrayResource("Content".getBytes(StandardCharsets.UTF_8)));
 
@@ -665,7 +651,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldHandleResourceByteRange() throws Exception {
+	void shouldHandleResourceByteRange() throws Exception {
 		ResponseEntity<Resource> returnValue = ResponseEntity
 				.ok(new ByteArrayResource("Content".getBytes(StandardCharsets.UTF_8)));
 		servletRequest.addHeader("Range", "bytes=0-5");
@@ -682,7 +668,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void handleReturnTypeResourceIllegalByteRange() throws Exception {
+	void handleReturnTypeResourceIllegalByteRange() throws Exception {
 		ResponseEntity<Resource> returnValue = ResponseEntity
 				.ok(new ByteArrayResource("Content".getBytes(StandardCharsets.UTF_8)));
 		servletRequest.addHeader("Range", "illegal");
@@ -698,7 +684,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test //SPR-16754
-	public void disableRangeSupportForStreamingResponses() throws Exception {
+	void disableRangeSupportForStreamingResponses() throws Exception {
 		InputStream is = new ByteArrayInputStream("Content".getBytes(StandardCharsets.UTF_8));
 		InputStreamResource resource = new InputStreamResource(is, "test");
 		ResponseEntity<Resource> returnValue = ResponseEntity.ok(resource);
@@ -715,7 +701,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test //SPR-16921
-	public void disableRangeSupportIfContentRangePresent() throws Exception {
+	void disableRangeSupportIfContentRangePresent() throws Exception {
 		ResponseEntity<Resource> returnValue = ResponseEntity
 				.status(HttpStatus.PARTIAL_CONTENT)
 				.header(HttpHeaders.RANGE, "bytes=0-5")
@@ -731,7 +717,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test  //SPR-14767
-	public void shouldHandleValidatorHeadersInputResponses() throws Exception {
+	void shouldHandleValidatorHeadersInputResponses() throws Exception {
 		servletRequest.setMethod("PUT");
 		String etagValue = "\"some-etag\"";
 		ResponseEntity<String> returnValue = ResponseEntity.ok().header(HttpHeaders.ETAG, etagValue).body("body");
@@ -743,12 +729,12 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void shouldNotFailPreconditionForPutRequests() throws Exception {
+	void shouldNotFailPreconditionForPutRequests() throws Exception {
 		servletRequest.setMethod("PUT");
 		ZonedDateTime dateTime = ofEpochMilli(new Date().getTime()).atZone(GMT);
 		servletRequest.addHeader(HttpHeaders.IF_UNMODIFIED_SINCE, RFC_1123_DATE_TIME.format(dateTime));
 
-		long justModified = dateTime.plus(1, ChronoUnit.SECONDS).toEpochSecond() * 1000;
+		long justModified = dateTime.plusSeconds(1).toEpochSecond() * 1000;
 		ResponseEntity<String> returnValue = ResponseEntity.ok()
 				.lastModified(justModified).body("body");
 		initStringMessageConversion(TEXT_PLAIN);
@@ -758,7 +744,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void varyHeader() throws Exception {
+	void varyHeader() throws Exception {
 		String[] entityValues = {"Accept-Language", "User-Agent"};
 		String[] existingValues = {};
 		String[] expected = {"Accept-Language, User-Agent"};
@@ -766,7 +752,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void varyHeaderWithExistingWildcard() throws Exception {
+	void varyHeaderWithExistingWildcard() throws Exception {
 		String[] entityValues = {"Accept-Language"};
 		String[] existingValues = {"*"};
 		String[] expected = {"*"};
@@ -774,7 +760,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void varyHeaderWithExistingCommaValues() throws Exception {
+	void varyHeaderWithExistingCommaValues() throws Exception {
 		String[] entityValues = {"Accept-Language", "User-Agent"};
 		String[] existingValues = {"Accept-Encoding", "Accept-Language"};
 		String[] expected = {"Accept-Encoding", "Accept-Language", "User-Agent"};
@@ -782,7 +768,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void varyHeaderWithExistingCommaSeparatedValues() throws Exception {
+	void varyHeaderWithExistingCommaSeparatedValues() throws Exception {
 		String[] entityValues = {"Accept-Language", "User-Agent"};
 		String[] existingValues = {"Accept-Encoding, Accept-Language"};
 		String[] expected = {"Accept-Encoding, Accept-Language", "User-Agent"};
@@ -790,7 +776,7 @@ public class HttpEntityMethodProcessorMockTests {
 	}
 
 	@Test
-	public void handleReturnValueVaryHeader() throws Exception {
+	void handleReturnValueVaryHeader() throws Exception {
 		String[] entityValues = {"Accept-Language", "User-Agent"};
 		String[] existingValues = {"Accept-Encoding, Accept-Language"};
 		String[] expected = {"Accept-Encoding, Accept-Language", "User-Agent"};
@@ -832,14 +818,14 @@ public class HttpEntityMethodProcessorMockTests {
 			assertResponseBody(body);
 		}
 		else {
-			assertThat(servletResponse.getContentAsByteArray().length).isEqualTo(0);
+			assertThat(servletResponse.getContentAsByteArray()).isEmpty();
 		}
 		if (etag != null) {
-			assertThat(servletResponse.getHeaderValues(HttpHeaders.ETAG).size()).isEqualTo(1);
+			assertThat(servletResponse.getHeaderValues(HttpHeaders.ETAG)).hasSize(1);
 			assertThat(servletResponse.getHeader(HttpHeaders.ETAG)).isEqualTo(etag);
 		}
 		if (lastModified != -1) {
-			assertThat(servletResponse.getHeaderValues(HttpHeaders.LAST_MODIFIED).size()).isEqualTo(1);
+			assertThat(servletResponse.getHeaderValues(HttpHeaders.LAST_MODIFIED)).hasSize(1);
 			assertThat((servletResponse.getDateHeader(HttpHeaders.LAST_MODIFIED) / 1000)).isEqualTo((lastModified / 1000));
 		}
 	}

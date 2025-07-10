@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.springframework.aop.target;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link org.springframework.aop.TargetSource} that lazily accesses a
@@ -61,12 +62,10 @@ import org.springframework.lang.Nullable;
 // TODO 用于延迟初始化目标源, 只要在调用了getTarget()方法后才会进行初始化动作
 public class LazyInitTargetSource extends AbstractBeanFactoryBasedTargetSource {
 
-	@Nullable
-	private Object target;
+	private @Nullable Object target;
 
 
 	@Override
-	@Nullable
 	public synchronized Object getTarget() throws BeansException {
 		if (this.target == null) {
 			// TODO 作用就是当调用getTarget()方法时才会进行初始化动作

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,14 +27,11 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponse;
 
 /**
- * By default, when the DispatcherServlet can't find a handler for a request it
- * sends a 404 response. However, if its property "throwExceptionIfNoHandlerFound"
- * is set to {@code true} this exception is raised and may be handled with
- * a configured HandlerExceptionResolver.
+ * Thrown when the {@link DispatcherServlet} can't find a handler for a request,
+ * which may be handled with a configured {@link HandlerExceptionResolver}.
  *
  * @author Brian Clozel
  * @since 4.0
- * @see DispatcherServlet#setThrowExceptionIfNoHandlerFound(boolean)
  * @see DispatcherServlet#noHandlerFound(HttpServletRequest, HttpServletResponse)
  */
 @SuppressWarnings("serial")
@@ -44,7 +41,7 @@ public class NoHandlerFoundException extends ServletException implements ErrorRe
 
 	private final String requestURL;
 
-	private final HttpHeaders headers;
+	private final HttpHeaders requestHeaders;
 
 	private final ProblemDetail body;
 
@@ -59,8 +56,8 @@ public class NoHandlerFoundException extends ServletException implements ErrorRe
 		super("No endpoint " + httpMethod + " " + requestURL + ".");
 		this.httpMethod = httpMethod;
 		this.requestURL = requestURL;
-		this.headers = headers;
-		this.body = ProblemDetail.forStatus(getStatusCode()).withDetail(getMessage());
+		this.requestHeaders = headers;
+		this.body = ProblemDetail.forStatusAndDetail(getStatusCode(), getMessage());
 	}
 
 	@Override
@@ -76,8 +73,23 @@ public class NoHandlerFoundException extends ServletException implements ErrorRe
 		return this.requestURL;
 	}
 
+	/**
+	 * Return headers to use for the response.
+	 * <p><strong>Note:</strong> As of 6.0 this method overlaps with
+	 * {@link ErrorResponse#getHeaders()} and therefore no longer returns request
+	 * headers. Use {@link #getRequestHeaders()} instead for request headers.
+	 */
+	@Override
 	public HttpHeaders getHeaders() {
-		return this.headers;
+		return ErrorResponse.super.getHeaders();
+	}
+
+	/**
+	 * Return the headers of the request.
+	 * @since 6.0.3
+	 */
+	public HttpHeaders getRequestHeaders() {
+		return this.requestHeaders;
 	}
 
 	@Override

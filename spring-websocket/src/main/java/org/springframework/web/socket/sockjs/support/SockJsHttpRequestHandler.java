@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.Lifecycle;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.context.ServletContextAware;
@@ -91,8 +91,8 @@ public class SockJsHttpRequestHandler
 
 	@Override
 	public void setServletContext(ServletContext servletContext) {
-		if (this.sockJsService instanceof ServletContextAware) {
-			((ServletContextAware) this.sockJsService).setServletContext(servletContext);
+		if (this.sockJsService instanceof ServletContextAware servletContextAware) {
+			servletContextAware.setServletContext(servletContext);
 		}
 	}
 
@@ -101,8 +101,8 @@ public class SockJsHttpRequestHandler
 	public void start() {
 		if (!isRunning()) {
 			this.running = true;
-			if (this.sockJsService instanceof Lifecycle) {
-				((Lifecycle) this.sockJsService).start();
+			if (this.sockJsService instanceof Lifecycle lifecycle) {
+				lifecycle.start();
 			}
 		}
 	}
@@ -111,8 +111,8 @@ public class SockJsHttpRequestHandler
 	public void stop() {
 		if (isRunning()) {
 			this.running = false;
-			if (this.sockJsService instanceof Lifecycle) {
-				((Lifecycle) this.sockJsService).stop();
+			if (this.sockJsService instanceof Lifecycle lifecycle) {
+				lifecycle.stop();
 			}
 		}
 	}
@@ -145,10 +145,9 @@ public class SockJsHttpRequestHandler
 	}
 
 	@Override
-	@Nullable
-	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
-		if (this.sockJsService instanceof CorsConfigurationSource) {
-			return ((CorsConfigurationSource) this.sockJsService).getCorsConfiguration(request);
+	public @Nullable CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+		if (this.sockJsService instanceof CorsConfigurationSource ccs) {
+			return ccs.getCorsConfiguration(request);
 		}
 		return null;
 	}

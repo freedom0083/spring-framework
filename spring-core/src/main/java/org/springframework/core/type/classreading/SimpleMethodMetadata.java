@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@
 
 package org.springframework.core.type.classreading;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.asm.Opcodes;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.type.MethodMetadata;
-import org.springframework.lang.Nullable;
 
 /**
  * {@link MethodMetadata} created from a {@link SimpleMethodMetadataReadingVisitor}.
@@ -100,10 +101,10 @@ final class SimpleMethodMetadata implements MethodMetadata {
 		return this.annotations;
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return ((this == obj) || ((obj instanceof SimpleMethodMetadata) &&
-				this.source.equals(((SimpleMethodMetadata) obj).source)));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SimpleMethodMetadata that && this.source.equals(that.source)));
 	}
 
 	@Override

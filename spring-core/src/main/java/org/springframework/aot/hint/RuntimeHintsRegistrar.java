@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,21 @@
 
 package org.springframework.aot.hint;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Contract for registering {@link RuntimeHints} in a static fashion.
- * <p>Implementations will contribute hints without any knowledge of the application context
- * and can only use the given {@link ClassLoader} to conditionally contribute hints.
- * <p>{@code RuntimeHintsRegistrar} can be declared as {@code spring/aot.factories} entries;
- * the registrar will be processed as soon as its declaration is found in the classpath.
- * A standard no-arg constructor is required for implementations.
+ * Contract for registering {@link RuntimeHints} based on the {@link ClassLoader}
+ * of the deployment unit. Implementations should, if possible, use the specified
+ * {@link ClassLoader} to determine if hints have to be contributed.
+ *
+ * <p>Implementations of this interface can be registered dynamically by using
+ * {@link org.springframework.context.annotation.ImportRuntimeHints @ImportRuntimeHints}
+ * or statically in {@code META-INF/spring/aot.factories} by using the fully-qualified
+ * class name of this interface as the key. A standard no-arg constructor is required
+ * for implementations.
  *
  * @author Brian Clozel
+ * @author Stephane Nicoll
  * @since 6.0
  */
 @FunctionalInterface
@@ -34,8 +38,8 @@ public interface RuntimeHintsRegistrar {
 
 	/**
 	 * Contribute hints to the given {@link RuntimeHints} instance.
-	 * @param hints the hints contributed so far for the application
-	 * @param classLoader the classloader, or {@code null} if even the system ClassLoader isn't accessible
+	 * @param hints the hints contributed so far for the deployment unit
+	 * @param classLoader the ClassLoader to use, or {@code null} for the default
 	 */
 	void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader);
 

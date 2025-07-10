@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,10 +28,10 @@ import java.util.StringTokenizer;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.context.WebApplicationContext;
@@ -68,11 +68,9 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	private static final int OUTPUT_BYTE_ARRAY_INITIAL_SIZE = 4096;
 
 
-	@Nullable
-	private String contentType = DEFAULT_CONTENT_TYPE;
+	private @Nullable String contentType = DEFAULT_CONTENT_TYPE;
 
-	@Nullable
-	private String requestContextAttribute;
+	private @Nullable String requestContextAttribute;
 
 	private final Map<String, Object> staticAttributes = new LinkedHashMap<>();
 
@@ -80,11 +78,9 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 
 	private boolean exposeContextBeansAsAttributes = false;
 
-	@Nullable
-	private Set<String> exposedContextBeanNames;
+	private @Nullable Set<String> exposedContextBeanNames;
 
-	@Nullable
-	private String beanName;
+	private @Nullable String beanName;
 
 
 
@@ -92,7 +88,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	 * Set the content type for this view.
 	 * Default is "text/html;charset=ISO-8859-1".
 	 * <p>May be ignored by subclasses if the view itself is assumed
-	 * to set the content type, e.g. in case of JSPs.
+	 * to set the content type, for example, in case of JSPs.
 	 */
 	public void setContentType(@Nullable String contentType) {
 		this.contentType = contentType;
@@ -102,8 +98,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	 * Return the content type for this view.
 	 */
 	@Override
-	@Nullable
-	public String getContentType() {
+	public @Nullable String getContentType() {
 		return this.contentType;
 	}
 
@@ -118,8 +113,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	/**
 	 * Return the name of the RequestContext attribute, if any.
 	 */
-	@Nullable
-	public String getRequestContextAttribute() {
+	public @Nullable String getRequestContextAttribute() {
 		return this.requestContextAttribute;
 	}
 
@@ -188,10 +182,10 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	}
 
 	/**
-	 * Allow Map access to the static attributes of this view,
+	 * Allow {@code Map} access to the static attributes of this view,
 	 * with the option to add or override specific entries.
 	 * <p>Useful for specifying entries directly, for example via
-	 * "attributesMap[myKey]". This is particularly useful for
+	 * {@code attributesMap[myKey]}. This is particularly useful for
 	 * adding or overriding entries in child view definitions.
 	 */
 	public Map<String, Object> getAttributesMap() {
@@ -225,7 +219,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	/**
 	 * Specify whether to add path variables to the model or not.
 	 * <p>Path variables are commonly bound to URI template variables through the {@code @PathVariable}
-	 * annotation. They're are effectively URI template variables with type conversion applied to
+	 * annotation. They are effectively URI template variables with type conversion applied to
 	 * them to derive typed Object values. Such values are frequently needed in views for
 	 * constructing links to the same and other URLs.
 	 * <p>Path variables added to the model override static attributes (see {@link #setAttributes(Properties)})
@@ -287,8 +281,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	 * Return the view's name. Should never be {@code null},
 	 * if the view was correctly configured.
 	 */
-	@Nullable
-	public String getBeanName() {
+	public @Nullable String getBeanName() {
 		return this.beanName;
 	}
 
@@ -495,7 +488,7 @@ public abstract class AbstractView extends WebApplicationObjectSupport implement
 	}
 
 	protected String formatViewName() {
-		return (getBeanName() != null ? "name '" + getBeanName() + "'" : "[" + getClass().getSimpleName() + "]");
+		return (getBeanName() != null ? "name [" + getBeanName() + "]" : "[" + getClass().getSimpleName() + "]");
 	}
 
 }

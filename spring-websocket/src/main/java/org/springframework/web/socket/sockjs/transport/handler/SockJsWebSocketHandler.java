@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import org.springframework.web.socket.sockjs.transport.session.WebSocketServerSo
  * {@link WebSocketHandler}.
  *
  * <p>Methods in this class allow exceptions from the wrapped {@link WebSocketHandler} to
- * propagate. However, any exceptions resulting from SockJS message handling (e.g. while
+ * propagate. However, any exceptions resulting from SockJS message handling (for example, while
  * sending SockJS frames or heartbeat messages) are caught and treated as transport
  * errors, i.e. routed to the
  * {@link WebSocketHandler#handleTransportError(WebSocketSession, Throwable)
@@ -69,8 +69,8 @@ public class SockJsWebSocketHandler extends TextWebSocketHandler implements SubP
 		this.sockJsSession = sockJsSession;
 
 		webSocketHandler = WebSocketHandlerDecorator.unwrap(webSocketHandler);
-		this.subProtocols = ((webSocketHandler instanceof SubProtocolCapable) ?
-				new ArrayList<>(((SubProtocolCapable) webSocketHandler).getSubProtocols()) : Collections.emptyList());
+		this.subProtocols = ((webSocketHandler instanceof SubProtocolCapable subProtocolCapable) ?
+				new ArrayList<>(subProtocolCapable.getSubProtocols()) : Collections.emptyList());
 	}
 
 	@Override
@@ -84,7 +84,7 @@ public class SockJsWebSocketHandler extends TextWebSocketHandler implements SubP
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession wsSession) throws Exception {
-		Assert.isTrue(this.sessionCount.compareAndSet(0, 1), "Unexpected connection");
+		Assert.state(this.sessionCount.compareAndSet(0, 1), "Unexpected connection");
 		this.sockJsSession.initializeDelegateSession(wsSession);
 	}
 

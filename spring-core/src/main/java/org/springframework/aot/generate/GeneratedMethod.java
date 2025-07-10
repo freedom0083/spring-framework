@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,35 +18,43 @@ package org.springframework.aot.generate;
 
 import java.util.function.Consumer;
 
+import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.MethodSpec;
-import org.springframework.javapoet.MethodSpec.Builder;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
  * A generated method.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  * @see GeneratedMethods
- * @see MethodGenerator
  */
 public final class GeneratedMethod {
 
+	private final ClassName className;
+
 	private final String name;
 
-	@Nullable
-	private MethodSpec spec;
+	private final MethodSpec methodSpec;
 
 
 	/**
 	 * Create a new {@link GeneratedMethod} instance with the given name. This
-	 * constructor is package-private since names should only be generated via a
+	 * constructor is package-private since names should only be generated via
 	 * {@link GeneratedMethods}.
-	 * @param name the generated name
+	 * @param className the declaring class of the method
+	 * @param name the generated method name
+	 * @param method consumer to generate the method
 	 */
-	GeneratedMethod(String name) {
+	GeneratedMethod(ClassName className, String name, Consumer<MethodSpec.Builder> method) {
+		this.className = className;
 		this.name = name;
+		MethodSpec.Builder builder = MethodSpec.methodBuilder(this.name);
+		method.accept(builder);
+		this.methodSpec = builder.build();
+		Assert.state(this.name.equals(this.methodSpec.name),
+				"'method' consumer must not change the generated method name");
 	}
 
 
@@ -59,40 +67,26 @@ public final class GeneratedMethod {
 	}
 
 	/**
+	 * Return a {@link MethodReference} to this generated method.
+	 * @return a method reference
+	 */
+	public MethodReference toMethodReference() {
+		return new DefaultMethodReference(this.methodSpec, this.className);
+	}
+
+	/**
 	 * Return the {@link MethodSpec} for this generated method.
 	 * @return the method spec
 	 * @throws IllegalStateException if one of the {@code generateBy(...)}
 	 * methods has not been called
 	 */
-	public MethodSpec getSpec() {
-		Assert.state(this.spec != null,
-				() -> String.format("Method '%s' has no method spec defined", this.name));
-		return this.spec;
-	}
-
-	/**
-	 * Generate the method using the given consumer.
-	 * @param builder a consumer that will accept a method spec builder and
-	 * configure it as necessary
-	 * @return this instance
-	 */
-	public GeneratedMethod using(Consumer<MethodSpec.Builder> builder) {
-		Builder builderToUse = MethodSpec.methodBuilder(this.name);
-		builder.accept(builderToUse);
-		MethodSpec spec = builderToUse.build();
-		assertNameHasNotBeenChanged(spec);
-		this.spec = spec;
-		return this;
-	}
-
-	private void assertNameHasNotBeenChanged(MethodSpec spec) {
-		Assert.isTrue(this.name.equals(spec.name), () -> String
-				.format("'spec' must use the generated name \"%s\"", this.name));
+	MethodSpec getMethodSpec() {
+		return this.methodSpec;
 	}
 
 	@Override
 	public String toString() {
-		return (this.spec != null) ? this.spec.toString() : this.name.toString();
+		return this.name;
 	}
 
 }

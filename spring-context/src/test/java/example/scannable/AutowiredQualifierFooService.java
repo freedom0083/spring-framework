@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package example.scannable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import jakarta.annotation.PostConstruct;
@@ -23,7 +24,6 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.AsyncResult;
 
 /**
  * @author Mark Fisher
@@ -53,7 +53,7 @@ public class AutowiredQualifierFooService implements FooService {
 
 	@Override
 	public Future<String> asyncFoo(int id) {
-		return new AsyncResult<>(this.fooDao.findFoo(id));
+		return CompletableFuture.completedFuture(this.fooDao.findFoo(id));
 	}
 
 	@Override

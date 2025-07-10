@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.orm.jpa.domain.MyDomain;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
@@ -70,10 +71,14 @@ public abstract class AbstractEntityManagerFactoryIntegrationTests {
 	private boolean zappedTables = false;
 
 
-	@Autowired
+	@Autowired @MyDomain
 	public void setEntityManagerFactory(EntityManagerFactory entityManagerFactory) {
 		this.entityManagerFactory = entityManagerFactory;
-		this.sharedEntityManager = SharedEntityManagerCreator.createSharedEntityManager(this.entityManagerFactory);
+	}
+
+	@Autowired @MyDomain
+	public void setSharedEntityManager(EntityManager sharedEntityManager) {
+		this.sharedEntityManager = sharedEntityManager;
 	}
 
 	@Autowired
@@ -88,7 +93,7 @@ public abstract class AbstractEntityManagerFactoryIntegrationTests {
 
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		if (applicationContext == null) {
 			applicationContext = new ClassPathXmlApplicationContext(getConfigLocations());
 		}
@@ -104,19 +109,19 @@ public abstract class AbstractEntityManagerFactoryIntegrationTests {
 	}
 
 	@AfterEach
-	public void cleanup() {
+	void cleanup() {
 		if (this.transactionStatus != null && !this.transactionStatus.isCompleted()) {
 			endTransaction();
 		}
 
-		assertThat(TransactionSynchronizationManager.getResourceMap().isEmpty()).isTrue();
+		assertThat(TransactionSynchronizationManager.getResourceMap()).isEmpty();
 		assertThat(TransactionSynchronizationManager.isSynchronizationActive()).isFalse();
 		assertThat(TransactionSynchronizationManager.isCurrentTransactionReadOnly()).isFalse();
 		assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
 	}
 
 	@AfterAll
-	public static void closeContext() {
+	static void closeContext() {
 		if (applicationContext != null) {
 			applicationContext.close();
 			applicationContext = null;

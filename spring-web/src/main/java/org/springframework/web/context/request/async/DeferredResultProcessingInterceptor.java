@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 package org.springframework.web.context.request.async;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.web.context.request.NativeWebRequest;
 
 /**
  * Intercepts concurrent request handling, where the concurrent result is
  * obtained by waiting for a {@link DeferredResult} to be set from a thread
- * chosen by the application (e.g. in response to some external event).
+ * chosen by the application (for example, in response to some external event).
  *
  * <p>A {@code DeferredResultProcessingInterceptor} is invoked before the start
  * of async processing, after the {@code DeferredResult} is set as well as on
@@ -78,11 +80,11 @@ public interface DeferredResultProcessingInterceptor {
 	 * timeout result.
 	 * @param request the current request
 	 * @param deferredResult the DeferredResult for the current request
-	 * @param concurrentResult the result to which the {@code DeferredResult}
+	 * @param concurrentResult the concurrent result
 	 * @throws Exception in case of errors
 	 */
 	default <T> void postProcess(NativeWebRequest request, DeferredResult<T> deferredResult,
-			Object concurrentResult) throws Exception {
+			@Nullable Object concurrentResult) throws Exception {
 	}
 
 	/**
@@ -115,7 +117,7 @@ public interface DeferredResultProcessingInterceptor {
 	 * subsequent interceptors are not invoked
 	 * @param t the error that occurred while request processing
 	 * @return {@code true} if error handling should continue, or {@code false} if
-	 * other interceptors should by bypassed and not be invoked
+	 * other interceptors should be bypassed and not be invoked
 	 * @throws Exception in case of errors
 	 */
 	default <T> boolean handleError(NativeWebRequest request, DeferredResult<T> deferredResult,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,14 @@ package org.springframework.beans.factory.annotation;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.SimpleTypeConverter;
 import org.springframework.beans.TypeConverter;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
@@ -36,9 +38,9 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -46,26 +48,29 @@ import org.springframework.util.ObjectUtils;
  * against {@link Qualifier qualifier annotations} on the field or parameter to be autowired.
  * Also supports suggested expression values through a {@link Value value} annotation.
  *
- * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation, if available.
+ * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation if available.
  *
  * @author Mark Fisher
  * @author Juergen Hoeller
  * @author Stephane Nicoll
+ * @author Sam Brannen
  * @since 2.5
  * @see AutowireCandidateQualifier
  * @see Qualifier
  * @see Value
  */
 public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwareAutowireCandidateResolver {
+
 	// TODO 可用的限定类型, 初始化时默认指定了@Qualifier和JSR-330的javax.inject.Qualifier(不支持时就没有这个)
-	private final Set<Class<? extends Annotation>> qualifierTypes = new LinkedHashSet<>(2);
+	private final Set<Class<? extends Annotation>> qualifierTypes = CollectionUtils.newLinkedHashSet(2);
+
 	// TODO @Value注解
 	private Class<? extends Annotation> valueAnnotationType = Value.class;
 
 	/**
-	 * Create a new QualifierAnnotationAutowireCandidateResolver
-	 * for Spring's standard {@link Qualifier} annotation.
-	 * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation, if available.
+	 * Create a new {@code QualifierAnnotationAutowireCandidateResolver} for Spring's
+	 * standard {@link Qualifier} annotation.
+	 * <p>Also supports JSR-330's {@link jakarta.inject.Qualifier} annotation if available.
 	 */
 	@SuppressWarnings("unchecked")
 	public QualifierAnnotationAutowireCandidateResolver() {
@@ -77,13 +82,13 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 							QualifierAnnotationAutowireCandidateResolver.class.getClassLoader()));
 		}
 		catch (ClassNotFoundException ex) {
-			// JSR-330 API not available - simply skip.
+			// JSR-330 API (as included in Jakarta EE) not available - simply skip.
 		}
 	}
 
 	/**
-	 * Create a new QualifierAnnotationAutowireCandidateResolver
-	 * for the given qualifier annotation type.
+	 * Create a new {@code QualifierAnnotationAutowireCandidateResolver} for the given
+	 * qualifier annotation type.
 	 * @param qualifierType the qualifier annotation to look for
 	 */
 	// TODO 注册一个自定义的qualifier注解
@@ -93,8 +98,8 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	}
 
 	/**
-	 * Create a new QualifierAnnotationAutowireCandidateResolver
-	 * for the given qualifier annotation types.
+	 * Create a new {@code QualifierAnnotationAutowireCandidateResolver} for the given
+	 * qualifier annotation types.
 	 * @param qualifierTypes the qualifier annotations to look for
 	 */
 	// TODO 注册一个自定义的qualifier注解集合
@@ -142,7 +147,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * as a <em>qualifier</em>, the bean must 'match' against the annotation as
 	 * well as any attributes it may contain. The bean definition must contain
 	 * the same qualifier or match by meta attributes. A "value" attribute will
-	 * fallback to match against the bean name or an alias if a qualifier or
+	 * fall back to match against the bean name or an alias if a qualifier or
 	 * attribute does not match.
 	 * @see Qualifier
      *
@@ -155,31 +160,34 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
 		// TODO 先用父类GenericTypeAwareAutowireCandidateResolver#isAutowireCandidate(BeanDefinitionHolder, DependencyDescriptor)
 		//  检查一下bean是否可以自动装配
-		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
-		if (match) {
-			// TODO 初步验证完发现类型相同, 或者放宽了验证条件时, 就会掉到这里. 这里会检查候选bean是否与待注入项可能存在的@Qualifier
-			//  注解所指定value一致. getAnnotations()方法会取得注入项上所有的注解, 只要能走到这里, 待注入项至少会包含@Autowire注解,
-			//  所以这个方法至少会 包含一个@Autowire
-			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
-			if (match) {
-				// TODO 如果匹配上了, 再看一下依赖描述的待注入项是否为方法参数(工厂方法, 或构造函数的参数)
-				MethodParameter methodParam = descriptor.getMethodParameter();
-				if (methodParam != null) {
-					// TODO 如果依赖描述的待注入项是方法参数(工厂方法, 或构造函数的参数), 则把使用这个参数的方法拿出来
-					Method method = methodParam.getMethod();
-					if (method == null || void.class == method.getReturnType()) {
-						// TODO 对于构造函数(method == null), 或无返回值的方法来说, 都需要再验证一次. 原因是方法参数(工厂方法,
-						//  或构造函数的参数)上可能只标注了@Autowire, 还需要再到使用此参数的方法的方法中检查一下是否有@Qualifier属性.
-						//  TIPS: 这里有一点要注意, 因为构造函数, 或方法不一定会标注@Qualifier注解, 所以methodParam.getMethodAnnotations()
-						//        有可能会返回空. checkQualifiers(BeanDefinitionHolder, Annotation[])在做匹配验证时, 如果Annotation[]
-						//        参数为空, 会自动默认为匹配成功(原因是Spring把他当成Field注解的情况了). 所以在方法上使用@Qualifier注解
-						//        时一定要小心
-						match = checkQualifiers(bdHolder, methodParam.getMethodAnnotations());
+		if (!super.isAutowireCandidate(bdHolder, descriptor)) {
+			return false;
+		}
+		// TODO 初步验证完发现类型相同, 或者放宽了验证条件时, 就会掉到这里. 这里会检查候选bean是否与待注入项可能存在的@Qualifier
+		//  注解所指定value一致. getAnnotations()方法会取得注入项上所有的注解, 只要能走到这里, 待注入项至少会包含@Autowire注解,
+		//  所以这个方法至少会 包含一个@Autowire
+		Boolean checked = checkQualifiers(bdHolder, descriptor.getAnnotations());
+		if (checked != Boolean.FALSE) {
+			MethodParameter methodParam = descriptor.getMethodParameter();
+			if (methodParam != null) {
+				// TODO 如果依赖描述的待注入项是方法参数(工厂方法, 或构造函数的参数), 则把使用这个参数的方法拿出来
+				Method method = methodParam.getMethod();
+				if (method == null || void.class == method.getReturnType()) {
+					// TODO 对于构造函数(method == null), 或无返回值的方法来说, 都需要再验证一次. 原因是方法参数(工厂方法,
+					//  或构造函数的参数)上可能只标注了@Autowire, 还需要再到使用此参数的方法的方法中检查一下是否有@Qualifier属性.
+					//  TIPS: 这里有一点要注意, 因为构造函数, 或方法不一定会标注@Qualifier注解, 所以methodParam.getMethodAnnotations()
+					//        有可能会返回空. checkQualifiers(BeanDefinitionHolder, Annotation[])在做匹配验证时, 如果Annotation[]
+					//        参数为空, 会自动默认为匹配成功(原因是Spring把他当成Field注解的情况了). 所以在方法上使用@Qualifier注解
+					//        时一定要小心
+					Boolean methodChecked = checkQualifiers(bdHolder, methodParam.getMethodAnnotations());
+					if (methodChecked != null && checked == null) {
+						checked = methodChecked;
 					}
 				}
 			}
 		}
-		return match;
+		return (checked == Boolean.TRUE ||
+				(checked == null && ((RootBeanDefinition) bdHolder.getBeanDefinition()).isDefaultCandidate()));
 	}
 
 	/**
@@ -187,72 +195,90 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 *
 	 * @param bdHolder 候选bean
 	 * @param annotationsToSearch 注入项上所有的注解, 比如: @Autowire, @Qualifier等
-	 * @return 候选bean是否匹配由限定注解(@Qualifier)所指定的限定条件
+	 * @return {@code false} if a qualifier has been found but not matched, 候选bean是否匹配由限定注解(@Qualifier)所指定的限定条件
+	 * {@code true} if a qualifier has been found and matched,
+	 * {@code null} if no qualifier has been found at all
 	 */
 	// TODO 候选bean是否匹配由限定注解(@Qualifier)所指定的限定条件
-	protected boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
-		if (ObjectUtils.isEmpty(annotationsToSearch)) {
-			// TODO 待注入项可以是field, 或method其中之一. 如果是filed, 那method就会为空, getMethodAnnotations()方法也不会有值
-			//  整个流程先处理的field的情况. 只要field匹配上了, 就不必再处理method了, 所以直接返回true
-			return true;
-		}
-		SimpleTypeConverter typeConverter = new SimpleTypeConverter();
-		for (Annotation annotation : annotationsToSearch) {
-			// TODO 遍历所有待查的注解, 取得每个注解的type类型, 比如@Autowire, @Qualifier, @LoadBalanced等
-			Class<? extends Annotation> type = annotation.annotationType();
-			// TODO 是否检查元注解
-			boolean checkMeta = true;
-			// TODO 是否要回退到元注解上
-			boolean fallbackToMeta = false;
-			// TODO 判断注解类型是否为支持的限定注解类型, 默认是@Qualifier或JSR-330的javax.inject.Qualifier, 也可以指定自定义类型.
-			//  TIPS: 假如当前正在验证的注解是@LoadBanlanced时, 即: org.springframework.cloud.client.loadbalancer.LoadBalanced时,
-			//  这里也会返回true(@LoadBanlanced内包含@Qualifier)
-			if (isQualifier(type)) {
-				// TODO 当注入项上的注解是限定条件注解类型时, 会用checkQualifier()方法来验证注解限定符所指定的bean是否与候选bean匹配, 比如:
-				//  1. 当前是@Qualifier注解: 候选bean有可能会与@Qualifier的value所指定的bean匹配, 所以有可能是true, 也有可能是false
-				//  2. 当前是@LoadBanlanced注解: 无法匹配, 肯定会返回false, 然后退回到@LoadBanlanced注解本身去看其元注解是否包含限定注解
-				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
-					// TODO 不匹配时, 回退到元注解上接着验证
-					fallbackToMeta = true;
+	protected @Nullable Boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
+		boolean qualifierFound = false;
+		if (!ObjectUtils.isEmpty(annotationsToSearch)) {
+			SimpleTypeConverter typeConverter = new SimpleTypeConverter();
+			for (Annotation annotation : annotationsToSearch) {
+				// TODO 遍历所有待查的注解, 取得每个注解的type类型, 比如@Autowire, @Qualifier, @LoadBalanced等
+				Class<? extends Annotation> type = annotation.annotationType();
+				if (isPlainJavaAnnotation(type)) {
+					continue;
 				}
-				else {
-					// TODO 匹配时, 就不用再到元注解上验证了
-					checkMeta = false;
-				}
-			}
-			if (checkMeta) {
-				// TODO 前面没有匹配上时, 会回退到当前注解, 对其元注解进行检查检查. 比如@LoadBanlanced, 其本身不满足限定条件,
-				//  但@Qualifier为其元注解, 所以需要对元注解进行检查, 来确实其是否包含@Qualifier. 这个过程只进行一次, 如果包了
-				//  一层以上, 就没用了
-				boolean foundMeta = false;
-				for (Annotation metaAnn : type.getAnnotations()) {
-					// TODO 遍历注解上所有的元注解, 比如@LoadBalanced会标注了@Documented, @Retention, @Target, @Qualifier等
-					Class<? extends Annotation> metaType = metaAnn.annotationType();
-					if (isQualifier(metaType)) {
-						// TODO 只要找到了@Qualifier, 就标识查找成功
-						foundMeta = true;
-						// Only accept fallback match if @Qualifier annotation has a value...
-						// Otherwise it is just a marker for a custom qualifier annotation.
-						// TODO 但只有@Qualifier也不行, 其必须指定一个value值, 且指定的值与候选bean相同, 所以还要进行一下检查
-						if ((fallbackToMeta && ObjectUtils.isEmpty(AnnotationUtils.getValue(metaAnn))) ||
-								!checkQualifier(bdHolder, metaAnn, typeConverter)) {
-							// TODO 在需要检查元注解时, 如果@Qualifier没有value, 或者候选bean与@Qualifier指定的value不同时, 表示匹配失败
-							return false;
-						}
+				// TODO 是否检查元注解
+				boolean checkMeta = true;
+				// TODO 是否要回退到元注解上
+				boolean fallbackToMeta = false;
+				// TODO 判断注解类型是否为支持的限定注解类型, 默认是@Qualifier或JSR-330的javax.inject.Qualifier, 也可以指定自定义类型.
+				//  TIPS: 假如当前正在验证的注解是@LoadBanlanced时, 即: org.springframework.cloud.client.loadbalancer.LoadBalanced时,
+				//  这里也会返回true(@LoadBanlanced内包含@Qualifier)
+				if (isQualifier(type)) {
+					qualifierFound = true;
+					// TODO 当注入项上的注解是限定条件注解类型时, 会用checkQualifier()方法来验证注解限定符所指定的bean是否与候选bean匹配, 比如:
+					//  1. 当前是@Qualifier注解: 候选bean有可能会与@Qualifier的value所指定的bean匹配, 所以有可能是true, 也有可能是false
+					//  2. 当前是@LoadBanlanced注解: 无法匹配, 肯定会返回false, 然后退回到@LoadBanlanced注解本身去看其元注解是否包含限定注解
+					if (!checkQualifier(bdHolder, annotation, typeConverter)) {
+						// TODO 不匹配时, 回退到元注解上接着验证
+						fallbackToMeta = true;
+					}
+					else {
+						// TODO 匹配时, 就不用再到元注解上验证了
+						checkMeta = false;
 					}
 				}
-				if (fallbackToMeta && !foundMeta) {
-					// TODO 回退到元注解也没找到时, 表示匹配失败
-					return false;
+				if (checkMeta) {
+					// TODO 前面没有匹配上时, 会回退到当前注解, 对其元注解进行检查检查. 比如@LoadBanlanced, 其本身不满足限定条件,
+					//  但@Qualifier为其元注解, 所以需要对元注解进行检查, 来确实其是否包含@Qualifier. 这个过程只进行一次, 如果包了
+					//  一层以上, 就没用了
+					boolean foundMeta = false;
+					for (Annotation metaAnn : type.getAnnotations()) {
+						// TODO 遍历注解上所有的元注解, 比如@LoadBalanced会标注了@Documented, @Retention, @Target, @Qualifier等
+						Class<? extends Annotation> metaType = metaAnn.annotationType();
+						if (isPlainJavaAnnotation(metaType)) {
+							continue;
+						}
+						if (isQualifier(metaType)) {
+							qualifierFound = true;
+							// TODO 只要找到了@Qualifier, 就标识查找成功
+							foundMeta = true;
+							// Only accept fallback match if @Qualifier annotation has a value...
+							// Otherwise, it is just a marker for a custom qualifier annotation.
+							// TODO 但只有@Qualifier也不行, 其必须指定一个value值, 且指定的值与候选bean相同, 所以还要进行一下检查
+							if ((fallbackToMeta && ObjectUtils.isEmpty(AnnotationUtils.getValue(metaAnn))) ||
+									!checkQualifier(bdHolder, metaAnn, typeConverter)) {
+								// TODO 在需要检查元注解时, 如果@Qualifier没有value, 或者候选bean与@Qualifier指定的value不同时, 表示匹配失败
+								return false;
+							}
+						}
+					}
+					if (fallbackToMeta && !foundMeta) {
+						// TODO 回退到元注解也没找到时, 表示匹配失败
+						return false;
+					}
 				}
 			}
 		}
 		// TODO 候选bean完全匹配由限定注解所指定的限定条件时, 表示候选bean是合法的
-		return true;
+		return (qualifierFound ? true : null);
 	}
 
 	/**
-	 * Checks whether the given annotation type is a recognized qualifier type.
+	 * Check whether the given annotation type is a plain "java." annotation,
+	 * typically from {@code java.lang.annotation}.
+	 * <p>Aligned with
+	 * {@code org.springframework.core.annotation.AnnotationsScanner#hasPlainJavaAnnotationsOnly}.
+	 */
+	private boolean isPlainJavaAnnotation(Class<? extends Annotation> annotationType) {
+		return annotationType.getName().startsWith("java.");
+	}
+
+	/**
+	 * Check whether the given annotation type is a recognized qualifier type.
 	 */
 	protected boolean isQualifier(Class<? extends Annotation> annotationType) {
 		for (Class<? extends Annotation> qualifierType : this.qualifierTypes) {
@@ -306,12 +332,13 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				}
 			}
 			if (targetAnnotation == null) {
+				BeanFactory beanFactory = getBeanFactory();
 				// Look for matching annotation on the target class
 				// TODO 还没有, 就看看自身了, 比如: @LoadBalanced标注在RestTemplate上
-				if (getBeanFactory() != null) {
+				if (beanFactory != null) {
 					try {
 						// TODO 从当前容器里找候选bean对应的类型
-						Class<?> beanType = getBeanFactory().getType(bdHolder.getBeanName());
+						Class<?> beanType = beanFactory.getType(bdHolder.getBeanName());
 						if (beanType != null) {
 							// TODO 找到的话, 看看这个类型上是否有@Qualifier注解
 							targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(beanType), type);
@@ -331,8 +358,9 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				return true;
 			}
 		}
+
 		// TODO targetAnnotation没有找到时, 把@Qualifier注解的属性全都拿出来继续尝试
-		Map<String, Object> attributes = AnnotationUtils.getAnnotationAttributes(annotation);
+		Map<String, @Nullable Object> attributes = AnnotationUtils.getAnnotationAttributes(annotation);
 		if (attributes.isEmpty() && qualifier == null) {
 			// If no attributes, the qualifier must be present
 			// TODO 没有属性, 也没有bd中也没有AutowireCandidateQualifier时(只在xml形式配置中才有), 匹配失败
@@ -354,8 +382,8 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				actualValue = bd.getAttribute(attributeName);
 			}
 			if (actualValue == null && attributeName.equals(AutowireCandidateQualifier.VALUE_KEY) &&
-					expectedValue instanceof String && bdHolder.matchesName((String) expectedValue)) {
-				// Fall back on bean name (or alias) match
+					expectedValue instanceof String name && bdHolder.matchesName(name)) {
+				// Finally, check bean name (or alias) match
 				// TODO 还是没有实际值, 且当前的属性是'value', 其值是与候选bean同名时, 迭代下一个属性
 				continue;
 			}
@@ -369,22 +397,20 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				actualValue = typeConverter.convertIfNecessary(actualValue, expectedValue.getClass());
 			}
 			// TODO 属性中的设定值与实际值会进行判断, 只有完全一致的, 才算匹配成功
-			if (!expectedValue.equals(actualValue)) {
+			if (!ObjectUtils.nullSafeEquals(expectedValue, actualValue)) {
 				return false;
 			}
 		}
 		return true;
 	}
 
-	@Nullable
-	protected Annotation getQualifiedElementAnnotation(RootBeanDefinition bd, Class<? extends Annotation> type) {
+	protected @Nullable Annotation getQualifiedElementAnnotation(RootBeanDefinition bd, Class<? extends Annotation> type) {
 		// TODO 从bd中拿到已注解的元素, 如果有, 根据type类型从注解元素中返回对应的注解, 没有则返回null
 		AnnotatedElement qualifiedElement = bd.getQualifiedElement();
 		return (qualifiedElement != null ? AnnotationUtils.getAnnotation(qualifiedElement, type) : null);
 	}
 
-	@Nullable
-	protected Annotation getFactoryMethodAnnotation(RootBeanDefinition bd, Class<? extends Annotation> type) {
+	protected @Nullable Annotation getFactoryMethodAnnotation(RootBeanDefinition bd, Class<? extends Annotation> type) {
 		// TODO 从bd中拿工厂方法, 如果有, 根据type类型从工厂方法中返回对应的注解, 没有则返回null
 		Method resolvedFactoryMethod = bd.getResolvedFactoryMethod();
 		return (resolvedFactoryMethod != null ? AnnotationUtils.getAnnotation(resolvedFactoryMethod, type) : null);
@@ -412,12 +438,25 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean hasQualifier(DependencyDescriptor descriptor) {
-		for (Annotation ann : descriptor.getAnnotations()) {
-			if (isQualifier(ann.annotationType())) {
+		for (Annotation annotation : descriptor.getAnnotations()) {
+			if (isQualifier(annotation.annotationType())) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public @Nullable String getSuggestedName(DependencyDescriptor descriptor) {
+		for (Annotation annotation : descriptor.getAnnotations()) {
+			if (isQualifier(annotation.annotationType())) {
+				Object value = AnnotationUtils.getValue(annotation);
+				if (value instanceof String str) {
+					return str;
+				}
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -425,9 +464,8 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * @see Value
 	 */
 	@Override
-	@Nullable
 	// TODO 取得依赖描述的待注入项的@Value注解中的value
-	public Object getSuggestedValue(DependencyDescriptor descriptor) {
+	public @Nullable Object getSuggestedValue(DependencyDescriptor descriptor) {
 		// TODO 先取得依赖描述的待注入项(可能是个字段, 或者方法)的所有注解, 然后取得其中的@Value的值
 		Object value = findValue(descriptor.getAnnotations());
 		if (value == null) {
@@ -444,8 +482,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	/**
 	 * Determine a suggested value from any of the given candidate annotations.
 	 */
-	@Nullable
-	protected Object findValue(Annotation[] annotationsToSearch) {
+	protected @Nullable Object findValue(Annotation[] annotationsToSearch) {
 		if (annotationsToSearch.length > 0) {   // qualifier annotations have to be local
 			// TODO 拿到@Value注解
 			AnnotationAttributes attr = AnnotatedElementUtils.getMergedAnnotationAttributes(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,11 @@
 
 package org.springframework.web.service.invoker;
 
+import java.util.Optional;
+
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Single;
-import org.junit.jupiter.api.BeforeEach;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
@@ -32,23 +34,18 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link RequestBodyArgumentResolver}.
+ * Tests for {@link RequestBodyArgumentResolver}.
  *
  * @author Rossen Stoyanchev
+ * @author Olga Maciaszek-Sharma
  */
-public class RequestBodyArgumentResolverTests {
+@SuppressWarnings({"DataFlowIssue", "OptionalAssignedToNull"})
+class RequestBodyArgumentResolverTests {
 
-	private final TestHttpClientAdapter client = new TestHttpClientAdapter();
+	private final TestReactorExchangeAdapter client = new TestReactorExchangeAdapter();
 
-	private Service service;
-
-
-	@BeforeEach
-	void setUp() throws Exception {
-		HttpServiceProxyFactory proxyFactory = new HttpServiceProxyFactory(this.client);
-		proxyFactory.afterPropertiesSet();
-		this.service = proxyFactory.createClient(Service.class);
-	}
+	private final Service service =
+			HttpServiceProxyFactory.builderFor(this.client).build().createClient(Service.class);
 
 
 	@Test
@@ -56,8 +53,9 @@ public class RequestBodyArgumentResolverTests {
 		String body = "bodyValue";
 		this.service.execute(body);
 
-		assertThat(getRequestValues().getBodyValue()).isEqualTo(body);
-		assertThat(getRequestValues().getBody()).isNull();
+		assertThat(getBodyValue()).isEqualTo(body);
+		assertThat(getBodyValueType()).isEqualTo(new ParameterizedTypeReference<String>() {});
+		assertThat(getPublisherBody()).isNull();
 	}
 
 	@Test
@@ -65,9 +63,9 @@ public class RequestBodyArgumentResolverTests {
 		Mono<String> bodyMono = Mono.just("bodyValue");
 		this.service.executeMono(bodyMono);
 
-		assertThat(getRequestValues().getBodyValue()).isNull();
-		assertThat(getRequestValues().getBody()).isSameAs(bodyMono);
-		assertThat(getRequestValues().getBodyElementType()).isEqualTo(new ParameterizedTypeReference<String>() {});
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isSameAs(bodyMono);
+		assertThat(getBodyElementType()).isEqualTo(new ParameterizedTypeReference<String>() {});
 	}
 
 	@Test
@@ -76,10 +74,10 @@ public class RequestBodyArgumentResolverTests {
 		String bodyValue = "bodyValue";
 		this.service.executeSingle(Single.just(bodyValue));
 
-		assertThat(getRequestValues().getBodyValue()).isNull();
-		assertThat(getRequestValues().getBodyElementType()).isEqualTo(new ParameterizedTypeReference<String>() {});
+		assertThat(getBodyValue()).isNull();
+		assertThat(getBodyElementType()).isEqualTo(new ParameterizedTypeReference<String>() {});
 
-		Publisher<?> body = getRequestValues().getBody();
+		Publisher<?> body = getPublisherBody();
 		assertThat(body).isNotNull();
 		assertThat(((Mono<String>) body).block()).isEqualTo(bodyValue);
 	}
@@ -109,30 +107,112 @@ public class RequestBodyArgumentResolverTests {
 	}
 
 	@Test
-	void ignoreNull() {
-		this.service.execute(null);
+	void nullRequestBody() {
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> this.service.execute(null))
+				.withMessage("RequestBody is required");
 
-		assertThat(getRequestValues().getBodyValue()).isNull();
-		assertThat(getRequestValues().getBody()).isNull();
-
-		this.service.executeMono(null);
-
-		assertThat(getRequestValues().getBodyValue()).isNull();
-		assertThat(getRequestValues().getBody()).isNull();
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> this.service.executeMono(null))
+				.withMessage("RequestBody is required");
 	}
 
-	private HttpRequestValues getRequestValues() {
-		return this.client.getRequestValues();
+	@Test
+	void nullRequestBodyWithNullable() {
+		this.service.executeNullable(null);
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+
+		this.service.executeNullableMono(null);
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+	}
+
+	@Test
+	void nullRequestBodyWithNotRequired() {
+		this.service.executeNotRequired(null);
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+
+		this.service.executeNotRequiredMono(null);
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+	}
+
+	@Test
+	void nullRequestBodyWithOptional() {
+		this.service.executeOptional(null);
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+	}
+
+	@Test
+	void emptyOptionalRequestBody() {
+		this.service.executeOptional(Optional.empty());
+
+		assertThat(getBodyValue()).isNull();
+		assertThat(getPublisherBody()).isNull();
+	}
+
+	@Test
+	void optionalStringBody() {
+		String body = "bodyValue";
+		this.service.executeOptional(Optional.of(body));
+
+		assertThat(getBodyValue()).isEqualTo(body);
+		assertThat(getPublisherBody()).isNull();
 	}
 
 
+	private @Nullable Object getBodyValue() {
+		return getReactiveRequestValues().getBodyValue();
+	}
+
+	private @Nullable ParameterizedTypeReference<?> getBodyValueType() {
+		return getReactiveRequestValues().getBodyValueType();
+	}
+
+	private @Nullable Publisher<?> getPublisherBody() {
+		return getReactiveRequestValues().getBodyPublisher();
+	}
+
+	private @Nullable ParameterizedTypeReference<?> getBodyElementType() {
+		return getReactiveRequestValues().getBodyPublisherElementType();
+	}
+
+	private ReactiveHttpRequestValues getReactiveRequestValues() {
+		return (ReactiveHttpRequestValues) this.client.getRequestValues();
+	}
+
+
+	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private interface Service {
 
 		@GetExchange
 		void execute(@RequestBody String body);
 
 		@GetExchange
+		void executeNullable(@Nullable @RequestBody String body);
+
+		@GetExchange
+		void executeNotRequired(@RequestBody(required = false) String body);
+
+		@GetExchange
+		void executeOptional(@RequestBody Optional<String> body);
+
+		@GetExchange
 		void executeMono(@RequestBody Mono<String> body);
+
+		@GetExchange
+		void executeNullableMono(@Nullable @RequestBody Mono<String> body);
+
+		@GetExchange
+		void executeNotRequiredMono(@RequestBody(required = false) Mono<String> body);
 
 		@GetExchange
 		void executeSingle(@RequestBody Single<String> body);

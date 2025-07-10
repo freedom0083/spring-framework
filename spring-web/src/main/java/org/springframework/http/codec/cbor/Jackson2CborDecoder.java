@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
@@ -32,14 +33,17 @@ import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 
 /**
- * Decode bytes into CBOR and convert to Object's with Jackson.
+ * Decode bytes into CBOR and convert to Object's with Jackson 2.x.
  * Stream decoding is not supported yet.
  *
  * @author Sebastien Deleuze
  * @since 5.2
  * @see Jackson2CborEncoder
  * @see <a href="https://github.com/spring-projects/spring-framework/issues/20513">Add CBOR support to WebFlux</a>
+ * @deprecated since 7.0 in favor of {@link JacksonCborDecoder}
  */
+@Deprecated(since = "7.0", forRemoval = true)
+@SuppressWarnings("removal")
 public class Jackson2CborDecoder extends AbstractJackson2Decoder {
 
 	public Jackson2CborDecoder() {
@@ -53,7 +57,7 @@ public class Jackson2CborDecoder extends AbstractJackson2Decoder {
 
 
 	@Override
-	public Flux<Object> decode(Publisher<DataBuffer> input, ResolvableType elementType, MimeType mimeType, Map<String, Object> hints) {
+	public Flux<Object> decode(Publisher<DataBuffer> input, ResolvableType elementType, @Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
 		throw new UnsupportedOperationException("Does not support stream decoding yet");
 	}
 

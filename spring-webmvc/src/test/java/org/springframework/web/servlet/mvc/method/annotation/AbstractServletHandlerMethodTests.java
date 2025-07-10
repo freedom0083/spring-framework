@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,18 @@
 package org.springframework.web.servlet.mvc.method.annotation;
 
 import jakarta.servlet.ServletException;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.lang.Nullable;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.mvc.annotation.ResponseStatusExceptionResolver;
 import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 import org.springframework.web.testfixture.servlet.MockServletConfig;
-import org.springframework.web.util.pattern.PathPatternParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,8 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public abstract class AbstractServletHandlerMethodTests {
 
-	@Nullable
-	private DispatcherServlet servlet;
+	private @Nullable DispatcherServlet servlet;
 
 
 	protected DispatcherServlet getServlet() {
@@ -55,7 +53,7 @@ public abstract class AbstractServletHandlerMethodTests {
 	}
 
 	@AfterEach
-	public void tearDown() {
+	void tearDown() {
 		this.servlet = null;
 	}
 
@@ -69,7 +67,6 @@ public abstract class AbstractServletHandlerMethodTests {
 		return initDispatcherServlet(controllerClass, usePathPatterns, null);
 	}
 
-	@SuppressWarnings("serial")
 	WebApplicationContext initDispatcherServlet(
 			@Nullable Class<?> controllerClass, boolean usePathPatterns,
 			@Nullable ApplicationContextInitializer<GenericWebApplicationContext> initializer)
@@ -97,9 +94,8 @@ public abstract class AbstractServletHandlerMethodTests {
 				}
 
 				BeanDefinition mappingDef = wac.getBeanDefinition("handlerMapping");
-				if (usePathPatterns && !mappingDef.hasAttribute("patternParser")) {
-					BeanDefinition parserDef = register("parser", PathPatternParser.class, wac);
-					mappingDef.getPropertyValues().add("patternParser", parserDef);
+				if (!usePathPatterns) {
+					mappingDef.getPropertyValues().add("patternParser", null);
 				}
 
 				register("handlerAdapter", RequestMappingHandlerAdapter.class, wac);
@@ -112,7 +108,9 @@ public abstract class AbstractServletHandlerMethodTests {
 			}
 		};
 
-		servlet.init(new MockServletConfig());
+		MockServletConfig config = new MockServletConfig();
+		config.addInitParameter("jakarta.servlet.http.legacyDoHead", "true");
+		servlet.init(config);
 
 		return wac;
 	}

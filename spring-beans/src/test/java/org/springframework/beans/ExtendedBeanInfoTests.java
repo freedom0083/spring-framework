@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,11 +200,11 @@ class ExtendedBeanInfoTests {
 		}
 		{ // always passes
 			BeanInfo info = Introspector.getBeanInfo(Bean.class);
-			assertThat(info.getPropertyDescriptors().length).isEqualTo(2);
+			assertThat(info.getPropertyDescriptors()).hasSize(2);
 		}
 		{ // failed prior to fix for SPR-9453
 			BeanInfo info = new ExtendedBeanInfo(Introspector.getBeanInfo(Bean.class));
-			assertThat(info.getPropertyDescriptors().length).isEqualTo(2);
+			assertThat(info.getPropertyDescriptors()).hasSize(2);
 		}
 	}
 
@@ -554,11 +554,11 @@ class ExtendedBeanInfoTests {
 	 * IntrospectionException regarding a "type mismatch between indexed and non-indexed
 	 * methods" intermittently (approximately one out of every four times) under JDK 7
 	 * due to non-deterministic results from {@link Class#getDeclaredMethods()}.
-	 * See https://bugs.java.com/bugdatabase/view_bug.do?bug_id=7023180
+	 * @see <a href="https://bugs.java.com/bugdatabase/view_bug.do?bug_id=7023180">JDK-7023180</a>
 	 * @see #cornerSpr9702()
 	 */
 	@Test
-	void cornerSpr10111() throws Exception {
+	void cornerSpr10111() {
 		assertThatNoException().isThrownBy(() -> new ExtendedBeanInfo(Introspector.getBeanInfo(BigDecimal.class)));
 	}
 
@@ -585,7 +585,7 @@ class ExtendedBeanInfoTests {
 		assertThat(hasReadMethodForProperty(ebi, "foo")).isTrue();
 		assertThat(hasWriteMethodForProperty(ebi, "foo")).isTrue();
 
-		assertThat(ebi.getPropertyDescriptors().length).isEqualTo(bi.getPropertyDescriptors().length);
+		assertThat(ebi.getPropertyDescriptors()).hasSameSizeAs(bi.getPropertyDescriptors());
 	}
 
 	@Test
@@ -711,7 +711,7 @@ class ExtendedBeanInfoTests {
 		BeanInfo bi = Introspector.getBeanInfo(TestBean.class);
 		BeanInfo ebi = new ExtendedBeanInfo(bi);
 
-		assertThat(ebi.getPropertyDescriptors().length).isEqualTo(bi.getPropertyDescriptors().length);
+		assertThat(ebi.getPropertyDescriptors()).hasSameSizeAs(bi.getPropertyDescriptors());
 	}
 
 	@Test
@@ -731,7 +731,7 @@ class ExtendedBeanInfoTests {
 			}
 		}
 		assertThat(found).isTrue();
-		assertThat(ebi.getPropertyDescriptors().length).isEqualTo(bi.getPropertyDescriptors().length+1);
+		assertThat(ebi.getPropertyDescriptors()).hasSize(bi.getPropertyDescriptors().length+1);
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,24 +21,24 @@ import java.util.Map;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryMetadata;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 /**
  * Abstract {@link ConnectionFactory} implementation that routes
  * {@link #create()} calls to one of various target
- * {@link ConnectionFactory factories} based on a lookup key.
+ * {@linkplain ConnectionFactory factories} based on a lookup key.
  * The latter is typically (but not necessarily) determined from some
  * subscriber context.
  *
- * <p> Allows to configure a {@link #setDefaultTargetConnectionFactory(Object)
- * default ConnectionFactory} as fallback.
+ * <p>Allows to configure a default target {@link #setDefaultTargetConnectionFactory(Object)
+ * ConnectionFactory} as a fallback.
  *
- * <p> Calls to {@link #getMetadata()} are routed to the
+ * <p>Calls to {@link #getMetadata()} are routed to the
  * {@link #setDefaultTargetConnectionFactory(Object) default ConnectionFactory}
  * if configured.
  *
@@ -54,21 +54,17 @@ public abstract class AbstractRoutingConnectionFactory implements ConnectionFact
 	private static final Object FALLBACK_MARKER = new Object();
 
 
-	@Nullable
-	private Map<?, ?> targetConnectionFactories;
+	private @Nullable Map<?, ?> targetConnectionFactories;
 
-	@Nullable
-	private Object defaultTargetConnectionFactory;
+	private @Nullable Object defaultTargetConnectionFactory;
 
 	private boolean lenientFallback = true;
 
 	private ConnectionFactoryLookup connectionFactoryLookup = new MapConnectionFactoryLookup();
 
-	@Nullable
-	private Map<Object, ConnectionFactory> resolvedConnectionFactories;
+	private @Nullable Map<Object, ConnectionFactory> resolvedConnectionFactories;
 
-	@Nullable
-	private ConnectionFactory resolvedDefaultConnectionFactory;
+	private @Nullable ConnectionFactory resolvedDefaultConnectionFactory;
 
 
 	/**
@@ -125,8 +121,24 @@ public abstract class AbstractRoutingConnectionFactory implements ConnectionFact
 	}
 
 
+	/**
+	 * Delegates to {@link #initialize()}.
+	 */
 	@Override
 	public void afterPropertiesSet() {
+		initialize();
+	}
+
+	/**
+	 * Initialize the internal state of this {@code AbstractRoutingConnectionFactory}
+	 * by resolving the configured target ConnectionFactories.
+	 * @throws IllegalArgumentException if the target ConnectionFactories have not
+	 * been configured
+	 * @since 6.1
+	 * @see #setTargetConnectionFactories(Map)
+	 * @see #setDefaultTargetConnectionFactory(Object)
+	 */
+	public void initialize() {
 		Assert.notNull(this.targetConnectionFactories, "Property 'targetConnectionFactories' must not be null");
 
 		this.resolvedConnectionFactories = CollectionUtils.newHashMap(this.targetConnectionFactories.size());
@@ -168,11 +180,11 @@ public abstract class AbstractRoutingConnectionFactory implements ConnectionFact
 	protected ConnectionFactory resolveSpecifiedConnectionFactory(Object connectionFactory)
 			throws IllegalArgumentException {
 
-		if (connectionFactory instanceof ConnectionFactory) {
-			return (ConnectionFactory) connectionFactory;
+		if (connectionFactory instanceof ConnectionFactory factory) {
+			return factory;
 		}
-		else if (connectionFactory instanceof String) {
-			return this.connectionFactoryLookup.getConnectionFactory((String) connectionFactory);
+		else if (connectionFactory instanceof String factoryName) {
+			return this.connectionFactoryLookup.getConnectionFactory(factoryName);
 		}
 		else {
 			throw new IllegalArgumentException("Illegal connection factory value - " +
@@ -200,10 +212,11 @@ public abstract class AbstractRoutingConnectionFactory implements ConnectionFact
 	 * in the {@link #setTargetConnectionFactories targetConnectionFactories} map,
 	 * falls back to the specified {@link #setDefaultTargetConnectionFactory default
 	 * target ConnectionFactory} if necessary.
-	 * @return {@link Mono} emitting the current {@link ConnectionFactory} as
+	 * @return {@link Mono} that emits the current {@link ConnectionFactory} as
 	 * per {@link #determineCurrentLookupKey()}
 	 * @see #determineCurrentLookupKey()
 	 */
+	@SuppressWarnings("NullAway") // Lambda
 	protected Mono<ConnectionFactory> determineTargetConnectionFactory() {
 		Assert.state(this.resolvedConnectionFactories != null, "ConnectionFactory router not initialized");
 

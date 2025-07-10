@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link UnmodifiableMultiValueMap}.
+ * Tests for {@link UnmodifiableMultiValueMap}.
  *
  * @author Arjen Poutsma
  * @since 6.0
@@ -41,16 +41,15 @@ import static org.mockito.Mockito.mock;
 class UnmodifiableMultiValueMapTests {
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void delegation() {
-		MultiValueMap<String, String> mock = mock(MultiValueMap.class);
+		MultiValueMap<String, String> mock = mock();
 		UnmodifiableMultiValueMap<String, String> map = new UnmodifiableMultiValueMap<>(mock);
 
 		given(mock.size()).willReturn(1);
-		assertThat(map.size()).isEqualTo(1);
+		assertThat(map).hasSize(1);
 
 		given(mock.isEmpty()).willReturn(false);
-		assertThat(map.isEmpty()).isFalse();
+		assertThat(map).isNotEmpty();
 
 		given(mock.containsKey("foo")).willReturn(true);
 		assertThat(map.containsKey("foo")).isTrue();
@@ -62,7 +61,7 @@ class UnmodifiableMultiValueMapTests {
 		list.add("bar");
 		given(mock.get("foo")).willReturn(list);
 		List<String> result = map.get("foo");
-		assertThat(result).isNotNull().containsExactly("bar");
+		assertThat(result).containsExactly("bar");
 		assertThatUnsupportedOperationException().isThrownBy(() -> result.add("baz"));
 
 		given(mock.getOrDefault("foo", List.of("bar"))).willReturn(List.of("baz"));
@@ -95,24 +94,24 @@ class UnmodifiableMultiValueMapTests {
 				() -> map.computeIfPresent("foo", (s1, s2) -> List.of("bar")));
 		assertThatUnsupportedOperationException().isThrownBy(() -> map.compute("foo", (s1, s2) -> List.of("bar")));
 		assertThatUnsupportedOperationException().isThrownBy(() -> map.merge("foo", List.of("bar"), (s1, s2) -> s1));
-		assertThatUnsupportedOperationException().isThrownBy(() -> map.clear());
+		assertThatUnsupportedOperationException().isThrownBy(map::clear);
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	void entrySetDelegation() {
-		MultiValueMap<String, String> mockMap = mock(MultiValueMap.class);
-		Set<Map.Entry<String, List<String>>> mockSet = mock(Set.class);
+		MultiValueMap<String, String> mockMap = mock();
+		Set<Map.Entry<String, List<String>>> mockSet = mock();
 		given(mockMap.entrySet()).willReturn(mockSet);
 		Set<Map.Entry<String, List<String>>> set = new UnmodifiableMultiValueMap<>(mockMap).entrySet();
 
 		given(mockSet.size()).willReturn(1);
-		assertThat(set.size()).isEqualTo(1);
+		assertThat(set).hasSize(1);
 
 		given(mockSet.isEmpty()).willReturn(false);
 		assertThat(set.isEmpty()).isFalse();
 
-		Map.Entry<String, List<String>> mockedEntry = mock(Map.Entry.class);
+		Map.Entry<String, List<String>> mockedEntry = mock();
 		given(mockSet.contains(mockedEntry)).willReturn(true);
 		assertThat(set.contains(mockedEntry)).isTrue();
 
@@ -120,7 +119,7 @@ class UnmodifiableMultiValueMapTests {
 		given(mockSet.containsAll(mockEntries)).willReturn(true);
 		assertThat(set.containsAll(mockEntries)).isTrue();
 
-		Iterator<Map.Entry<String, List<String>>> mockIterator = mock(Iterator.class);
+		Iterator<Map.Entry<String, List<String>>> mockIterator = mock();
 		given(mockSet.iterator()).willReturn(mockIterator);
 		given(mockIterator.hasNext()).willReturn(false);
 		assertThat(set.iterator()).isExhausted();
@@ -137,19 +136,19 @@ class UnmodifiableMultiValueMapTests {
 		assertThatUnsupportedOperationException().isThrownBy(() -> set.addAll(mock(List.class)));
 		assertThatUnsupportedOperationException().isThrownBy(() -> set.retainAll(mock(List.class)));
 		assertThatUnsupportedOperationException().isThrownBy(() -> set.removeAll(mock(List.class)));
-		assertThatUnsupportedOperationException().isThrownBy(() -> set.clear());
+		assertThatUnsupportedOperationException().isThrownBy(set::clear);
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	void valuesDelegation() {
-		MultiValueMap<String, String> mockMap = mock(MultiValueMap.class);
-		Collection<List<String>> mockValues = mock(Collection.class);
+		MultiValueMap<String, String> mockMap = mock();
+		Collection<List<String>> mockValues = mock();
 		given(mockMap.values()).willReturn(mockValues);
 		Collection<List<String>> values = new UnmodifiableMultiValueMap<>(mockMap).values();
 
 		given(mockValues.size()).willReturn(1);
-		assertThat(values.size()).isEqualTo(1);
+		assertThat(values).hasSize(1);
 
 		given(mockValues.isEmpty()).willReturn(false);
 		assertThat(values.isEmpty()).isFalse();
@@ -177,7 +176,7 @@ class UnmodifiableMultiValueMapTests {
 		assertThatUnsupportedOperationException().isThrownBy(() -> values.removeAll(List.of(List.of("foo"))));
 		assertThatUnsupportedOperationException().isThrownBy(() -> values.retainAll(List.of(List.of("foo"))));
 		assertThatUnsupportedOperationException().isThrownBy(() -> values.removeIf(s -> true));
-		assertThatUnsupportedOperationException().isThrownBy(() -> values.clear());
+		assertThatUnsupportedOperationException().isThrownBy(values::clear);
 	}
 
 	private static ThrowableTypeAssert<UnsupportedOperationException> assertThatUnsupportedOperationException() {

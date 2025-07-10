@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.http.converter.xml;
 import javax.xml.transform.Result;
 import javax.xml.transform.Source;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.oxm.Marshaller;
 import org.springframework.oxm.Unmarshaller;
 import org.springframework.util.Assert;
@@ -43,11 +44,9 @@ import org.springframework.util.Assert;
  */
 public class MarshallingHttpMessageConverter extends AbstractXmlHttpMessageConverter<Object> {
 
-	@Nullable
-	private Marshaller marshaller;
+	private @Nullable Marshaller marshaller;
 
-	@Nullable
-	private Unmarshaller unmarshaller;
+	private @Nullable Unmarshaller unmarshaller;
 
 
 	/**
@@ -69,8 +68,10 @@ public class MarshallingHttpMessageConverter extends AbstractXmlHttpMessageConve
 	public MarshallingHttpMessageConverter(Marshaller marshaller) {
 		Assert.notNull(marshaller, "Marshaller must not be null");
 		this.marshaller = marshaller;
-		if (marshaller instanceof Unmarshaller) {
-			this.unmarshaller = (Unmarshaller) marshaller;
+		// The following pattern variable cannot be named "unmarshaller" due to lacking
+		// support in Checkstyle: https://github.com/checkstyle/checkstyle/issues/10969
+		if (marshaller instanceof Unmarshaller _unmarshaller) {
+			this.unmarshaller = _unmarshaller;
 		}
 	}
 
@@ -121,7 +122,7 @@ public class MarshallingHttpMessageConverter extends AbstractXmlHttpMessageConve
 
 	@Override
 	protected Object readFromSource(Class<?> clazz, HttpHeaders headers, Source source) throws Exception {
-		Assert.notNull(this.unmarshaller, "Property 'unmarshaller' is required");
+		Assert.state(this.unmarshaller != null, "Property 'unmarshaller' is required");
 		Object result = this.unmarshaller.unmarshal(source);
 		if (!clazz.isInstance(result)) {
 			throw new TypeMismatchException(result, clazz);
@@ -131,8 +132,12 @@ public class MarshallingHttpMessageConverter extends AbstractXmlHttpMessageConve
 
 	@Override
 	protected void writeToResult(Object o, HttpHeaders headers, Result result) throws Exception {
-		Assert.notNull(this.marshaller, "Property 'marshaller' is required");
+		Assert.state(this.marshaller != null, "Property 'marshaller' is required");
 		this.marshaller.marshal(o, result);
 	}
 
+	@Override
+	protected boolean supportsRepeatableWrites(Object o) {
+		return true;
+	}
 }

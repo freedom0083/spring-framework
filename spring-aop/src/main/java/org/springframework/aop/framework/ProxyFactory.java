@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 package org.springframework.aop.framework;
 
 import org.aopalliance.intercept.Interceptor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.TargetSource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -111,6 +111,17 @@ public class ProxyFactory extends ProxyCreatorSupport {
 		//  1. JdkDynamicAopProxy: 应用于代理目标是接口的情况;
 		//  2. CglibAopProxy: 应用于代理目标是类的情况;
 		return createAopProxy().getProxy(classLoader);
+	}
+
+	/**
+	 * Determine the proxy class according to the settings in this factory.
+	 * @param classLoader the class loader to create the proxy class with
+	 * (or {@code null} for the low-level proxy facility's default)
+	 * @return the proxy class
+	 * @since 6.0
+	 */
+	public Class<?> getProxyClass(@Nullable ClassLoader classLoader) {
+		return createAopProxy().getProxyClass(classLoader);
 	}
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import reactor.core.publisher.Flux;
 import org.springframework.core.io.buffer.DataBuffer;
 
 /**
- * An "reactive" HTTP input message that exposes the input as {@link Publisher}.
+ * A "reactive" HTTP input message that exposes the input as {@link Publisher}.
  *
  * <p>Typically implemented by an HTTP request on the server-side or a response
  * on the client-side.

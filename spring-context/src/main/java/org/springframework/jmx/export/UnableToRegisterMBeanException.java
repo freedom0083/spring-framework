@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public class UnableToRegisterMBeanException extends MBeanExportException {
 	 * Create a new {@code UnableToRegisterMBeanException} with the
 	 * specified error message and root cause.
 	 * @param msg the detail message
-	 * @param cause the root caus
+	 * @param cause the root cause
 	 */
 	public UnableToRegisterMBeanException(String msg, Throwable cause) {
 		super(msg, cause);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import jakarta.persistence.SynchronizationType;
 import jakarta.persistence.TransactionRequiredException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -48,7 +49,6 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.transaction.support.ResourceHolderSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
@@ -106,8 +106,8 @@ public abstract class EntityManagerFactoryUtils {
 					BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, EntityManagerFactory.class);
 			for (String candidateName : candidateNames) {
 				EntityManagerFactory emf = (EntityManagerFactory) beanFactory.getBean(candidateName);
-				if (emf instanceof EntityManagerFactoryInfo &&
-						unitName.equals(((EntityManagerFactoryInfo) emf).getPersistenceUnitName())) {
+				if (emf instanceof EntityManagerFactoryInfo emfInfo &&
+						unitName.equals(emfInfo.getPersistenceUnitName())) {
 					return emf;
 				}
 			}
@@ -123,15 +123,14 @@ public abstract class EntityManagerFactoryUtils {
 
 	/**
 	 * Obtain a JPA EntityManager from the given factory. Is aware of a corresponding
-	 * EntityManager bound to the current thread, e.g. when using JpaTransactionManager.
+	 * EntityManager bound to the current thread, for example, when using JpaTransactionManager.
 	 * <p>Note: Will return {@code null} if no thread-bound EntityManager found!
 	 * @param emf the EntityManagerFactory to create the EntityManager with
 	 * @return the EntityManager, or {@code null} if none found
 	 * @throws DataAccessResourceFailureException if the EntityManager couldn't be obtained
 	 * @see JpaTransactionManager
 	 */
-	@Nullable
-	public static EntityManager getTransactionalEntityManager(EntityManagerFactory emf)
+	public static @Nullable EntityManager getTransactionalEntityManager(EntityManagerFactory emf)
 			throws DataAccessResourceFailureException {
 
 		return getTransactionalEntityManager(emf, null);
@@ -139,7 +138,7 @@ public abstract class EntityManagerFactoryUtils {
 
 	/**
 	 * Obtain a JPA EntityManager from the given factory. Is aware of a corresponding
-	 * EntityManager bound to the current thread, e.g. when using JpaTransactionManager.
+	 * EntityManager bound to the current thread, for example, when using JpaTransactionManager.
 	 * <p>Note: Will return {@code null} if no thread-bound EntityManager found!
 	 * @param emf the EntityManagerFactory to create the EntityManager with
 	 * @param properties the properties to be passed into the {@code createEntityManager}
@@ -148,8 +147,7 @@ public abstract class EntityManagerFactoryUtils {
 	 * @throws DataAccessResourceFailureException if the EntityManager couldn't be obtained
 	 * @see JpaTransactionManager
 	 */
-	@Nullable
-	public static EntityManager getTransactionalEntityManager(EntityManagerFactory emf, @Nullable Map<?, ?> properties)
+	public static @Nullable EntityManager getTransactionalEntityManager(EntityManagerFactory emf, @Nullable Map<?, ?> properties)
 			throws DataAccessResourceFailureException {
 		try {
 			return doGetTransactionalEntityManager(emf, properties, true);
@@ -161,7 +159,7 @@ public abstract class EntityManagerFactoryUtils {
 
 	/**
 	 * Obtain a JPA EntityManager from the given factory. Is aware of a corresponding
-	 * EntityManager bound to the current thread, e.g. when using JpaTransactionManager.
+	 * EntityManager bound to the current thread, for example, when using JpaTransactionManager.
 	 * <p>Same as {@code getEntityManager}, but throwing the original PersistenceException.
 	 * @param emf the EntityManagerFactory to create the EntityManager with
 	 * @param properties the properties to be passed into the {@code createEntityManager}
@@ -171,8 +169,7 @@ public abstract class EntityManagerFactoryUtils {
 	 * @see #getTransactionalEntityManager(jakarta.persistence.EntityManagerFactory)
 	 * @see JpaTransactionManager
 	 */
-	@Nullable
-	public static EntityManager doGetTransactionalEntityManager(EntityManagerFactory emf, Map<?, ?> properties)
+	public static @Nullable EntityManager doGetTransactionalEntityManager(EntityManagerFactory emf, Map<?, ?> properties)
 			throws PersistenceException {
 
 		return doGetTransactionalEntityManager(emf, properties, true);
@@ -180,7 +177,7 @@ public abstract class EntityManagerFactoryUtils {
 
 	/**
 	 * Obtain a JPA EntityManager from the given factory. Is aware of a corresponding
-	 * EntityManager bound to the current thread, e.g. when using JpaTransactionManager.
+	 * EntityManager bound to the current thread, for example, when using JpaTransactionManager.
 	 * <p>Same as {@code getEntityManager}, but throwing the original PersistenceException.
 	 * @param emf the EntityManagerFactory to create the EntityManager with
 	 * @param properties the properties to be passed into the {@code createEntityManager}
@@ -192,8 +189,7 @@ public abstract class EntityManagerFactoryUtils {
 	 * @see #getTransactionalEntityManager(jakarta.persistence.EntityManagerFactory)
 	 * @see JpaTransactionManager
 	 */
-	@Nullable
-	public static EntityManager doGetTransactionalEntityManager(
+	public static @Nullable EntityManager doGetTransactionalEntityManager(
 			EntityManagerFactory emf, @Nullable Map<?, ?> properties, boolean synchronizedWithTransaction)
 			throws PersistenceException {
 
@@ -300,8 +296,7 @@ public abstract class EntityManagerFactoryUtils {
 	 * (to be passed into cleanupTransaction)
 	 * @see JpaDialect#prepareTransaction
 	 */
-	@Nullable
-	private static Object prepareTransaction(EntityManager em, EntityManagerFactory emf) {
+	private static @Nullable Object prepareTransaction(EntityManager em, EntityManagerFactory emf) {
 		if (emf instanceof EntityManagerFactoryInfo emfInfo) {
 			JpaDialect jpaDialect = emfInfo.getJpaDialect();
 			if (jpaDialect != null) {
@@ -360,8 +355,7 @@ public abstract class EntityManagerFactoryUtils {
 	 * @return the corresponding DataAccessException instance,
 	 * or {@code null} if the exception should not be translated
 	 */
-	@Nullable
-	public static DataAccessException convertJpaAccessExceptionIfPossible(RuntimeException ex) {
+	public static @Nullable DataAccessException convertJpaAccessExceptionIfPossible(RuntimeException ex) {
 		// Following the JPA specification, a persistence provider can also
 		// throw these two exceptions, besides PersistenceException.
 		if (ex instanceof IllegalStateException) {
@@ -372,8 +366,8 @@ public abstract class EntityManagerFactoryUtils {
 		}
 
 		// Check for well-known PersistenceException subclasses.
-		if (ex instanceof EntityNotFoundException) {
-			return new JpaObjectRetrievalFailureException((EntityNotFoundException) ex);
+		if (ex instanceof EntityNotFoundException entityNotFoundException) {
+			return new JpaObjectRetrievalFailureException(entityNotFoundException);
 		}
 		if (ex instanceof NoResultException) {
 			return new EmptyResultDataAccessException(ex.getMessage(), 1, ex);
@@ -390,8 +384,8 @@ public abstract class EntityManagerFactoryUtils {
 		if (ex instanceof PessimisticLockException) {
 			return new PessimisticLockingFailureException(ex.getMessage(), ex);
 		}
-		if (ex instanceof OptimisticLockException) {
-			return new JpaOptimisticLockingFailureException((OptimisticLockException) ex);
+		if (ex instanceof OptimisticLockException optimisticLockException) {
+			return new JpaOptimisticLockingFailureException(optimisticLockException);
 		}
 		if (ex instanceof EntityExistsException) {
 			return new DataIntegrityViolationException(ex.getMessage(), ex);
@@ -433,7 +427,7 @@ public abstract class EntityManagerFactoryUtils {
 
 	/**
 	 * Callback for resource cleanup at the end of a non-JPA transaction
-	 * (e.g. when participating in a JtaTransactionManager transaction),
+	 * (for example, when participating in a JtaTransactionManager transaction),
 	 * fully synchronized with the ongoing transaction.
 	 * @see org.springframework.transaction.jta.JtaTransactionManager
 	 */
@@ -441,11 +435,9 @@ public abstract class EntityManagerFactoryUtils {
 			extends ResourceHolderSynchronization<EntityManagerHolder, EntityManagerFactory>
 			implements Ordered {
 
-		@Nullable
-		private final Object transactionData;
+		private final @Nullable Object transactionData;
 
-		@Nullable
-		private final JpaDialect jpaDialect;
+		private final @Nullable JpaDialect jpaDialect;
 
 		private final boolean newEntityManager;
 
@@ -454,8 +446,7 @@ public abstract class EntityManagerFactoryUtils {
 
 			super(emHolder, emf);
 			this.transactionData = txData;
-			this.jpaDialect = (emf instanceof EntityManagerFactoryInfo ?
-					((EntityManagerFactoryInfo) emf).getJpaDialect() : null);
+			this.jpaDialect = (emf instanceof EntityManagerFactoryInfo emfInfo ? emfInfo.getJpaDialect() : null);
 			this.newEntityManager = newEm;
 		}
 
@@ -467,8 +458,8 @@ public abstract class EntityManagerFactoryUtils {
 		@Override
 		protected void flushResource(EntityManagerHolder resourceHolder) {
 			EntityManager em = resourceHolder.getEntityManager();
-			if (em instanceof EntityManagerProxy) {
-				EntityManager target = ((EntityManagerProxy) em).getTargetEntityManager();
+			if (em instanceof EntityManagerProxy emProxy) {
+				EntityManager target = emProxy.getTargetEntityManager();
 				if (TransactionSynchronizationManager.hasResource(target)) {
 					// ExtendedEntityManagerSynchronization active after joinTransaction() call:
 					// flush synchronization already registered.

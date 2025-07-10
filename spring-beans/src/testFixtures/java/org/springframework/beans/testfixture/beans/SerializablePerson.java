@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.beans.testfixture.beans;
 
 import java.io.Serializable;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.util.ObjectUtils;
 
@@ -63,11 +65,9 @@ public class SerializablePerson implements Person, Serializable {
 
 
 	@Override
-	public boolean equals(Object other) {
-		if (!(other instanceof SerializablePerson p)) {
-			return false;
-		}
-		return p.age == age && ObjectUtils.nullSafeEquals(name, p.name);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SerializablePerson that &&
+				ObjectUtils.nullSafeEquals(this.name, that.name) && this.age == that.age));
 	}
 
 	@Override

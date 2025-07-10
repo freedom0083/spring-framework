@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,14 @@ public class Person {
 
 	private String privateName;
 
+	private int age;
+
 	Company company;
+
+
+	public Person(int age) {
+		this.age = age;
+	}
 
 	public Person(String name) {
 		this.privateName = name;
@@ -31,12 +38,21 @@ public class Person {
 		this.company = company;
 	}
 
+
 	public String getName() {
 		return privateName;
 	}
 
 	public void setName(String n) {
 		this.privateName = n;
+	}
+
+	public int getAge() {
+		return age;
+	}
+
+	public void setAge(int age) {
+		this.age = age;
 	}
 
 	public Company getCompany() {

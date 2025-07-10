@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generic interface for a web request. Mainly intended for generic web
@@ -41,8 +41,7 @@ public interface WebRequest extends RequestAttributes {
 	 * @since 3.0
 	 * @see jakarta.servlet.http.HttpServletRequest#getHeader(String)
 	 */
-	@Nullable
-	String getHeader(String headerName);
+	@Nullable String getHeader(String headerName);
 
 	/**
 	 * Return the request header values for the given header name,
@@ -51,11 +50,10 @@ public interface WebRequest extends RequestAttributes {
 	 * @since 3.0
 	 * @see jakarta.servlet.http.HttpServletRequest#getHeaders(String)
 	 */
-	@Nullable
-	String[] getHeaderValues(String headerName);
+	String @Nullable [] getHeaderValues(String headerName);
 
 	/**
-	 * Return a Iterator over request header names.
+	 * Return an Iterator over request header names.
 	 * @since 3.0
 	 * @see jakarta.servlet.http.HttpServletRequest#getHeaderNames()
 	 */
@@ -66,8 +64,7 @@ public interface WebRequest extends RequestAttributes {
 	 * <p>Retrieves the first parameter value in case of a multi-value parameter.
 	 * @see jakarta.servlet.http.HttpServletRequest#getParameter(String)
 	 */
-	@Nullable
-	String getParameter(String paramName);
+	@Nullable String getParameter(String paramName);
 
 	/**
 	 * Return the request parameter values for the given parameter name,
@@ -75,18 +72,17 @@ public interface WebRequest extends RequestAttributes {
 	 * <p>A single-value parameter will be exposed as an array with a single element.
 	 * @see jakarta.servlet.http.HttpServletRequest#getParameterValues(String)
 	 */
-	@Nullable
-	String[] getParameterValues(String paramName);
+	String @Nullable [] getParameterValues(String paramName);
 
 	/**
-	 * Return a Iterator over request parameter names.
+	 * Return an Iterator over request parameter names.
 	 * @since 3.0
 	 * @see jakarta.servlet.http.HttpServletRequest#getParameterNames()
 	 */
 	Iterator<String> getParameterNames();
 
 	/**
-	 * Return a immutable Map of the request parameters, with parameter names as map keys
+	 * Return an immutable Map of the request parameters, with parameter names as map keys
 	 * and parameter values as map values. The map values will be of type String array.
 	 * <p>A single-value parameter will be exposed as an array with a single element.
 	 * @see jakarta.servlet.http.HttpServletRequest#getParameterMap()
@@ -110,15 +106,13 @@ public interface WebRequest extends RequestAttributes {
 	 * Return the remote user for this request, if any.
 	 * @see jakarta.servlet.http.HttpServletRequest#getRemoteUser()
 	 */
-	@Nullable
-	String getRemoteUser();
+	@Nullable String getRemoteUser();
 
 	/**
 	 * Return the user principal for this request, if any.
 	 * @see jakarta.servlet.http.HttpServletRequest#getUserPrincipal()
 	 */
-	@Nullable
-	Principal getUserPrincipal();
+	@Nullable Principal getUserPrincipal();
 
 	/**
 	 * Determine whether the user is in the given role for this request.
@@ -154,7 +148,7 @@ public interface WebRequest extends RequestAttributes {
 	 * also with conditional POST/PUT/DELETE requests.
 	 * <p><strong>Note:</strong> you can use either
 	 * this {@code #checkNotModified(long)} method; or
-	 * {@link #checkNotModified(String)}. If you want enforce both
+	 * {@link #checkNotModified(String)}. If you want to enforce both
 	 * a strong entity tag and a Last-Modified value,
 	 * as recommended by the HTTP specification,
 	 * then you should use {@link #checkNotModified(String, long)}.
@@ -189,7 +183,7 @@ public interface WebRequest extends RequestAttributes {
 	 * }</pre>
 	 * <p><strong>Note:</strong> you can use either
 	 * this {@code #checkNotModified(String)} method; or
-	 * {@link #checkNotModified(long)}. If you want enforce both
+	 * {@link #checkNotModified(long)}. If you want to enforce both
 	 * a strong entity tag and a Last-Modified value,
 	 * as recommended by the HTTP specification,
 	 * then you should use {@link #checkNotModified(String, long)}.
@@ -223,7 +217,7 @@ public interface WebRequest extends RequestAttributes {
 	 * also with conditional POST/PUT/DELETE requests.
 	 * <p><strong>Note:</strong> The HTTP specification recommends
 	 * setting both ETag and Last-Modified values, but you can also
-	 * use {@code #checkNotModified(String)} or
+	 * use {@link #checkNotModified(String)} or
 	 * {@link #checkNotModified(long)}.
 	 * @param etag the entity tag that the application determined
 	 * for the underlying resource. This parameter will be padded

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,10 @@ import org.springframework.transaction.TransactionManager;
  * <p>See @{@link EnableTransactionManagement} for general examples and context;
  * see {@link #annotationDrivenTransactionManager()} for detailed instructions.
  *
+ * <p><b>NOTE: A {@code TransactionManagementConfigurer} will get initialized early.</b>
+ * Do not inject common dependencies into autowired fields directly; instead, consider
+ * declaring a lazy {@link org.springframework.beans.factory.ObjectProvider} for those.
+ *
  * <p>Note that in by-type lookup disambiguation cases, an alternative approach to
  * implementing this interface is to simply mark one of the offending
  * {@code PlatformTransactionManager} {@code @Bean} methods (or
@@ -51,7 +55,7 @@ public interface TransactionManagementConfigurer {
 	 * Return the default transaction manager bean to use for annotation-driven database
 	 * transaction management, i.e. when processing {@code @Transactional} methods.
 	 * <p>There are two basic approaches to implementing this method:
-	 * <h3>1. Implement the method and annotate it with {@code @Bean}</h3>
+	 * <h4>1. Implement the method and annotate it with {@code @Bean}</h4>
 	 * In this case, the implementing {@code @Configuration} class implements this method,
 	 * marks it with {@code @Bean}, and configures and returns the transaction manager
 	 * directly within the method body:
@@ -61,8 +65,8 @@ public interface TransactionManagementConfigurer {
 	 * public PlatformTransactionManager annotationDrivenTransactionManager() {
 	 *     return new DataSourceTransactionManager(dataSource());
 	 * }</pre>
-	 * <h3>2. Implement the method without {@code @Bean} and delegate to another existing
-	 * {@code @Bean} method</h3>
+	 * <h4>2. Implement the method without {@code @Bean} and delegate to another existing
+	 * {@code @Bean} method</h4>
 	 * <pre class="code">
 	 * &#064;Bean
 	 * public PlatformTransactionManager txManager() {

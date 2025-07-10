@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,22 @@
 
 package org.springframework.core;
 
-import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledForJreRange;
 import reactor.blockhound.BlockHound;
 import reactor.core.scheduler.ReactorBlockHoundIntegration;
 import reactor.core.scheduler.Schedulers;
 
-import org.springframework.tests.sample.objects.TestObject;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.condition.JRE.JAVA_18;
 
 /**
  * Tests to verify the spring-core BlockHound integration rules.
@@ -47,13 +48,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @author Sam Brannen
  * @since 5.2.4
  */
+@DisabledForJreRange(min = JAVA_18, disabledReason = "BlockHound is not compatible with Java 18+")
 class SpringCoreBlockHoundIntegrationTests {
 
-
 	@BeforeAll
-	static void setUp() {
+	static void setup() {
 		BlockHound.builder()
-				.with(new ReactorBlockHoundIntegration()) // Reactor non-blocking thread predicate
+				.with(new ReactorBlockHoundIntegration())  // Reactor non-blocking thread predicate
 				.with(new ReactiveAdapterRegistry.SpringCoreBlockHoundIntegration())
 				.install();
 	}
@@ -66,16 +67,7 @@ class SpringCoreBlockHoundIntegrationTests {
 	}
 
 	@Test
-	void localVariableTableParameterNameDiscoverer() {
-		testNonBlockingTask(() -> {
-			Method setName = TestObject.class.getMethod("setName", String.class);
-			String[] names = new LocalVariableTableParameterNameDiscoverer().getParameterNames(setName);
-			assertThat(names).containsExactly("name");
-		});
-	}
-
-	@Test
-	void concurrentReferenceHashMap() {
+	void concurrentReferenceHashMapSegmentDoTask() {
 		int size = 10000;
 		Map<String, String> map = new ConcurrentReferenceHashMap<>(size);
 
@@ -95,6 +87,30 @@ class SpringCoreBlockHoundIntegrationTests {
 
 		CompletableFuture.allOf(future1, future2).join();
 		assertThat(map).hasSize(size);
+	}
+
+	@Test
+	void concurrentReferenceHashMapSegmentClear() {
+		int size = 10000;
+		Map<String, String> map = new ConcurrentReferenceHashMap<>(size);
+
+		CompletableFuture<Object> future1 = new CompletableFuture<>();
+		testNonBlockingTask(() -> {
+			for (int i = 0; i < size / 2; i++) {
+				map.put("a" + i, "bar");
+			}
+		}, future1);
+
+		CompletableFuture<Object> future2 = new CompletableFuture<>();
+		testNonBlockingTask(() -> {
+			for (int i = 0; i < size; i++) {
+				map.clear();
+			}
+		}, future2);
+
+		//ensure blockhound doesn't trigger
+		final CompletableFuture<Void> allOf = CompletableFuture.allOf(future1, future2);
+		assertThatNoException().isThrownBy(allOf::join);
 	}
 
 	private void testNonBlockingTask(NonBlockingTask task) {

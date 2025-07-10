@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,24 +27,29 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.aopalliance.aop.Advice;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.Advisor;
 import org.springframework.aop.DynamicIntroductionAdvice;
 import org.springframework.aop.IntroductionAdvisor;
 import org.springframework.aop.IntroductionInfo;
+import org.springframework.aop.Pointcut;
+import org.springframework.aop.PointcutAdvisor;
+import org.springframework.aop.SpringProxy;
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.support.DefaultIntroductionAdvisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.target.EmptyTargetSource;
 import org.springframework.aop.target.SingletonTargetSource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 /**
  * Base class for AOP proxy configuration managers.
- * These are not themselves AOP proxies, but subclasses of this class are
+ *
+ * <p>These are not themselves AOP proxies, but subclasses of this class are
  * normally factories from which AOP proxy instances are obtained directly.
  *
  * <p>This class frees subclasses of the housekeeping of Advices
@@ -52,10 +57,12 @@ import org.springframework.util.CollectionUtils;
  * methods, which are provided by subclasses.
  *
  * <p>This class is serializable; subclasses need not be.
- * This class is used to hold snapshots of proxies.
+ *
+ * <p>This class is used to hold snapshots of proxies.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @see org.springframework.aop.framework.AopProxy
  */
 // TODO Advised的实现类, 同时扩展了ProxyConfig, 持有代理的配置信息. 封装了对Advise和Advisor的操作, 不提供创建代理的任何方法.
@@ -74,6 +81,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 
 	/** Package-protected to allow direct access for efficiency. */
+	@SuppressWarnings("serial")
 	TargetSource targetSource = EMPTY_TARGET_SOURCE;
 
 	/** Whether the Advisors are already filtered for the specific target class. */
@@ -81,17 +89,15 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	private boolean preFiltered = false;
 
 	/** The AdvisorChainFactory to use. */
+	@SuppressWarnings("serial")
 	// TODO AdvisorChainFactory工厂, 默认是DefaultAdvisorChainFactory
-	AdvisorChainFactory advisorChainFactory = new DefaultAdvisorChainFactory();
-
-	/** Cache with Method as key and advisor chain List as value. */
-	// TODO 方法缓存, 存的是方法对应的哪些Advisor
-	private transient Map<MethodCacheKey, List<Object>> methodCache;
+	private AdvisorChainFactory advisorChainFactory = DefaultAdvisorChainFactory.INSTANCE;
 
 	/**
 	 * Interfaces to be implemented by the proxy. Held in List to keep the order
 	 * of registration, to create JDK proxy with specified order of interfaces.
 	 */
+	@SuppressWarnings("serial")
 	// TODO 代理实现的所有接口的缓存
 	private List<Class<?>> interfaces = new ArrayList<>();
 
@@ -99,30 +105,53 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * List of Advisors. If an Advice is added, it will be wrapped
 	 * in an Advisor before being added to this List.
 	 */
+	@SuppressWarnings("serial")
 	// TODO Advisor缓存. 对于Advice来说, 会先转化成Advisor后, 再加到此缓存中
 	private List<Advisor> advisors = new ArrayList<>();
+
+	/**
+	 * List of minimal {@link AdvisorKeyEntry} instances,
+	 * to be assigned to the {@link #advisors} field on reduction.
+	 * @since 6.0.10
+	 * @see #reduceToAdvisorKey
+	 */
+	@SuppressWarnings("serial")
+	private List<Advisor> advisorKey = this.advisors;
+
+	/** Cache with Method as key and advisor chain List as value. */
+	// TODO 方法缓存, 存的是方法对应的哪些Advisor
+	private transient @Nullable Map<MethodCacheKey, List<Object>> methodCache;
+
+	/** Cache with shared interceptors which are not method-specific. */
+	private transient volatile @Nullable List<Object> cachedInterceptors;
+
+	/**
+	 * Optional field for {@link AopProxy} implementations to store metadata in.
+	 * Used by {@link JdkDynamicAopProxy}.
+	 * @since 6.1.3
+	 * @see JdkDynamicAopProxy#JdkDynamicAopProxy(AdvisedSupport)
+	 */
+	transient volatile @Nullable Object proxyMetadataCache;
 
 
 	/**
 	 * No-arg constructor for use as a JavaBean.
 	 */
 	public AdvisedSupport() {
-		this.methodCache = new ConcurrentHashMap<>(32);
 	}
 
 	/**
-	 * Create a AdvisedSupport instance with the given parameters.
+	 * Create an {@code AdvisedSupport} instance with the given parameters.
 	 * @param interfaces the proxied interfaces
 	 */
 	public AdvisedSupport(Class<?>... interfaces) {
-		this();
 		setInterfaces(interfaces);
 	}
 
 
 	/**
 	 * Set the given object as target.
-	 * Will create a SingletonTargetSource for the object.
+	 * <p>Will create a SingletonTargetSource for the object.
 	 * @see #setTargetSource
 	 * @see org.springframework.aop.target.SingletonTargetSource
 	 */
@@ -158,8 +187,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 	@Override
-	@Nullable
-	public Class<?> getTargetClass() {
+	public @Nullable Class<?> getTargetClass() {
 		return this.targetSource.getTargetClass();
 	}
 
@@ -203,15 +231,15 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	/**
 	 * Add a new proxied interface.
-	 * @param intf the additional interface to proxy
+	 * @param ifc the additional interface to proxy
 	 */
-	public void addInterface(Class<?> intf) {
-		Assert.notNull(intf, "Interface must not be null");
-		if (!intf.isInterface()) {
-			throw new IllegalArgumentException("[" + intf.getName() + "] is not an interface");
+	public void addInterface(Class<?> ifc) {
+		Assert.notNull(ifc, "Interface must not be null");
+		if (!ifc.isInterface()) {
+			throw new IllegalArgumentException("[" + ifc.getName() + "] is not an interface");
 		}
-		if (!this.interfaces.contains(intf)) {
-			this.interfaces.add(intf);
+		if (!this.interfaces.contains(ifc)) {
+			this.interfaces.add(ifc);
 			adviceChanged();
 		}
 	}
@@ -219,12 +247,12 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	/**
 	 * Remove a proxied interface.
 	 * <p>Does nothing if the given interface isn't proxied.
-	 * @param intf the interface to remove from the proxy
+	 * @param ifc the interface to remove from the proxy
 	 * @return {@code true} if the interface was removed; {@code false}
 	 * if the interface was not found and hence could not be removed
 	 */
-	public boolean removeInterface(Class<?> intf) {
-		return this.interfaces.remove(intf);
+	public boolean removeInterface(Class<?> ifc) {
+		return this.interfaces.remove(ifc);
 	}
 
 	@Override
@@ -234,10 +262,32 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	// TODO 判断接口是否已经是被代理过的了
 	@Override
-	public boolean isInterfaceProxied(Class<?> intf) {
+	public boolean isInterfaceProxied(Class<?> ifc) {
 		for (Class<?> proxyIntf : this.interfaces) {
-			if (intf.isAssignableFrom(proxyIntf)) {
+			if (ifc.isAssignableFrom(proxyIntf)) {
 				return true;
+			}
+		}
+		return false;
+	}
+
+	boolean hasUserSuppliedInterfaces() {
+		for (Class<?> ifc : this.interfaces) {
+			if (!SpringProxy.class.isAssignableFrom(ifc) && !isAdvisorIntroducedInterface(ifc)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isAdvisorIntroducedInterface(Class<?> ifc) {
+		for (Advisor advisor : this.advisors) {
+			if (advisor instanceof IntroductionAdvisor introductionAdvisor) {
+				for (Class<?> introducedInterface : introductionAdvisor.getInterfaces()) {
+					if (introducedInterface == ifc) {
+						return true;
+					}
+				}
 			}
 		}
 		return false;
@@ -264,10 +314,10 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	@Override
 	public void addAdvisor(int pos, Advisor advisor) throws AopConfigException {
-		if (advisor instanceof IntroductionAdvisor) {
+		if (advisor instanceof IntroductionAdvisor introductionAdvisor) {
 			// TODO 用于引入的IntroductionAdvisor, 需要先验证一下是否实现了指定的接口, (defaultImpl里指定的么??), 如果实现了,
 			//  就将其加入到代理实现的所有接口的缓存中
-			validateIntroductionAdvisor((IntroductionAdvisor) advisor);
+			validateIntroductionAdvisor(introductionAdvisor);
 		}
 		// TODO 把其他类型的Advisor添加到Advisor缓存中. 然后会同步更新Advisor数组, 以及清理方法-Advisor链映射缓存
 		addAdvisorInternal(pos, advisor);
@@ -296,9 +346,9 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		}
 
 		Advisor advisor = this.advisors.remove(index);
-		if (advisor instanceof IntroductionAdvisor ia) {
+		if (advisor instanceof IntroductionAdvisor introductionAdvisor) {
 			// We need to remove introduction interfaces.
-			for (Class<?> ifc : ia.getInterfaces()) {
+			for (Class<?> ifc : introductionAdvisor.getInterfaces()) {
 				removeInterface(ifc);
 			}
 		}
@@ -326,7 +376,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 	/**
-	 * Add all of the given advisors to this proxy configuration.
+	 * Add all the given advisors to this proxy configuration.
 	 * @param advisors the advisors to register
 	 */
 	public void addAdvisors(Advisor... advisors) {
@@ -334,7 +384,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 	/**
-	 * Add all of the given advisors to this proxy configuration.
+	 * Add all the given advisors to this proxy configuration.
 	 * @param advisors the advisors to register
 	 */
 	public void addAdvisors(Collection<Advisor> advisors) {
@@ -343,9 +393,9 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		}
 		if (!CollectionUtils.isEmpty(advisors)) {
 			for (Advisor advisor : advisors) {
-				if (advisor instanceof IntroductionAdvisor) {
+				if (advisor instanceof IntroductionAdvisor introductionAdvisor) {
 					// TODO 如果要处理引入, 则是确定引入Advisor是否实现了指定的接口(defaultImpl里指定的么??)
-					validateIntroductionAdvisor((IntroductionAdvisor) advisor);
+					validateIntroductionAdvisor(introductionAdvisor);
 				}
 				Assert.notNull(advisor, "Advisor must not be null");
 				// TODO 将符合要求的Advisor加入缓存
@@ -362,8 +412,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		//  2. DefaultIntroductionAdvisor: 验证用于引入操作的IntroductionAdvisor是否实现了其指定的接口(defaultImpl里指定的么??)
 		advisor.validateInterfaces();
 		// If the advisor passed validation, we can make the change.
-		Class<?>[] ifcs = advisor.getInterfaces();
-		for (Class<?> ifc : ifcs) {
+		for (Class<?> ifc : advisor.getInterfaces()) {
 			// TODO 如果通过了验证, 则将指定的接口添加到代理实现的所有接口的缓存
 			addInterface(ifc);
 		}
@@ -406,10 +455,10 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	@Override
 	public void addAdvice(int pos, Advice advice) throws AopConfigException {
 		Assert.notNull(advice, "Advice must not be null");
-		if (advice instanceof IntroductionInfo) {
+		if (advice instanceof IntroductionInfo introductionInfo) {
 			// We don't need an IntroductionAdvisor for this kind of introduction:
 			// It's fully self-describing.
-			addAdvisor(pos, new DefaultIntroductionAdvisor(advice, (IntroductionInfo) advice));
+			addAdvisor(pos, new DefaultIntroductionAdvisor(advice, introductionInfo));
 		}
 		else if (advice instanceof DynamicIntroductionAdvice) {
 			// We need an IntroductionAdvisor for this kind of introduction.
@@ -487,30 +536,54 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 */
 	// TODO 返回一个可以应用于代理目标类的方法的方法拦截器列表
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
-		MethodCacheKey cacheKey = new MethodCacheKey(method);
-		// TODO 先从方法缓存里取该方法可以使用的Advisor列表. 如果取到, 直接返回就行
-		List<Object> cached = this.methodCache.get(cacheKey);
-		if (cached == null) {
-			// TODO 没取到时, 会进行一次加载动作. 会遍历所有的Advisor:
-			//  1. PointcutAdvisor: 切点类型的Advisor会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及
-			//     MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor
-			//     (如果是动态的方法拦截器, 会被包装成InterceptorAndDynamicMethodMatcher)
-			//  2. IntroductionAdvisor: 如果Advisor已经过滤过了, 或者匹配上了代理目标类时, 会做和上面相同的处理. 这里只是不需要做切点类型
-			//     的类级匹配测试
-			//  3. 其他类型: 和上面一样, 只是不需要做任何匹配测试
-			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
-					this, method, targetClass);
-			// TODO 然后放到缓存里
-			this.methodCache.put(cacheKey, cached);
+		List<Object> cachedInterceptors;
+		if (this.methodCache != null) {
+			// Method-specific cache for method-specific pointcuts
+			MethodCacheKey cacheKey = new MethodCacheKey(method);
+			// TODO 先从方法缓存里取该方法可以使用的Advisor列表. 如果取到, 直接返回就行
+			cachedInterceptors = this.methodCache.get(cacheKey);
+			if (cachedInterceptors == null) {
+				// TODO 没取到时, 会进行一次加载动作. 会遍历所有的Advisor:
+				//  1. PointcutAdvisor: 切点类型的Advisor会做匹配测试, 匹配成功会从Advisor中拿出方法拦截器MethodInterceptor, 以及
+				//     MethodBeforeAdviceAdapter, AfterReturningAdviceAdapter和ThrowsAdviceAdapter对应的方法拦截器MethodInterceptor
+				//     (如果是动态的方法拦截器, 会被包装成InterceptorAndDynamicMethodMatcher)
+				//  2. IntroductionAdvisor: 如果Advisor已经过滤过了, 或者匹配上了代理目标类时, 会做和上面相同的处理. 这里只是不需要做切点类型
+				//     的类级匹配测试
+				//  3. 其他类型: 和上面一样, 只是不需要做任何匹配测试
+				cachedInterceptors = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
+						this, method, targetClass);
+				// TODO 然后放到缓存里
+				this.methodCache.put(cacheKey, cachedInterceptors);
+			}
 		}
-		return cached;
+		else {
+			// Shared cache since there are no method-specific advisors (see below).
+			cachedInterceptors = this.cachedInterceptors;
+			if (cachedInterceptors == null) {
+				cachedInterceptors = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
+						this, method, targetClass);
+				this.cachedInterceptors = cachedInterceptors;
+			}
+		}
+		return cachedInterceptors;
 	}
 
 	/**
 	 * Invoked when advice has changed.
 	 */
 	protected void adviceChanged() {
-		this.methodCache.clear();
+		this.methodCache = null;
+		this.cachedInterceptors = null;
+		this.proxyMetadataCache = null;
+
+		// Initialize method cache if necessary; otherwise,
+		// cachedInterceptors is going to be shared (see above).
+		for (Advisor advisor : this.advisors) {
+			if (advisor instanceof PointcutAdvisor) {
+				this.methodCache = new ConcurrentHashMap<>();
+				break;
+			}
+		}
 	}
 
 	/**
@@ -523,9 +596,9 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 	/**
-	 * Copy the AOP configuration from the given AdvisedSupport object,
-	 * but allow substitution of a fresh TargetSource and a given interceptor chain.
-	 * @param other the AdvisedSupport object to take proxy configuration from
+	 * Copy the AOP configuration from the given {@link AdvisedSupport} object,
+	 * but allow substitution of a fresh {@link TargetSource} and a given interceptor chain.
+	 * @param other the {@code AdvisedSupport} object to take proxy configuration from
 	 * @param targetSource the new TargetSource
 	 * @param advisors the Advisors for the chain
 	 */
@@ -535,8 +608,8 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		this.advisorChainFactory = other.advisorChainFactory;
 		this.interfaces = new ArrayList<>(other.interfaces);
 		for (Advisor advisor : advisors) {
-			if (advisor instanceof IntroductionAdvisor) {
-				validateIntroductionAdvisor((IntroductionAdvisor) advisor);
+			if (advisor instanceof IntroductionAdvisor introductionAdvisor) {
+				validateIntroductionAdvisor(introductionAdvisor);
 			}
 			Assert.notNull(advisor, "Advisor must not be null");
 			this.advisors.add(advisor);
@@ -545,31 +618,38 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 	/**
-	 * Build a configuration-only copy of this AdvisedSupport,
-	 * replacing the TargetSource.
+	 * Build a configuration-only copy of this {@link AdvisedSupport},
+	 * replacing the {@link TargetSource}.
 	 */
 	AdvisedSupport getConfigurationOnlyCopy() {
 		AdvisedSupport copy = new AdvisedSupport();
 		copy.copyFrom(this);
 		copy.targetSource = EmptyTargetSource.forClass(getTargetClass(), getTargetSource().isStatic());
+		copy.preFiltered = this.preFiltered;
 		copy.advisorChainFactory = this.advisorChainFactory;
 		copy.interfaces = new ArrayList<>(this.interfaces);
 		copy.advisors = new ArrayList<>(this.advisors);
+		copy.advisorKey = new ArrayList<>(this.advisors.size());
+		for (Advisor advisor : this.advisors) {
+			copy.advisorKey.add(new AdvisorKeyEntry(advisor));
+		}
+		copy.methodCache = this.methodCache;
+		copy.cachedInterceptors = this.cachedInterceptors;
+		copy.proxyMetadataCache = this.proxyMetadataCache;
 		return copy;
 	}
 
-
-	//---------------------------------------------------------------------
-	// Serialization support
-	//---------------------------------------------------------------------
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		// Rely on default serialization; just initialize state after deserialization.
-		ois.defaultReadObject();
-
-		// Initialize transient fields.
-		this.methodCache = new ConcurrentHashMap<>(32);
+	void reduceToAdvisorKey() {
+		this.advisors = this.advisorKey;
+		this.methodCache = null;
+		this.cachedInterceptors = null;
+		this.proxyMetadataCache = null;
 	}
+
+	Object getAdvisorKey() {
+		return this.advisorKey;
+	}
+
 
 	@Override
 	public String toProxyConfigString() {
@@ -592,6 +672,19 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	}
 
 
+	//---------------------------------------------------------------------
+	// Serialization support
+	//---------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		// Rely on default serialization; just initialize state after deserialization.
+		ois.defaultReadObject();
+
+		// Initialize method cache if necessary.
+		adviceChanged();
+	}
+
+
 	/**
 	 * Simple wrapper class around a Method. Used as the key when
 	 * caching methods, for efficient equals and hashCode comparisons.
@@ -609,8 +702,8 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			return (this == other || (other instanceof MethodCacheKey &&
-					this.method == ((MethodCacheKey) other).method));
+			return (this == other || (other instanceof MethodCacheKey that &&
+					(this.method == that.method || this.method.equals(that.method))));
 		}
 
 		@Override
@@ -630,6 +723,55 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 				result = this.method.toString().compareTo(other.method.toString());
 			}
 			return result;
+		}
+	}
+
+
+	/**
+	 * Stub for an {@link Advisor} instance that is just needed for key purposes,
+	 * allowing for efficient equals and hashCode comparisons against the
+	 * advice class and the pointcut.
+	 * @since 6.0.10
+	 * @see #getConfigurationOnlyCopy()
+	 * @see #getAdvisorKey()
+	 */
+	private static final class AdvisorKeyEntry implements Advisor {
+
+		private final Class<?> adviceType;
+
+		private final @Nullable String classFilterKey;
+
+		private final @Nullable String methodMatcherKey;
+
+		public AdvisorKeyEntry(Advisor advisor) {
+			this.adviceType = advisor.getAdvice().getClass();
+			if (advisor instanceof PointcutAdvisor pointcutAdvisor) {
+				Pointcut pointcut = pointcutAdvisor.getPointcut();
+				this.classFilterKey = pointcut.getClassFilter().toString();
+				this.methodMatcherKey = pointcut.getMethodMatcher().toString();
+			}
+			else {
+				this.classFilterKey = null;
+				this.methodMatcherKey = null;
+			}
+		}
+
+		@Override
+		public Advice getAdvice() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			return (this == other || (other instanceof AdvisorKeyEntry that &&
+					this.adviceType == that.adviceType &&
+					ObjectUtils.nullSafeEquals(this.classFilterKey, that.classFilterKey) &&
+					ObjectUtils.nullSafeEquals(this.methodMatcherKey, that.methodMatcherKey)));
+		}
+
+		@Override
+		public int hashCode() {
+			return this.adviceType.hashCode();
 		}
 	}
 

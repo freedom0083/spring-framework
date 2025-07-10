@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,64 +17,114 @@
 package org.springframework.aot.generate;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.MethodSpec;
+import org.springframework.javapoet.MethodSpec.Builder;
 import org.springframework.util.Assert;
 
 /**
  * A managed collection of generated methods.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  * @see GeneratedMethod
  */
-public class GeneratedMethods implements Iterable<GeneratedMethod>, MethodGenerator {
+public class GeneratedMethods {
 
-	private final MethodNameGenerator methodNameGenerator;
+	private final ClassName className;
 
-	private final List<GeneratedMethod> generatedMethods = new ArrayList<>();
+	private final Function<MethodName, String> methodNameGenerator;
 
+	private final MethodName prefix;
 
-	/**
-	 * Create a new {@link GeneratedMethods} instance backed by a new
-	 * {@link MethodNameGenerator}.
-	 */
-	public GeneratedMethods() {
-		this(new MethodNameGenerator());
-	}
+	private final List<GeneratedMethod> generatedMethods;
 
 	/**
-	 * Create a new {@link GeneratedMethods} instance backed by the given
-	 * {@link MethodNameGenerator}.
+	 * Create a new {@link GeneratedMethods} using the specified method name
+	 * generator.
+	 * @param className the declaring class name
 	 * @param methodNameGenerator the method name generator
 	 */
-	public GeneratedMethods(MethodNameGenerator methodNameGenerator) {
+	GeneratedMethods(ClassName className, Function<MethodName, String> methodNameGenerator) {
+		Assert.notNull(className, "'className' must not be null");
 		Assert.notNull(methodNameGenerator, "'methodNameGenerator' must not be null");
+		this.className = className;
 		this.methodNameGenerator = methodNameGenerator;
+		this.prefix = MethodName.NONE;
+		this.generatedMethods = new ArrayList<>();
 	}
 
+	private GeneratedMethods(ClassName className, Function<MethodName, String> methodNameGenerator,
+			MethodName prefix, List<GeneratedMethod> generatedMethods) {
 
-	@Override
-	public GeneratedMethod generateMethod(Object... methodNameParts) {
-		return add(methodNameParts);
+		this.className = className;
+		this.methodNameGenerator = methodNameGenerator;
+		this.prefix = prefix;
+		this.generatedMethods = generatedMethods;
 	}
 
 	/**
-	 * Add a new {@link GeneratedMethod}. The returned instance must define the
-	 * method spec by calling {@code using(builder -> ...)}.
-	 * @param methodNameParts the method name parts that should be used to
-	 * generate a unique method name
+	 * Add a new {@link GeneratedMethod}.
+	 * <p>The {@code suggestedName} should provide the unqualified form of what
+	 * the method does. For instance, if the method returns an instance of a
+	 * given type, {@code getInstance} can be used as it is automatically
+	 * qualified using {@linkplain #withPrefix(String) the current prefix}.
+	 * <p>The prefix is applied a little differently for suggested names that
+	 * start with {@code get}, {@code set}, or {@code is}. Taking the previous
+	 * example with a {@code myBean} prefix, the actual method name is
+	 * {@code getMyBeanInstance}. Further processing of the method can happen
+	 * to ensure uniqueness within a class.
+	 * @param suggestedName the suggested name for the method
+	 * @param method a {@link Consumer} used to build method
 	 * @return the newly added {@link GeneratedMethod}
 	 */
-	public GeneratedMethod add(Object... methodNameParts) {
-		GeneratedMethod method = new GeneratedMethod(
-				this.methodNameGenerator.generateMethodName(methodNameParts));
-		this.generatedMethods.add(method);
-		return method;
+	public GeneratedMethod add(String suggestedName, Consumer<Builder> method) {
+		Assert.notNull(suggestedName, "'suggestedName' must not be null");
+		return add(new String[] { suggestedName }, method);
+	}
+
+	/**
+	 * Add a new {@link GeneratedMethod}.
+	 * <p>The {@code suggestedNameParts} should provide the unqualified form of
+	 * what the method does. For instance, if the method returns an instance of
+	 * a given type, {@code ["get", "instance"]} can be used as it is
+	 * automatically qualified using {@linkplain #withPrefix(String) the current
+	 * prefix}.
+	 * <p>The prefix is applied a little differently for suggested name parts
+	 * that start with {@code get}, {@code set}, or {@code is}. Taking the
+	 * previous example with a {@code myBean} prefix, the actual method name is
+	 * {@code getMyBeanInstance}. Further processing of the method can happen
+	 * to ensure uniqueness within a class.
+	 * @param suggestedNameParts the suggested name parts for the method
+	 * @param method a {@link Consumer} used to build method
+	 * @return the newly added {@link GeneratedMethod}
+	 */
+	public GeneratedMethod add(String[] suggestedNameParts, Consumer<Builder> method) {
+		Assert.notNull(suggestedNameParts, "'suggestedNameParts' must not be null");
+		Assert.notNull(method, "'method' must not be null");
+		String generatedName = this.methodNameGenerator.apply(this.prefix.and(suggestedNameParts));
+		GeneratedMethod generatedMethod = new GeneratedMethod(this.className, generatedName, method);
+		this.generatedMethods.add(generatedMethod);
+		return generatedMethod;
+	}
+
+	/**
+	 * Specify the prefix to use for method names. The prefix applies to
+	 * suggested method names, with special handling of {@code get}, {@code set},
+	 * and {@code is} prefixes in the suggested name itself.
+	 * @param prefix the prefix to add to suggested method names
+	 * @return a new instance with the specified prefix
+	 */
+	public GeneratedMethods withPrefix(String prefix) {
+		Assert.notNull(prefix, "'prefix' must not be null");
+		return new GeneratedMethods(this.className, this.methodNameGenerator,
+				this.prefix.and(prefix), this.generatedMethods);
 	}
 
 	/**
@@ -82,20 +132,11 @@ public class GeneratedMethods implements Iterable<GeneratedMethod>, MethodGenera
 	 * that have been added to this collection.
 	 * @param action the action to perform
 	 */
-	public void doWithMethodSpecs(Consumer<MethodSpec> action) {
-		stream().map(GeneratedMethod::getSpec).forEach(action);
+	void doWithMethodSpecs(Consumer<MethodSpec> action) {
+		stream().map(GeneratedMethod::getMethodSpec).forEach(action);
 	}
 
-	@Override
-	public Iterator<GeneratedMethod> iterator() {
-		return this.generatedMethods.iterator();
-	}
-
-	/**
-	 * Return a {@link Stream} of all the methods in this collection.
-	 * @return a stream of {@link GeneratedMethod} instances
-	 */
-	public Stream<GeneratedMethod> stream() {
+	Stream<GeneratedMethod> stream() {
 		return this.generatedMethods.stream();
 	}
 

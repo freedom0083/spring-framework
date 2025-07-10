@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ public class MissingPathVariableException extends MissingRequestValueException {
 	public MissingPathVariableException(
 			String variableName, MethodParameter parameter, boolean missingAfterConversion) {
 
-		super("", missingAfterConversion);
+		super("", missingAfterConversion, null, new Object[] {variableName});
 		this.variableName = variableName;
 		this.parameter = parameter;
 		getBody().setDetail("Required path variable '" + this.variableName + "' is not present.");
@@ -88,7 +88,7 @@ public class MissingPathVariableException extends MissingRequestValueException {
 
 	@Override
 	public HttpStatusCode getStatusCode() {
-		return HttpStatus.INTERNAL_SERVER_ERROR;
+		return (isMissingAfterConversion() ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 }

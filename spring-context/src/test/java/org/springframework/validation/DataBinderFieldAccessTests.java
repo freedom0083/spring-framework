@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,17 +52,17 @@ class DataBinderFieldAccessTests {
 		binder.bind(pvs);
 		binder.close();
 
-		assertThat(rod.getName().equals("Rod")).as("changed name correctly").isTrue();
-		assertThat(rod.getAge() == 32).as("changed age correctly").isTrue();
+		assertThat(rod.getName()).as("changed name correctly").isEqualTo("Rod");
+		assertThat(rod.getAge()).as("changed age correctly").isEqualTo(32);
 
 		Map<?, ?> m = binder.getBindingResult().getModel();
-		assertThat(m.size() == 2).as("There is one element in map").isTrue();
+		assertThat(m).as("There is one element in map").hasSize(2);
 		FieldAccessBean tb = (FieldAccessBean) m.get("person");
 		assertThat(tb.equals(rod)).as("Same object").isTrue();
 	}
 
 	@Test
-	void bindingNoErrorsNotIgnoreUnknown() throws Exception {
+	void bindingNoErrorsNotIgnoreUnknown() {
 		FieldAccessBean rod = new FieldAccessBean();
 		DataBinder binder = new DataBinder(rod, "person");
 		binder.initDirectFieldAccess();
@@ -76,7 +76,7 @@ class DataBinderFieldAccessTests {
 	}
 
 	@Test
-	void bindingWithErrors() throws Exception {
+	void bindingWithErrors() {
 		FieldAccessBean rod = new FieldAccessBean();
 		DataBinder binder = new DataBinder(rod, "person");
 		binder.initDirectFieldAccess();
@@ -122,7 +122,7 @@ class DataBinderFieldAccessTests {
 	}
 
 	@Test
-	void nestedBindingWithDisabledAutoGrow() throws Exception {
+	void nestedBindingWithDisabledAutoGrow() {
 		FieldAccessBean rod = new FieldAccessBean();
 		DataBinder binder = new DataBinder(rod, "person");
 		binder.setAutoGrowNestedPaths(false);
@@ -135,7 +135,7 @@ class DataBinderFieldAccessTests {
 	}
 
 	@Test
-	void bindingWithErrorsAndCustomEditors() throws Exception {
+	void bindingWithErrorsAndCustomEditors() {
 		FieldAccessBean rod = new FieldAccessBean();
 		DataBinder binder = new DataBinder(rod, "person");
 		binder.initDirectFieldAccess();

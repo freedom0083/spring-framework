@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ class AutowiredMethodArgumentsResolverTests {
 
 	@Test
 	void forMethodWhenMethodNameIsEmptyThrowsException() {
-		String message = "MethodName must not be empty";
+		String message = "'methodName' must not be empty";
 		assertThatIllegalArgumentException()
 				.isThrownBy(() -> AutowiredMethodArgumentsResolver.forMethod(null))
 				.withMessage(message);
@@ -68,18 +68,17 @@ class AutowiredMethodArgumentsResolverTests {
 		assertThatIllegalArgumentException()
 				.isThrownBy(() -> AutowiredMethodArgumentsResolver
 						.forMethod("injectString", String.class).resolve(null))
-				.withMessage("RegisteredBean must not be null");
+				.withMessage("'registeredBean' must not be null");
 	}
 
 	@Test
 	void resolveWhenMethodIsMissingThrowsException() {
 		RegisteredBean registeredBean = registerTestBean(this.beanFactory);
+		AutowiredMethodArgumentsResolver resolver = AutowiredMethodArgumentsResolver.forMethod("missing", InputStream.class);
 		assertThatIllegalArgumentException()
-				.isThrownBy(() -> AutowiredMethodArgumentsResolver
-						.forMethod("missing", InputStream.class).resolve(registeredBean))
-				.withMessage(
-						"Method 'missing' with parameter types [java.io.InputStream] declared on "
-								+ TestBean.class.getName());
+				.isThrownBy(() -> resolver.resolve(registeredBean))
+				.withMessage("Method 'missing' with parameter types [java.io.InputStream] declared on %s could not be found.",
+						TestBean.class.getName());
 	}
 
 	@Test
@@ -115,8 +114,8 @@ class AutowiredMethodArgumentsResolverTests {
 	}
 
 	@Test
-	void resolveRequiredWithMultipleDependencesReturnsValue() {
-		Environment environment = mock(Environment.class);
+	void resolveRequiredWithMultipleDependenciesReturnsValue() {
+		Environment environment = mock();
 		this.beanFactory.registerSingleton("test", "testValue");
 		this.beanFactory.registerSingleton("environment", environment);
 		RegisteredBean registeredBean = registerTestBean(this.beanFactory);
@@ -134,7 +133,7 @@ class AutowiredMethodArgumentsResolverTests {
 				.isThrownBy(() -> AutowiredMethodArgumentsResolver
 						.forMethod("injectString", String.class)
 						.resolveAndInvoke(registeredBean, null))
-				.withMessage("Instance must not be null");
+				.withMessage("'instance' must not be null");
 	}
 
 	@Test
@@ -155,7 +154,7 @@ class AutowiredMethodArgumentsResolverTests {
 				.isThrownBy(() -> AutowiredMethodArgumentsResolver
 						.forMethod("injectString", String.class)
 						.resolve(registeredBean, null))
-				.withMessage("Action must not be null");
+				.withMessage("'action' must not be null");
 	}
 
 	@Test

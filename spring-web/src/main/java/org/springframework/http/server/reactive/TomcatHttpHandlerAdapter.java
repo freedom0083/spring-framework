@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,30 +20,20 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 
 import jakarta.servlet.AsyncContext;
-import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
-import org.apache.catalina.connector.CoyoteInputStream;
-import org.apache.catalina.connector.CoyoteOutputStream;
 import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.connector.ResponseFacade;
 import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.util.Assert;
-import org.springframework.util.MultiValueMap;
 import org.springframework.util.ReflectionUtils;
 
 /**
@@ -53,11 +43,11 @@ import org.springframework.util.ReflectionUtils;
  * @author Violeta Georgieva
  * @author Brian Clozel
  * @author Sam Brannen
+ * @author Juergen Hoeller
  * @since 5.0
  * @see org.springframework.web.server.adapter.AbstractReactiveWebInitializer
  */
 public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
-
 
 	public TomcatHttpHandlerAdapter(HttpHandler httpHandler) {
 		super(httpHandler);
@@ -68,7 +58,7 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 	protected ServletServerHttpRequest createRequest(HttpServletRequest request, AsyncContext asyncContext)
 			throws IOException, URISyntaxException {
 
-		Assert.notNull(getServletPath(), "Servlet path is not initialized");
+		Assert.state(getServletPath() != null, "Servlet path is not initialized");
 		return new TomcatServerHttpRequest(
 				request, asyncContext, getServletPath(), getDataBufferFactory(), getBufferSize());
 	}
@@ -78,17 +68,13 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 			AsyncContext asyncContext, ServletServerHttpRequest request) throws IOException {
 
 		return new TomcatServerHttpResponse(
-				response, asyncContext, getDataBufferFactory(), getBufferSize(), request);
+				response, asyncContext, getDataBufferFactory(), request);
 	}
 
 
 	private static final class TomcatServerHttpRequest extends ServletServerHttpRequest {
 
 		private static final Field COYOTE_REQUEST_FIELD;
-
-		private final int bufferSize;
-
-		private final DataBufferFactory factory;
 
 		static {
 			Field field = ReflectionUtils.findField(RequestFacade.class, "request");
@@ -102,17 +88,15 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 				throws IOException, URISyntaxException {
 
 			super(createTomcatHttpHeaders(request), request, context, servletPath, factory, bufferSize);
-			this.factory = factory;
-			this.bufferSize = bufferSize;
 		}
 
-		private static MultiValueMap<String, String> createTomcatHttpHeaders(HttpServletRequest request) {
+		private static HttpHeaders createTomcatHttpHeaders(HttpServletRequest request) {
 			RequestFacade requestFacade = getRequestFacade(request);
 			org.apache.catalina.connector.Request connectorRequest = (org.apache.catalina.connector.Request)
 					ReflectionUtils.getField(COYOTE_REQUEST_FIELD, requestFacade);
 			Assert.state(connectorRequest != null, "No Tomcat connector request");
 			Request tomcatRequest = connectorRequest.getCoyoteRequest();
-			return new TomcatHeadersAdapter(tomcatRequest.getMimeHeaders());
+			return new HttpHeaders(new TomcatHeadersAdapter(tomcatRequest.getMimeHeaders()));
 		}
 
 		private static RequestFacade getRequestFacade(HttpServletRequest request) {
@@ -129,38 +113,6 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 			}
 		}
 
-		@Override
-		protected DataBuffer readFromInputStream() throws IOException {
-			ServletInputStream inputStream = ((ServletRequest) getNativeRequest()).getInputStream();
-			if (!(inputStream instanceof CoyoteInputStream coyoteInputStream)) {
-				// It's possible InputStream can be wrapped, preventing use of CoyoteInputStream
-				return super.readFromInputStream();
-			}
-			boolean release = true;
-			int capacity = this.bufferSize;
-			DataBuffer dataBuffer = this.factory.allocateBuffer(capacity);
-			try {
-				ByteBuffer byteBuffer = dataBuffer.asByteBuffer(0, capacity);
-				int read = coyoteInputStream.read(byteBuffer);
-				logBytesRead(read);
-				if (read > 0) {
-					dataBuffer.writePosition(read);
-					release = false;
-					return dataBuffer;
-				}
-				else if (read == -1) {
-					return EOF_BUFFER;
-				}
-				else {
-					return AbstractListenerReadPublisher.EMPTY_BUFFER;
-				}
-			}
-			finally {
-				if (release) {
-					DataBufferUtils.release(dataBuffer);
-				}
-			}
-		}
 	}
 
 
@@ -176,9 +128,9 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 		}
 
 		TomcatServerHttpResponse(HttpServletResponse response, AsyncContext context,
-				DataBufferFactory factory, int bufferSize, ServletServerHttpRequest request) throws IOException {
+				DataBufferFactory factory, ServletServerHttpRequest request) throws IOException {
 
-			super(createTomcatHttpHeaders(response), response, context, factory, bufferSize, request);
+			super(createTomcatHttpHeaders(response), response, context, factory, request);
 		}
 
 		private static HttpHeaders createTomcatHttpHeaders(HttpServletResponse response) {
@@ -207,38 +159,9 @@ public class TomcatHttpHandlerAdapter extends ServletHttpHandlerAdapter {
 
 		@Override
 		protected void applyHeaders() {
-			HttpServletResponse response = getNativeResponse();
-			MediaType contentType = null;
-			try {
-				contentType = getHeaders().getContentType();
-			}
-			catch (Exception ex) {
-				String rawContentType = getHeaders().getFirst(HttpHeaders.CONTENT_TYPE);
-				response.setContentType(rawContentType);
-			}
-			if (response.getContentType() == null && contentType != null) {
-				response.setContentType(contentType.toString());
-			}
-			getHeaders().remove(HttpHeaders.CONTENT_TYPE);
-			Charset charset = (contentType != null ? contentType.getCharset() : null);
-			if (response.getCharacterEncoding() == null && charset != null) {
-				response.setCharacterEncoding(charset.name());
-			}
-			long contentLength = getHeaders().getContentLength();
-			if (contentLength != -1) {
-				response.setContentLengthLong(contentLength);
-			}
-			getHeaders().remove(HttpHeaders.CONTENT_LENGTH);
+			adaptHeaders(true);
 		}
 
-		@Override
-		protected int writeToOutputStream(DataBuffer dataBuffer) throws IOException {
-			ByteBuffer input = dataBuffer.asByteBuffer();
-			int len = input.remaining();
-			ServletResponse response = getNativeResponse();
-			((CoyoteOutputStream) response.getOutputStream()).write(input);
-			return len;
-		}
 	}
 
 }

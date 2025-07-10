@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.server.ServerWebExchange;
@@ -31,8 +33,8 @@ import org.springframework.web.server.ServerWebExchange;
  * ensure all conditions match a given request.
  *
  * <p>When {@code CompositeRequestCondition} instances are combined or compared
- * they are expected to (a) contain the same number of conditions and (b) that
- * conditions in the respective index are of the same type. It is acceptable to
+ * is expected that (a) they contain the same number of conditions and (b)
+ * conditions at the same index are of the same type. It is acceptable to
  * provide {@code null} conditions or no conditions at all to the constructor.
  *
  * @author Rossen Stoyanchev
@@ -77,12 +79,12 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 	/**
 	 * Return the underlying conditions, possibly empty but never {@code null}.
 	 */
-	public List<RequestCondition<?>> getConditions() {
+	public List<@Nullable RequestCondition<?>> getConditions() {
 		return unwrap();
 	}
 
-	private List<RequestCondition<?>> unwrap() {
-		List<RequestCondition<?>> result = new ArrayList<>();
+	private List<@Nullable RequestCondition<?>> unwrap() {
+		List<@Nullable RequestCondition<?>> result = new ArrayList<>();
 		for (RequestConditionHolder holder : this.requestConditions) {
 			result.add(holder.getCondition());
 		}
@@ -90,7 +92,7 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 	}
 
 	@Override
-	protected Collection<?> getContent() {
+	protected Collection<? extends @Nullable Object> getContent() {
 		return (!isEmpty() ? getConditions() : Collections.emptyList());
 	}
 
@@ -105,7 +107,7 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 
 	/**
 	 * If one instance is empty, return the other.
-	 * If both instances have conditions, combine the individual conditions
+	 * <p>If both instances have conditions, combine the individual conditions
 	 * after ensuring they are of the same type and number.
 	 */
 	@Override
@@ -131,8 +133,8 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 
 	private void assertNumberOfConditions(CompositeRequestCondition other) {
 		Assert.isTrue(getLength() == other.getLength(),
-				"Cannot combine CompositeRequestConditions with a different number of conditions. " +
-				ObjectUtils.nullSafeToString(this.requestConditions) + " and  " +
+				() -> "Cannot combine CompositeRequestConditions with a different number of conditions. " +
+				ObjectUtils.nullSafeToString(this.requestConditions) + " and " +
 				ObjectUtils.nullSafeToString(other.requestConditions));
 	}
 
@@ -142,16 +144,17 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 	 * <p>An empty {@code CompositeRequestCondition} matches to all requests.
 	 */
 	@Override
-	public CompositeRequestCondition getMatchingCondition(ServerWebExchange exchange) {
+	public @Nullable CompositeRequestCondition getMatchingCondition(ServerWebExchange exchange) {
 		if (isEmpty()) {
 			return this;
 		}
 		RequestConditionHolder[] matchingConditions = new RequestConditionHolder[getLength()];
 		for (int i = 0; i < getLength(); i++) {
-			matchingConditions[i] = this.requestConditions[i].getMatchingCondition(exchange);
-			if (matchingConditions[i] == null) {
+			RequestConditionHolder matchingCondition = this.requestConditions[i].getMatchingCondition(exchange);
+			if (matchingCondition == null) {
 				return null;
 			}
+			matchingConditions[i] = matchingCondition;
 		}
 		return new CompositeRequestCondition(matchingConditions);
 	}

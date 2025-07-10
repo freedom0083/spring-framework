@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ public class DefaultBindingErrorProcessor implements BindingErrorProcessor {
 
 	@Override
 	public void processPropertyAccessException(PropertyAccessException ex, BindingResult bindingResult) {
-		// Create field error with the exceptions's code, e.g. "typeMismatch".
+		// Create field error with the code of the exception, for example, "typeMismatch".
 		String field = ex.getPropertyName();
 		Assert.state(field != null, "No field in exception");
 		String[] codes = bindingResult.resolveMessageCodes(ex.getErrorCode(), field);

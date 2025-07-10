@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import javax.xml.transform.stream.StreamResult;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.xml.bind.JAXBElement;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.oxm.Marshaller;
 import org.springframework.util.Assert;
 import org.springframework.validation.BindingResult;
@@ -53,11 +53,9 @@ public class MarshallingView extends AbstractView {
 	public static final String DEFAULT_CONTENT_TYPE = "application/xml";
 
 
-	@Nullable
-	private Marshaller marshaller;
+	private @Nullable Marshaller marshaller;
 
-	@Nullable
-	private String modelKey;
+	private @Nullable String modelKey;
 
 
 	/**
@@ -97,7 +95,7 @@ public class MarshallingView extends AbstractView {
 
 	@Override
 	protected void initApplicationContext() {
-		Assert.notNull(this.marshaller, "Property 'marshaller' is required");
+		Assert.state(this.marshaller != null, "Property 'marshaller' is required");
 	}
 
 
@@ -130,8 +128,7 @@ public class MarshallingView extends AbstractView {
 	 * {@linkplain #setModelKey(String) model key} is not supported by the marshaller
 	 * @see #setModelKey(String)
 	 */
-	@Nullable
-	protected Object locateToBeMarshalled(Map<String, Object> model) throws IllegalStateException {
+	protected @Nullable Object locateToBeMarshalled(Map<String, Object> model) throws IllegalStateException {
 		if (this.modelKey != null) {
 			Object value = model.get(this.modelKey);
 			if (value == null) {
@@ -166,8 +163,8 @@ public class MarshallingView extends AbstractView {
 	protected boolean isEligibleForMarshalling(String modelKey, Object value) {
 		Assert.state(this.marshaller != null, "No Marshaller set");
 		Class<?> classToCheck = value.getClass();
-		if (value instanceof JAXBElement) {
-			classToCheck = ((JAXBElement<?>) value).getDeclaredType();
+		if (value instanceof JAXBElement<?> jaxbElement) {
+			classToCheck = jaxbElement.getDeclaredType();
 		}
 		return this.marshaller.supports(classToCheck);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.BootstrapTestUtils;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.ContextLoader;
 import org.springframework.test.context.MergedContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.support.BootstrapTestUtilsMergedConfigTests.EmptyConfigTestCase.Nested;
@@ -36,10 +35,9 @@ import org.springframework.test.context.web.WebDelegatingSmartContextLoader;
 import org.springframework.test.context.web.WebMergedContextConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link BootstrapTestUtils} involving {@link MergedContextConfiguration}.
+ * Tests for {@link BootstrapTestUtils} involving {@link MergedContextConfiguration}.
  *
  * @author Sam Brannen
  * @since 3.1
@@ -59,10 +57,14 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 	 */
 	@Test
 	void buildMergedConfigWithContextConfigurationWithoutLocationsClassesOrInitializers() {
-		assertThatIllegalStateException().isThrownBy(() ->
-				buildMergedContextConfiguration(MissingContextAttributesTestCase.class))
-			.withMessageStartingWith("DelegatingSmartContextLoader was unable to detect defaults, "
-					+ "and no ApplicationContextInitializers or ContextCustomizers were declared for context configuration attributes");
+		Class<?> testClass = MissingContextAttributesTestCase.class;
+		MergedContextConfiguration mergedConfig = buildMergedContextConfiguration(testClass);
+
+		assertMergedConfig(mergedConfig, testClass, EMPTY_STRING_ARRAY, EMPTY_CLASS_ARRAY, DelegatingSmartContextLoader.class);
+		assertThat(mergedConfig.getContextCustomizers())
+				.map(Object::getClass)
+				.map(Class::getSimpleName)
+				.containsOnly("DynamicPropertiesContextCustomizer");
 	}
 
 	@Test
@@ -73,7 +75,7 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 		assertMergedConfig(
 			mergedConfig,
 			testClass,
-			array("classpath:org/springframework/test/context/support/AbstractContextConfigurationUtilsTests$BareAnnotations-context.xml"),
+			array("classpath:/org/springframework/test/context/support/AbstractContextConfigurationUtilsTests$BareAnnotations-context.xml"),
 			EMPTY_CLASS_ARRAY, DelegatingSmartContextLoader.class);
 	}
 
@@ -140,28 +142,6 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	void buildMergedConfigWithLocalAnnotationAndOverriddenContextLoaderAndLocations() {
-		Class<?> testClass = PropertiesLocationsFoo.class;
-		Class<? extends ContextLoader> expectedContextLoaderClass = org.springframework.test.context.support.GenericPropertiesContextLoader.class;
-		MergedContextConfiguration mergedConfig = buildMergedContextConfiguration(testClass);
-
-		assertMergedConfig(mergedConfig, testClass, array("classpath:/foo.properties"), EMPTY_CLASS_ARRAY,
-			expectedContextLoaderClass);
-	}
-
-	@Test
-	@SuppressWarnings("deprecation")
-	void buildMergedConfigWithLocalAnnotationAndOverriddenContextLoaderAndClasses() {
-		Class<?> testClass = PropertiesClassesFoo.class;
-		Class<? extends ContextLoader> expectedContextLoaderClass = org.springframework.test.context.support.GenericPropertiesContextLoader.class;
-		MergedContextConfiguration mergedConfig = buildMergedContextConfiguration(testClass);
-
-		assertMergedConfig(mergedConfig, testClass, EMPTY_STRING_ARRAY, array(FooConfig.class),
-			expectedContextLoaderClass);
-	}
-
-	@Test
 	void buildMergedConfigWithLocalAndInheritedAnnotationsAndLocations() {
 		Class<?> testClass = LocationsBar.class;
 		String[] expectedLocations = array("/foo.xml", "/bar.xml");
@@ -209,6 +189,7 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 		assertMergedConfigForLocationPaths(RelativeFooXmlLocation.class);
 	}
 
+	@SuppressWarnings("deprecation")
 	private void assertMergedConfigForLocationPaths(Class<?> testClass) {
 		MergedContextConfiguration mergedConfig = buildMergedContextConfiguration(testClass);
 
@@ -289,10 +270,7 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 
 		MergedContextConfiguration parent = mergedConfig.getParent();
 		assertThat(parent).as("parent config").isNotNull();
-		// The following does not work -- at least not in Eclipse.
-		// asssertThat(parent.getClasses())...
-		// So we use AssertionsForClassTypes directly.
-		AssertionsForClassTypes.assertThat(parent.getClasses()).containsExactly(FooConfig.class);
+		assertThat(parent.getClasses()).containsExactly(FooConfig.class);
 
 		assertMergedConfig(mergedConfig, testClass, EMPTY_STRING_ARRAY, expectedClasses,
 			AnnotationConfigContextLoader.class);
@@ -312,7 +290,7 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 
 		MergedContextConfiguration parent = mergedConfig.getParent();
 		assertThat(parent).as("parent config").isNotNull();
-		AssertionsForClassTypes.assertThat(parent.getClasses()).containsExactly(FooConfig.class);
+		assertThat(parent.getClasses()).containsExactly(FooConfig.class);
 
 		assertMergedConfig(mergedConfig, enclosingTestClass, EMPTY_STRING_ARRAY, expectedClasses,
 			AnnotationConfigContextLoader.class);
@@ -331,7 +309,7 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 
 		MergedContextConfiguration parent = mergedConfig.getParent();
 		assertThat(parent).as("parent config").isNotNull();
-		AssertionsForClassTypes.assertThat(parent.getClasses()).containsExactly(FooConfig.class);
+		assertThat(parent.getClasses()).containsExactly(FooConfig.class);
 
 		assertMergedConfig(mergedConfig, testClass, EMPTY_STRING_ARRAY, expectedClasses,
 			AnnotationConfigContextLoader.class);
@@ -464,16 +442,17 @@ class BootstrapTestUtilsMergedConfigTests extends AbstractContextConfigurationUt
 	@ContextConfiguration
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
-	public static @interface SpringAppConfig {
+	public @interface SpringAppConfig {
 
+		@AliasFor(annotation = ContextConfiguration.class)
 		Class<?>[] classes() default {};
 	}
 
 	@SpringAppConfig(classes = { FooConfig.class, BarConfig.class })
-	public static abstract class Dog {
+	public abstract static class Dog {
 	}
 
-	public static abstract class WorkingDog extends Dog {
+	public abstract static class WorkingDog extends Dog {
 	}
 
 	public static class GermanShepherd extends WorkingDog {

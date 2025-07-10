@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.SpringProperties;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -31,8 +33,9 @@ import org.springframework.core.annotation.MergedAnnotationPredicates;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.core.annotation.RepeatableContainers;
+import org.springframework.core.style.DefaultToStringStyler;
+import org.springframework.core.style.SimpleValueStyler;
 import org.springframework.core.style.ToStringCreator;
-import org.springframework.lang.Nullable;
 import org.springframework.test.context.NestedTestConfiguration.EnclosingConfiguration;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -41,18 +44,20 @@ import org.springframework.util.ObjectUtils;
 
 /**
  * {@code TestContextAnnotationUtils} is a collection of utility methods that
- * complements the standard support already available in {@link AnnotationUtils}
- * and {@link AnnotatedElementUtils}, while transparently honoring
- * {@link NestedTestConfiguration @NestedTestConfiguration} semantics.
+ * complements the standard support already available in {@link MergedAnnotations},
+ * {@link AnnotationUtils}, and {@link AnnotatedElementUtils}, while transparently
+ * honoring {@link NestedTestConfiguration @NestedTestConfiguration} semantics.
  *
- * <p>Mainly for internal use within the <em>Spring TestContext Framework</em>.
+ * <p>Mainly for internal use within the <em>Spring TestContext Framework</em>
+ * but also supported for third-party integrations with the TestContext framework.
  *
- * <p>Whereas {@code AnnotationUtils} and {@code AnnotatedElementUtils} provide
- * utilities for <em>getting</em> or <em>finding</em> annotations,
- * {@code TestContextAnnotationUtils} goes a step further by providing support
- * for determining the <em>root class</em> on which an annotation is declared,
- * either directly or indirectly via a <em>composed annotation</em>. This
- * additional information is encapsulated in an {@link AnnotationDescriptor}.
+ * <p>Whereas {@code MergedAnnotations}, {@code AnnotationUtils} and
+ * {@code AnnotatedElementUtils} provide utilities for <em>getting</em> or
+ * <em>finding</em> annotations, {@code TestContextAnnotationUtils} goes a step
+ * further by providing support for determining the <em>root class</em> on which
+ * an annotation is declared, either directly or indirectly via a
+ * <em>composed annotation</em>. This additional information is encapsulated in
+ * an {@link AnnotationDescriptor}.
  *
  * <p>The additional information provided by an {@code AnnotationDescriptor} is
  * required by the <em>Spring TestContext Framework</em> in order to be able to
@@ -64,18 +69,22 @@ import org.springframework.util.ObjectUtils;
  * example, {@link ContextConfiguration#inheritLocations}.
  *
  * @author Sam Brannen
- * @since 5.3, though originally since 4.0 as {@link org.springframework.test.util.MetaAnnotationUtils}
+ * @since 5.3
+ * @see MergedAnnotations
+ * @see MergedAnnotations.Search
+ * @see MergedAnnotations.Search#withEnclosingClasses(Predicate)
+ * @see #searchEnclosingClass(Class)
  * @see AnnotationUtils
  * @see AnnotatedElementUtils
  * @see AnnotationDescriptor
+ * @see NestedTestConfiguration
  */
 public abstract class TestContextAnnotationUtils {
 
 	private static final ConcurrentLruCache<Class<?>, EnclosingConfiguration> cachedEnclosingConfigurationModes =
 			new ConcurrentLruCache<>(32, TestContextAnnotationUtils::lookUpEnclosingConfiguration);
 
-	@Nullable
-	private static volatile EnclosingConfiguration defaultEnclosingConfigurationMode;
+	private static volatile @Nullable EnclosingConfiguration defaultEnclosingConfigurationMode;
 
 
 	/**
@@ -119,13 +128,11 @@ public abstract class TestContextAnnotationUtils {
 	 * @see #findAnnotationDescriptor(Class, Class)
 	 * @see #searchEnclosingClass(Class)
 	 */
-	@Nullable
-	public static <T extends Annotation> T findMergedAnnotation(Class<?> clazz, Class<T> annotationType) {
+	public static <T extends Annotation> @Nullable T findMergedAnnotation(Class<?> clazz, Class<T> annotationType) {
 		return findMergedAnnotation(clazz, annotationType, TestContextAnnotationUtils::searchEnclosingClass);
 	}
 
-	@Nullable
-	private static <T extends Annotation> T findMergedAnnotation(Class<?> clazz, Class<T> annotationType,
+	private static <T extends Annotation> @Nullable T findMergedAnnotation(Class<?> clazz, Class<T> annotationType,
 			Predicate<Class<?>> searchEnclosingClass) {
 
 		return MergedAnnotations.search(SearchStrategy.TYPE_HIERARCHY)
@@ -211,8 +218,7 @@ public abstract class TestContextAnnotationUtils {
 	 * otherwise {@code null}
 	 * @see #findAnnotationDescriptorForTypes(Class, Class...)
 	 */
-	@Nullable
-	public static <T extends Annotation> AnnotationDescriptor<T> findAnnotationDescriptor(
+	public static <T extends Annotation> @Nullable AnnotationDescriptor<T> findAnnotationDescriptor(
 			Class<?> clazz, Class<T> annotationType) {
 
 		Assert.notNull(annotationType, "Annotation type must not be null");
@@ -232,8 +238,7 @@ public abstract class TestContextAnnotationUtils {
 	 * @return the corresponding annotation descriptor if the annotation was found;
 	 * otherwise {@code null}
 	 */
-	@Nullable
-	private static <T extends Annotation> AnnotationDescriptor<T> findAnnotationDescriptor(
+	private static <T extends Annotation> @Nullable AnnotationDescriptor<T> findAnnotationDescriptor(
 			@Nullable Class<?> clazz, Class<T> annotationType, Predicate<Class<?>> searchEnclosingClass,
 			Set<Annotation> visited) {
 
@@ -246,7 +251,7 @@ public abstract class TestContextAnnotationUtils {
 			return new AnnotationDescriptor<>(clazz, clazz.getAnnotation(annotationType));
 		}
 
-		AnnotationDescriptor<T> descriptor = null;
+		AnnotationDescriptor<T> descriptor;
 
 		// Declared on a composed annotation (i.e., as a meta-annotation)?
 		for (Annotation composedAnn : clazz.getDeclaredAnnotations()) {
@@ -318,8 +323,7 @@ public abstract class TestContextAnnotationUtils {
 	 * @see #findAnnotationDescriptor(Class, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	@Nullable
-	public static UntypedAnnotationDescriptor findAnnotationDescriptorForTypes(
+	public static @Nullable UntypedAnnotationDescriptor findAnnotationDescriptorForTypes(
 			Class<?> clazz, Class<? extends Annotation>... annotationTypes) {
 
 		assertNonEmptyAnnotationTypeArray(annotationTypes, "The list of annotation types must not be empty");
@@ -336,8 +340,7 @@ public abstract class TestContextAnnotationUtils {
 	 * @return the corresponding annotation descriptor if one of the annotations
 	 * was found; otherwise {@code null}
 	 */
-	@Nullable
-	private static UntypedAnnotationDescriptor findAnnotationDescriptorForTypes(@Nullable Class<?> clazz,
+	private static @Nullable UntypedAnnotationDescriptor findAnnotationDescriptorForTypes(@Nullable Class<?> clazz,
 			Class<? extends Annotation>[] annotationTypes, Set<Annotation> visited) {
 
 		if (clazz == null || Object.class == clazz) {
@@ -552,8 +555,7 @@ public abstract class TestContextAnnotationUtils {
 		 * @return the next corresponding annotation descriptor if the annotation
 		 * was found; otherwise {@code null}
 		 */
-		@Nullable
-		public AnnotationDescriptor<T> next() {
+		public @Nullable AnnotationDescriptor<T> next() {
 			// Declared on a superclass?
 			AnnotationDescriptor<T> descriptor =
 					findAnnotationDescriptor(getRootDeclaringClass().getSuperclass(), getAnnotationType());
@@ -585,9 +587,9 @@ public abstract class TestContextAnnotationUtils {
 		 */
 		@Override
 		public String toString() {
-			return new ToStringCreator(this)
-					.append("rootDeclaringClass", this.rootDeclaringClass.getName())
-					.append("declaringClass", this.declaringClass.getName())
+			return new ToStringCreator(this, new DefaultToStringStyler(new SimpleValueStyler()))
+					.append("rootDeclaringClass", this.rootDeclaringClass)
+					.append("declaringClass", this.declaringClass)
 					.append("annotation", this.annotation)
 					.toString();
 		}
@@ -631,8 +633,7 @@ public abstract class TestContextAnnotationUtils {
 		 * @see AnnotationDescriptor#next()
 		 */
 		@Override
-		@Nullable
-		public UntypedAnnotationDescriptor next() {
+		public @Nullable UntypedAnnotationDescriptor next() {
 			// Declared on a superclass?
 			UntypedAnnotationDescriptor descriptor =
 					findAnnotationDescriptorForTypes(getRootDeclaringClass().getSuperclass(), this.annotationTypes);

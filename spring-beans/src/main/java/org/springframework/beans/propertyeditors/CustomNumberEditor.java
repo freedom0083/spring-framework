@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package org.springframework.beans.propertyeditors;
 import java.beans.PropertyEditorSupport;
 import java.text.NumberFormat;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.NumberUtils;
 import org.springframework.util.StringUtils;
 
@@ -47,8 +48,7 @@ public class CustomNumberEditor extends PropertyEditorSupport {
 
 	private final Class<? extends Number> numberClass;
 
-	@Nullable
-	private final NumberFormat numberFormat;
+	private final @Nullable NumberFormat numberFormat;
 
 	private final boolean allowEmpty;
 
@@ -121,8 +121,8 @@ public class CustomNumberEditor extends PropertyEditorSupport {
 	 */
 	@Override
 	public void setValue(@Nullable Object value) {
-		if (value instanceof Number) {
-			super.setValue(NumberUtils.convertNumberToTargetClass((Number) value, this.numberClass));
+		if (value instanceof Number num) {
+			super.setValue(NumberUtils.convertNumberToTargetClass(num, this.numberClass));
 		}
 		else {
 			super.setValue(value);

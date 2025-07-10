@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,10 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.web.socket.WebSocketExtension;
 import org.springframework.web.socket.WebSocketHandler;
 
@@ -31,6 +32,7 @@ import org.springframework.web.socket.WebSocketHandler;
  *
  * @author Rossen Stoyanchev
  * @since 4.0
+ * @see org.springframework.web.socket.server.standard.StandardWebSocketUpgradeStrategy
  */
 public interface RequestUpgradeStrategy {
 

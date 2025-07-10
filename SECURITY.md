@@ -1,11 +1,10 @@
-# Security Policy
+# Reporting a Vulnerability
 
-## Supported Versions
+Please, [open a draft security advisory](https://github.com/spring-projects/security-advisories/security/advisories/new) if you need to disclose and discuss a security issue in private with the Spring Framework team. Note that we only accept reports against [supported versions](https://spring.io/projects/spring-framework#support).
 
-Please see the
-[Spring Framework Versions](https://github.com/spring-projects/spring-framework/wiki/Spring-Framework-Versions)
-wiki page.
+For more details, check out our [security policy](https://spring.io/security-policy).
 
-## Reporting a Vulnerability
+## JAR signing
 
-Please see https://spring.io/security-policy.
+Spring Framework JARs released on Maven Central are signed.
+You'll find more information about the key here: https://spring.io/GPG-KEY-spring.txt

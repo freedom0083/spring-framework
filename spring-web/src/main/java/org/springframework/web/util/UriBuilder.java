@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.MultiValueMap;
 
 /**
@@ -70,7 +71,7 @@ public interface UriBuilder {
 	UriBuilder port(int port);
 
 	/**
-	 * Set the URI port . Use this method only when the port needs to be
+	 * Set the URI port. Use this method only when the port needs to be
 	 * parameterized with a URI variable. Otherwise use {@link #port(int)}.
 	 * Passing {@code null} will clear the port of this builder.
 	 * @param port the URI port
@@ -166,7 +167,7 @@ public interface UriBuilder {
 	 * Append the given query parameter. Both the parameter name and values may
 	 * contain URI template variables to be expanded later from values. If no
 	 * values are given, the resulting URI will contain the query parameter name
-	 * only, e.g. {@code "?foo"} instead of {@code "?foo=bar"}.
+	 * only, for example, {@code "?foo"} instead of {@code "?foo=bar"}.
 	 * <p><strong>Note:</strong> encoding, if applied, will only encode characters
 	 * that are illegal in a query parameter name or value such as {@code "="}
 	 * or {@code "&"}. All others that are legal as per syntax rules in
@@ -260,7 +261,7 @@ public interface UriBuilder {
 	 * @param uriVariables the map of URI variables
 	 * @return the URI
 	 */
-	URI build(Object... uriVariables);
+	URI build(@Nullable Object... uriVariables);
 
 	/**
 	 * Build a {@link URI} instance and replaces URI template variables
@@ -268,6 +269,15 @@ public interface UriBuilder {
 	 * @param uriVariables the map of URI variables
 	 * @return the URI
 	 */
-	URI build(Map<String, ?> uriVariables);
+	URI build(Map<String, ? extends @Nullable Object> uriVariables);
+
+	/**
+	 * Return a String representation of the URI by concatenating all URI
+	 * component values into the fully formed URI String. Implementing classes
+	 * should perform simple String concatenation of current URI component
+	 * values to preserve URI template placeholders.
+	 * @since 6.1.2
+	 */
+	String toUriString();
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.MutablePropertyValues;
@@ -34,7 +35,6 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.EncodedResource;
-import org.springframework.lang.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,20 +43,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Juergen Hoeller
  */
-public class StaticApplicationContextMulticasterTests extends AbstractApplicationContextTests {
+class StaticApplicationContextMulticasterTests extends AbstractApplicationContextTests {
 
 	protected StaticApplicationContext sac;
 
 	@SuppressWarnings("deprecation")
 	@Override
-	protected ConfigurableApplicationContext createContext() throws Exception {
+	protected ConfigurableApplicationContext createContext() {
 		StaticApplicationContext parent = new StaticApplicationContext();
 		Map<String, String> m = new HashMap<>();
 		m.put("name", "Roderick");
 		parent.registerPrototype("rod", TestBean.class, new MutablePropertyValues(m));
 		m.put("name", "Albert");
 		parent.registerPrototype("father", TestBean.class, new MutablePropertyValues(m));
-		parent.registerSingleton(StaticApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME,
+		parent.registerSingleton(AbstractApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME,
 				TestApplicationEventMulticaster.class, null);
 		parent.refresh();
 		parent.addApplicationListener(parentListener) ;

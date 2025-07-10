@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,27 @@
 
 package org.springframework.web.service.invoker;
 
+import java.lang.reflect.Method;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
-import org.reactivestreams.Publisher;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.FormHttpMessageWriter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriBuilderFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
@@ -45,25 +44,25 @@ import org.springframework.web.util.UriUtils;
  * Container for HTTP request values extracted from an
  * {@link org.springframework.web.service.annotation.HttpExchange @HttpExchange}-annotated
  * method and argument values passed to it. This is then given to
- * {@link HttpClientAdapter} to adapt to the underlying HTTP client.
+ * {@link HttpExchangeAdapter} to adapt to the underlying HTTP client.
  *
  * @author Rossen Stoyanchev
+ * @author Olga Maciaszek-Sharma
  * @since 6.0
  */
-public final class HttpRequestValues {
+public class HttpRequestValues {
 
 	private static final MultiValueMap<String, String> EMPTY_COOKIES_MAP =
 			CollectionUtils.toMultiValueMap(Collections.emptyMap());
 
 
-	@Nullable
-	private final HttpMethod httpMethod;
+	private final @Nullable HttpMethod httpMethod;
 
-	@Nullable
-	private final URI uri;
+	private final @Nullable URI uri;
 
-	@Nullable
-	private final String uriTemplate;
+	private final @Nullable UriBuilderFactory uriBuilderFactory;
+
+	private final @Nullable String uriTemplate;
 
 	private final Map<String, String> uriVariables;
 
@@ -71,64 +70,76 @@ public final class HttpRequestValues {
 
 	private final MultiValueMap<String, String> cookies;
 
+	private final @Nullable Object version;
+
 	private final Map<String, Object> attributes;
 
-	@Nullable
-	private final Object bodyValue;
+	private final @Nullable Object bodyValue;
 
-	@Nullable
-	private final Publisher<?> body;
-
-	@Nullable
-	private final ParameterizedTypeReference<?> bodyElementType;
+	private final @Nullable ParameterizedTypeReference<?> bodyValueType;
 
 
-	private HttpRequestValues(@Nullable HttpMethod httpMethod,
-			@Nullable URI uri, @Nullable String uriTemplate, Map<String, String> uriVariables,
-			HttpHeaders headers, MultiValueMap<String, String> cookies, Map<String, Object> attributes,
-			@Nullable Object bodyValue,
-			@Nullable Publisher<?> body, @Nullable ParameterizedTypeReference<?> bodyElementType) {
+	/**
+	 * Construct {@link HttpRequestValues}.
+	 * @since 7.0
+	 */
+	protected HttpRequestValues(@Nullable HttpMethod httpMethod,
+			@Nullable URI uri, @Nullable UriBuilderFactory uriBuilderFactory,
+			@Nullable String uriTemplate, Map<String, String> uriVariables,
+			HttpHeaders headers, MultiValueMap<String, String> cookies,
+			@Nullable Object version, Map<String, Object> attributes,
+			@Nullable Object bodyValue, @Nullable ParameterizedTypeReference<?> bodyValueType) {
 
 		Assert.isTrue(uri != null || uriTemplate != null, "Neither URI nor URI template");
 
 		this.httpMethod = httpMethod;
 		this.uri = uri;
+		this.uriBuilderFactory = uriBuilderFactory;
 		this.uriTemplate = uriTemplate;
 		this.uriVariables = uriVariables;
 		this.headers = headers;
 		this.cookies = cookies;
+		this.version = version;
 		this.attributes = attributes;
 		this.bodyValue = bodyValue;
-		this.body = body;
-		this.bodyElementType = bodyElementType;
+		this.bodyValueType = bodyValueType;
 	}
 
 
 	/**
 	 * Return the HTTP method to use for the request.
 	 */
-	@Nullable
-	public HttpMethod getHttpMethod() {
+	public @Nullable HttpMethod getHttpMethod() {
 		return this.httpMethod;
 	}
 
 	/**
-	 * Return the full URL to use, if set.
-	 * <p>This is mutually exclusive with {@link #getUriTemplate() uriTemplate}.
-	 * One of the two has a value but not both.
+	 * Return the URL to use.
+	 * <p>Typically, this comes from a {@link URI} method argument, which provides
+	 * the caller with the option to override the {@link #getUriTemplate()
+	 * uriTemplate} from class and method {@code HttpExchange} annotations.
 	 */
-	@Nullable
-	public URI getUri() {
+	public @Nullable URI getUri() {
 		return this.uri;
 	}
 
 	/**
-	 * Return the URL template for the request, if set.
-	 * <p>This is mutually exclusive with a {@linkplain #getUri() full URL}.
-	 * One of the two has a value but not both.
+	 * Return the {@link UriBuilderFactory} to expand
+	 * the {@link HttpRequestValues#uriTemplate} and {@link #getUriVariables()} with.
+	 * <p>The {@link UriBuilderFactory} is passed into the HTTP interface method
+	 * in order to override the UriBuilderFactory (and its baseUrl) used by the
+	 * underlying client.
+	 * @since 6.1
 	 */
-	@Nullable
-	public String getUriTemplate() {
+	public @Nullable UriBuilderFactory getUriBuilderFactory() {
+		return this.uriBuilderFactory;
+	}
+
+	/**
+	 * Return the URL template for the request. This comes from the values in
+	 * class and method {@code HttpExchange} annotations.
+	 */
+	public @Nullable String getUriTemplate() {
 		return this.uriTemplate;
 	}
 
@@ -153,6 +164,10 @@ public final class HttpRequestValues {
 		return this.cookies;
 	}
 
+	public @Nullable Object getApiVersion() {
+		return this.version;
+	}
+
 	/**
 	 * Return the attributes associated with the request, or an empty map.
 	 */
@@ -162,77 +177,111 @@ public final class HttpRequestValues {
 
 	/**
 	 * Return the request body as a value to be serialized, if set.
-	 * <p>This is mutually exclusive with {@link #getBody()}.
-	 * Only one of the two or neither is set.
 	 */
-	@Nullable
-	public Object getBodyValue() {
+	public @Nullable Object getBodyValue() {
 		return this.bodyValue;
 	}
 
 	/**
-	 * Return the request body as a Publisher.
-	 * <p>This is mutually exclusive with {@link #getBodyValue()}.
-	 * Only one of the two or neither is set.
+	 * Return the type for the {@linkplain #getBodyValue() body value}.
+	 * @since 6.2.7
 	 */
-	@Nullable
-	public Publisher<?> getBody() {
-		return this.body;
+	public @Nullable ParameterizedTypeReference<?> getBodyValueType() {
+		return this.bodyValueType;
 	}
+
 
 	/**
-	 * Return the element type for a {@linkplain #getBody() Publisher body}.
+	 * Return a builder for {@link HttpRequestValues}.
 	 */
-	@Nullable
-	public ParameterizedTypeReference<?> getBodyElementType() {
-		return this.bodyElementType;
-	}
-
-
 	public static Builder builder() {
 		return new Builder();
 	}
 
 
 	/**
+	 * Expose static metadata from {@code @HttpExchange} annotation attributes.
+	 * @since 6.2
+	 */
+	public interface Metadata {
+
+		/**
+		 * Return the HTTP method, if known.
+		 */
+		@Nullable HttpMethod getHttpMethod();
+
+		/**
+		 * Return the URI template, if set already.
+		 */
+		@Nullable String getUriTemplate();
+
+		/**
+		 * Return the content type, if set already.
+		 */
+		@Nullable MediaType getContentType();
+
+		/**
+		 * Return the acceptable media types, if set already.
+		 */
+		@Nullable List<MediaType> getAcceptMediaTypes();
+	}
+
+
+	/**
+	 * A contract that allows further customization of {@link HttpRequestValues}
+	 * in addition to those added by argument resolvers.
+	 * <p>Use {@link HttpServiceProxyFactory.Builder#httpRequestValuesProcessor(Processor)}
+	 * to add such a processor.
+	 * @since 7.0
+	 */
+	public interface Processor {
+
+		/**
+		 * Invoked after argument resolvers have been called, and before the
+		 * {@link HttpRequestValues} is built.
+		 * @param method the {@code @HttpExchange} method
+		 * @param arguments the raw argument values to the method
+		 * @param builder the builder to add request values too; the builder
+		 * also exposes method {@link Metadata} from the {@code HttpExchange} method.
+		 */
+		void process(Method method, @Nullable Object[] arguments, Builder builder);
+
+	}
+
+
+	/**
 	 * Builder for {@link HttpRequestValues}.
 	 */
-	public final static class Builder {
+	public static class Builder implements Metadata {
 
-		private static final Function<MultiValueMap<String, String>, byte[]> FORM_DATA_SERIALIZER = new FormDataSerializer();
+		private @Nullable HttpMethod httpMethod;
 
-		@Nullable
-		private HttpMethod httpMethod;
+		private @Nullable URI uri;
 
-		@Nullable
-		private URI uri;
+		private @Nullable UriBuilderFactory uriBuilderFactory;
 
-		@Nullable
-		private String uriTemplate;
+		private @Nullable String uriTemplate;
 
-		@Nullable
-		private Map<String, String> uriVars;
+		private @Nullable Map<String, String> uriVars;
 
-		@Nullable
-		private HttpHeaders headers;
+		private @Nullable HttpHeaders headers;
 
-		@Nullable
-		private MultiValueMap<String, String> cookies;
+		private @Nullable MultiValueMap<String, String> cookies;
 
-		@Nullable
-		private MultiValueMap<String, String> requestParams;
+		private @Nullable MultiValueMap<String, String> requestParams;
 
-		@Nullable
-		private Map<String, Object> attributes;
+		private @Nullable MultiValueMap<String, Object> parts;
 
-		@Nullable
-		private Object bodyValue;
+		private @Nullable Object version;
 
-		@Nullable
-		private Publisher<?> body;
+		private @Nullable Map<String, Object> attributes;
 
-		@Nullable
-		private ParameterizedTypeReference<?> bodyElementType;
+		private @Nullable Object bodyValue;
+
+		private @Nullable ParameterizedTypeReference<?> bodyValueType;
+
+		protected Builder() {
+		}
 
 		/**
 		 * Set the HTTP method for the request.
@@ -243,38 +292,39 @@ public final class HttpRequestValues {
 		}
 
 		/**
-		 * Set the request URL as a full URL.
-		 * <p>This is mutually exclusive with, and resets any previously set
-		 * {@linkplain #setUriTemplate(String) URI template} or
-		 * {@linkplain #setUriVariable(String, String) URI variables}.
+		 * Set the URL to use. When set, this overrides the
+		 * {@linkplain #setUriTemplate(String) URI template} from the
+		 * {@code HttpExchange} annotation.
 		 */
 		public Builder setUri(URI uri) {
 			this.uri = uri;
-			this.uriTemplate = null;
-			this.uriVars = null;
+			return this;
+		}
+
+		/**
+		 * Set the {@link UriBuilderFactory} that will be used to expand the
+		 * {@link #getUriTemplate()}.
+		 * @since 6.1
+		 */
+		public Builder setUriBuilderFactory(@Nullable UriBuilderFactory uriBuilderFactory) {
+			this.uriBuilderFactory = uriBuilderFactory;
 			return this;
 		}
 
 		/**
 		 * Set the request URL as a String template.
-		 * <p>This is mutually exclusive with, and resets any previously set
-		 * {@linkplain #setUri(URI) full URI}.
 		 */
 		public Builder setUriTemplate(String uriTemplate) {
 			this.uriTemplate = uriTemplate;
-			this.uri = null;
 			return this;
 		}
 
 		/**
 		 * Add a URI variable name-value pair.
-		 * <p>This is mutually exclusive with, and resets any previously set
-		 * {@linkplain #setUri(URI) full URI}.
 		 */
 		public Builder setUriVariable(String name, String value) {
 			this.uriVars = (this.uriVars != null ? this.uriVars : new LinkedHashMap<>());
 			this.uriVars.put(name, value);
-			this.uri = null;
 			return this;
 		}
 
@@ -298,9 +348,20 @@ public final class HttpRequestValues {
 		 * Add the given header name and values.
 		 */
 		public Builder addHeader(String headerName, String... headerValues) {
+			HttpHeaders headers = initHeaders();
 			for (String headerValue : headerValues) {
-				initHeaders().add(headerName, headerValue);
+				headers.add(headerName, headerValue);
 			}
+			return this;
+		}
+
+		/**
+		 * Provide access to every header configured so far with the option to
+		 * add, replace, or remove values.
+		 * @since 7.0
+		 */
+		public Builder configureHeaders(Consumer<HttpHeaders> consumer) {
+			consumer.accept(initHeaders());
 			return this;
 		}
 
@@ -313,11 +374,26 @@ public final class HttpRequestValues {
 		 * Add the given cookie name and values.
 		 */
 		public Builder addCookie(String name, String... values) {
-			this.cookies = (this.cookies != null ? this.cookies : new LinkedMultiValueMap<>());
+			MultiValueMap<String, String> cookies = initCookies();
 			for (String value : values) {
-				this.cookies.add(name, value);
+				cookies.add(name, value);
 			}
 			return this;
+		}
+
+		/**
+		 * Provide access to every cookie configured so far with the option to
+		 * add, replace, or remove values.
+		 * @since 7.0
+		 */
+		public Builder configureCookies(Consumer<MultiValueMap<String, String>> consumer) {
+			consumer.accept(initCookies());
+			return this;
+		}
+
+		private MultiValueMap<String, String> initCookies() {
+			this.cookies = (this.cookies != null ? this.cookies : new LinkedMultiValueMap<>());
+			return this.cookies;
 		}
 
 		/**
@@ -328,10 +404,55 @@ public final class HttpRequestValues {
 		 * parameters.
 		 */
 		public Builder addRequestParameter(String name, String... values) {
-			this.requestParams = (this.requestParams != null ? this.requestParams : new LinkedMultiValueMap<>());
+			MultiValueMap<String, String> requestParams = initRequestParams();
 			for (String value : values) {
-				this.requestParams.add(name, value);
+				requestParams.add(name, value);
 			}
+			return this;
+		}
+
+		/**
+		 * Provide access to every request parameter configured so far with the
+		 * option to add, replace, or remove values.
+		 * @since 7.0
+		 */
+		public Builder configureRequestParams(Consumer<MultiValueMap<String, String>> consumer) {
+			consumer.accept(initRequestParams());
+			return this;
+		}
+
+		private MultiValueMap<String, String> initRequestParams() {
+			this.requestParams = (this.requestParams != null ? this.requestParams : new LinkedMultiValueMap<>());
+			return this.requestParams;
+		}
+
+		/**
+		 * Add a part for a multipart request. The part may be:
+		 * <ul>
+		 * <li>String -- form field
+		 * <li>{@link org.springframework.core.io.Resource Resource} -- file part
+		 * <li>Object -- content to be encoded (for example, to JSON)
+		 * <li>{@link HttpEntity} -- part content and headers although generally it's
+		 * easier to add headers through the returned builder
+		 * </ul>
+		 */
+		public Builder addRequestPart(String name, Object part) {
+			this.parts = (this.parts != null ? this.parts : new LinkedMultiValueMap<>());
+			this.parts.add(name, part);
+			return this;
+		}
+
+		/**
+		 * Set an API version for the request. The version is passed on to the
+		 * underlying {@code RestClient} or {@code WebClient} that in turn are
+		 * configured with an {@code ApiVersionInserter}.
+		 * @param version the API version of the request; this can be a String or
+		 * some Object that can be formatted the inserter, e.g. through an
+		 * {@link org.springframework.web.client.ApiVersionFormatter}.
+		 * @since 7.0
+		 */
+		public Builder setApiVersion(Object version) {
+			this.version = version;
 			return this;
 		}
 
@@ -341,60 +462,96 @@ public final class HttpRequestValues {
 		 * @param value the attribute value
 		 */
 		public Builder addAttribute(String name, Object value) {
-			this.attributes = (this.attributes != null ? this.attributes : new HashMap<>());
-			this.attributes.put(name, value);
+			initAttributes().put(name, value);
 			return this;
 		}
 
 		/**
-		 * Set the request body as a concrete value to be serialized.
-		 * <p>This is mutually exclusive with, and resets any previously set
-		 * {@linkplain #setBody(Publisher, ParameterizedTypeReference) body Publisher}.
+		 * Provide access to every attribute configured so far with the option
+		 * to add, replace, or remove values.
+		 * @since 7.0
 		 */
-		public void setBodyValue(Object bodyValue) {
+		public Builder configureAttributes(Consumer<Map<String, Object>> consumer) {
+			consumer.accept(initAttributes());
+			return this;
+		}
+
+		private Map<String, Object> initAttributes() {
+			this.attributes = (this.attributes != null ? this.attributes : new HashMap<>());
+			return this.attributes;
+		}
+
+		/**
+		 * Set the request body as an Object to be serialized.
+		 */
+		public void setBodyValue(@Nullable Object bodyValue) {
 			this.bodyValue = bodyValue;
-			this.body = null;
-			this.bodyElementType = null;
 		}
 
 		/**
-		 * Set the request body as a concrete value to be serialized.
-		 * <p>This is mutually exclusive with, and resets any previously set
-		 * {@linkplain #setBodyValue(Object) body value}.
+		 * Variant of {@link #setBodyValue(Object)} with the body type.
+		 * @since 6.2.7
 		 */
-		public <T, P extends Publisher<T>> void setBody(P body, ParameterizedTypeReference<T> elementTye) {
-			this.body = body;
-			this.bodyElementType = elementTye;
-			this.bodyValue = null;
+		public void setBodyValue(@Nullable Object bodyValue, @Nullable ParameterizedTypeReference<?> valueType) {
+			setBodyValue(bodyValue);
+			this.bodyValueType = valueType;
 		}
 
+
+		// Implementation of {@link Metadata} methods
+
+		@Override
+		public @Nullable HttpMethod getHttpMethod() {
+			return this.httpMethod;
+		}
+
+		@Override
+		public @Nullable String getUriTemplate() {
+			return this.uriTemplate;
+		}
+
+		@Override
+		public @Nullable MediaType getContentType() {
+			return (this.headers != null ? this.headers.getContentType() : null);
+		}
+
+		@Override
+		public @Nullable List<MediaType> getAcceptMediaTypes() {
+			return (this.headers != null ? this.headers.getAccept() : null);
+		}
+
+
 		/**
-		 * Builder the {@link HttpRequestValues} instance.
+		 * Build the {@link HttpRequestValues} instance.
 		 */
 		public HttpRequestValues build() {
 
 			URI uri = this.uri;
-			String uriTemplate = (this.uriTemplate != null || uri != null ? this.uriTemplate : "");
+			UriBuilderFactory uriBuilderFactory = this.uriBuilderFactory;
+			String uriTemplate = (this.uriTemplate != null ? this.uriTemplate : "");
 			Map<String, String> uriVars = (this.uriVars != null ? new HashMap<>(this.uriVars) : Collections.emptyMap());
 
 			Object bodyValue = this.bodyValue;
+			if (hasParts()) {
+				Assert.isTrue(!hasBody(), "Expected body or request parts, not both");
+				bodyValue = buildMultipartBody();
+			}
 
 			if (!CollectionUtils.isEmpty(this.requestParams)) {
-
-				boolean isFormData = (this.headers != null &&
-						MediaType.APPLICATION_FORM_URLENCODED.equals(this.headers.getContentType()));
-
-				if (isFormData) {
-					Assert.isTrue(bodyValue == null && this.body == null, "Expected body or request params, not both");
-					bodyValue = FORM_DATA_SERIALIZER.apply(this.requestParams);
+				if (hasFormDataContentType()) {
+					Assert.isTrue(!hasParts(), "Request parts not expected for a form data request");
+					Assert.isTrue(!hasBody(), "Body not expected for a form data request");
+					bodyValue = new LinkedMultiValueMap<>(this.requestParams);
 				}
 				else if (uri != null) {
+					// insert into prepared URI
 					uri = UriComponentsBuilder.fromUri(uri)
 							.queryParams(UriUtils.encodeQueryParams(this.requestParams))
 							.build(true)
 							.toUri();
 				}
 				else {
+					// append to URI template
 					uriVars = (uriVars.isEmpty() ? new HashMap<>() : uriVars);
 					uriTemplate = appendQueryParams(uriTemplate, uriVars, this.requestParams);
 				}
@@ -412,41 +569,60 @@ public final class HttpRequestValues {
 			Map<String, Object> attributes = (this.attributes != null ?
 					new HashMap<>(this.attributes) : Collections.emptyMap());
 
-			return new HttpRequestValues(
-					this.httpMethod, uri, uriTemplate, uriVars, headers, cookies, attributes,
-					bodyValue, this.body, this.bodyElementType);
+			return createRequestValues(
+					this.httpMethod, uri, uriBuilderFactory, uriTemplate, uriVars,
+					headers, cookies, this.version, attributes, bodyValue, this.bodyValueType);
+		}
+
+		protected boolean hasParts() {
+			return (this.parts != null);
+		}
+
+		protected boolean hasBody() {
+			return (this.bodyValue != null);
+		}
+
+		protected Object buildMultipartBody() {
+			Assert.notNull(this.parts, "`parts` is null, was hasParts() not called?");
+			return this.parts;
+		}
+
+		private boolean hasFormDataContentType() {
+			return (this.headers != null &&
+					MediaType.APPLICATION_FORM_URLENCODED.equals(this.headers.getContentType()));
 		}
 
 		private String appendQueryParams(
 				String uriTemplate, Map<String, String> uriVars, MultiValueMap<String, String> requestParams) {
 
 			UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(uriTemplate);
-			int i = 0;
 			for (Map.Entry<String, List<String>> entry : requestParams.entrySet()) {
-				String nameVar = "queryParam" + i;
+				String nameVar = "queryParam-" + entry.getKey().replace(":", "%3A"); // suppress treatment as regex
 				uriVars.put(nameVar, entry.getKey());
 				for (int j = 0; j < entry.getValue().size(); j++) {
 					String valueVar = nameVar + "[" + j + "]";
 					uriVars.put(valueVar, entry.getValue().get(j));
 					uriComponentsBuilder.queryParam("{" + nameVar + "}", "{" + valueVar + "}");
 				}
-				i++;
 			}
 			return uriComponentsBuilder.build().toUriString();
 		}
 
-	}
+		/**
+		 * Create {@link HttpRequestValues} from values passed to the {@link Builder}.
+		 * @since 7.0
+		 */
+		protected HttpRequestValues createRequestValues(
+				@Nullable HttpMethod httpMethod,
+				@Nullable URI uri, @Nullable UriBuilderFactory uriBuilderFactory, @Nullable String uriTemplate,
+				Map<String, String> uriVars, HttpHeaders headers, MultiValueMap<String, String> cookies,
+				@Nullable Object version, Map<String, Object> attributes,
+				@Nullable Object bodyValue, @Nullable ParameterizedTypeReference<?> bodyValueType) {
 
-
-	private static class FormDataSerializer
-			extends FormHttpMessageWriter implements Function<MultiValueMap<String, String>, byte[]> {
-
-		@Override
-		public byte[] apply(MultiValueMap<String, String> requestParams) {
-			Charset charset = StandardCharsets.UTF_8;
-			return serializeForm(requestParams, charset).getBytes(charset);
+			return new HttpRequestValues(
+					this.httpMethod, uri, uriBuilderFactory, uriTemplate,
+					uriVars, headers, cookies, version, attributes, bodyValue, bodyValueType);
 		}
-
 	}
 
 }

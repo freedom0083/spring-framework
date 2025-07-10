@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.web.util;
 
 import java.net.URLDecoder;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -28,10 +29,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.MappingMatch;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -61,9 +61,6 @@ public class UrlPathHelper {
 	 */
 	public static final String PATH_ATTRIBUTE = UrlPathHelper.class.getName() + ".PATH";
 
-	static final boolean servlet4Present =
-			ClassUtils.hasMethod(HttpServletRequest.class, "getHttpServletMapping");
-
 	/**
 	 * Special WebSphere request attribute, indicating the original request URI.
 	 * Preferable over the standard Servlet 2.4 forward attribute on WebSphere,
@@ -73,8 +70,7 @@ public class UrlPathHelper {
 
 	private static final Log logger = LogFactory.getLog(UrlPathHelper.class);
 
-	@Nullable
-	static volatile Boolean websphereComplianceFlag;
+	static @Nullable volatile Boolean websphereComplianceFlag;
 
 
 	private boolean alwaysUseFullPath = false;
@@ -204,34 +200,13 @@ public class UrlPathHelper {
 	 * Return a previously {@link #getLookupPathForRequest resolved} lookupPath.
 	 * @param request the current request
 	 * @return the previously resolved lookupPath
-	 * @throws IllegalArgumentException if the not found
+	 * @throws IllegalArgumentException if the lookup path is not found
 	 * @since 5.3
 	 */
 	public static String getResolvedLookupPath(ServletRequest request) {
 		String lookupPath = (String) request.getAttribute(PATH_ATTRIBUTE);
-		Assert.notNull(lookupPath, "Expected lookupPath in request attribute \"" + PATH_ATTRIBUTE + "\".");
+		Assert.notNull(lookupPath, () -> "Expected lookupPath in request attribute \"" + PATH_ATTRIBUTE + "\".");
 		return lookupPath;
-	}
-
-	/**
-	 * Variant of {@link #getLookupPathForRequest(HttpServletRequest)} that
-	 * automates checking for a previously computed lookupPath saved as a
-	 * request attribute. The attribute is only used for lookup purposes.
-	 * @param request current HTTP request
-	 * @param name the request attribute that holds the lookupPath
-	 * @return the lookup path
-	 * @since 5.2
-	 * @deprecated as of 5.3 in favor of using
-	 * {@link #resolveAndCacheLookupPath(HttpServletRequest)} and
-	 * {@link #getResolvedLookupPath(ServletRequest)}.
-	 */
-	@Deprecated
-	public String getLookupPathForRequest(HttpServletRequest request, @Nullable String name) {
-		String result = null;
-		if (name != null) {
-			result = (String) request.getAttribute(name);
-		}
-		return (result != null ? result : getLookupPathForRequest(request));
 	}
 
 	/**
@@ -246,7 +221,7 @@ public class UrlPathHelper {
 	public String getLookupPathForRequest(HttpServletRequest request) {
 		String pathWithinApp = getPathWithinApplication(request);
 		// Always use full path within current servlet context?
-		if (this.alwaysUseFullPath || skipServletPathDetermination(request)) {
+		if (this.alwaysUseFullPath || ignoreServletPath(request)) {
 			return pathWithinApp;
 		}
 		// Else, use path within current servlet mapping if applicable
@@ -260,16 +235,15 @@ public class UrlPathHelper {
 	}
 
 	/**
-	 * Check whether servlet path determination can be skipped for the given request.
-	 * @param request current HTTP request
-	 * @return {@code true} if the request mapping has not been achieved using a path
-	 * or if the servlet has been mapped to root; {@code false} otherwise
+	 * Whether we can ignore the servletPath and pathInfo for mapping purposes,
+	 * which is the case when we can establish that the Servlet is not mapped
+	 * by servletPath prefix.
 	 */
-	private boolean skipServletPathDetermination(HttpServletRequest request) {
-		if (servlet4Present) {
-			return Servlet4Delegate.skipServletPathDetermination(request);
-		}
-		return false;
+	private boolean ignoreServletPath(HttpServletRequest request) {
+		HttpServletMapping mapping = (HttpServletMapping) request.getAttribute(RequestDispatcher.INCLUDE_MAPPING);
+		mapping = (mapping == null ? request.getHttpServletMapping() : mapping);
+		MappingMatch match = mapping.getMappingMatch();
+		return (match != null && (!match.equals(MappingMatch.PATH) || mapping.getPattern().equals("/*")));
 	}
 
 	/**
@@ -289,11 +263,11 @@ public class UrlPathHelper {
 	 * i.e. the part of the request's URL beyond the part that called the servlet,
 	 * or "" if the whole URL has been used to identify the servlet.
 	 * <p>Detects include request URL if called within a RequestDispatcher include.
-	 * <p>E.g.: servlet mapping = "/*"; request URI = "/test/a" &rarr; "/test/a".
-	 * <p>E.g.: servlet mapping = "/"; request URI = "/test/a" &rarr; "/test/a".
-	 * <p>E.g.: servlet mapping = "/test/*"; request URI = "/test/a" &rarr; "/a".
-	 * <p>E.g.: servlet mapping = "/test"; request URI = "/test" &rarr; "".
-	 * <p>E.g.: servlet mapping = "/*.test"; request URI = "/a.test" &rarr; "".
+	 * <p>For example: servlet mapping = "/*"; request URI = "/test/a" &rarr; "/test/a".
+	 * <p>For example: servlet mapping = "/"; request URI = "/test/a" &rarr; "/test/a".
+	 * <p>For example: servlet mapping = "/test/*"; request URI = "/test/a" &rarr; "/a".
+	 * <p>For example: servlet mapping = "/test"; request URI = "/test" &rarr; "".
+	 * <p>For example: servlet mapping = "/*.test"; request URI = "/a.test" &rarr; "".
 	 * @param request current HTTP request
 	 * @param pathWithinApp a precomputed path within the application
 	 * @return the path within the servlet mapping, or ""
@@ -322,7 +296,7 @@ public class UrlPathHelper {
 			String pathInfo = request.getPathInfo();
 			if (pathInfo != null) {
 				// Use path info if available. Indicates index page within a servlet mapping?
-				// e.g. with index page: URI="/", servletPath="/index.html"
+				// for example, with index page: URI="/", servletPath="/index.html"
 				return pathInfo;
 			}
 			if (!this.urlDecode) {
@@ -366,8 +340,7 @@ public class UrlPathHelper {
 	 * context path and the servlet path returned by the HttpServletRequest are
 	 * stripped of semicolon content unlike the requestUri.
 	 */
-	@Nullable
-	private String getRemainingPath(String requestUri, String mapping, boolean ignoreCase) {
+	private @Nullable String getRemainingPath(String requestUri, String mapping, boolean ignoreCase) {
 		int index1 = 0;
 		int index2 = 0;
 		for (; (index1 < requestUri.length()) && (index2 < mapping.length()); index1++, index2++) {
@@ -634,7 +607,7 @@ public class UrlPathHelper {
 
 	private String removeJsessionid(String requestUri) {
 		String key = ";jsessionid=";
-		int index = requestUri.toLowerCase().indexOf(key);
+		int index = requestUri.toLowerCase(Locale.ROOT).indexOf(key);
 		if (index == -1) {
 			return requestUri;
 		}
@@ -765,23 +738,6 @@ public class UrlPathHelper {
 		rawPathInstance.setUrlDecode(false);
 		rawPathInstance.setRemoveSemicolonContent(false);
 		rawPathInstance.setReadOnly();
-	}
-
-
-	/**
-	 * Inner class to avoid a hard dependency on Servlet 4 {@link HttpServletMapping}
-	 * and {@link MappingMatch} at runtime.
-	 */
-	private static class Servlet4Delegate {
-
-		public static boolean skipServletPathDetermination(HttpServletRequest request) {
-			HttpServletMapping mapping = (HttpServletMapping) request.getAttribute(RequestDispatcher.INCLUDE_MAPPING);
-			if (mapping == null) {
-				mapping = request.getHttpServletMapping();
-			}
-			MappingMatch match = mapping.getMappingMatch();
-			return (match != null && (!match.equals(MappingMatch.PATH) || mapping.getPattern().equals("/*")));
-		}
 	}
 
 }

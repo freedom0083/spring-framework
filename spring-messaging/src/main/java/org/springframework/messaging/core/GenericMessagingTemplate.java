@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageDeliveryException;
@@ -176,8 +176,8 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 			accessor.removeHeader(this.receiveTimeoutHeader);
 			accessor.setImmutable();
 		}
-		else if (message.getHeaders().containsKey(this.sendTimeoutHeader)
-				|| message.getHeaders().containsKey(this.receiveTimeoutHeader)) {
+		else if (message.getHeaders().containsKey(this.sendTimeoutHeader) ||
+				message.getHeaders().containsKey(this.receiveTimeoutHeader)) {
 			messageToSend = MessageBuilder.fromMessage(message)
 					.setHeader(this.sendTimeoutHeader, null)
 					.setHeader(this.receiveTimeoutHeader, null)
@@ -193,18 +193,17 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 	}
 
 	@Override
-	@Nullable
-	protected final Message<?> doReceive(MessageChannel channel) {
+	protected final @Nullable Message<?> doReceive(MessageChannel channel) {
 		return doReceive(channel, this.receiveTimeout);
 	}
 
-	@Nullable
-	protected final Message<?> doReceive(MessageChannel channel, long timeout) {
+	protected final @Nullable Message<?> doReceive(MessageChannel channel, long timeout) {
 		Assert.notNull(channel, "MessageChannel is required");
-		Assert.state(channel instanceof PollableChannel, "A PollableChannel is required to receive messages");
+		if (!(channel instanceof PollableChannel pollableChannel)) {
+			throw new IllegalStateException("A PollableChannel is required to receive messages");
+		}
 
-		Message<?> message = (timeout >= 0 ?
-				((PollableChannel) channel).receive(timeout) : ((PollableChannel) channel).receive());
+		Message<?> message = (timeout >= 0 ? pollableChannel.receive(timeout) : pollableChannel.receive());
 
 		if (message == null && logger.isTraceEnabled()) {
 			logger.trace("Failed to receive message from channel '" + channel + "' within timeout: " + timeout);
@@ -214,8 +213,7 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 	}
 
 	@Override
-	@Nullable
-	protected final Message<?> doSendAndReceive(MessageChannel channel, Message<?> requestMessage) {
+	protected final @Nullable Message<?> doSendAndReceive(MessageChannel channel, Message<?> requestMessage) {
 		Assert.notNull(channel, "'channel' is required");
 		Object originalReplyChannelHeader = requestMessage.getHeaders().getReplyChannel();
 		Object originalErrorChannelHeader = requestMessage.getHeaders().getErrorChannel();
@@ -258,13 +256,12 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 		return (receiveTimeout != null ? receiveTimeout : this.receiveTimeout);
 	}
 
-	@Nullable
-	private Long headerToLong(@Nullable Object headerValue) {
-		if (headerValue instanceof Number) {
-			return ((Number) headerValue).longValue();
+	private @Nullable Long headerToLong(@Nullable Object headerValue) {
+		if (headerValue instanceof Number number) {
+			return number.longValue();
 		}
-		else if (headerValue instanceof String) {
-			return Long.parseLong((String) headerValue);
+		else if (headerValue instanceof String text) {
+			return Long.parseLong(text);
 		}
 		else {
 			return null;
@@ -283,8 +280,7 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 
 		private final boolean throwExceptionOnLateReply;
 
-		@Nullable
-		private volatile Message<?> replyMessage;
+		private volatile @Nullable Message<?> replyMessage;
 
 		private volatile boolean hasReceived;
 
@@ -301,14 +297,12 @@ public class GenericMessagingTemplate extends AbstractDestinationResolvingMessag
 		}
 
 		@Override
-		@Nullable
-		public Message<?> receive() {
+		public @Nullable Message<?> receive() {
 			return this.receive(-1);
 		}
 
 		@Override
-		@Nullable
-		public Message<?> receive(long timeout) {
+		public @Nullable Message<?> receive(long timeout) {
 			try {
 				if (timeout < 0) {
 					this.replyLatch.await();

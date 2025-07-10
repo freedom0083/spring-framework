@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,18 +21,19 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.apache.groovy.util.Maps;
-import org.junit.jupiter.api.BeforeEach;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AliasFor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.support.DefaultFormattingConversionService;
-import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
@@ -43,34 +44,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
- * Unit tests for {@link AbstractNamedValueArgumentResolver} through a
+ * Tests for {@link AbstractNamedValueArgumentResolver} through a
  * {@link TestValue @TestValue} annotation and {@link TestNamedValueArgumentResolver}.
  *
  * @author Rossen Stoyanchev
+ * @author Olga Maciaszek-Sharma
  */
 class NamedValueArgumentResolverTests {
 
-	private final TestHttpClientAdapter client = new TestHttpClientAdapter();
+	private final TestExchangeAdapter client = new TestExchangeAdapter();
 
 	private final TestNamedValueArgumentResolver argumentResolver = new TestNamedValueArgumentResolver();
 
-	private Service service;
-
-
-	@BeforeEach
-	void setUp() throws Exception {
-		HttpServiceProxyFactory proxyFactory = new HttpServiceProxyFactory(this.client);
-		proxyFactory.addCustomArgumentResolver(this.argumentResolver);
-		proxyFactory.afterPropertiesSet();
-
-		this.service = proxyFactory.createClient(Service.class);
-	}
+	private final Service service = HttpServiceProxyFactory.builderFor(this.client)
+			.customArgumentResolver(this.argumentResolver)
+			.build()
+			.createClient(Service.class);
 
 
 	@Test
 	void stringTestValue() {
 		this.service.executeString("test");
 		assertTestValue("value", "test");
+	}
+
+	@Test // gh-29095
+	void dateTestValue() {
+		this.service.executeDate(LocalDate.of(2022, 9, 16));
+		assertTestValue("value", "2022-09-16");
+	}
+
+	@Test // gh-33794
+	void dateNullValue() {
+		this.service.executeDate(null);
+		assertTestValue("value");
 	}
 
 	@Test
@@ -134,7 +141,7 @@ class NamedValueArgumentResolverTests {
 	}
 
 	@Test
-	void optionalEmpthyWithDefaultValue() {
+	void optionalEmptyWithDefaultValue() {
 		this.service.executeOptionalWithDefaultValue(Optional.empty());
 		assertTestValue("value", "default");
 	}
@@ -157,6 +164,12 @@ class NamedValueArgumentResolverTests {
 		assertTestValue("value", "test");
 	}
 
+	@Test
+	void nullTestValueWithNullable() {
+		this.service.executeNullable(null);
+		assertTestValue("value");
+	}
+
 	private void assertTestValue(String key, String... values) {
 		List<String> actualValues = this.argumentResolver.getTestValues().get(key);
 		if (ObjectUtils.isEmpty(values)) {
@@ -173,6 +186,9 @@ class NamedValueArgumentResolverTests {
 
 		@GetExchange
 		void executeString(@TestValue String value);
+
+		@GetExchange
+		void executeDate(@Nullable @TestValue(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate value);
 
 		@GetExchange
 		void execute(@TestValue Object value);
@@ -204,6 +220,9 @@ class NamedValueArgumentResolverTests {
 		@GetExchange
 		void executeMapWithOptionalValue(@TestValue Map<String, Optional<String>> values);
 
+		@GetExchange
+		void executeNullable(@Nullable @TestValue String value);
+
 	}
 
 
@@ -227,7 +246,7 @@ class NamedValueArgumentResolverTests {
 		}
 
 		@Override
-		protected void addRequestValue(String name, Object value, HttpRequestValues.Builder requestValues) {
+		protected void addRequestValue(String name, Object value, MethodParameter parameter, HttpRequestValues.Builder requestValues) {
 			this.testValues.add(name, (String) value);
 		}
 	}

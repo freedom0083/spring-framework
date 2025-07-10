@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ class DefaultClientResponseBuilderTests {
 		assertThat(result.headers().asHttpHeaders().size()).isEqualTo(3);
 		assertThat(result.headers().asHttpHeaders().getFirst("foo")).isEqualTo("baar");
 		assertThat(result.headers().asHttpHeaders().getFirst("bar")).isEqualTo("baz");
-		assertThat(result.cookies().size()).isEqualTo(1);
+		assertThat(result.cookies()).hasSize(1);
 		assertThat(result.cookies().getFirst("baz").getValue()).isEqualTo("quux");
 		assertThat(result.logPrefix()).isEqualTo("my-prefix");
 
@@ -101,12 +101,11 @@ class DefaultClientResponseBuilderTests {
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
 	void mutateWithCustomStatus() {
 		ClientResponse other = ClientResponse.create(499, ExchangeStrategies.withDefaults()).build();
 		ClientResponse result = other.mutate().build();
 
-		assertThat(result.rawStatusCode()).isEqualTo(499);
+		assertThat(result.statusCode().value()).isEqualTo(499);
 		assertThat(result.statusCode()).isEqualTo(HttpStatusCode.valueOf(499));
 	}
 

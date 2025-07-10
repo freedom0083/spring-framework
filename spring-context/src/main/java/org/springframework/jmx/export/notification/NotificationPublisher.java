@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import javax.management.Notification;
  * <p>Each managed resource instance will have a distinct instance of a
  * {@code NotificationPublisher} implementation. This instance will keep
  * track of all the {@link javax.management.NotificationListener NotificationListeners}
- * registered for a particular mananaged resource.
+ * registered for a particular managed resource.
  *
  * <p>Any existing, user-defined MBeans should use standard JMX APIs for notification
  * publication; this interface is intended for use only by Spring-created MBeans.

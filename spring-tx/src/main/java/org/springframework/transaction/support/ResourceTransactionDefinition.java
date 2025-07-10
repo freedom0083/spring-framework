@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ public interface ResourceTransactionDefinition extends TransactionDefinition {
 	/**
 	 * Determine whether the transactional resource is ready for local optimizations.
 	 * @return {@code true} if the resource is known to be entirely transaction-local,
-	 * not affecting any operations outside of the scope of the current transaction
+	 * not affecting any operations outside the scope of the current transaction
 	 * @see #isReadOnly()
 	 */
 	boolean isLocalResource();

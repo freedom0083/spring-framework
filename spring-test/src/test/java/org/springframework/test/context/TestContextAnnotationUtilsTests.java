@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.SpringProperties;
+import org.springframework.core.annotation.AliasFor;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -44,11 +45,9 @@ import static org.springframework.test.context.TestContextAnnotationUtils.findAn
 import static org.springframework.test.context.TestContextAnnotationUtils.searchEnclosingClass;
 
 /**
- * Unit tests for {@link TestContextAnnotationUtils}.
+ * Tests for {@link TestContextAnnotationUtils}.
  *
  * @author Sam Brannen
- * @since 5.3, though originally since 4.0 for the deprecated
- * {@link org.springframework.test.util.MetaAnnotationUtils} support
  * @see OverriddenMetaAnnotationAttributesTestContextAnnotationUtilsTests
  */
 class TestContextAnnotationUtilsTests {
@@ -557,14 +556,15 @@ class TestContextAnnotationUtilsTests {
 	@Target(ElementType.TYPE)
 	@interface MetaConfig {
 
+		@AliasFor(annotation = ContextConfiguration.class)
+		Class<?>[] classes() default { DevConfig.class, ProductionConfig.class };
+
 		class DevConfig {
 		}
 
 		class ProductionConfig {
 		}
 
-
-		Class<?>[] classes() default { DevConfig.class, ProductionConfig.class };
 	}
 
 	// -------------------------------------------------------------------------

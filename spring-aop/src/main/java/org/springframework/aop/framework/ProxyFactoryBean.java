@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.aopalliance.aop.Advice;
 import org.aopalliance.intercept.Interceptor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.Advisor;
 import org.springframework.aop.TargetSource;
@@ -43,14 +44,13 @@ import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.FactoryBeanNotInitializedException;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
  * {@link org.springframework.beans.factory.FactoryBean} implementation that builds an
- * AOP proxy based on beans in Spring {@link org.springframework.beans.factory.BeanFactory}.
+ * AOP proxy based on beans in a Spring {@link org.springframework.beans.factory.BeanFactory}.
  *
  * <p>{@link org.aopalliance.intercept.MethodInterceptor MethodInterceptors} and
  * {@link org.springframework.aop.Advisor Advisors} are identified by a list of bean
@@ -61,10 +61,11 @@ import org.springframework.util.ObjectUtils;
  *
  * <p>Global interceptors and advisors can be added at the factory level. The specified
  * ones are expanded in an interceptor list where an "xxx*" entry is included in the
- * list, matching the given prefix with the bean names (e.g. "global*" would match
- * both "globalBean1" and "globalBean2", "*" all defined interceptors). The matching
- * interceptors get applied according to their returned order value, if they implement
- * the {@link org.springframework.core.Ordered} interface.
+ * list, matching the given prefix with the bean names &mdash; for example, "global*"
+ * would match both "globalBean1" and "globalBean2"; whereas, "*" would match all
+ * defined interceptors. The matching interceptors get applied according to their
+ * returned order value, if they implement the {@link org.springframework.core.Ordered}
+ * interface.
  *
  * <p>Creates a JDK proxy when proxy interfaces are given, and a CGLIB proxy for the
  * actual target class if not. Note that the latter will only work if the target class
@@ -75,7 +76,7 @@ import org.springframework.util.ObjectUtils;
  * This won't work for existing prototype references, which are independent. However,
  * it will work for prototypes subsequently obtained from the factory. Changes to
  * interception will work immediately on singletons (including existing references).
- * However, to change interfaces or target it's necessary to obtain a new instance
+ * However, to change interfaces or a target it's necessary to obtain a new instance
  * from the factory. This means that singleton instances obtained from the factory
  * do not have the same object identity. However, they do have the same interceptors
  * and target, and changing any reference will change all objects.
@@ -98,13 +99,13 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	public static final String GLOBAL_SUFFIX = "*";
 
 
-	protected final Log logger = LogFactory.getLog(getClass());
-	// TODO 所有的拦截器的名字, 其实对标的是Advisor
-	@Nullable
-	private String[] interceptorNames;
+	private static final Log logger = LogFactory.getLog(ProxyFactoryBean.class);
 
-	@Nullable
-	private String targetName;
+	// TODO 所有的拦截器的名字, 其实对标的是Advisor
+	private String @Nullable [] interceptorNames;
+
+	private @Nullable String targetName;
+
 	// TODO 是否自动探测接口. true: 表示自动探测, 如果没有手动设置需要实现的代理接口, Spring会把类上所有的接口都找出来进行代理
 	private boolean autodetectInterfaces = true;
 
@@ -114,20 +115,17 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 
 	private boolean freezeProxy = false;
 
-	@Nullable
-	private transient ClassLoader proxyClassLoader = ClassUtils.getDefaultClassLoader();
+	private transient @Nullable ClassLoader proxyClassLoader = ClassUtils.getDefaultClassLoader();
 
 	private transient boolean classLoaderConfigured = false;
 
-	@Nullable
-	private transient BeanFactory beanFactory;
+	private transient @Nullable BeanFactory beanFactory;
 
 	/** Whether the advisor chain has already been initialized. */
 	private boolean advisorChainInitialized = false;
 
 	/** If this is a singleton, the cached singleton proxy instance. */
-	@Nullable
-	private Object singletonInstance;
+	private @Nullable Object singletonInstance;
 
 
 	/**
@@ -246,8 +244,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 */
 	// TODO 返回一个代理. 重写了取得bean工厂的getObject()方法
 	@Override
-	@Nullable
-	public Object getObject() throws BeansException {
+	public @Nullable Object getObject() throws BeansException {
 		// TODO 初始化Advisor链. 初始化动作只进行一次. 会所所有满足条件的Advisor(支持通配符. 使用通配符时, 会在全局进行查找, 包括
 		//  当前容器, 以及父容器中类型为Advisor以及Interceptor, 名称以通配符指定的prefix的所有bean. Interceptor类型的bean最终会
 		//  包装为Advisor)加入到缓存中. 如果是非单例的, 每次都会为拦截方法创建一个新的PrototypePlaceholderAdvisor
@@ -270,28 +267,31 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 * Return the type of the proxy. Will check the singleton instance if
 	 * already created, else fall back to the proxy interface (in case of just
 	 * a single one), the target bean type, or the TargetSource's target class.
-	 * @see org.springframework.aop.TargetSource#getTargetClass
+	 * @see org.springframework.aop.framework.AopProxy#getProxyClass
 	 */
 	// TODO 重写了从容器中取得对象类型的getObjectType()方法
 	@Override
-	public Class<?> getObjectType() {
+	public @Nullable Class<?> getObjectType() {
 		synchronized (this) {
 			if (this.singletonInstance != null) {
 				return this.singletonInstance.getClass();
 			}
 		}
-		Class<?>[] ifcs = getProxiedInterfaces();
-		if (ifcs.length == 1) {
-			return ifcs[0];
+		try {
+			// This might be incomplete since it potentially misses introduced interfaces
+			// from Advisors that will be lazily retrieved via setInterceptorNames.
+			return createAopProxy().getProxyClass(this.proxyClassLoader);
 		}
-		else if (ifcs.length > 1) {
-			return createCompositeInterface(ifcs);
-		}
-		else if (this.targetName != null && this.beanFactory != null) {
-			return this.beanFactory.getType(this.targetName);
-		}
-		else {
-			return getTargetClass();
+		catch (AopConfigException ex) {
+			if (getTargetClass() == null) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Failed to determine early proxy class: " + ex.getMessage());
+				}
+				return null;
+			}
+			else {
+				throw ex;
+			}
 		}
 	}
 
@@ -300,19 +300,6 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		return this.singleton;
 	}
 
-
-	/**
-	 * Create a composite interface Class for the given interfaces,
-	 * implementing the given interfaces in one single Class.
-	 * <p>The default implementation builds a JDK proxy class for the
-	 * given interfaces.
-	 * @param interfaces the interfaces to merge
-	 * @return the merged interface as Class
-	 * @see java.lang.reflect.Proxy#getProxyClass
-	 */
-	protected Class<?> createCompositeInterface(Class<?>[] interfaces) {
-		return ClassUtils.createCompositeInterface(interfaces, this.proxyClassLoader);
-	}
 
 	/**
 	 * Return the singleton instance of this class's proxy object,
@@ -427,7 +414,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 		if (namedBeanClass != null) {
 			return (Advisor.class.isAssignableFrom(namedBeanClass) || Advice.class.isAssignableFrom(namedBeanClass));
 		}
-		// Treat it as an target bean if we can't tell.
+		// Treat it as a target bean if we can't tell.
 		if (logger.isDebugEnabled()) {
 			logger.debug("Could not determine type of bean with name '" + beanName +
 					"' - assuming it is neither an Advisor nor an Advice");
@@ -676,11 +663,6 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 
 		@Override
 		public Advice getAdvice() {
-			throw new UnsupportedOperationException("Cannot invoke methods: " + this.message);
-		}
-
-		@Override
-		public boolean isPerInstance() {
 			throw new UnsupportedOperationException("Cannot invoke methods: " + this.message);
 		}
 

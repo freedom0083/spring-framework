@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public abstract class AbstractPdfStamperView extends AbstractUrlBasedView {
 	 *
 	 * // set some values on the form
 	 * form.setField("field1", "value1");
-	 * form.setField("field2", "Vvlue2");
+	 * form.setField("field2", "value2");
 	 *
 	 * // set the disposition and filename
 	 * response.setHeader("Content-disposition", "attachment; FILENAME=someName.pdf");</pre>
@@ -109,7 +109,7 @@ public abstract class AbstractPdfStamperView extends AbstractUrlBasedView {
 	 * @param model the model Map
 	 * @param stamper the PdfStamper instance that will contain the AcroFields.
 	 * You may also customize this PdfStamper instance according to your needs,
-	 * e.g. setting the "formFlattening" property.
+	 * for example, setting the "formFlattening" property.
 	 * @param request in case we need locale etc. Shouldn't look at attributes.
 	 * @param response in case we need to set cookies. Shouldn't write to it.
 	 * @throws Exception any exception that occurred during document building

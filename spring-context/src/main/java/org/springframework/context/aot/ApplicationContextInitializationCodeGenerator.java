@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,45 +17,123 @@
 package org.springframework.context.aot;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 import javax.lang.model.element.Modifier;
 
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethods;
-import org.springframework.aot.generate.MethodGenerator;
+import org.springframework.aot.generate.GenerationContext;
 import org.springframework.aot.generate.MethodReference;
+import org.springframework.aot.generate.MethodReference.ArgumentCodeGenerator;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.aot.BeanFactoryInitializationCode;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.javapoet.ClassName;
 import org.springframework.javapoet.CodeBlock;
-import org.springframework.javapoet.JavaFile;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.javapoet.ParameterizedTypeName;
+import org.springframework.javapoet.TypeName;
 import org.springframework.javapoet.TypeSpec;
 
 /**
- * Internal code generator to create the application context initializer.
+ * Internal code generator to create the {@link ApplicationContextInitializer}.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  */
-class ApplicationContextInitializationCodeGenerator
-		implements BeanFactoryInitializationCode {
+class ApplicationContextInitializationCodeGenerator implements BeanFactoryInitializationCode {
+
+	private static final String INITIALIZE_METHOD = "initialize";
 
 	private static final String APPLICATION_CONTEXT_VARIABLE = "applicationContext";
 
+	private final GenericApplicationContext applicationContext;
 
-	private final GeneratedMethods generatedMethods = new GeneratedMethods();
+	private final GeneratedClass generatedClass;
 
 	private final List<MethodReference> initializers = new ArrayList<>();
 
 
+	ApplicationContextInitializationCodeGenerator(GenericApplicationContext applicationContext, GenerationContext generationContext) {
+		this.applicationContext = applicationContext;
+		this.generatedClass = generationContext.getGeneratedClasses()
+				.addForFeature("ApplicationContextInitializer", this::generateType);
+		this.generatedClass.reserveMethodNames(INITIALIZE_METHOD);
+	}
+
+
+	private void generateType(TypeSpec.Builder type) {
+		type.addJavadoc(
+				"{@link $T} to restore an application context based on previous AOT processing.",
+				ApplicationContextInitializer.class);
+		type.addModifiers(Modifier.PUBLIC);
+		type.addSuperinterface(ParameterizedTypeName.get(
+				ApplicationContextInitializer.class, GenericApplicationContext.class));
+		type.addMethod(generateInitializeMethod());
+	}
+
+	private MethodSpec generateInitializeMethod() {
+		MethodSpec.Builder method = MethodSpec.methodBuilder(INITIALIZE_METHOD);
+		method.addAnnotation(Override.class);
+		method.addModifiers(Modifier.PUBLIC);
+		method.addParameter(GenericApplicationContext.class, APPLICATION_CONTEXT_VARIABLE);
+		method.addCode(generateInitializeCode());
+		return method.build();
+	}
+
+	private CodeBlock generateInitializeCode() {
+		CodeBlock.Builder code = CodeBlock.builder();
+		code.addStatement("$T $L = $L.getDefaultListableBeanFactory()",
+				DefaultListableBeanFactory.class, BEAN_FACTORY_VARIABLE,
+				APPLICATION_CONTEXT_VARIABLE);
+		code.addStatement("$L.setAutowireCandidateResolver(new $T())",
+				BEAN_FACTORY_VARIABLE, ContextAnnotationAutowireCandidateResolver.class);
+		code.addStatement("$L.setDependencyComparator($T.INSTANCE)",
+				BEAN_FACTORY_VARIABLE, AnnotationAwareOrderComparator.class);
+		code.add(generateActiveProfilesInitializeCode());
+		ArgumentCodeGenerator argCodeGenerator = createInitializerMethodArgumentCodeGenerator();
+		for (MethodReference initializer : this.initializers) {
+			code.addStatement(initializer.toInvokeCodeBlock(argCodeGenerator, this.generatedClass.getName()));
+		}
+		return code.build();
+	}
+
+	private CodeBlock generateActiveProfilesInitializeCode() {
+		CodeBlock.Builder code = CodeBlock.builder();
+		ConfigurableEnvironment environment = this.applicationContext.getEnvironment();
+		if (!Arrays.equals(environment.getActiveProfiles(), environment.getDefaultProfiles())) {
+			for (String activeProfile : environment.getActiveProfiles()) {
+				code.addStatement("$L.getEnvironment().addActiveProfile($S)", APPLICATION_CONTEXT_VARIABLE, activeProfile);
+			}
+		}
+		return code.build();
+	}
+
+	static ArgumentCodeGenerator createInitializerMethodArgumentCodeGenerator() {
+		return ArgumentCodeGenerator.from(new InitializerMethodArgumentCodeGenerator());
+	}
+
+	GeneratedClass getGeneratedClass() {
+		return this.generatedClass;
+	}
+
 	@Override
-	public MethodGenerator getMethodGenerator() {
-		return this.generatedMethods;
+	public GeneratedMethods getMethods() {
+		return this.generatedClass.getMethods();
 	}
 
 	@Override
@@ -63,41 +141,29 @@ class ApplicationContextInitializationCodeGenerator
 		this.initializers.add(methodReference);
 	}
 
-	JavaFile generateJavaFile(ClassName className) {
-		TypeSpec.Builder builder = TypeSpec.classBuilder(className);
-		builder.addJavadoc(
-				"{@link $T} to restore an application context based on previous AOT processing.",
-				ApplicationContextInitializer.class);
-		builder.addModifiers(Modifier.PUBLIC);
-		builder.addSuperinterface(ParameterizedTypeName.get(
-				ApplicationContextInitializer.class, GenericApplicationContext.class));
-		builder.addMethod(generateInitializeMethod());
-		this.generatedMethods.doWithMethodSpecs(builder::addMethod);
-		return JavaFile.builder(className.packageName(), builder.build()).build();
-	}
+	private static class InitializerMethodArgumentCodeGenerator implements Function<TypeName, @Nullable CodeBlock> {
 
-	private MethodSpec generateInitializeMethod() {
-		MethodSpec.Builder builder = MethodSpec.methodBuilder("initialize");
-		builder.addAnnotation(Override.class);
-		builder.addModifiers(Modifier.PUBLIC);
-		builder.addParameter(GenericApplicationContext.class,
-				APPLICATION_CONTEXT_VARIABLE);
-		builder.addCode(generateInitializeCode());
-		return builder.build();
-	}
-
-	private CodeBlock generateInitializeCode() {
-		CodeBlock.Builder builder = CodeBlock.builder();
-		builder.addStatement("$T $L = $L.getDefaultListableBeanFactory()",
-				DefaultListableBeanFactory.class, BEAN_FACTORY_VARIABLE,
-				APPLICATION_CONTEXT_VARIABLE);
-		builder.addStatement("$L.setAutowireCandidateResolver(new $T())",
-				BEAN_FACTORY_VARIABLE, ContextAnnotationAutowireCandidateResolver.class);
-		for (MethodReference initializer : this.initializers) {
-			builder.addStatement(
-					initializer.toInvokeCodeBlock(CodeBlock.of(BEAN_FACTORY_VARIABLE)));
+		@Override
+		public @Nullable CodeBlock apply(TypeName typeName) {
+			return (typeName instanceof ClassName className ? apply(className) : null);
 		}
-		return builder.build();
+
+		private @Nullable CodeBlock apply(ClassName className) {
+			String name = className.canonicalName();
+			if (name.equals(DefaultListableBeanFactory.class.getName()) ||
+					name.equals(ListableBeanFactory.class.getName()) ||
+					name.equals(ConfigurableListableBeanFactory.class.getName())) {
+				return CodeBlock.of(BEAN_FACTORY_VARIABLE);
+			}
+			else if (name.equals(ConfigurableEnvironment.class.getName()) ||
+					name.equals(Environment.class.getName())) {
+				return CodeBlock.of("$L.getEnvironment()", APPLICATION_CONTEXT_VARIABLE);
+			}
+			else if (name.equals(ResourceLoader.class.getName())) {
+				return CodeBlock.of(APPLICATION_CONTEXT_VARIABLE);
+			}
+			return null;
+		}
 	}
 
 }

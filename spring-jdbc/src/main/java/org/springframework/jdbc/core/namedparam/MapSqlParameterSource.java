@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.core.SqlParameterValue;
-import org.springframework.lang.NonNull;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -87,8 +87,8 @@ public class MapSqlParameterSource extends AbstractSqlParameterSource {
 	public MapSqlParameterSource addValue(String paramName, @Nullable Object value) {
 		Assert.notNull(paramName, "Parameter name must not be null");
 		this.values.put(paramName, value);
-		if (value instanceof SqlParameterValue) {
-			registerSqlType(paramName, ((SqlParameterValue) value).getSqlType());
+		if (value instanceof SqlParameterValue sqlParameterValue) {
+			registerSqlType(paramName, sqlParameterValue.getSqlType());
 		}
 		return this;
 	}
@@ -135,12 +135,20 @@ public class MapSqlParameterSource extends AbstractSqlParameterSource {
 		if (values != null) {
 			values.forEach((key, value) -> {
 				this.values.put(key, value);
-				if (value instanceof SqlParameterValue) {
-					registerSqlType(key, ((SqlParameterValue) value).getSqlType());
+				if (value instanceof SqlParameterValue sqlParameterValue) {
+					registerSqlType(key, sqlParameterValue.getSqlType());
 				}
 			});
 		}
 		return this;
+	}
+
+	/**
+	 * Return whether this parameter source has been configured with any values.
+	 * @since 6.1
+	 */
+	public boolean hasValues() {
+		return !this.values.isEmpty();
 	}
 
 	/**
@@ -157,8 +165,7 @@ public class MapSqlParameterSource extends AbstractSqlParameterSource {
 	}
 
 	@Override
-	@Nullable
-	public Object getValue(String paramName) {
+	public @Nullable Object getValue(String paramName) {
 		if (!hasValue(paramName)) {
 			throw new IllegalArgumentException("No value registered for key '" + paramName + "'");
 		}
@@ -166,7 +173,6 @@ public class MapSqlParameterSource extends AbstractSqlParameterSource {
 	}
 
 	@Override
-	@NonNull
 	public String[] getParameterNames() {
 		return StringUtils.toStringArray(this.values.keySet());
 	}

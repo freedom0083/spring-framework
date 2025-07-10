@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ import java.util.function.Consumer;
 import javax.xml.xpath.XPathExpressionException;
 
 import org.hamcrest.Matcher;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
-import org.springframework.lang.Nullable;
 import org.springframework.test.util.XpathExpectationsHelper;
 import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
@@ -190,7 +190,7 @@ public class XpathAssertions {
 
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(@Nullable Object obj) {
 		throw new AssertionError("Object#equals is disabled " +
 				"to avoid being used in error instead of XPathAssertions#isEqualTo(String).");
 	}

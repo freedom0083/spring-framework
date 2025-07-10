@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,28 +118,28 @@ class ThisAndTargetSelectionOnlyPointcutsAtAspectJTests {
 		assertThat(counter.atAnnotationMethodAnnotationCounter).isEqualTo(1);
 	}
 
-	public static interface TestInterface {
-		public void doIt();
+	interface TestInterface {
+		void doIt();
 	}
 
-	public static class TestImpl implements TestInterface {
+	static class TestImpl implements TestInterface {
 		@Override
 		public void doIt() {
 		}
 	}
 
 	@Retention(RetentionPolicy.RUNTIME)
-	public static @interface TestAnnotation {
+	@interface TestAnnotation {
 	}
 
 	@TestAnnotation
-	public static class AnnotatedClassTestImpl implements TestInterface {
+	static class AnnotatedClassTestImpl implements TestInterface {
 		@Override
 		public void doIt() {
 		}
 	}
 
-	public static class AnnotatedMethodTestImpl implements TestInterface {
+	static class AnnotatedMethodTestImpl implements TestInterface {
 		@Override
 		@TestAnnotation
 		public void doIt() {
@@ -147,7 +147,7 @@ class ThisAndTargetSelectionOnlyPointcutsAtAspectJTests {
 	}
 
 	@Aspect
-	public static class Counter {
+	static class Counter {
 		int thisAsClassCounter;
 		int thisAsInterfaceCounter;
 		int targetAsClassCounter;

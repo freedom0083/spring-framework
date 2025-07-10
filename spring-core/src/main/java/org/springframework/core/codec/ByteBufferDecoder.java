@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.core.codec;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.ResolvableType;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
@@ -51,15 +52,14 @@ public class ByteBufferDecoder extends AbstractDataBufferDecoder<ByteBuffer> {
 	public ByteBuffer decode(DataBuffer dataBuffer, ResolvableType elementType,
 			@Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
 
-		int byteCount = dataBuffer.readableByteCount();
-		ByteBuffer copy = ByteBuffer.allocate(byteCount);
-		copy.put(dataBuffer.asByteBuffer());
-		copy.flip();
-		DataBufferUtils.release(dataBuffer);
+		int len = dataBuffer.readableByteCount();
+		ByteBuffer result = ByteBuffer.allocate(len);
+		dataBuffer.toByteBuffer(result);
 		if (logger.isDebugEnabled()) {
-			logger.debug(Hints.getLogPrefix(hints) + "Read " + byteCount + " bytes");
+			logger.debug(Hints.getLogPrefix(hints) + "Read " + len + " bytes");
 		}
-		return copy;
+		DataBufferUtils.release(dataBuffer);
+		return result;
 	}
 
 }

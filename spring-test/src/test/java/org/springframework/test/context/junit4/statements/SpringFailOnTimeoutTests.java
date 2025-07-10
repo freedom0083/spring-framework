@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,35 +30,36 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link SpringFailOnTimeout}.
+ * Tests for {@link SpringFailOnTimeout}.
  *
  * @author Igor Suhorukov
  * @author Sam Brannen
  * @since 4.3.17
  */
+@SuppressWarnings("deprecation")
 public class SpringFailOnTimeoutTests {
 
-	private final Statement statement = mock(Statement.class);
+	private final Statement statement = mock();
 
 
 	@Test
-	public void nullNextStatement() throws Throwable {
-		assertThatIllegalArgumentException().isThrownBy(() ->
-				new SpringFailOnTimeout(null, 1));
+	public void nullNextStatement() {
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> new SpringFailOnTimeout(null, 1));
 	}
 
 	@Test
-	public void negativeTimeout() throws Throwable {
-		assertThatIllegalArgumentException().isThrownBy(() ->
-				new SpringFailOnTimeout(statement, -1));
+	public void negativeTimeout() {
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> new SpringFailOnTimeout(statement, -1));
 	}
 
 	@Test
 	public void userExceptionPropagates() throws Throwable {
 		willThrow(new Boom()).given(statement).evaluate();
 
-		assertThatExceptionOfType(Boom.class).isThrownBy(() ->
-				new SpringFailOnTimeout(statement, 1).evaluate());
+		assertThatExceptionOfType(Boom.class)
+				.isThrownBy(() -> new SpringFailOnTimeout(statement, 1).evaluate());
 	}
 
 	@Test
@@ -68,8 +69,8 @@ public class SpringFailOnTimeoutTests {
 			return null;
 		}).given(statement).evaluate();
 
-		assertThatExceptionOfType(TimeoutException.class).isThrownBy(() ->
-		new SpringFailOnTimeout(statement, 1).evaluate());
+		assertThatExceptionOfType(TimeoutException.class)
+				.isThrownBy(() -> new SpringFailOnTimeout(statement, 1).evaluate());
 	}
 
 	@Test

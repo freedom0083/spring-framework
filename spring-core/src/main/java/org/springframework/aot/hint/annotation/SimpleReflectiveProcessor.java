@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,7 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.function.Consumer;
 
-import org.springframework.aot.hint.ExecutableHint.Builder;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.ReflectionHints;
 
@@ -35,8 +33,6 @@ import org.springframework.aot.hint.ReflectionHints;
  * @since 6.0
  */
 public class SimpleReflectiveProcessor implements ReflectiveProcessor {
-
-	private static final Consumer<Builder> INVOKE_EXECUTABLE = hint -> hint.setModes(ExecutableMode.INVOKE);
 
 	@Override
 	public void registerReflectionHints(ReflectionHints hints, AnnotatedElement element) {
@@ -60,7 +56,7 @@ public class SimpleReflectiveProcessor implements ReflectiveProcessor {
 	 * @param type the class to process
 	 */
 	protected void registerTypeHint(ReflectionHints hints, Class<?> type) {
-		hints.registerType(type, hint -> {});
+		hints.registerType(type);
 	}
 
 	/**
@@ -69,7 +65,7 @@ public class SimpleReflectiveProcessor implements ReflectiveProcessor {
 	 * @param constructor the constructor to process
 	 */
 	protected void registerConstructorHint(ReflectionHints hints, Constructor<?> constructor) {
-		hints.registerConstructor(constructor, INVOKE_EXECUTABLE);
+		hints.registerConstructor(constructor, ExecutableMode.INVOKE);
 	}
 
 	/**
@@ -87,7 +83,7 @@ public class SimpleReflectiveProcessor implements ReflectiveProcessor {
 	 * @param method the method to process
 	 */
 	protected void registerMethodHint(ReflectionHints hints, Method method) {
-		hints.registerMethod(method, INVOKE_EXECUTABLE);
+		hints.registerMethod(method, ExecutableMode.INVOKE);
 	}
 
 }

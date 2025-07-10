@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.result.*
  * @author Sebastien Deleuze
  * @since 5.2
  */
-class MockMvcResultMatchersDsl internal constructor (private val actions: ResultActions) {
+class MockMvcResultMatchersDsl(private val actions: ResultActions) {
 
 	/**
 	 * @see MockMvcResultMatchers.request
@@ -144,5 +144,13 @@ class MockMvcResultMatchersDsl internal constructor (private val actions: Result
 	 */
 	fun match(matcher: ResultMatcher) {
 		actions.andExpect(matcher)
+	}
+
+	/**
+	 * @since 6.0.4
+	 * @see ResultActions.andExpectAll
+	 */
+	fun matchAll(vararg matchers: ResultMatcher) {
+		actions.andExpectAll(*matchers)
 	}
 }

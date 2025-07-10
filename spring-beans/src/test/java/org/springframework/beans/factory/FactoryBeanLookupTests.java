@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,50 +32,52 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Chris Beams
  */
-public class FactoryBeanLookupTests {
-	private BeanFactory beanFactory;
+class FactoryBeanLookupTests {
+
+	private final BeanFactory beanFactory = new DefaultListableBeanFactory();
+
 
 	@BeforeEach
-	public void setUp() {
-		beanFactory = new DefaultListableBeanFactory();
+	void setUp() {
 		new XmlBeanDefinitionReader((BeanDefinitionRegistry) beanFactory).loadBeanDefinitions(
-				new ClassPathResource("FactoryBeanLookupTests-context.xml", this.getClass()));
+				new ClassPathResource("FactoryBeanLookupTests-context.xml", getClass()));
 	}
 
 	@Test
-	public void factoryBeanLookupByNameDereferencing() {
+	void factoryBeanLookupByNameDereferencing() {
 		Object fooFactory = beanFactory.getBean("&fooFactory");
 		assertThat(fooFactory).isInstanceOf(FooFactoryBean.class);
 	}
 
 	@Test
-	public void factoryBeanLookupByType() {
+	void factoryBeanLookupByType() {
 		FooFactoryBean fooFactory = beanFactory.getBean(FooFactoryBean.class);
 		assertThat(fooFactory).isNotNull();
 	}
 
 	@Test
-	public void factoryBeanLookupByTypeAndNameDereference() {
+	void factoryBeanLookupByTypeAndNameDereference() {
 		FooFactoryBean fooFactory = beanFactory.getBean("&fooFactory", FooFactoryBean.class);
 		assertThat(fooFactory).isNotNull();
 	}
 
 	@Test
-	public void factoryBeanObjectLookupByName() {
+	void factoryBeanObjectLookupByName() {
 		Object fooFactory = beanFactory.getBean("fooFactory");
 		assertThat(fooFactory).isInstanceOf(Foo.class);
 	}
 
 	@Test
-	public void factoryBeanObjectLookupByNameAndType() {
+	void factoryBeanObjectLookupByNameAndType() {
 		Foo foo = beanFactory.getBean("fooFactory", Foo.class);
 		assertThat(foo).isNotNull();
 	}
+
 }
 
 class FooFactoryBean extends AbstractFactoryBean<Foo> {
 	@Override
-	protected Foo createInstance() throws Exception {
+	protected Foo createInstance() {
 		return new Foo();
 	}
 

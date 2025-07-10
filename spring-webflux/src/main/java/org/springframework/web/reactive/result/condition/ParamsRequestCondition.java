@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.server.ServerWebExchange;
@@ -50,7 +53,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 		if (ObjectUtils.isEmpty(params)) {
 			return Collections.emptySet();
 		}
-		Set<ParamExpression> result = new LinkedHashSet<>(params.length);
+		Set<ParamExpression> result = CollectionUtils.newLinkedHashSet(params.length);
 		for (String param : params) {
 			result.add(new ParamExpression(param));
 		}
@@ -85,10 +88,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 	 */
 	@Override
 	public ParamsRequestCondition combine(ParamsRequestCondition other) {
-		if (isEmpty() && other.isEmpty()) {
-			return this;
-		}
-		else if (other.isEmpty()) {
+		if (other.isEmpty()) {
 			return this;
 		}
 		else if (isEmpty()) {
@@ -104,7 +104,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 	 * or {@code null} otherwise.
 	 */
 	@Override
-	public ParamsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
+	public @Nullable ParamsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
 		for (ParamExpression expression : this.expressions) {
 			if (!expression.match(exchange)) {
 				return null;

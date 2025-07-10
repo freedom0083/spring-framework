@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.web.context.request.async;
 
 import java.util.concurrent.Callable;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -104,7 +106,7 @@ public interface CallableProcessingInterceptor {
 	 * @throws Exception in case of errors
 	 */
 	default <T> void postProcess(NativeWebRequest request, Callable<T> task,
-			Object concurrentResult) throws Exception {
+			@Nullable Object concurrentResult) throws Exception {
 	}
 
 	/**

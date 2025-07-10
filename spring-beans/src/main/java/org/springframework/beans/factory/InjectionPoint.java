@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,21 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
  * A simple descriptor for an injection point, pointing to a method/constructor
- * parameter or a field. Exposed by {@link UnsatisfiedDependencyException}.
- * Also available as an argument for factory methods, reacting to the
- * requesting injection point for building a customized bean instance.
+ * parameter or a field.
+ *
+ * <p>Exposed by {@link UnsatisfiedDependencyException}. Also available as an
+ * argument for factory methods, reacting to the requesting injection point
+ * for building a customized bean instance.
  *
  * @author Juergen Hoeller
  * @since 4.3
@@ -40,18 +44,15 @@ import org.springframework.util.ObjectUtils;
 // TODO 用来描述注入点信息的描述符
 public class InjectionPoint {
 
-	@Nullable
 	// TODO 表示注入项为一个方法参数(方法, 或构造函数的参数), 其中会包含该参数的详细信息, 比如: 参数名, 在方法中的位置, 类型,
 	//  泛型类型, 注解信息等. 如果注入项是一个Field字段(成员属性), 则此值为null
-	protected MethodParameter methodParameter;
+	protected @Nullable MethodParameter methodParameter;
 
-	@Nullable
 	// TODO 表示注入项为一个字段(成员属性). 如果注入项是一个MethodParameter方法参数, 则此值为null
-	protected Field field;
+	protected @Nullable Field field;
 
-	@Nullable
 	// TODO 注入项为字段(成员属性)时, 该字段上标注的所有注解会放到这个属性
-	private volatile Annotation[] fieldAnnotations;
+	private volatile Annotation @Nullable [] fieldAnnotations;
 
 	/**
 	 * Create an injection point descriptor for a method or constructor parameter.
@@ -98,9 +99,8 @@ public class InjectionPoint {
 	 * <p>Note: Either MethodParameter or Field is available.
 	 * @return the MethodParameter, or {@code null} if none
 	 */
-	@Nullable
 	// TODO 返回描述符所包装的方法参数(方法, 或构造函数的参数), 仅在当前描述的是方法参数时有值, 如果描述的是字段(成员属性), 则返回null
-	public MethodParameter getMethodParameter() {
+	public @Nullable MethodParameter getMethodParameter() {
 		return this.methodParameter;
 	}
 
@@ -109,9 +109,8 @@ public class InjectionPoint {
 	 * <p>Note: Either MethodParameter or Field is available.
 	 * @return the Field, or {@code null} if none
 	 */
-	@Nullable
 	// TODO 返回描述符所包装的字段(成员属性), 仅在当前描述的是字段(成员属性)时有值, 如果描述的是方法参数(方法, 或构造函数的参数), 则返回null
-	public Field getField() {
+	public @Nullable Field getField() {
 		return this.field;
 	}
 
@@ -124,7 +123,7 @@ public class InjectionPoint {
 	// TODO 获取描述符所包装的方法参数(方法, 或构造函数的参数), 肯定不为null. 如果描述符所包装的不是方法参数(方法, 或构造函数的参数),
 	//  则抛出IllegalStateException异常
 	protected final MethodParameter obtainMethodParameter() {
-		Assert.state(this.methodParameter != null, "Neither Field nor MethodParameter");
+		Assert.state(this.methodParameter != null, "MethodParameter is not available");
 		return this.methodParameter;
 	}
 
@@ -155,9 +154,8 @@ public class InjectionPoint {
 	 * @return the annotation instance, or {@code null} if none found
 	 * @since 4.3.9
 	 */
-	@Nullable
 	// TODO 获取描述符所描述的注入项, 即: 方法参数(方法, 或构造函数的参数), 或字段(成员属性)上的指定类型的注解. 如果该类型的注解不存在, 则返回null
-	public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+	public <A extends Annotation> @Nullable A getAnnotation(Class<A> annotationType) {
 		return (this.field != null ? this.field.getAnnotation(annotationType) :
 				obtainMethodParameter().getParameterAnnotation(annotationType));
 	}
@@ -215,7 +213,7 @@ public class InjectionPoint {
 
 	@Override
 	public int hashCode() {
-		return (this.field != null ? this.field.hashCode() : ObjectUtils.nullSafeHashCode(this.methodParameter));
+		return Objects.hash(this.field, this.methodParameter);
 	}
 
 	@Override

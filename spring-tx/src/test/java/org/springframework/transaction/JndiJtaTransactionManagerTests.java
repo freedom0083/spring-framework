@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,33 +38,33 @@ import static org.mockito.Mockito.verify;
  * @author Juergen Hoeller
  * @since 05.08.2005
  */
-public class JndiJtaTransactionManagerTests {
+class JndiJtaTransactionManagerTests {
 
 	@Test
-	public void jtaTransactionManagerWithDefaultJndiLookups1() throws Exception {
+	void jtaTransactionManagerWithDefaultJndiLookups1() throws Exception {
 		doTestJtaTransactionManagerWithDefaultJndiLookups("java:comp/TransactionManager", true, true);
 	}
 
 	@Test
-	public void jtaTransactionManagerWithDefaultJndiLookups2() throws Exception {
+	void jtaTransactionManagerWithDefaultJndiLookups2() throws Exception {
 		doTestJtaTransactionManagerWithDefaultJndiLookups("java:/TransactionManager", true, true);
 	}
 
 	@Test
-	public void jtaTransactionManagerWithDefaultJndiLookupsAndNoTmFound() throws Exception {
+	void jtaTransactionManagerWithDefaultJndiLookupsAndNoTmFound() throws Exception {
 		doTestJtaTransactionManagerWithDefaultJndiLookups("java:/tm", false, true);
 	}
 
 	@Test
-	public void jtaTransactionManagerWithDefaultJndiLookupsAndNoUtFound() throws Exception {
+	void jtaTransactionManagerWithDefaultJndiLookupsAndNoUtFound() throws Exception {
 		doTestJtaTransactionManagerWithDefaultJndiLookups("java:/TransactionManager", true, false);
 	}
 
 	private void doTestJtaTransactionManagerWithDefaultJndiLookups(String tmName, boolean tmFound, boolean defaultUt)
 			throws Exception {
 
-		UserTransaction ut = mock(UserTransaction.class);
-		TransactionManager tm = mock(TransactionManager.class);
+		UserTransaction ut = mock();
+		TransactionManager tm = mock();
 		if (defaultUt) {
 			given(ut.getStatus()).willReturn(Status.STATUS_NO_TRANSACTION, Status.STATUS_ACTIVE, Status.STATUS_ACTIVE);
 		}
@@ -127,11 +127,11 @@ public class JndiJtaTransactionManagerTests {
 	}
 
 	@Test
-	public void jtaTransactionManagerWithCustomJndiLookups() throws Exception {
-		UserTransaction ut = mock(UserTransaction.class);
+	void jtaTransactionManagerWithCustomJndiLookups() throws Exception {
+		UserTransaction ut = mock();
 		given(ut.getStatus()).willReturn(Status.STATUS_NO_TRANSACTION, Status.STATUS_ACTIVE, Status.STATUS_ACTIVE);
 
-		TransactionManager tm = mock(TransactionManager.class);
+		TransactionManager tm = mock();
 
 		JtaTransactionManager ptm = new JtaTransactionManager();
 		ptm.setUserTransactionName("jndi-ut");
@@ -166,11 +166,11 @@ public class JndiJtaTransactionManagerTests {
 	}
 
 	@Test
-	public void jtaTransactionManagerWithNotCacheUserTransaction() throws Exception {
-		UserTransaction ut = mock(UserTransaction.class);
+	void jtaTransactionManagerWithNotCacheUserTransaction() throws Exception {
+		UserTransaction ut = mock();
 		given(ut.getStatus()).willReturn(Status.STATUS_NO_TRANSACTION, Status.STATUS_ACTIVE, Status.STATUS_ACTIVE);
 
-		UserTransaction ut2 = mock(UserTransaction.class);
+		UserTransaction ut2 = mock();
 		given(ut2.getStatus()).willReturn(Status.STATUS_NO_TRANSACTION, Status.STATUS_ACTIVE, Status.STATUS_ACTIVE);
 
 		JtaTransactionManager ptm = new JtaTransactionManager();
@@ -214,12 +214,12 @@ public class JndiJtaTransactionManagerTests {
 	}
 
 	/**
-	 * Prevent any side-effects due to this test modifying ThreadLocals that might
+	 * Prevent any side effects due to this test modifying ThreadLocals that might
 	 * affect subsequent tests when all tests are run in the same JVM, as with Eclipse.
 	 */
 	@AfterEach
-	public void tearDown() {
-		assertThat(TransactionSynchronizationManager.getResourceMap().isEmpty()).isTrue();
+	void tearDown() {
+		assertThat(TransactionSynchronizationManager.getResourceMap()).isEmpty();
 		assertThat(TransactionSynchronizationManager.isSynchronizationActive()).isFalse();
 		assertThat(TransactionSynchronizationManager.getCurrentTransactionName()).isNull();
 		assertThat(TransactionSynchronizationManager.isCurrentTransactionReadOnly()).isFalse();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.springframework.context.annotation;
 import java.lang.annotation.Annotation;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer;
@@ -30,7 +32,6 @@ import org.springframework.beans.factory.support.BeanNameGenerator;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.EnvironmentCapable;
 import org.springframework.core.env.StandardEnvironment;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -43,6 +44,7 @@ import org.springframework.util.Assert;
  * @author Chris Beams
  * @author Sam Brannen
  * @author Phillip Webb
+ * @author Yanming Zhou
  * @since 3.0
  * @see AnnotationConfigApplicationContext#register
  */
@@ -60,7 +62,7 @@ public class AnnotatedBeanDefinitionReader {
 
 	/**
 	 * Create a new {@code AnnotatedBeanDefinitionReader} for the given registry.
-	 * <p>If the registry is {@link EnvironmentCapable}, e.g. is an {@code ApplicationContext},
+	 * <p>If the registry is {@link EnvironmentCapable}, for example, is an {@code ApplicationContext},
 	 * the {@link Environment} will be inherited, otherwise a new
 	 * {@link StandardEnvironment} will be created and used.
 	 * @param registry the {@code BeanFactory} to load bean definitions into,
@@ -102,7 +104,6 @@ public class AnnotatedBeanDefinitionReader {
 	 * Set the {@code Environment} to use when evaluating whether
 	 * {@link Conditional @Conditional}-annotated component classes should be registered.
 	 * <p>The default is a {@link StandardEnvironment}.
-	 * @see #registerBean(Class, String, Class...)
 	 */
 	public void setEnvironment(Environment environment) {
 		this.conditionEvaluator = new ConditionEvaluator(this.registry, environment, null);
@@ -132,7 +133,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * <p>Calls to {@code register} are idempotent; adding the same
 	 * component class more than once has no additional effect.
 	 * @param componentClasses one or more component classes,
-	 * e.g. {@link Configuration @Configuration} classes
+	 * for example, {@link Configuration @Configuration} classes
 	 */
 	public void register(Class<?>... componentClasses) {
 		for (Class<?> componentClass : componentClasses) {
@@ -226,7 +227,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * @param supplier a callback for creating an instance of the bean
 	 * (may be {@code null})
 	 * @param customizers one or more callbacks for customizing the factory's
-	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
+	 * {@link BeanDefinition}, for example, setting a lazy-init or primary flag
 	 * @since 5.2
 	 */
 	public <T> void registerBean(Class<T> beanClass, @Nullable String name, @Nullable Supplier<T> supplier,
@@ -246,18 +247,20 @@ public class AnnotatedBeanDefinitionReader {
 	 * @param supplier a callback for creating an instance of the bean
 	 * (may be {@code null})
 	 * @param customizers one or more callbacks for customizing the factory's
-	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
+	 * {@link BeanDefinition}, for example, setting a lazy-init or primary flag
 	 * @since 5.0
 	 */
 	private <T> void doRegisterBean(Class<T> beanClass, @Nullable String name,
-			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
-			@Nullable BeanDefinitionCustomizer[] customizers) {
-        // TODO 将传入的配置类转化为bean definition, 转化过程会提取配置类内注解的元数据
+			Class<? extends Annotation> @Nullable [] qualifiers, @Nullable Supplier<T> supplier,
+			BeanDefinitionCustomizer @Nullable [] customizers) {
+		// TODO 将传入的配置类转化为bean definition, 转化过程会提取配置类内注解的元数据
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(beanClass);
 		// TODO 判断一下是否满足@Condition要求的条件, 不满足的就不需要进行注入了
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}
+
+		abd.setAttribute(ConfigurationClassUtils.CANDIDATE_ATTRIBUTE, Boolean.TRUE);
 		// TODO 创建bean实例时, 可以通过Supplier进行创建. 会在AbstractAutowireCapableBeanFactory#createBeanInstance()方法中进行调用
 		abd.setInstanceSupplier(supplier);
 		// TODO 解析@Scope, 默认为singleton
@@ -272,6 +275,9 @@ public class AnnotatedBeanDefinitionReader {
 				if (Primary.class == qualifier) {
 					// TODO 如果包含@Primary注解, 设置abd有首先项
 					abd.setPrimary(true);
+				}
+				else if (Fallback.class == qualifier) {
+					abd.setFallback(true);
 				}
 				else if (Lazy.class == qualifier) {
 					// TODO 如果包含@Lazy注解, 设置abd使用懒加载
@@ -305,8 +311,8 @@ public class AnnotatedBeanDefinitionReader {
 	 */
 	private static Environment getOrCreateEnvironment(BeanDefinitionRegistry registry) {
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
-		if (registry instanceof EnvironmentCapable) {
-			return ((EnvironmentCapable) registry).getEnvironment();
+		if (registry instanceof EnvironmentCapable environmentCapable) {
+			return environmentCapable.getEnvironment();
 		}
 		return new StandardEnvironment();
 	}

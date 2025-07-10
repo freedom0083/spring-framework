@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.springframework.web.reactive.result.condition;
 import java.util.Collection;
 import java.util.StringJoiner;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A base class for {@link RequestCondition} types providing implementations of
@@ -33,7 +33,7 @@ import org.springframework.lang.Nullable;
 public abstract class AbstractRequestCondition<T extends AbstractRequestCondition<T>> implements RequestCondition<T> {
 
 	/**
-	 * Indicates whether this condition is empty, i.e. whether or not it
+	 * Indicates whether this condition is empty, i.e. whether it
 	 * contains any discrete items.
 	 * @return {@code true} if empty; {@code false} otherwise
 	 */

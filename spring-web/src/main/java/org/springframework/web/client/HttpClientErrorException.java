@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package org.springframework.web.client;
 
 import java.nio.charset.Charset;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
 
 /**
  * Exception thrown when an HTTP 4xx is received.
@@ -53,7 +54,7 @@ public class HttpClientErrorException extends HttpStatusCodeException {
 	 * Constructor with a status code and status text, and content.
 	 */
 	public HttpClientErrorException(
-			HttpStatusCode statusCode, String statusText, @Nullable byte[] body, @Nullable Charset responseCharset) {
+			HttpStatusCode statusCode, String statusText, byte @Nullable [] body, @Nullable Charset responseCharset) {
 
 		super(statusCode, statusText, body, responseCharset);
 	}
@@ -62,25 +63,25 @@ public class HttpClientErrorException extends HttpStatusCodeException {
 	 * Constructor with a status code and status text, headers, and content.
 	 */
 	public HttpClientErrorException(HttpStatusCode statusCode, String statusText,
-			@Nullable HttpHeaders headers, @Nullable byte[] body, @Nullable Charset responseCharset) {
+			@Nullable HttpHeaders headers, byte @Nullable [] body, @Nullable Charset responseCharset) {
 
 		super(statusCode, statusText, headers, body, responseCharset);
 	}
 
 	/**
 	 * Constructor with a status code and status text, headers, and content,
-	 * and an prepared message.
+	 * and a prepared message.
 	 * @since 5.2.2
 	 */
 	public HttpClientErrorException(String message, HttpStatusCode statusCode, String statusText,
-			@Nullable HttpHeaders headers, @Nullable byte[] body, @Nullable Charset responseCharset) {
+			@Nullable HttpHeaders headers, byte @Nullable [] body, @Nullable Charset responseCharset) {
 
 		super(message, statusCode, statusText, headers, body, responseCharset);
 	}
 
 
 	/**
-	 * Create {@code HttpClientErrorException} or an HTTP status specific sub-class.
+	 * Create {@code HttpClientErrorException} or an HTTP status specific subclass.
 	 * @since 5.1
 	 */
 	public static HttpClientErrorException create(

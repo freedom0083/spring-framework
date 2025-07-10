@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ package org.springframework.beans.support;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.BeansException;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 /**
@@ -76,9 +77,9 @@ public class PropertyComparator<T> implements Comparator<T> {
 	public int compare(T o1, T o2) {
 		Object v1 = getPropertyValue(o1);
 		Object v2 = getPropertyValue(o2);
-		if (this.sortDefinition.isIgnoreCase() && (v1 instanceof String) && (v2 instanceof String)) {
-			v1 = ((String) v1).toLowerCase();
-			v2 = ((String) v2).toLowerCase();
+		if (this.sortDefinition.isIgnoreCase() && (v1 instanceof String text1) && (v2 instanceof String text2)) {
+			v1 = text1.toLowerCase(Locale.ROOT);
+			v2 = text2.toLowerCase(Locale.ROOT);
 		}
 
 		int result;
@@ -107,8 +108,7 @@ public class PropertyComparator<T> implements Comparator<T> {
 	 * @param obj the object to get the property value for
 	 * @return the property value
 	 */
-	@Nullable
-	private Object getPropertyValue(Object obj) {
+	private @Nullable Object getPropertyValue(Object obj) {
 		// If a nested property cannot be read, simply return null
 		// (similar to JSTL EL). If the property doesn't exist in the
 		// first place, let the exception through.

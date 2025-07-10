@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,8 +56,8 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 	// TODO 把对象包装为Advisor
 	@Override
 	public Advisor wrap(Object adviceObject) throws UnknownAdviceTypeException {
-		if (adviceObject instanceof Advisor) {
-			return (Advisor) adviceObject;
+		if (adviceObject instanceof Advisor advisor) {
+			return advisor;
 		}
 		if (!(adviceObject instanceof Advice advice)) {
 			throw new UnknownAdviceTypeException(adviceObject);
@@ -87,9 +87,9 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		List<MethodInterceptor> interceptors = new ArrayList<>(3);
 		// TODO 从Advisor里拿出对应的Advice
 		Advice advice = advisor.getAdvice();
-		if (advice instanceof MethodInterceptor) {
+		if (advice instanceof MethodInterceptor methodInterceptor) {
 			// TODO MethodInterceptor类型的Advice直接加到方法拦截器列表里
-			interceptors.add((MethodInterceptor) advice);
+			interceptors.add(methodInterceptor);
 		}
 		for (AdvisorAdapter adapter : this.adapters) {
 			// TODO DefaultAdvisorAdapterRegistry在创建时会默认添加三个适配器, MethodBeforeAdviceAdapter,

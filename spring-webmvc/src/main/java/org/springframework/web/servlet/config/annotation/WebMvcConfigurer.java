@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,16 @@ package org.springframework.web.servlet.config.annotation;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.format.Formatter;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.lang.Nullable;
+import org.springframework.http.converter.HttpMessageConverters;
 import org.springframework.validation.MessageCodesResolver;
 import org.springframework.validation.Validator;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
@@ -62,6 +65,15 @@ public interface WebMvcConfigurer {
 	 * Configure content negotiation options.
 	 */
 	default void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
+	}
+
+	/**
+	 * Configure API versioning for the application. In order for versioning to
+	 * be enabled, you must configure at least one way to resolve the API
+	 * version from a request (e.g. via request header).
+	 * @since 7.0
+	 */
+	default void configureApiVersioning(ApiVersionConfigurer configurer) {
 	}
 
 	/**
@@ -105,7 +117,7 @@ public interface WebMvcConfigurer {
 	}
 
 	/**
-	 * Configure "global" cross origin request processing. The configured CORS
+	 * Configure "global" cross-origin request processing. The configured CORS
 	 * mappings apply to annotated controllers, functional endpoints, and static
 	 * resources.
 	 * <p>Annotated controllers can further declare more fine-grained config via
@@ -123,7 +135,7 @@ public interface WebMvcConfigurer {
 	/**
 	 * Configure simple automated controllers pre-configured with the response
 	 * status code and/or a view to render the response body. This is useful in
-	 * cases where there is no need for custom controller logic -- e.g. render a
+	 * cases where there is no need for custom controller logic -- for example, render a
 	 * home page, perform simple site URL redirects, return a 404 status with
 	 * HTML content, a 204 with no content, and more.
 	 * @see ViewControllerRegistry
@@ -161,30 +173,46 @@ public interface WebMvcConfigurer {
 	}
 
 	/**
+	 * Configure the {@link HttpMessageConverters} instance being built.
+	 * @param builder the builder to configure
+	 * @since 7.0
+	 */
+	default void configureMessageConverters(HttpMessageConverters.Builder builder) {
+	}
+
+	/**
 	 * Configure the {@link HttpMessageConverter HttpMessageConverter}s for
 	 * reading from the request body and for writing to the response body.
 	 * <p>By default, all built-in converters are configured as long as the
 	 * corresponding 3rd party libraries such Jackson JSON, JAXB2, and others
 	 * are present on the classpath.
-	 * <p><strong>Note</strong> use of this method turns off default converter
-	 * registration. Alternatively, use
-	 * {@link #extendMessageConverters(java.util.List)} to modify that default
-	 * list of converters.
+	 * <p>Note that use of this method turns off default converter
+	 * registration. However, in a Spring Boot application the
+	 * {@code WebMvcAutoConfiguration} adds any {@code HttpMessageConverter}
+	 * beans as well as default converters. Hence, in a Boot application use
+	 * <a href="https://docs.spring.io/spring-boot/docs/current/reference/html/web.html#web.servlet.spring-mvc.message-converters">HttpMessageConverters</a>.
+	 * Alternatively, for any scenario, use
+	 * {@link #extendMessageConverters(java.util.List)} to modify the configured
+	 * list of message converters.
 	 * @param converters initially an empty list of converters
+	 * @deprecated since 7.0 in favor of configuring converters on {@link #configureMessageConverters(HttpMessageConverters.Builder)}
 	 */
+	@Deprecated(since = "7.0", forRemoval = true)
 	default void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
 	}
 
 	/**
 	 * Extend or modify the list of converters after it has been, either
-	 * {@link #configureMessageConverters(List) configured} or initialized with
+	 * {@link #configureMessageConverters(List) configured}, or initialized with
 	 * a default list.
 	 * <p>Note that the order of converter registration is important. Especially
 	 * in cases where clients accept {@link org.springframework.http.MediaType#ALL}
 	 * the converters configured earlier will be preferred.
 	 * @param converters the list of configured converters to be extended
 	 * @since 4.1.3
+	 * @deprecated since 7.0 in favor of configuring converters on {@link #configureMessageConverters(HttpMessageConverters.Builder)}
 	 */
+	@Deprecated(since = "7.0", forRemoval = true)
 	default void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
 	}
 
@@ -218,13 +246,22 @@ public interface WebMvcConfigurer {
 	}
 
 	/**
+	 * Add to the list of {@link ErrorResponse.Interceptor}'s to apply when
+	 * rendering an RFC 9457 {@link org.springframework.http.ProblemDetail}
+	 * error response.
+	 * @param interceptors the interceptors to use
+	 * @since 6.2
+	 */
+	default void addErrorResponseInterceptors(List<ErrorResponse.Interceptor> interceptors) {
+	}
+
+	/**
 	 * Provide a custom {@link Validator} instead of the one created by default.
 	 * The default implementation, assuming JSR-303 is on the classpath, is:
 	 * {@link org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean}.
 	 * Leave the return value as {@code null} to keep the default.
 	 */
-	@Nullable
-	default Validator getValidator() {
+	default @Nullable Validator getValidator() {
 		return null;
 	}
 
@@ -233,8 +270,7 @@ public interface WebMvcConfigurer {
 	 * from data binding and validation error codes. Leave the return value as
 	 * {@code null} to keep the default.
 	 */
-	@Nullable
-	default MessageCodesResolver getMessageCodesResolver() {
+	default @Nullable MessageCodesResolver getMessageCodesResolver() {
 		return null;
 	}
 

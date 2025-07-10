@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.web.reactive.function.server;
 
 import java.net.URI;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.web.accept.SemanticApiVersionParser;
+import org.springframework.web.reactive.HandlerMapping;
+import org.springframework.web.reactive.accept.ApiVersionStrategy;
+import org.springframework.web.reactive.accept.DefaultApiVersionStrategy;
 import org.springframework.web.testfixture.http.server.reactive.MockServerHttpRequest;
 import org.springframework.web.testfixture.server.MockServerWebExchange;
 import org.springframework.web.util.pattern.PathPatternParser;
@@ -33,12 +38,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  */
-public class RequestPredicatesTests {
+class RequestPredicatesTests {
 
 
 	@Test
-	public void all() {
+	void all() {
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com").build();
 		MockServerWebExchange mockExchange = MockServerWebExchange.from(mockRequest);
 		RequestPredicate predicate = RequestPredicates.all();
@@ -47,7 +53,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void method() {
+	void method() {
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com").build();
 
 		HttpMethod httpMethod = HttpMethod.GET;
@@ -61,7 +67,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void methodCorsPreFlight() {
+	void methodCorsPreFlight() {
 		RequestPredicate predicate = RequestPredicates.method(HttpMethod.PUT);
 
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.options("https://example.com")
@@ -82,7 +88,7 @@ public class RequestPredicatesTests {
 
 
 	@Test
-	public void methods() {
+	void methods() {
 		RequestPredicate predicate = RequestPredicates.methods(HttpMethod.GET, HttpMethod.HEAD);
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com").build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
@@ -98,7 +104,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void allMethods() {
+	void allMethods() {
 		RequestPredicate predicate = RequestPredicates.GET("/p*");
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com/path").build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
@@ -136,7 +142,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void path() {
+	void path() {
 		URI uri = URI.create("https://localhost/path");
 		RequestPredicate predicate = RequestPredicates.path("/p*");
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get(uri.toString()).build();
@@ -149,7 +155,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void pathNoLeadingSlash() {
+	void pathNoLeadingSlash() {
 		RequestPredicate predicate = RequestPredicates.path("p*");
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com/path").build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
@@ -157,7 +163,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void pathEncoded() {
+	void pathEncoded() {
 		URI uri = URI.create("https://localhost/foo%20bar");
 		RequestPredicate predicate = RequestPredicates.path("/foo bar");
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.method(HttpMethod.GET, uri).build();
@@ -166,7 +172,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void pathPredicates() {
+	void pathPredicates() {
 		PathPatternParser parser = new PathPatternParser();
 		parser.setCaseSensitive(false);
 		Function<String, RequestPredicate> pathPredicates = RequestPredicates.pathPredicates(parser);
@@ -178,7 +184,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void pathWithContext() {
+	void pathWithContext() {
 		RequestPredicate predicate = RequestPredicates.path("/p*");
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://localhost/context/path")
 				.contextPath("/context").build();
@@ -187,7 +193,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void headers() {
+	void headers() {
 		String name = "MyHeader";
 		String value = "MyValue";
 		RequestPredicate predicate =
@@ -207,7 +213,7 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void headersCors() {
+	void headersCors() {
 		RequestPredicate predicate = RequestPredicates.headers(headers -> false);
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.options("https://example.com")
 				.header("Origin", "https://example.com")
@@ -219,11 +225,10 @@ public class RequestPredicatesTests {
 
 
 	@Test
-	public void contentType() {
-		MediaType json = MediaType.APPLICATION_JSON;
-		RequestPredicate predicate = RequestPredicates.contentType(json);
+	void singleContentType() {
+		RequestPredicate predicate = RequestPredicates.contentType(MediaType.APPLICATION_JSON);
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com")
-				.header(HttpHeaders.CONTENT_TYPE, json.toString())
+				.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 				.build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
 		assertThat(predicate.test(request)).isTrue();
@@ -236,11 +241,32 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void accept() {
-		MediaType json = MediaType.APPLICATION_JSON;
-		RequestPredicate predicate = RequestPredicates.accept(json);
+	void multipleContentTypes() {
+		RequestPredicate predicate = RequestPredicates.contentType(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN);
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com")
-				.header(HttpHeaders.ACCEPT, json.toString())
+				.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+				.build();
+		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN_VALUE)
+				.build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.CONTENT_TYPE, "foo/bar")
+				.build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isFalse();
+	}
+
+	@Test
+	void singleAccept() {
+		RequestPredicate predicate = RequestPredicates.accept(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN);
+		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
 				.build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
 		assertThat(predicate.test(request)).isTrue();
@@ -253,7 +279,30 @@ public class RequestPredicatesTests {
 	}
 
 	@Test
-	public void pathExtension() {
+	void multipleAccepts() {
+		RequestPredicate predicate = RequestPredicates.accept(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN);
+		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+				.build();
+		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.ACCEPT, MediaType.TEXT_PLAIN_VALUE)
+				.build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		mockRequest = MockServerHttpRequest.get("https://example.com")
+				.header(HttpHeaders.ACCEPT, "foo/bar")
+				.build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isFalse();
+	}
+
+	@SuppressWarnings("removal")
+	@Test
+	void pathExtension() {
 		RequestPredicate predicate = RequestPredicates.pathExtension("txt");
 
 		URI uri = URI.create("https://localhost/file.txt");
@@ -275,8 +324,35 @@ public class RequestPredicatesTests {
 		assertThat(predicate.test(request)).isFalse();
 	}
 
+	@SuppressWarnings("removal")
 	@Test
-	public void queryParam() {
+	void pathExtensionPredicate() {
+		List<String> extensions = List.of("foo", "bar");
+		RequestPredicate predicate = RequestPredicates.pathExtension(extensions::contains);
+
+		URI uri = URI.create("https://localhost/file.foo");
+		MockServerHttpRequest mockRequest = MockServerHttpRequest.method(HttpMethod.GET, uri).build();
+		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		uri = URI.create("https://localhost/file.bar");
+		mockRequest = MockServerHttpRequest.method(HttpMethod.GET, uri).build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isTrue();
+
+		uri = URI.create("https://localhost/file");
+		mockRequest = MockServerHttpRequest.method(HttpMethod.GET, uri).build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isFalse();
+
+		uri = URI.create("https://localhost/file.baz");
+		mockRequest = MockServerHttpRequest.method(HttpMethod.GET, uri).build();
+		request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
+		assertThat(predicate.test(request)).isFalse();
+	}
+
+	@Test
+	void queryParam() {
 		MockServerHttpRequest mockRequest = MockServerHttpRequest.get("https://example.com")
 				.queryParam("foo", "bar").build();
 		ServerRequest request = new DefaultServerRequest(MockServerWebExchange.from(mockRequest), Collections.emptyList());
@@ -285,6 +361,26 @@ public class RequestPredicatesTests {
 
 		predicate = RequestPredicates.queryParam("foo", s -> s.equals("baz"));
 		assertThat(predicate.test(request)).isFalse();
+	}
+
+	@Test
+	void version() {
+		assertThat(RequestPredicates.version("1.1").test(serverRequest("1.1"))).isTrue();
+		assertThat(RequestPredicates.version("1.1+").test(serverRequest("1.5"))).isTrue();
+		assertThat(RequestPredicates.version("1.1").test(serverRequest("1.5"))).isFalse();
+	}
+
+	private static DefaultServerRequest serverRequest(String version) {
+		ApiVersionStrategy versionStrategy = apiVersionStrategy();
+		Comparable<?> parsedVersion = versionStrategy.parseVersion(version);
+		MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://localhost"));
+		exchange.getAttributes().put(HandlerMapping.API_VERSION_ATTRIBUTE, parsedVersion);
+		return new DefaultServerRequest(exchange, Collections.emptyList(), versionStrategy);
+	}
+
+	private static DefaultApiVersionStrategy apiVersionStrategy() {
+		return new DefaultApiVersionStrategy(
+				List.of(exchange -> null), new SemanticApiVersionParser(), true, null, false, null);
 	}
 
 }

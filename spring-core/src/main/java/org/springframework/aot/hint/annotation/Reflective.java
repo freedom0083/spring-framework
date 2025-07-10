@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +29,17 @@ import org.springframework.core.annotation.AliasFor;
  *
  * <p>When present, either directly or as a meta-annotation, this annotation
  * triggers the configured {@linkplain ReflectiveProcessor processors} against
- * the annotated element. By default, a reflection hint is added on the
+ * the annotated element. By default, a reflection hint is registered for the
  * annotated element so that it can be discovered and invoked if necessary.
  *
  * @author Stephane Nicoll
+ * @author Sam Brannen
  * @since 6.0
- * @see SimpleReflectiveProcessor
+ * @see ReflectiveRuntimeHintsRegistrar
+ * @see RegisterReflection @RegisterReflection
+ * @see RegisterReflectionForBinding @RegisterReflectionForBinding
  */
-@Target({ ElementType.ANNOTATION_TYPE, ElementType.TYPE, ElementType.CONSTRUCTOR,
-		ElementType.FIELD, ElementType.METHOD })
+@Target({ElementType.ANNOTATION_TYPE, ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Reflective {
@@ -45,6 +47,7 @@ public @interface Reflective {
 	/**
 	 * Alias for {@link #processors()}.
 	 */
+	@AliasFor("processors")
 	Class<? extends ReflectiveProcessor>[] value() default SimpleReflectiveProcessor.class;
 
 	/**

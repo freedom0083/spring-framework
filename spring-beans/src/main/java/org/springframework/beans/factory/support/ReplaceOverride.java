@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@ package org.springframework.beans.factory.support;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
-import org.springframework.util.ObjectUtils;
 
 /**
  * Extension of {@link MethodOverride} that represents an arbitrary
@@ -53,6 +55,20 @@ public class ReplaceOverride extends MethodOverride {
 		this.methodReplacerBeanName = methodReplacerBeanName;
 	}
 
+	/**
+	 * Construct a new ReplaceOverride.
+	 * @param methodName the name of the method to override
+	 * @param methodReplacerBeanName the bean name of the {@link MethodReplacer}
+	 * @param typeIdentifiers a list of type identifiers for parameter types
+	 * @since 6.2.9
+	 */
+	public ReplaceOverride(String methodName, String methodReplacerBeanName, List<String> typeIdentifiers) {
+		super(methodName);
+		Assert.notNull(methodReplacerBeanName, "Method replacer bean name must not be null");
+		this.methodReplacerBeanName = methodReplacerBeanName;
+		this.typeIdentifiers.addAll(typeIdentifiers);
+	}
+
 
 	/**
 	 * Return the name of the bean implementing MethodReplacer.
@@ -68,6 +84,15 @@ public class ReplaceOverride extends MethodOverride {
 	 */
 	public void addTypeIdentifier(String identifier) {
 		this.typeIdentifiers.add(identifier);
+	}
+
+	/**
+	 * Return the list of registered type identifiers (fragments of a class string).
+	 * @since 6.2.9
+	 * @see #addTypeIdentifier
+	 */
+	public List<String> getTypeIdentifiers() {
+		return Collections.unmodifiableList(this.typeIdentifiers);
 	}
 
 
@@ -97,24 +122,19 @@ public class ReplaceOverride extends MethodOverride {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (!(other instanceof ReplaceOverride that) || !super.equals(other)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.methodReplacerBeanName, that.methodReplacerBeanName) &&
-				ObjectUtils.nullSafeEquals(this.typeIdentifiers, that.typeIdentifiers));
+		return (other instanceof ReplaceOverride that && super.equals(that) &&
+				this.methodReplacerBeanName.equals(that.methodReplacerBeanName) &&
+				this.typeIdentifiers.equals(that.typeIdentifiers));
 	}
 
 	@Override
 	public int hashCode() {
-		int hashCode = super.hashCode();
-		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.methodReplacerBeanName);
-		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.typeIdentifiers);
-		return hashCode;
+		return Objects.hash(this.methodReplacerBeanName, this.typeIdentifiers);
 	}
 
 	@Override
 	public String toString() {
-		return "Replace override for method '" + getMethodName() + "'";
+		return "ReplaceOverride for method '" + getMethodName() + "'";
 	}
 
 }

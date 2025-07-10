@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
 
 package org.springframework.web.testfixture.servlet;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -61,20 +61,14 @@ class HeaderValueHolder {
 	}
 
 	List<String> getStringValues() {
-		List<String> stringList = new ArrayList<>(this.values.size());
-		for (Object value : this.values) {
-			stringList.add(value.toString());
-		}
-		return Collections.unmodifiableList(stringList);
+		return this.values.stream().map(Object::toString).toList();
 	}
 
-	@Nullable
-	Object getValue() {
+	@Nullable Object getValue() {
 		return (!this.values.isEmpty() ? this.values.get(0) : null);
 	}
 
-	@Nullable
-	String getStringValue() {
+	@Nullable String getStringValue() {
 		return (!this.values.isEmpty() ? String.valueOf(this.values.get(0)) : null);
 	}
 

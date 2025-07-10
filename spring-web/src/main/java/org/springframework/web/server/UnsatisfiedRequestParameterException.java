@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,13 +36,11 @@ public class UnsatisfiedRequestParameterException extends ServerWebInputExceptio
 	private final MultiValueMap<String, String> requestParams;
 
 
-	public UnsatisfiedRequestParameterException(
-			List<String> conditions, MultiValueMap<String, String> requestParams) {
-
-		super(initReason(conditions, requestParams));
+	public UnsatisfiedRequestParameterException(List<String> conditions, MultiValueMap<String, String> params) {
+		super(initReason(conditions, params), null, null, null, new Object[] {conditions});
 		this.conditions = conditions;
-		this.requestParams = requestParams;
-		getBody().withDetail("Invalid request parameters.");
+		this.requestParams = params;
+		setDetail("Invalid request parameters.");
 	}
 
 	private static String initReason(List<String> conditions, MultiValueMap<String, String> queryParams) {

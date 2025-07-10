@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.aop.target;
 
 import java.io.Serializable;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.TargetSource;
 import org.springframework.util.Assert;
@@ -42,6 +44,7 @@ public class SingletonTargetSource implements TargetSource, Serializable {
 
 
 	/** Target cached and invoked using reflection. */
+	@SuppressWarnings("serial")
 	private final Object target;
 
 
@@ -66,11 +69,6 @@ public class SingletonTargetSource implements TargetSource, Serializable {
 	}
 
 	@Override
-	public void releaseTarget(Object target) {
-		// nothing to do
-	}
-
-	@Override
 	public boolean isStatic() {
 		return true;
 	}
@@ -81,14 +79,9 @@ public class SingletonTargetSource implements TargetSource, Serializable {
 	 * targets or the targets are equal.
 	 */
 	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof SingletonTargetSource otherTargetSource)) {
-			return false;
-		}
-		return this.target.equals(otherTargetSource.target);
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof SingletonTargetSource that &&
+				this.target.equals(that.target)));
 	}
 
 	/**

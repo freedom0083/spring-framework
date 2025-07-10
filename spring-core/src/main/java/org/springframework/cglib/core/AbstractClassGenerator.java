@@ -38,10 +38,17 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 
 	private static final ThreadLocal CURRENT = new ThreadLocal();
 
-	private static volatile Map<ClassLoader, ClassLoaderData> CACHE = new WeakHashMap<ClassLoader, ClassLoaderData>();
+	private static volatile Map<ClassLoader, ClassLoaderData> CACHE = new WeakHashMap<>();
 
 	private static final boolean DEFAULT_USE_CACHE =
 			Boolean.parseBoolean(System.getProperty("cglib.useCache", "true"));
+
+	private static final boolean inNativeImage;
+
+	static {
+		String imageCode = System.getProperty("org.graalvm.nativeimage.imagecode");
+		inNativeImage = "buildtime".equals(imageCode) || "runtime".equals(imageCode);
+	}
 
 
 	private GeneratorStrategy strategy = DefaultGeneratorStrategy.INSTANCE;
@@ -67,10 +74,10 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 
 	protected static class ClassLoaderData {
 
-		private final Set<String> reservedClassNames = new HashSet<String>();
+		private final Set<String> reservedClassNames = new HashSet<>();
 
 		/**
-		 * {@link AbstractClassGenerator} here holds "cache key" (e.g. {@link org.springframework.cglib.proxy.Enhancer}
+		 * {@link AbstractClassGenerator} here holds "cache key" (for example, {@link org.springframework.cglib.proxy.Enhancer}
 		 * configuration), and the value is the generated class plus some additional values
 		 * (see {@link #unwrapCachedValue(Object)}.
 		 * <p>The generated classes can be reused as long as their classloader is reachable.</p>
@@ -87,31 +94,20 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 		 */
 		private final WeakReference<ClassLoader> classLoader;
 
-		private final Predicate uniqueNamePredicate = new Predicate() {
-			public boolean evaluate(Object name) {
-				return reservedClassNames.contains(name);
-			}
-		};
+		private final Predicate uniqueNamePredicate = this.reservedClassNames::contains;
 
-		private static final Function<AbstractClassGenerator, Object> GET_KEY = new Function<AbstractClassGenerator, Object>() {
-			public Object apply(AbstractClassGenerator gen) {
-				return gen.key;
-			}
-		};
+		private static final Function<AbstractClassGenerator, Object> GET_KEY = gen -> gen.key;
 
 		public ClassLoaderData(ClassLoader classLoader) {
 			if (classLoader == null) {
 				throw new IllegalArgumentException("classLoader == null is not yet supported");
 			}
-			this.classLoader = new WeakReference<ClassLoader>(classLoader);
-			Function<AbstractClassGenerator, Object> load =
-					new Function<AbstractClassGenerator, Object>() {
-						public Object apply(AbstractClassGenerator gen) {
-							Class klass = gen.generate(ClassLoaderData.this);
-							return gen.wrapCachedClass(klass);
-						}
-					};
-			generatedClasses = new LoadingCache<AbstractClassGenerator, Object, Object>(GET_KEY, load);
+			this.classLoader = new WeakReference<>(classLoader);
+			Function<AbstractClassGenerator, Object> load = gen -> {
+				Class klass = gen.generate(ClassLoaderData.this);
+				return gen.wrapCachedClass(klass);
+			};
+			generatedClasses = new LoadingCache<>(GET_KEY, load);
 		}
 
 		public ClassLoader getClassLoader() {
@@ -127,13 +123,17 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 		}
 
 		public Object get(AbstractClassGenerator gen, boolean useCache) {
-			if (!useCache) {
-				return gen.generate(ClassLoaderData.this);
-			}
-			else {
+			// SPRING PATCH BEGIN
+			Object value = null;
+			if (useCache) {
 				Object cachedValue = generatedClasses.get(gen);
-				return gen.unwrapCachedValue(cachedValue);
+				value = gen.unwrapCachedValue(cachedValue);
 			}
+			if (value == null) {  // fallback when cached WeakReference returns null
+				value = gen.generate(ClassLoaderData.this);
+			}
+			return value;
+			// SPRING PATCH END
 		}
 	}
 
@@ -202,8 +202,9 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 	 * @see DefaultNamingPolicy
 	 */
 	public void setNamingPolicy(NamingPolicy namingPolicy) {
-		if (namingPolicy == null)
+		if (namingPolicy == null) {
 			namingPolicy = DefaultNamingPolicy.INSTANCE;
+		}
 		this.namingPolicy = namingPolicy;
 	}
 
@@ -247,8 +248,9 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 	 * By default an instance of {@link DefaultGeneratorStrategy} is used.
 	 */
 	public void setStrategy(GeneratorStrategy strategy) {
-		if (strategy == null)
+		if (strategy == null) {
 			strategy = DefaultGeneratorStrategy.INSTANCE;
+		}
 		this.strategy = strategy;
 	}
 
@@ -308,7 +310,7 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 					cache = CACHE;
 					data = cache.get(loader);
 					if (data == null) {
-						Map<ClassLoader, ClassLoaderData> newCache = new WeakHashMap<ClassLoader, ClassLoaderData>(cache);
+						Map<ClassLoader, ClassLoaderData> newCache = new WeakHashMap<>(cache);
 						data = new ClassLoaderData(loader);
 						newCache.put(loader, data);
 						CACHE = newCache;
@@ -317,9 +319,9 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 			}
 			this.key = key;
 			Object obj = data.get(this, getUseCache());
-			if (obj instanceof Class) {
+			if (obj instanceof Class<?> clazz) {
 				// TODO 为类创建实例
-				return firstInstance((Class) obj);
+				return firstInstance(clazz);
 			}
 			// TODO 应该是为接口创建实例了吧
 			return nextInstance(obj);
@@ -350,13 +352,23 @@ abstract public class AbstractClassGenerator<T> implements ClassGenerator {
 			}
 			if (attemptLoad) {
 				try {
-					gen = classLoader.loadClass(getClassName());
+					// SPRING PATCH BEGIN
+					synchronized (classLoader) { // just in case
+						gen = ReflectUtils.loadClass(getClassName(), classLoader);
+					}
+					// SPRING PATCH END
 					return gen;
 				}
 				catch (ClassNotFoundException e) {
 					// ignore
 				}
 			}
+			// SPRING PATCH BEGIN
+			if (inNativeImage) {
+				throw new UnsupportedOperationException("CGLIB runtime enhancement not supported on native image. " +
+						"Make sure to enable Spring AOT processing to pre-generate '" + getClassName() + "' at build time.");
+			}
+			// SPRING PATCH END
 			byte[] b = strategy.generate(this);
 			String className = ClassNameReader.getClassName(new ClassReader(b));
 			ProtectionDomain protectionDomain = getProtectionDomain();

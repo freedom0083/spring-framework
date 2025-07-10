@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +27,11 @@ package org.springframework.expression;
 public interface ParserContext {
 
 	/**
-	 * Whether or not the expression being parsed is a template. A template expression
-	 * consists of literal text that can be mixed with evaluatable blocks. Some examples:
+	 * Whether the expression being parsed is a template.
+	 * <p>A template consists of literal text that can be mixed with expressions.
+	 * Some examples:
 	 * <pre class="code">
-	 * 	   Some literal text
+	 *     Some literal text
 	 *     Hello #{name.firstName}!
 	 *     #{3 + 4}
 	 * </pre>
@@ -46,7 +47,7 @@ public interface ParserContext {
 	String getExpressionPrefix();
 
 	/**
-	 * For template expressions, return the prefix that identifies the end of an
+	 * For template expressions, returns the prefix that identifies the end of an
 	 * expression block within a string. For example: "}"
 	 * @return the suffix that identifies the end of an expression
 	 */
@@ -54,8 +55,9 @@ public interface ParserContext {
 
 
 	/**
-	 * The default ParserContext implementation that enables template expression
-	 * parsing mode. The expression prefix is "#{" and the expression suffix is "}".
+	 * The default {@link ParserContext} implementation that enables template
+	 * expression parsing.
+	 * <p>The expression prefix is "#{", and the expression suffix is "}".
 	 * @see #isTemplate()
 	 */
 	ParserContext TEMPLATE_EXPRESSION = new ParserContext() {

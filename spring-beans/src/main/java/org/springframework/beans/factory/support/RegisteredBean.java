@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,23 @@
 
 package org.springframework.beans.factory.support;
 
+import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.beans.TypeConverter;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.style.ToStringCreator;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
@@ -37,11 +44,13 @@ import org.springframework.util.StringUtils;
  * In the case of inner-beans, the bean name may have been generated.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
+ * @author Juergen Hoeller
  * @since 6.0
  */
 public final class RegisteredBean {
 
-	private final ConfigurableBeanFactory beanFactory;
+	private final ConfigurableListableBeanFactory beanFactory;
 
 	private final Supplier<String> beanName;
 
@@ -49,11 +58,10 @@ public final class RegisteredBean {
 
 	private final Supplier<RootBeanDefinition> mergedBeanDefinition;
 
-	@Nullable
-	private final RegisteredBean parent;
+	private final @Nullable RegisteredBean parent;
 
 
-	private RegisteredBean(ConfigurableBeanFactory beanFactory, Supplier<String> beanName,
+	private RegisteredBean(ConfigurableListableBeanFactory beanFactory, Supplier<String> beanName,
 			boolean generatedBeanName, Supplier<RootBeanDefinition> mergedBeanDefinition,
 			@Nullable RegisteredBean parent) {
 
@@ -71,14 +79,24 @@ public final class RegisteredBean {
 	 * @param beanName the bean name
 	 * @return a new {@link RegisteredBean} instance
 	 */
-	public static RegisteredBean of(ConfigurableBeanFactory beanFactory,
-			String beanName) {
-
-		Assert.notNull(beanFactory, "BeanFactory must not be null");
-		Assert.hasLength(beanName, "BeanName must not be empty");
+	public static RegisteredBean of(ConfigurableListableBeanFactory beanFactory, String beanName) {
+		Assert.notNull(beanFactory, "'beanFactory' must not be null");
+		Assert.hasLength(beanName, "'beanName' must not be empty");
 		return new RegisteredBean(beanFactory, () -> beanName, false,
 				() -> (RootBeanDefinition) beanFactory.getMergedBeanDefinition(beanName),
 				null);
+	}
+
+	/**
+	 * Create a new {@link RegisteredBean} instance for a regular bean.
+	 * @param beanFactory the source bean factory
+	 * @param beanName the bean name
+	 * @param mbd the pre-determined merged bean definition
+	 * @return a new {@link RegisteredBean} instance
+	 * @since 6.0.7
+	 */
+	static RegisteredBean of(ConfigurableListableBeanFactory beanFactory, String beanName, RootBeanDefinition mbd) {
+		return new RegisteredBean(beanFactory, () -> beanName, false, () -> mbd, null);
 	}
 
 	/**
@@ -87,12 +105,9 @@ public final class RegisteredBean {
 	 * @param innerBean a {@link BeanDefinitionHolder} for the inner bean
 	 * @return a new {@link RegisteredBean} instance
 	 */
-	public static RegisteredBean ofInnerBean(RegisteredBean parent,
-			BeanDefinitionHolder innerBean) {
-
-		Assert.notNull(innerBean, "InnerBean must not be null");
-		return ofInnerBean(parent, innerBean.getBeanName(),
-				innerBean.getBeanDefinition());
+	public static RegisteredBean ofInnerBean(RegisteredBean parent, BeanDefinitionHolder innerBean) {
+		Assert.notNull(innerBean, "'innerBean' must not be null");
+		return ofInnerBean(parent, innerBean.getBeanName(), innerBean.getBeanDefinition());
 	}
 
 	/**
@@ -101,9 +116,7 @@ public final class RegisteredBean {
 	 * @param innerBeanDefinition the inner-bean definition
 	 * @return a new {@link RegisteredBean} instance
 	 */
-	public static RegisteredBean ofInnerBean(RegisteredBean parent,
-			BeanDefinition innerBeanDefinition) {
-
+	public static RegisteredBean ofInnerBean(RegisteredBean parent, BeanDefinition innerBeanDefinition) {
 		return ofInnerBean(parent, null, innerBeanDefinition);
 	}
 
@@ -118,12 +131,11 @@ public final class RegisteredBean {
 	public static RegisteredBean ofInnerBean(RegisteredBean parent,
 			@Nullable String innerBeanName, BeanDefinition innerBeanDefinition) {
 
-		Assert.notNull(parent, "Parent must not be null");
-		Assert.notNull(innerBeanDefinition, "InnerBeanDefinition must not be null");
-		InnerBeanResolver resolver = new InnerBeanResolver(parent, innerBeanName,
-				innerBeanDefinition);
-		Supplier<String> beanName = StringUtils.hasLength(innerBeanName)
-				? () -> innerBeanName : resolver::resolveBeanName;
+		Assert.notNull(parent, "'parent' must not be null");
+		Assert.notNull(innerBeanDefinition, "'innerBeanDefinition' must not be null");
+		InnerBeanResolver resolver = new InnerBeanResolver(parent, innerBeanName, innerBeanDefinition);
+		Supplier<String> beanName = (StringUtils.hasLength(innerBeanName) ?
+				() -> innerBeanName : resolver::resolveBeanName);
 		return new RegisteredBean(parent.getBeanFactory(), beanName,
 				innerBeanName == null, resolver::resolveMergedBeanDefinition, parent);
 	}
@@ -149,7 +161,7 @@ public final class RegisteredBean {
 	 * Return the bean factory containing the bean.
 	 * @return the bean factory
 	 */
-	public ConfigurableBeanFactory getBeanFactory() {
+	public ConfigurableListableBeanFactory getBeanFactory() {
 		return this.beanFactory;
 	}
 
@@ -172,7 +184,7 @@ public final class RegisteredBean {
 	/**
 	 * Return the merged bean definition of the bean.
 	 * @return the merged bean definition
-	 * @see ConfigurableBeanFactory#getMergedBeanDefinition(String)
+	 * @see ConfigurableListableBeanFactory#getMergedBeanDefinition(String)
 	 */
 	public RootBeanDefinition getMergedBeanDefinition() {
 		return this.mergedBeanDefinition.get();
@@ -190,15 +202,79 @@ public final class RegisteredBean {
 	 * Return the parent of this instance or {@code null} if not an inner-bean.
 	 * @return the parent
 	 */
-	@Nullable
-	public RegisteredBean getParent() {
+	public @Nullable RegisteredBean getParent() {
 		return this.parent;
 	}
+
+	/**
+	 * Resolve the constructor or factory method to use for this bean.
+	 * @return the {@link java.lang.reflect.Constructor} or {@link java.lang.reflect.Method}
+	 * @deprecated in favor of {@link #resolveInstantiationDescriptor()}
+	 */
+	@Deprecated(since = "6.1.7")
+	public Executable resolveConstructorOrFactoryMethod() {
+		return new ConstructorResolver((AbstractAutowireCapableBeanFactory) getBeanFactory())
+				.resolveConstructorOrFactoryMethod(getBeanName(), getMergedBeanDefinition());
+	}
+
+	/**
+	 * Resolve the {@linkplain InstantiationDescriptor descriptor} to use to
+	 * instantiate this bean. It defines the {@link java.lang.reflect.Constructor}
+	 * or {@link java.lang.reflect.Method} to use as well as additional metadata.
+	 * @since 6.1.7
+	 */
+	public InstantiationDescriptor resolveInstantiationDescriptor() {
+		Executable executable = resolveConstructorOrFactoryMethod();
+		if (executable instanceof Method method && !Modifier.isStatic(method.getModifiers())) {
+			String factoryBeanName = getMergedBeanDefinition().getFactoryBeanName();
+			if (factoryBeanName != null && this.beanFactory.containsBean(factoryBeanName)) {
+				return new InstantiationDescriptor(executable,
+						this.beanFactory.getMergedBeanDefinition(factoryBeanName).getResolvableType().toClass());
+			}
+		}
+		return new InstantiationDescriptor(executable, executable.getDeclaringClass());
+	}
+
+	/**
+	 * Resolve an autowired argument.
+	 * @param descriptor the descriptor for the dependency (field/method/constructor)
+	 * @param typeConverter the TypeConverter to use for populating arrays and collections
+	 * @param autowiredBeanNames a Set that all names of autowired beans (used for
+	 * resolving the given dependency) are supposed to be added to
+	 * @return the resolved object, or {@code null} if none found
+	 * @since 6.0.9
+	 */
+	public @Nullable Object resolveAutowiredArgument(
+			DependencyDescriptor descriptor, TypeConverter typeConverter, Set<String> autowiredBeanNames) {
+
+		return new ConstructorResolver((AbstractAutowireCapableBeanFactory) getBeanFactory())
+				.resolveAutowiredArgument(descriptor, descriptor.getDependencyType(),
+						getBeanName(), autowiredBeanNames, typeConverter, true);
+	}
+
 
 	@Override
 	public String toString() {
 		return new ToStringCreator(this).append("beanName", getBeanName())
 				.append("mergedBeanDefinition", getMergedBeanDefinition()).toString();
+	}
+
+
+	/**
+	 * Descriptor for how a bean should be instantiated. While the {@code targetClass}
+	 * is usually the declaring class of the {@code executable} (in case of a constructor
+	 * or a locally declared factory method), there are cases where retaining the actual
+	 * concrete class is necessary (for example, for an inherited factory method).
+	 * @since 6.1.7
+	 * @param executable the {@link Executable} ({@link java.lang.reflect.Constructor}
+	 * or {@link java.lang.reflect.Method}) to invoke
+	 * @param targetClass the target {@link Class} of the executable
+	 */
+	public record InstantiationDescriptor(Executable executable, Class<?> targetClass) {
+
+		public InstantiationDescriptor(Executable executable) {
+			this(executable, executable.getDeclaringClass());
+		}
 	}
 
 
@@ -209,53 +285,40 @@ public final class RegisteredBean {
 
 		private final RegisteredBean parent;
 
-		@Nullable
-		private final String innerBeanName;
+		private final @Nullable String innerBeanName;
 
 		private final BeanDefinition innerBeanDefinition;
 
-		@Nullable
-		private volatile String resolvedBeanName;
+		private volatile @Nullable String resolvedBeanName;
 
-
-		InnerBeanResolver(RegisteredBean parent, @Nullable String innerBeanName,
-				BeanDefinition innerBeanDefinition) {
-
-			Assert.isInstanceOf(AbstractAutowireCapableBeanFactory.class,
-					parent.getBeanFactory());
+		InnerBeanResolver(RegisteredBean parent, @Nullable String innerBeanName, BeanDefinition innerBeanDefinition) {
+			Assert.isInstanceOf(AbstractAutowireCapableBeanFactory.class, parent.getBeanFactory());
 			this.parent = parent;
 			this.innerBeanName = innerBeanName;
 			this.innerBeanDefinition = innerBeanDefinition;
 		}
-
 
 		String resolveBeanName() {
 			String resolvedBeanName = this.resolvedBeanName;
 			if (resolvedBeanName != null) {
 				return resolvedBeanName;
 			}
-			resolvedBeanName = resolveInnerBean(
-					(beanName, mergedBeanDefinition) -> beanName);
+			resolvedBeanName = resolveInnerBean((beanName, mergedBeanDefinition) -> beanName);
 			this.resolvedBeanName = resolvedBeanName;
 			return resolvedBeanName;
 		}
 
 		RootBeanDefinition resolveMergedBeanDefinition() {
-			return resolveInnerBean(
-					(beanName, mergedBeanDefinition) -> mergedBeanDefinition);
+			return resolveInnerBean((beanName, mergedBeanDefinition) -> mergedBeanDefinition);
 		}
 
-		private <T> T resolveInnerBean(
-				BiFunction<String, RootBeanDefinition, T> resolver) {
-
+		private <T> T resolveInnerBean(BiFunction<String, RootBeanDefinition, T> resolver) {
 			// Always use a fresh BeanDefinitionValueResolver in case the parent merged bean definition has changed.
 			BeanDefinitionValueResolver beanDefinitionValueResolver = new BeanDefinitionValueResolver(
 					(AbstractAutowireCapableBeanFactory) this.parent.getBeanFactory(),
 					this.parent.getBeanName(), this.parent.getMergedBeanDefinition());
-			return beanDefinitionValueResolver.resolveInnerBean(this.innerBeanName,
-					this.innerBeanDefinition, resolver);
+			return beanDefinitionValueResolver.resolveInnerBean(this.innerBeanName, this.innerBeanDefinition, resolver);
 		}
-
 	}
 
 }

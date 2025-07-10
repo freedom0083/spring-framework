@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package org.springframework.cache.jcache.interceptor;
 
 import javax.cache.annotation.CacheRemove;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.cache.Cache;
 import org.springframework.cache.interceptor.CacheErrorHandler;
@@ -38,7 +40,7 @@ class CacheRemoveEntryInterceptor extends AbstractKeyCacheInterceptor<CacheRemov
 
 
 	@Override
-	protected Object invoke(
+	protected @Nullable Object invoke(
 			CacheOperationInvocationContext<CacheRemoveOperation> context, CacheOperationInvoker invoker) {
 
 		CacheRemoveOperation operation = context.getOperation();
@@ -54,12 +56,12 @@ class CacheRemoveEntryInterceptor extends AbstractKeyCacheInterceptor<CacheRemov
 			}
 			return result;
 		}
-		catch (CacheOperationInvoker.ThrowableWrapper wrapperException) {
-			Throwable ex = wrapperException.getOriginal();
-			if (!earlyRemove && operation.getExceptionTypeFilter().match(ex.getClass())) {
+		catch (CacheOperationInvoker.ThrowableWrapper ex) {
+			Throwable original = ex.getOriginal();
+			if (!earlyRemove && operation.getExceptionTypeFilter().match(original)) {
 				removeValue(context);
 			}
-			throw wrapperException;
+			throw ex;
 		}
 	}
 

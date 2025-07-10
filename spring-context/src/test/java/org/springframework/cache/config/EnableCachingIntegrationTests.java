@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -45,14 +46,15 @@ import static org.springframework.context.testfixture.cache.CacheTestUtils.asser
  * Tests that represent real use cases with advanced configuration.
  *
  * @author Stephane Nicoll
+ * @author Sam Brannen
  */
-public class EnableCachingIntegrationTests {
+class EnableCachingIntegrationTests {
 
 	private ConfigurableApplicationContext context;
 
 
 	@AfterEach
-	public void closeContext() {
+	void closeContext() {
 		if (this.context != null) {
 			this.context.close();
 		}
@@ -60,14 +62,14 @@ public class EnableCachingIntegrationTests {
 
 
 	@Test
-	public void fooServiceWithInterface() {
+	void fooServiceWithInterface() {
 		this.context = new AnnotationConfigApplicationContext(FooConfig.class);
 		FooService service = this.context.getBean(FooService.class);
 		fooGetSimple(service);
 	}
 
 	@Test
-	public void fooServiceWithInterfaceCglib() {
+	void fooServiceWithInterfaceCglib() {
 		this.context = new AnnotationConfigApplicationContext(FooConfigCglib.class);
 		FooService service = this.context.getBean(FooService.class);
 		fooGetSimple(service);
@@ -83,8 +85,27 @@ public class EnableCachingIntegrationTests {
 		assertCacheHit(key, value, cache);
 	}
 
+	@Test  // gh-31238
+	public void cglibProxyClassIsCachedAcrossApplicationContexts() {
+		ConfigurableApplicationContext ctx;
+
+		// Round #1
+		ctx = new AnnotationConfigApplicationContext(FooConfigCglib.class);
+		FooService service1 = ctx.getBean(FooService.class);
+		assertThat(AopUtils.isCglibProxy(service1)).as("FooService #1 is not a CGLIB proxy").isTrue();
+		ctx.close();
+
+		// Round #2
+		ctx = new AnnotationConfigApplicationContext(FooConfigCglib.class);
+		FooService service2 = ctx.getBean(FooService.class);
+		assertThat(AopUtils.isCglibProxy(service2)).as("FooService #2 is not a CGLIB proxy").isTrue();
+		ctx.close();
+
+		assertThat(service1.getClass()).isSameAs(service2.getClass());
+	}
+
 	@Test
-	public void barServiceWithCacheableInterfaceCglib() {
+	void barServiceWithCacheableInterfaceCglib() {
 		this.context = new AnnotationConfigApplicationContext(BarConfigCglib.class);
 		BarService service = this.context.getBean(BarService.class);
 		Cache cache = getCache();
@@ -97,7 +118,7 @@ public class EnableCachingIntegrationTests {
 	}
 
 	@Test
-	public void beanConditionOff() {
+	void beanConditionOff() {
 		this.context = new AnnotationConfigApplicationContext(BeanConditionConfig.class);
 		FooService service = this.context.getBean(FooService.class);
 		Cache cache = getCache();
@@ -112,7 +133,7 @@ public class EnableCachingIntegrationTests {
 	}
 
 	@Test
-	public void beanConditionOn() {
+	void beanConditionOn() {
 		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
 		ctx.setEnvironment(new MockEnvironment().withProperty("bar.enabled", "true"));
 		ctx.register(BeanConditionConfig.class);
@@ -179,7 +200,7 @@ public class EnableCachingIntegrationTests {
 	}
 
 
-	@CacheConfig(cacheNames = "testCache")
+	@CacheConfig("testCache")
 	static class FooServiceImpl implements FooService {
 
 		private final AtomicLong counter = new AtomicLong();

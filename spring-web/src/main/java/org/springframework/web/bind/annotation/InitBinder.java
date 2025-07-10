@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import org.springframework.aot.hint.annotation.Reflective;
 
 /**
  * Annotation that identifies methods that initialize the
@@ -47,6 +49,7 @@ import java.lang.annotation.Target;
  * or {@link java.util.Locale}, allowing to register context-specific editors.
  *
  * @author Juergen Hoeller
+ * @author Sebastien Deleuze
  * @since 2.5
  * @see ControllerAdvice
  * @see org.springframework.web.bind.WebDataBinder
@@ -55,6 +58,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Reflective
 public @interface InitBinder {
 
 	/**

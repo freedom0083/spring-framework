@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,15 @@ package org.springframework.web.server;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.ResolvableType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.ErrorResponse;
 
 /**
  * Exception for errors that fit response status 415 (unsupported media type).
@@ -36,28 +38,37 @@ import org.springframework.util.CollectionUtils;
 @SuppressWarnings("serial")
 public class UnsupportedMediaTypeStatusException extends ResponseStatusException {
 
-	@Nullable
-	private final MediaType contentType;
+	private static final String PARSE_ERROR_DETAIL_CODE =
+			ErrorResponse.getDefaultDetailMessageCode(UnsupportedMediaTypeStatusException.class, "parseError");
+
+
+	private final @Nullable MediaType contentType;
 
 	private final List<MediaType> supportedMediaTypes;
 
-	@Nullable
-	private final ResolvableType bodyType;
+	private final @Nullable ResolvableType bodyType;
 
-	@Nullable
-	private final HttpMethod method;
+	private final @Nullable HttpMethod method;
 
 
 	/**
 	 * Constructor for when the specified Content-Type is invalid.
 	 */
 	public UnsupportedMediaTypeStatusException(@Nullable String reason) {
-		super(HttpStatus.UNSUPPORTED_MEDIA_TYPE, reason);
+		this(reason, Collections.emptyList());
+	}
+
+	/**
+	 * Constructor for when the specified Content-Type is invalid.
+	 * @since 6.0.5
+	 */
+	public UnsupportedMediaTypeStatusException(@Nullable String reason, List<MediaType> supportedTypes) {
+		super(HttpStatus.UNSUPPORTED_MEDIA_TYPE, reason, null, PARSE_ERROR_DETAIL_CODE, null);
 		this.contentType = null;
-		this.supportedMediaTypes = Collections.emptyList();
+		this.supportedMediaTypes = Collections.unmodifiableList(supportedTypes);
 		this.bodyType = null;
 		this.method = null;
-		getBody().setDetail("Could not parse Content-Type.");
+		setDetail("Could not parse Content-Type.");
 	}
 
 	/**
@@ -92,9 +103,8 @@ public class UnsupportedMediaTypeStatusException extends ResponseStatusException
 	public UnsupportedMediaTypeStatusException(@Nullable MediaType contentType, List<MediaType> supportedTypes,
 			@Nullable ResolvableType bodyType, @Nullable HttpMethod method) {
 
-		super(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-				"Content type '" + (contentType != null ? contentType : "") + "' not supported" +
-						(bodyType != null ? " for bodyType=" + bodyType : ""));
+		super(HttpStatus.UNSUPPORTED_MEDIA_TYPE, initMessage(contentType, bodyType),
+				null, null, new Object[] {contentType, supportedTypes});
 
 		this.contentType = contentType;
 		this.supportedMediaTypes = Collections.unmodifiableList(supportedTypes);
@@ -104,13 +114,17 @@ public class UnsupportedMediaTypeStatusException extends ResponseStatusException
 		setDetail(contentType != null ? "Content-Type '" + contentType + "' is not supported." : null);
 	}
 
+	private static String initMessage(@Nullable MediaType contentType, @Nullable ResolvableType bodyType) {
+		return "Content type '" + (contentType != null ? contentType : "") + "' not supported" +
+				(bodyType != null ? " for bodyType=" + bodyType : "");
+	}
+
 
 	/**
 	 * Return the request Content-Type header if it was parsed successfully,
 	 * or {@code null} otherwise.
 	 */
-	@Nullable
-	public MediaType getContentType() {
+	public @Nullable MediaType getContentType() {
 		return this.contentType;
 	}
 
@@ -129,8 +143,7 @@ public class UnsupportedMediaTypeStatusException extends ResponseStatusException
 	 * @return the body type, or {@code null} if not available
 	 * @since 5.1
 	 */
-	@Nullable
-	public ResolvableType getBodyType() {
+	public @Nullable ResolvableType getBodyType() {
 		return this.bodyType;
 	}
 
@@ -149,16 +162,6 @@ public class UnsupportedMediaTypeStatusException extends ResponseStatusException
 			headers.setAcceptPatch(this.supportedMediaTypes);
 		}
 		return headers;
-	}
-
-	/**
-	 * Delegates to {@link #getHeaders()}.
-	 * @deprecated as of 6.0 in favor of {@link #getHeaders()}
-	 */
-	@Deprecated
-	@Override
-	public HttpHeaders getResponseHeaders() {
-		return getHeaders();
 	}
 
 }

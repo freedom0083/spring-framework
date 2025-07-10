@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,57 +23,26 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import org.hibernate.ConnectionReleaseMode;
 import org.hibernate.FlushMode;
-import org.hibernate.HibernateException;
 import org.hibernate.JDBCException;
-import org.hibernate.NonUniqueObjectException;
-import org.hibernate.NonUniqueResultException;
-import org.hibernate.ObjectDeletedException;
-import org.hibernate.PersistentObjectException;
-import org.hibernate.PessimisticLockException;
-import org.hibernate.PropertyValueException;
-import org.hibernate.QueryException;
-import org.hibernate.QueryTimeoutException;
 import org.hibernate.Session;
-import org.hibernate.StaleObjectStateException;
-import org.hibernate.StaleStateException;
-import org.hibernate.TransientObjectException;
-import org.hibernate.UnresolvableObjectException;
-import org.hibernate.WrongClassException;
-import org.hibernate.dialect.lock.OptimisticEntityLockException;
-import org.hibernate.dialect.lock.PessimisticEntityLockException;
 import org.hibernate.engine.spi.SessionImplementor;
-import org.hibernate.exception.ConstraintViolationException;
-import org.hibernate.exception.DataException;
-import org.hibernate.exception.JDBCConnectionException;
-import org.hibernate.exception.LockAcquisitionException;
-import org.hibernate.exception.SQLGrammarException;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.dao.IncorrectResultSizeDataAccessException;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
-import org.springframework.dao.InvalidDataAccessResourceUsageException;
-import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.jdbc.datasource.ConnectionHandle;
 import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.jdbc.support.SQLExceptionSubclassTranslator;
 import org.springframework.jdbc.support.SQLExceptionTranslator;
-import org.springframework.lang.Nullable;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.orm.jpa.DefaultJpaDialect;
-import org.springframework.orm.jpa.EntityManagerFactoryUtils;
-import org.springframework.orm.jpa.JpaSystemException;
+import org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator;
 import org.springframework.transaction.InvalidIsolationLevelException;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.ResourceTransactionDefinition;
 
 /**
- * {@link org.springframework.orm.jpa.JpaDialect} implementation for
- * Hibernate EntityManager.
+ * {@link org.springframework.orm.jpa.JpaDialect} implementation for Hibernate.
+ * Compatible with Hibernate ORM 7.0.
  *
  * @author Juergen Hoeller
  * @author Costin Leau
@@ -85,10 +54,9 @@ import org.springframework.transaction.support.ResourceTransactionDefinition;
 @SuppressWarnings("serial")
 public class HibernateJpaDialect extends DefaultJpaDialect {
 
-	boolean prepareConnection = true;
+	private final HibernateExceptionTranslator exceptionTranslator = new HibernateExceptionTranslator();
 
-	@Nullable
-	private SQLExceptionTranslator jdbcExceptionTranslator;
+	boolean prepareConnection = true;
 
 
 	/**
@@ -120,14 +88,21 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	 * <p>Applied to any detected {@link java.sql.SQLException} root cause of a Hibernate
 	 * {@link JDBCException}, overriding Hibernate's own {@code SQLException} translation
 	 * (which is based on a Hibernate Dialect for a specific target database).
+	 * <p>As of 6.1, also applied to {@link org.hibernate.TransactionException} translation
+	 * with a {@link SQLException} root cause (where Hibernate does not translate itself
+	 * at all), overriding Spring's default {@link SQLExceptionSubclassTranslator} there.
+	 * @param exceptionTranslator the {@link SQLExceptionTranslator} to delegate to, or
+	 * {@code null} for none. By default, a {@link SQLExceptionSubclassTranslator} will
+	 * be used for {@link org.hibernate.TransactionException} translation as of 6.1;
+	 * this can be reverted to pre-6.1 behavior through setting {@code null} here.
 	 * @since 5.1
 	 * @see java.sql.SQLException
 	 * @see org.hibernate.JDBCException
+	 * @see org.springframework.jdbc.support.SQLExceptionSubclassTranslator
 	 * @see org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator
-	 * @see org.springframework.jdbc.support.SQLStateSQLExceptionTranslator
 	 */
-	public void setJdbcExceptionTranslator(SQLExceptionTranslator jdbcExceptionTranslator) {
-		this.jdbcExceptionTranslator = jdbcExceptionTranslator;
+	public void setJdbcExceptionTranslator(@Nullable SQLExceptionTranslator exceptionTranslator) {
+		this.exceptionTranslator.setJdbcExceptionTranslator(exceptionTranslator);
 	}
 
 
@@ -135,7 +110,7 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	public Object beginTransaction(EntityManager entityManager, TransactionDefinition definition)
 			throws PersistenceException, SQLException, TransactionException {
 
-		SessionImplementor session = getSession(entityManager);
+		SessionImplementor session = entityManager.unwrap(SessionImplementor.class);
 
 		if (definition.getTimeout() != TransactionDefinition.TIMEOUT_DEFAULT) {
 			session.getTransaction().setTimeout(definition.getTimeout());
@@ -164,8 +139,7 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 
 		// Adapt flush mode and store previous isolation level, if any.
 		FlushMode previousFlushMode = prepareFlushMode(session, definition.isReadOnly());
-		if (definition instanceof ResourceTransactionDefinition &&
-				((ResourceTransactionDefinition) definition).isLocalResource()) {
+		if (definition instanceof ResourceTransactionDefinition rtd && rtd.isLocalResource()) {
 			// As of 5.1, we explicitly optimize for a transaction-local EntityManager,
 			// aligned with native HibernateTransactionManager behavior.
 			previousFlushMode = null;
@@ -181,13 +155,12 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	public Object prepareTransaction(EntityManager entityManager, boolean readOnly, @Nullable String name)
 			throws PersistenceException {
 
-		SessionImplementor session = getSession(entityManager);
+		SessionImplementor session = entityManager.unwrap(SessionImplementor.class);
 		FlushMode previousFlushMode = prepareFlushMode(session, readOnly);
 		return new SessionTransactionData(session, previousFlushMode, false, null, readOnly);
 	}
 
-	@Nullable
-	protected FlushMode prepareFlushMode(Session session, boolean readOnly) throws PersistenceException {
+	protected @Nullable FlushMode prepareFlushMode(Session session, boolean readOnly) throws PersistenceException {
 		FlushMode flushMode = session.getHibernateFlushMode();
 		if (readOnly) {
 			// We should suppress flushing for a read-only transaction.
@@ -209,8 +182,8 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 
 	@Override
 	public void cleanupTransaction(@Nullable Object transactionData) {
-		if (transactionData instanceof SessionTransactionData) {
-			((SessionTransactionData) transactionData).resetSessionState();
+		if (transactionData instanceof SessionTransactionData sessionTransactionData) {
+			sessionTransactionData.resetSessionState();
 		}
 	}
 
@@ -218,110 +191,12 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 	public ConnectionHandle getJdbcConnection(EntityManager entityManager, boolean readOnly)
 			throws PersistenceException, SQLException {
 
-		SessionImplementor session = getSession(entityManager);
-		return new HibernateConnectionHandle(session);
+		return new HibernateConnectionHandle(entityManager.unwrap(SessionImplementor.class));
 	}
 
 	@Override
-	@Nullable
-	public DataAccessException translateExceptionIfPossible(RuntimeException ex) {
-		if (ex instanceof HibernateException) {
-			return convertHibernateAccessException((HibernateException) ex);
-		}
-		if (ex instanceof PersistenceException && ex.getCause() instanceof HibernateException) {
-			return convertHibernateAccessException((HibernateException) ex.getCause());
-		}
-		return EntityManagerFactoryUtils.convertJpaAccessExceptionIfPossible(ex);
-	}
-
-	/**
-	 * Convert the given HibernateException to an appropriate exception
-	 * from the {@code org.springframework.dao} hierarchy.
-	 * @param ex the HibernateException that occurred
-	 * @return the corresponding DataAccessException instance
-	 */
-	protected DataAccessException convertHibernateAccessException(HibernateException ex) {
-		if (this.jdbcExceptionTranslator != null && ex instanceof JDBCException jdbcEx) {
-			DataAccessException dae = this.jdbcExceptionTranslator.translate(
-					"Hibernate operation: " + jdbcEx.getMessage(), jdbcEx.getSQL(), jdbcEx.getSQLException());
-			if (dae != null) {
-				throw dae;
-			}
-		}
-
-		if (ex instanceof JDBCConnectionException) {
-			return new DataAccessResourceFailureException(ex.getMessage(), ex);
-		}
-		if (ex instanceof SQLGrammarException jdbcEx) {
-			return new InvalidDataAccessResourceUsageException(ex.getMessage() + "; SQL [" + jdbcEx.getSQL() + "]", ex);
-		}
-		if (ex instanceof QueryTimeoutException jdbcEx) {
-			return new org.springframework.dao.QueryTimeoutException(ex.getMessage() + "; SQL [" + jdbcEx.getSQL() + "]", ex);
-		}
-		if (ex instanceof LockAcquisitionException jdbcEx) {
-			return new CannotAcquireLockException(ex.getMessage() + "; SQL [" + jdbcEx.getSQL() + "]", ex);
-		}
-		if (ex instanceof PessimisticLockException jdbcEx) {
-			return new PessimisticLockingFailureException(ex.getMessage() + "; SQL [" + jdbcEx.getSQL() + "]", ex);
-		}
-		if (ex instanceof ConstraintViolationException jdbcEx) {
-			return new DataIntegrityViolationException(ex.getMessage()  + "; SQL [" + jdbcEx.getSQL() +
-					"]; constraint [" + jdbcEx.getConstraintName() + "]", ex);
-		}
-		if (ex instanceof DataException jdbcEx) {
-			return new DataIntegrityViolationException(ex.getMessage() + "; SQL [" + jdbcEx.getSQL() + "]", ex);
-		}
-		// end of JDBCException subclass handling
-
-		if (ex instanceof QueryException) {
-			return new InvalidDataAccessResourceUsageException(ex.getMessage(), ex);
-		}
-		if (ex instanceof NonUniqueResultException) {
-			return new IncorrectResultSizeDataAccessException(ex.getMessage(), 1, ex);
-		}
-		if (ex instanceof NonUniqueObjectException) {
-			return new DuplicateKeyException(ex.getMessage(), ex);
-		}
-		if (ex instanceof PropertyValueException) {
-			return new DataIntegrityViolationException(ex.getMessage(), ex);
-		}
-		if (ex instanceof PersistentObjectException) {
-			return new InvalidDataAccessApiUsageException(ex.getMessage(), ex);
-		}
-		if (ex instanceof TransientObjectException) {
-			return new InvalidDataAccessApiUsageException(ex.getMessage(), ex);
-		}
-		if (ex instanceof ObjectDeletedException) {
-			return new InvalidDataAccessApiUsageException(ex.getMessage(), ex);
-		}
-		if (ex instanceof UnresolvableObjectException hibEx) {
-			return new ObjectRetrievalFailureException(hibEx.getEntityName(), hibEx.getIdentifier(), ex.getMessage(), ex);
-		}
-		if (ex instanceof WrongClassException hibEx) {
-			return new ObjectRetrievalFailureException(hibEx.getEntityName(), hibEx.getIdentifier(), ex.getMessage(), ex);
-		}
-		if (ex instanceof StaleObjectStateException hibEx) {
-			return new ObjectOptimisticLockingFailureException(hibEx.getEntityName(), hibEx.getIdentifier(), ex);
-		}
-		if (ex instanceof StaleStateException) {
-			return new ObjectOptimisticLockingFailureException(ex.getMessage(), ex);
-		}
-		if (ex instanceof OptimisticEntityLockException) {
-			return new ObjectOptimisticLockingFailureException(ex.getMessage(), ex);
-		}
-		if (ex instanceof PessimisticEntityLockException) {
-			if (ex.getCause() instanceof LockAcquisitionException) {
-				return new CannotAcquireLockException(ex.getMessage(), ex.getCause());
-			}
-			return new PessimisticLockingFailureException(ex.getMessage(), ex);
-		}
-
-		// fallback
-		return new JpaSystemException(ex);
-	}
-
-	protected SessionImplementor getSession(EntityManager entityManager) {
-		return entityManager.unwrap(SessionImplementor.class);
+	public @Nullable DataAccessException translateExceptionIfPossible(RuntimeException ex) {
+		return this.exceptionTranslator.translateExceptionIfPossible(ex);
 	}
 
 
@@ -329,13 +204,11 @@ public class HibernateJpaDialect extends DefaultJpaDialect {
 
 		private final SessionImplementor session;
 
-		@Nullable
-		private final FlushMode previousFlushMode;
+		private final @Nullable FlushMode previousFlushMode;
 
 		private final boolean needsConnectionReset;
 
-		@Nullable
-		private final Integer previousIsolationLevel;
+		private final @Nullable Integer previousIsolationLevel;
 
 		private final boolean readOnly;
 

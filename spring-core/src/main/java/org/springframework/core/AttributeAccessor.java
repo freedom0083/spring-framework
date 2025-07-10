@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package org.springframework.core;
 
 import java.util.function.Function;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -48,8 +49,7 @@ public interface AttributeAccessor {
 	 * @param name the unique attribute key
 	 * @return the current value of the attribute, if any
 	 */
-	@Nullable
-	Object getAttribute(String name);
+	@Nullable Object getAttribute(String name);
 
 	/**
 	 * Compute a new value for the attribute identified by {@code name} if
@@ -59,7 +59,7 @@ public interface AttributeAccessor {
 	 * in this {@code AttributeAccessor}, the existing value will be returned
 	 * without applying the supplied compute function.
 	 * <p>The default implementation of this method is not thread safe but can
-	 * overridden by concrete implementations of this interface.
+	 * be overridden by concrete implementations of this interface.
 	 * @param <T> the type of the attribute value
 	 * @param name the unique attribute key
 	 * @param computeFunction a function that computes a new value for the attribute
@@ -89,8 +89,7 @@ public interface AttributeAccessor {
 	 * @param name the unique attribute key
 	 * @return the last value of the attribute, if any
 	 */
-	@Nullable
-	Object removeAttribute(String name);
+	@Nullable Object removeAttribute(String name);
 
 	/**
 	 * Return {@code true} if the attribute identified by {@code name} exists.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,21 @@
 
 package org.springframework.web.service.invoker;
 
-import org.junit.jupiter.api.BeforeEach;
+import java.net.URI;
+
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.util.DefaultUriBuilderFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link PathVariableArgumentResolver}.
+ *
  * <p>For base class functionality, see {@link NamedValueArgumentResolverTests}.
  *
  * @author Olga Maciaszek-Sharma
@@ -34,25 +38,27 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PathVariableArgumentResolverTests {
 
-	private final TestHttpClientAdapter client = new TestHttpClientAdapter();
+	private final TestExchangeAdapter client = new TestExchangeAdapter();
 
-	private Service service;
+	private final Service service =
+			HttpServiceProxyFactory.builderFor(this.client).build().createClient(Service.class);
 
-
-	@BeforeEach
-	void setUp() throws Exception {
-		HttpServiceProxyFactory proxyFactory = new HttpServiceProxyFactory(this.client);
-		proxyFactory.afterPropertiesSet();
-		this.service = proxyFactory.createClient(Service.class);
-	}
-
-
-	// Base class functionality should be tested in NamedValueArgumentResolverTests.
 
 	@Test
 	void pathVariable() {
 		this.service.execute("test");
 		assertPathVariable("id", "test");
+	}
+
+	@Test // gh-34499
+	void pathVariableAndRequestParamWithSameName() {
+		this.service.executeWithPathVarAndRequestParam("{transfer-id}", "aValue");
+
+		assertPathVariable("transfer-id", "{transfer-id}");
+
+		HttpRequestValues values = this.client.getRequestValues();
+		URI uri = (new DefaultUriBuilderFactory()).expand(values.getUriTemplate(), values.getUriVariables());
+		assertThat(uri.toString()).isEqualTo("/transfers/%7Btransfer-id%7D?transfer-id=aValue");
 	}
 
 	@SuppressWarnings("SameParameterValue")
@@ -65,6 +71,11 @@ class PathVariableArgumentResolverTests {
 
 		@GetExchange
 		void execute(@PathVariable String id);
+
+		@GetExchange("/transfers/{transfer-id}")
+		void executeWithPathVarAndRequestParam(
+				@PathVariable("transfer-id") String transferId,
+				@RequestParam("transfer-id") String transferIdParam);
 
 	}
 

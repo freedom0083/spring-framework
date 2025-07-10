@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ class BenchmarkTests {
 		sw.stop();
 		// System.out.println(sw.prettyPrint());
 		ac.close();
-		return sw.getLastTaskTimeMillis();
+		return sw.getTotalTimeMillis();
 	}
 
 	private long testBeforeAdviceWithoutJoinPoint(String file, int howmany, String technology) {
@@ -129,7 +129,7 @@ class BenchmarkTests {
 
 		assertThat(AopUtils.isAopProxy(adrian)).isTrue();
 		Advised a = (Advised) adrian;
-		assertThat(a.getAdvisors().length >= 3).isTrue();
+		assertThat(a.getAdvisors()).hasSizeGreaterThanOrEqualTo(3);
 		assertThat(adrian.getName()).isEqualTo("adrian");
 
 		for (int i = 0; i < howmany; i++) {
@@ -139,7 +139,7 @@ class BenchmarkTests {
 		sw.stop();
 		// System.out.println(sw.prettyPrint());
 		ac.close();
-		return sw.getLastTaskTimeMillis();
+		return sw.getTotalTimeMillis();
 	}
 
 	private long testAfterReturningAdviceWithoutJoinPoint(String file, int howmany, String technology) {
@@ -151,7 +151,7 @@ class BenchmarkTests {
 
 		assertThat(AopUtils.isAopProxy(adrian)).isTrue();
 		Advised a = (Advised) adrian;
-		assertThat(a.getAdvisors().length >= 3).isTrue();
+		assertThat(a.getAdvisors()).hasSizeGreaterThanOrEqualTo(3);
 		// Hits joinpoint
 		adrian.setAge(25);
 
@@ -162,7 +162,7 @@ class BenchmarkTests {
 		sw.stop();
 		// System.out.println(sw.prettyPrint());
 		ac.close();
-		return sw.getLastTaskTimeMillis();
+		return sw.getTotalTimeMillis();
 	}
 
 	private long testMix(String file, int howmany, String technology) {
@@ -174,7 +174,7 @@ class BenchmarkTests {
 
 		assertThat(AopUtils.isAopProxy(adrian)).isTrue();
 		Advised a = (Advised) adrian;
-		assertThat(a.getAdvisors().length >= 3).isTrue();
+		assertThat(a.getAdvisors()).hasSizeGreaterThanOrEqualTo(3);
 
 		for (int i = 0; i < howmany; i++) {
 			// Hit all 3 joinpoints
@@ -191,7 +191,7 @@ class BenchmarkTests {
 		sw.stop();
 		// System.out.println(sw.prettyPrint());
 		ac.close();
-		return sw.getLastTaskTimeMillis();
+		return sw.getTotalTimeMillis();
 	}
 
 }
@@ -226,7 +226,7 @@ class TraceAfterReturningAdvice implements AfterReturningAdvice {
 	public int afterTakesInt;
 
 	@Override
-	public void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable {
+	public void afterReturning(Object returnValue, Method method, Object[] args, Object target) {
 		++afterTakesInt;
 	}
 
@@ -270,7 +270,7 @@ class TraceBeforeAdvice implements MethodBeforeAdvice {
 	public int beforeStringReturn;
 
 	@Override
-	public void before(Method method, Object[] args, Object target) throws Throwable {
+	public void before(Method method, Object[] args, Object target) {
 		++beforeStringReturn;
 	}
 

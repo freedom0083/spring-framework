@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
@@ -35,7 +36,7 @@ import org.springframework.util.StringUtils;
  * <strong>any</strong> of the following selectors match:
  * <ul>
  * <li>Base packages -- for selecting handlers by their package.
- * <li>Assignable types -- for selecting handlers by super type.
+ * <li>Assignable types -- for selecting handlers by supertype.
  * <li>Annotations -- for selecting handlers annotated in a specific way.
  * </ul>
  * <p>Composability methods on {@link Predicate} can be used :
@@ -110,7 +111,7 @@ public final class HandlerTypePredicate implements Predicate<Class<?>> {
 	}
 
 	/**
-	 * Match handlers declared under a base package, e.g. "org.example".
+	 * Match handlers declared under a base package, for example, "org.example".
 	 * @param packages one or more base package names
 	 */
 	public static HandlerTypePredicate forBasePackage(String... packages) {
@@ -128,7 +129,7 @@ public final class HandlerTypePredicate implements Predicate<Class<?>> {
 
 	/**
 	 * Match handlers that are assignable to a given type.
-	 * @param types one or more handler super types
+	 * @param types one or more handler supertypes
 	 */
 	public static HandlerTypePredicate forAssignableType(Class<?>... types) {
 		return new Builder().assignableType(types).build();
@@ -163,7 +164,7 @@ public final class HandlerTypePredicate implements Predicate<Class<?>> {
 		private final List<Class<? extends Annotation>> annotations = new ArrayList<>();
 
 		/**
-		 * Match handlers declared under a base package, e.g. "org.example".
+		 * Match handlers declared under a base package, for example, "org.example".
 		 * @param packages one or more base package classes
 		 */
 		public Builder basePackage(String... packages) {
@@ -187,7 +188,7 @@ public final class HandlerTypePredicate implements Predicate<Class<?>> {
 
 		/**
 		 * Match handlers that are assignable to a given type.
-		 * @param types one or more handler super types
+		 * @param types one or more handler supertypes
 		 */
 		public Builder assignableType(Class<?>... types) {
 			this.assignableTypes.addAll(Arrays.asList(types));

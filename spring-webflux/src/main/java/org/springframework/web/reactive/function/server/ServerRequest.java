@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -39,15 +40,16 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRange;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageReader;
-import org.springframework.http.codec.json.Jackson2CodecSupport;
+import org.springframework.http.codec.JacksonCodecSupport;
 import org.springframework.http.codec.multipart.Part;
-import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.RequestPath;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MultiValueMap;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.reactive.accept.ApiVersionStrategy;
 import org.springframework.web.reactive.function.BodyExtractor;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebSession;
@@ -67,18 +69,8 @@ public interface ServerRequest {
 
 	/**
 	 * Get the HTTP method.
-	 * @return the HTTP method as an HttpMethod enum value, or {@code null}
-	 * if not resolvable (e.g. in case of a non-standard HTTP method)
 	 */
 	HttpMethod method();
-
-	/**
-	 * Get the name of the HTTP method.
-	 * @return the HTTP method as a String
-	 * @deprecated in favor of {@link #method()}
-	 */
-	@Deprecated
-	String methodName();
 
 	/**
 	 * Get the request URI.
@@ -101,15 +93,6 @@ public interface ServerRequest {
 	 */
 	default String path() {
 		return requestPath().pathWithinApplication().value();
-	}
-
-	/**
-	 * Get the request path as a {@code PathContainer}.
-	 * @deprecated as of 5.3, in favor on {@link #requestPath()}
-	 */
-	@Deprecated
-	default PathContainer pathContainer() {
-		return requestPath();
 	}
 
 	/**
@@ -149,6 +132,12 @@ public interface ServerRequest {
 	List<HttpMessageReader<?>> messageReaders();
 
 	/**
+	 * Return the configured {@link ApiVersionStrategy}, or {@code null}.
+	 * @since 7.0
+	 */
+	@Nullable ApiVersionStrategy apiVersionStrategy();
+
+	/**
 	 * Extract the body with the given {@code BodyExtractor}.
 	 * @param extractor the {@code BodyExtractor} that reads from the request
 	 * @param <T> the type of the body returned
@@ -160,7 +149,7 @@ public interface ServerRequest {
 	/**
 	 * Extract the body with the given {@code BodyExtractor} and hints.
 	 * @param extractor the {@code BodyExtractor} that reads from the request
-	 * @param hints the map of hints like {@link Jackson2CodecSupport#JSON_VIEW_HINT}
+	 * @param hints the map of hints like {@link JacksonCodecSupport#JSON_VIEW_HINT}
 	 * to use to customize body extraction
 	 * @param <T> the type of the body returned
 	 * @return the extracted body
@@ -198,6 +187,31 @@ public interface ServerRequest {
 	 * @return a flux containing the body of the given type {@code T}
 	 */
 	<T> Flux<T> bodyToFlux(ParameterizedTypeReference<T> typeReference);
+
+	/**
+	 * Bind to this request and return an instance of the given type.
+	 * @param bindType the type of class to bind this request to
+	 * @param <T> the type to bind to
+	 * @return a mono containing either a constructed and bound instance of
+	 * {@code bindType}, or a {@link BindException} in case of binding errors
+	 * @since 6.1
+	 */
+	default <T> Mono<T> bind(Class<T> bindType) {
+		return bind(bindType, dataBinder -> {});
+	}
+
+	/**
+	 * Bind to this request and return an instance of the given type.
+	 * @param bindType the type of class to bind this request to
+	 * @param dataBinderCustomizer used to customize the data binder, for example, set
+	 * (dis)allowed fields
+	 * @param <T> the type to bind to
+	 * @return a mono containing either a constructed and bound instance of
+	 * {@code bindType}, or a {@link BindException} in case of binding errors
+	 * @since 6.1
+	 */
+	<T> Mono<T> bind(Class<T> bindType, Consumer<WebDataBinder> dataBinderCustomizer);
+
 
 	/**
 	 * Get the request attribute value if present.
@@ -247,7 +261,7 @@ public interface ServerRequest {
 	default String pathVariable(String name) {
 		Map<String, String> pathVariables = pathVariables();
 		if (pathVariables.containsKey(name)) {
-			return pathVariables().get(name);
+			return pathVariables.get(name);
 		}
 		else {
 			throw new IllegalArgumentException("No path variable with name \"" + name + "\" available");
@@ -318,7 +332,7 @@ public interface ServerRequest {
 	 * also with conditional POST/PUT/DELETE requests.
 	 * <p><strong>Note:</strong> you can use either
 	 * this {@code #checkNotModified(Instant)} method; or
-	 * {@link #checkNotModified(String)}. If you want enforce both
+	 * {@link #checkNotModified(String)}. If you want to enforce both
 	 * a strong entity tag and a Last-Modified value,
 	 * as recommended by the HTTP specification,
 	 * then you should use {@link #checkNotModified(Instant, String)}.
@@ -352,13 +366,14 @@ public interface ServerRequest {
 	 * also with conditional POST/PUT/DELETE requests.
 	 * <p><strong>Note:</strong> you can use either
 	 * this {@link #checkNotModified(Instant)} method; or
-	 * {@code #checkNotModified(String)}. If you want enforce both
+	 * {@code #checkNotModified(String)}. If you want to enforce both
 	 * a strong entity tag and a Last-Modified value,
 	 * as recommended by the HTTP specification,
 	 * then you should use {@link #checkNotModified(Instant, String)}.
 	 * @param etag the entity tag that the application determined
 	 * for the underlying resource. This parameter will be padded
-	 * with quotes (") if necessary.
+	 * with quotes (") if necessary. Use an empty string {@code ""}
+	 * for no value.
 	 * @return a corresponding response if the request qualifies as not
 	 * modified, or an empty result otherwise
 	 * @since 5.2.5
@@ -391,7 +406,8 @@ public interface ServerRequest {
 	 * application determined for the underlying resource
 	 * @param etag the entity tag that the application determined
 	 * for the underlying resource. This parameter will be padded
-	 * with quotes (") if necessary.
+	 * with quotes (") if necessary. Use an empty string {@code ""}
+	 * for no value.
 	 * @return a corresponding response if the request qualifies as not
 	 * modified, or an empty result otherwise.
 	 * @since 5.2.5
@@ -414,6 +430,23 @@ public interface ServerRequest {
 	static ServerRequest create(ServerWebExchange exchange, List<HttpMessageReader<?>> messageReaders) {
 		return new DefaultServerRequest(exchange, messageReaders);
 	}
+
+	/**
+	 * Create a new {@code ServerRequest} based on the given {@code ServerWebExchange} and
+	 * message readers.
+	 * @param exchange the exchange
+	 * @param messageReaders the message readers
+	 * @param versionStrategy a strategy to use to parse version
+	 * @return the created {@code ServerRequest}
+	 * @since 7.0
+	 */
+	static ServerRequest create(
+			ServerWebExchange exchange, List<HttpMessageReader<?>> messageReaders,
+			@Nullable ApiVersionStrategy versionStrategy) {
+
+		return new DefaultServerRequest(exchange, messageReaders, versionStrategy);
+	}
+
 
 	/**
 	 * Create a builder with the {@linkplain HttpMessageReader message readers},
@@ -471,8 +504,7 @@ public interface ServerRequest {
 		 * {@linkplain InetSocketAddress#getPort() port} in the returned address will
 		 * be {@code 0}.
 		 */
-		@Nullable
-		InetSocketAddress host();
+		@Nullable InetSocketAddress host();
 
 		/**
 		 * Get the value of the {@code Range} header.
@@ -493,8 +525,7 @@ public interface ServerRequest {
 		 * @param headerName the header name
 		 * @since 5.2.5
 		 */
-		@Nullable
-		default String firstHeader(String headerName) {
+		default @Nullable String firstHeader(String headerName) {
 			List<String> list = header(headerName);
 			return list.isEmpty() ? null : list.get(0);
 		}
@@ -527,6 +558,14 @@ public interface ServerRequest {
 		Builder uri(URI uri);
 
 		/**
+		 * Set the context path of the request.
+		 * @param contextPath the new context path
+		 * @return this builder
+		 * @since 5.3.23
+		 */
+		Builder contextPath(@Nullable String contextPath);
+
+		/**
 		 * Add the given header value(s) under the given name.
 		 * @param headerName the header name
 		 * @param headerValues the header value(s)
@@ -539,7 +578,7 @@ public interface ServerRequest {
 		 * Manipulate this request's headers with the given consumer.
 		 * <p>The headers provided to the consumer are "live", so that the consumer can be used to
 		 * {@linkplain HttpHeaders#set(String, String) overwrite} existing header values,
-		 * {@linkplain HttpHeaders#remove(Object) remove} values, or use any of the other
+		 * {@linkplain HttpHeaders#remove(String) remove} values, or use any of the other
 		 * {@link HttpHeaders} methods.
 		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
 		 * @return this builder

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
@@ -66,21 +66,19 @@ public class PluggableSchemaResolver implements EntityResolver {
 
 	private static final Log logger = LogFactory.getLog(PluggableSchemaResolver.class);
 
-	@Nullable
-	private final ClassLoader classLoader;
+	private final @Nullable ClassLoader classLoader;
 
 	private final String schemaMappingsLocation;
 
 	/** Stores the mapping of schema URL &rarr; local schema path. */
-	@Nullable
-	private volatile Map<String, String> schemaMappings;
+	private volatile @Nullable Map<String, String> schemaMappings;
 
 
 	/**
 	 * Loads the schema URL &rarr; schema file location mappings using the default
 	 * mapping file pattern "META-INF/spring.schemas".
 	 * @param classLoader the ClassLoader to use for loading
-	 * (can be {@code null}) to use the default ClassLoader)
+	 * (can be {@code null} to use the default ClassLoader)
 	 * @see PropertiesLoaderUtils#loadAllProperties(String, ClassLoader)
 	 */
 	public PluggableSchemaResolver(@Nullable ClassLoader classLoader) {
@@ -92,7 +90,7 @@ public class PluggableSchemaResolver implements EntityResolver {
 	 * Loads the schema URL &rarr; schema file location mappings using the given
 	 * mapping file pattern.
 	 * @param classLoader the ClassLoader to use for loading
-	 * (can be {@code null}) to use the default ClassLoader)
+	 * (can be {@code null} to use the default ClassLoader)
 	 * @param schemaMappingsLocation the location of the file that defines schema mappings
 	 * (must not be empty)
 	 * @see PropertiesLoaderUtils#loadAllProperties(String, ClassLoader)
@@ -105,8 +103,7 @@ public class PluggableSchemaResolver implements EntityResolver {
 
 
 	@Override
-	@Nullable
-	public InputSource resolveEntity(@Nullable String publicId, @Nullable String systemId) throws IOException {
+	public @Nullable InputSource resolveEntity(@Nullable String publicId, @Nullable String systemId) throws IOException {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Trying to resolve XML entity with public id [" + publicId +
 					"] and system id [" + systemId + "]");

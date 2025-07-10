@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,15 +23,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 
 /**
  * Builder for a composite {@link RequestedContentTypeResolver} that delegates
  * to other resolvers each implementing a different strategy to determine the
- * requested content type -- e.g. Accept header, query parameter, or other.
+ * requested content type -- for example, Accept header, query parameter, or other.
  *
  * <p>Use builder methods to add resolvers in the desired order. For a given
  * request he first resolver to return a list that is not empty and does not
@@ -88,19 +88,23 @@ public class RequestedContentTypeResolverBuilder {
 	 */
 	public RequestedContentTypeResolver build() {
 		List<RequestedContentTypeResolver> resolvers = (!this.candidates.isEmpty() ?
-				this.candidates.stream().map(Supplier::get).collect(Collectors.toList()) :
+				this.candidates.stream().map(Supplier::get).toList() :
 				Collections.singletonList(new HeaderContentTypeResolver()));
 
 		return exchange -> {
 			for (RequestedContentTypeResolver resolver : resolvers) {
 				List<MediaType> mediaTypes = resolver.resolveMediaTypes(exchange);
-				if (mediaTypes.equals(RequestedContentTypeResolver.MEDIA_TYPE_ALL_LIST)) {
+				if (isMediaTypeAll(mediaTypes)) {
 					continue;
 				}
 				return mediaTypes;
 			}
 			return RequestedContentTypeResolver.MEDIA_TYPE_ALL_LIST;
 		};
+	}
+
+	private boolean isMediaTypeAll(List<MediaType> mediaTypes) {
+		return mediaTypes.size() == 1 && mediaTypes.get(0).removeQualityValue().equals(MediaType.ALL);
 	}
 
 
@@ -111,8 +115,7 @@ public class RequestedContentTypeResolverBuilder {
 
 		private final Map<String, MediaType> mediaTypes = new HashMap<>();
 
-		@Nullable
-		private String parameterName;
+		private @Nullable String parameterName;
 
 		/**
 		 * Configure a mapping between a lookup key (extracted from a query

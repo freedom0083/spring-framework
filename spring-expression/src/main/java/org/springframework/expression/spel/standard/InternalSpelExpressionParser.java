@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.expression.ParseException;
 import org.springframework.expression.ParserContext;
 import org.springframework.expression.common.TemplateAwareExpressionParser;
 import org.springframework.expression.spel.InternalParseException;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
 import org.springframework.expression.spel.SpelParseException;
 import org.springframework.expression.spel.SpelParserConfiguration;
@@ -73,16 +79,16 @@ import org.springframework.expression.spel.ast.StringLiteral;
 import org.springframework.expression.spel.ast.Ternary;
 import org.springframework.expression.spel.ast.TypeReference;
 import org.springframework.expression.spel.ast.VariableReference;
-import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
+import org.springframework.lang.Contract;
 import org.springframework.util.StringUtils;
 
 /**
- * Hand-written SpEL parser. Instances are reusable but are not thread-safe.
+ * Handwritten SpEL parser. Instances are reusable but are not thread-safe.
  *
  * @author Andy Clement
  * @author Juergen Hoeller
  * @author Phillip Webb
+ * @author Sam Brannen
  * @since 3.0
  */
 class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
@@ -93,11 +99,13 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	//  4. \P{N}: 表示不是任何数字, 等价于 [^\p{N}]
 	private static final Pattern VALID_QUALIFIED_ID_PATTERN = Pattern.compile("[\\p{L}\\p{N}_$]+");
 
-
 	private final SpelParserConfiguration configuration;
 
 	// For rules that build nodes, they are stacked here for return
 	private final Deque<SpelNodeImpl> constructedNodes = new ArrayDeque<>();
+
+	// Shared cache for compiled regex patterns
+	private final ConcurrentMap<String, Pattern> patternCache = new ConcurrentHashMap<>();
 
 	// The expression being parsed
 	private String expressionString = "";
@@ -126,6 +134,8 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	protected SpelExpression doParseExpression(String expressionString, @Nullable ParserContext context)
 			throws ParseException {
 
+		checkExpressionLength(expressionString);
+
 		try {
 			this.expressionString = expressionString;
 			// TODO 用表达式创建一个词法分析器, 其中包含了要解析的字符串表达式, 分解成char的表达式, 整个表达式长度, 以及起始位置
@@ -141,18 +151,26 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			//    调用关系: 赋值 -> 逻辑或 -> 逻辑与 -> 关系运算 -> 求和运算 -> 乘积运算 -> 平方运算 -> 一元运算或字面量
 			//    优先级: 一元运算或字面量 -> 平方运算 -> 乘积运算 -> 求和运算 -> 关系运算 -> 逻辑与 -> 逻辑或 -> 赋值
 			SpelNodeImpl ast = eatExpression();
-			Assert.state(ast != null, "No node");
+			if (ast == null) {
+				throw new SpelParseException(this.expressionString, 0, SpelMessage.OOD);
+			}
 			Token t = peekToken();
 			if (t != null) {
 				// TODO 如果后面还有其他token, 则表示解析出现了问题, 因为ast已经是语法树的根了. 这时抛出解析异常
-				throw new SpelParseException(t.startPos, SpelMessage.MORE_INPUT, toString(nextToken()));
+				throw new SpelParseException(this.expressionString, t.startPos, SpelMessage.MORE_INPUT, toString(nextToken()));
 			}
-			Assert.isTrue(this.constructedNodes.isEmpty(), "At least one node expected");
 			// TODO 解析完毕后, 返回Expression, 这里返回的是SpelExpression
 			return new SpelExpression(expressionString, ast, this.configuration);
 		}
 		catch (InternalParseException ex) {
 			throw ex.getCause();
+		}
+	}
+
+	private void checkExpressionLength(String string) {
+		int maxLength = this.configuration.getMaximumExpressionLength();
+		if (string.length() > maxLength) {
+			throw new SpelEvaluationException(SpelMessage.MAX_EXPRESSION_LENGTH_EXCEEDED, maxLength);
 		}
 	}
 
@@ -162,8 +180,8 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	//	    | (DEFAULT^ logicalOrExpression)
 	//	    | (QMARK^ expression COLON! expression)
 	//      | (ELVIS^ expression))?;
-	@Nullable
-	private SpelNodeImpl eatExpression() {
+	@SuppressWarnings("NullAway") // Not null assertion performed in SpelNodeImpl constructor
+	private @Nullable SpelNodeImpl eatExpression() {
 		// TODO 开始正式解析token, 这个方法主要处理的是赋值动作, 即, '=', '?:', '?'的情况, 是优先级最低的情况.
 		//  所以按优先级, 先进行其他解析, 解析成功后得到一个node
 		SpelNodeImpl expr = eatLogicalOrExpression();
@@ -218,8 +236,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	//logicalOrExpression : logicalAndExpression (OR^ logicalAndExpression)*;
-	@Nullable
-	private SpelNodeImpl eatLogicalOrExpression() {
+	private @Nullable SpelNodeImpl eatLogicalOrExpression() {
 		// TODO 用于解析或运算, 即, 'or', '||'. 先进行优先级更高的解析工作, 得到一个node
 		SpelNodeImpl expr = eatLogicalAndExpression();
 		while (peekIdentifierToken("or") || peekToken(TokenKind.SYMBOLIC_OR)) {
@@ -236,8 +253,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// logicalAndExpression : relationalExpression (AND^ relationalExpression)*;
-	@Nullable
-	private SpelNodeImpl eatLogicalAndExpression() {
+	private @Nullable SpelNodeImpl eatLogicalAndExpression() {
 		// TODO 用于解析与运算, 即, 'and', 或'&&'. 先进行优先级更高的解析工作, 得到一个node
 		//  处理与操作前, 首先处理关系运算:
 		//  1. EQUAL('=='), 2. NOT_EQUAL('!='), 3. LESS_THAN('<'), 4. LESS_THAN_OR_EQUAL('<='), 5. GREATER_THAN('>')
@@ -257,8 +273,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// relationalExpression : sumExpression (relationalOperator^ sumExpression)?;
-	@Nullable
-	private SpelNodeImpl eatRelationalExpression() {
+	private @Nullable SpelNodeImpl eatRelationalExpression() {
 		// TODO 用于解析关系运算, 即:
 		//  1. EQUAL('=='), 2. NOT_EQUAL('!='), 3. LESS_THAN('<'), 4. LESS_THAN_OR_EQUAL('<='), 5. GREATER_THAN('>')
 		//  6. GREATER_THAN_OR_EQUAL('>='), 7, INSTANCEOF('instanceof'), 8. BETWEEN('between'), 9. MATCHES('matches')
@@ -289,28 +304,28 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				if (tk == TokenKind.EQ) {
 					return new OpEQ(t.startPos, t.endPos, expr, rhExpr);
 				}
-				Assert.isTrue(tk == TokenKind.NE, "Not-equals token expected");
-				return new OpNE(t.startPos, t.endPos, expr, rhExpr);
+				if (tk == TokenKind.NE) {
+					return new OpNE(t.startPos, t.endPos, expr, rhExpr);
+				}
 			}
 
 			if (tk == TokenKind.INSTANCEOF) {
 				return new OperatorInstanceof(t.startPos, t.endPos, expr, rhExpr);
 			}
-
 			if (tk == TokenKind.MATCHES) {
-				return new OperatorMatches(t.startPos, t.endPos, expr, rhExpr);
+				return new OperatorMatches(this.patternCache, t.startPos, t.endPos, expr, rhExpr);
 			}
-
-			Assert.isTrue(tk == TokenKind.BETWEEN, "Between token expected");
-			return new OperatorBetween(t.startPos, t.endPos, expr, rhExpr);
+			if (tk == TokenKind.BETWEEN) {
+				return new OperatorBetween(t.startPos, t.endPos, expr, rhExpr);
+			}
 		}
 		// TODO 没有关系运算符时, 直接返回node
 		return expr;
 	}
 
 	//sumExpression: productExpression ( (PLUS^ | MINUS^) productExpression)*;
-	@Nullable
-	private SpelNodeImpl eatSumExpression() {
+	@SuppressWarnings("NullAway") // Not null assertion performed in SpelNodeImpl constructor
+	private @Nullable SpelNodeImpl eatSumExpression() {
 		// TODO 用于解析求和运算, 即: PLUS('+'), MINUS('-'), INC('++'). 先进行优先级更高的解析工作, 得到一个node
 		//  求和操作前, 要先处理乘积运算:
 		//  1. START('*'), 2. DIV('/'), 3. MOD('%')
@@ -334,8 +349,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// productExpression: powerExpr ((STAR^ | DIV^| MOD^) powerExpr)* ;
-	@Nullable
-	private SpelNodeImpl eatProductExpression() {
+	private @Nullable SpelNodeImpl eatProductExpression() {
 		// TODO 用于解析乘积运算, 即: START('*'), DIV('/'), MOD('%'). 先进行优先级更高的解析工作, 得到一个node
 		//  1. POWER('^'), 2. INC('++'), 3. DEC('--')
 		SpelNodeImpl expr = eatPowerIncDecExpression();
@@ -352,8 +366,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			else if (t.kind == TokenKind.DIV) {
 				expr = new OpDivide(t.startPos, t.endPos, expr, rhExpr);
 			}
-			else {
-				Assert.isTrue(t.kind == TokenKind.MOD, "Mod token expected");
+			else if (t.kind == TokenKind.MOD) {
 				expr = new OpModulus(t.startPos, t.endPos, expr, rhExpr);
 			}
 		}
@@ -362,8 +375,8 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// powerExpr  : unaryExpression (POWER^ unaryExpression)? (INC || DEC) ;
-	@Nullable
-	private SpelNodeImpl eatPowerIncDecExpression() {
+	@SuppressWarnings("NullAway") // Not null assertion performed in SpelNodeImpl constructor
+	private @Nullable SpelNodeImpl eatPowerIncDecExpression() {
 		// TODO 用于解析乘积运算, 即: POWER('^'), INC('++'), DEC('--'). 先进行优先级更高的解析工作, 得到一个node
 		//  这个node有可能是个一元操作, 也有可能是个字面量等.
 		SpelNodeImpl expr = eatUnaryExpression();
@@ -388,16 +401,17 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// unaryExpression: (PLUS^ | MINUS^ | BANG^ | INC^ | DEC^) unaryExpression | primaryExpression ;
-	@Nullable
-	private SpelNodeImpl eatUnaryExpression() {
+	@SuppressWarnings("NullAway") // Not null assertion performed in SpelNodeImpl constructor
+	private @Nullable SpelNodeImpl eatUnaryExpression() {
 		// TODO 处理一元表达式(只需要一个操作数), 最高优先级:
 		//  PLUS -> '+', MINUS -> '-', NOT -> '!', INC -> '++', DEC -> '--'
-		if (peekToken(TokenKind.PLUS, TokenKind.MINUS, TokenKind.NOT)) {
-			// TODO 当前token是'+', '-', '!'操作符时, 拿出对应的操作符token, 同时token集合指向后一个token
+		if (peekToken(TokenKind.NOT, TokenKind.PLUS, TokenKind.MINUS)) {
 			Token t = takeToken();
 			// TODO 然后递归后面的token
 			SpelNodeImpl expr = eatUnaryExpression();
-			Assert.state(expr != null, "No node");
+			if (expr == null) {
+				throw internalException(t.startPos, SpelMessage.OOD);
+			}
 			if (t.kind == TokenKind.NOT) {
 				// TODO NOT时, 返回OperatorNot类型的node, 其中包含了NOT针对的整个部分
 				return new OperatorNot(t.startPos, t.endPos, expr);
@@ -406,9 +420,10 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				// TODO PLUS时, 返回OpPlus类型的node, 其中包含了PLUS针对的整个部分
 				return new OpPlus(t.startPos, t.endPos, expr);
 			}
-			Assert.isTrue(t.kind == TokenKind.MINUS, "Minus token expected");
-			// TODO 最后是MINUS的情况, 返回OpMinus类型的node, 其中包含了OpMinus针对的整个部分
-			return new OpMinus(t.startPos, t.endPos, expr);
+			if (t.kind == TokenKind.MINUS) {
+				// TODO 最后是MINUS的情况, 返回OpMinus类型的node, 其中包含了OpMinus针对的整个部分
+				return new OpMinus(t.startPos, t.endPos, expr);
+			}
 		}
 		if (peekToken(TokenKind.INC, TokenKind.DEC)) {
 			// TODO 当前token是'++', '--'时, 拿出对应的操作符token, 同时token集合的指针指向后一个token
@@ -419,16 +434,17 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				// TODO 自增的情况, 返回OpInc类型的node, 其中包含了自增操作针对的整个部分
 				return new OpInc(t.startPos, t.endPos, false, expr);
 			}
-			// TODO 自减的情况, 返回OpDec类型的node, 其中包含了自减操作针对的整个部分
-			return new OpDec(t.startPos, t.endPos, false, expr);
+			if (t.kind == TokenKind.DEC) {
+				// TODO 自减的情况, 返回OpDec类型的node, 其中包含了自减操作针对的整个部分
+				return new OpDec(t.startPos, t.endPos, false, expr);
+			}
 		}
 		// TODO 其他情况时, 应该是个表达式, 而非操作符, 即: 操作符要操作的主体token
 		return eatPrimaryExpression();
 	}
 
 	// primaryExpression : startNode (node)? -> ^(EXPRESSION startNode (node)?);
-	@Nullable
-	private SpelNodeImpl eatPrimaryExpression() {
+	private @Nullable SpelNodeImpl eatPrimaryExpression() {
 		// TODO 走到这时, 就表示当前的token不是一个运算符(可能是个字面量, 引用, '('等等), 以当前位置为首, 开始解析token
 		SpelNodeImpl start = eatStartNode();  // always a start node
 		List<SpelNodeImpl> nodes = null;
@@ -454,18 +470,16 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// node : ((DOT dottedNode) | (SAFE_NAVI dottedNode) | nonDottedNode)+;
-	@Nullable
-	private SpelNodeImpl eatNode() {
+	private @Nullable SpelNodeImpl eatNode() {
 		// TODO 处理带'.', 或不带'.'的情况
 		return (peekToken(TokenKind.DOT, TokenKind.SAFE_NAVI) ? eatDottedNode() : eatNonDottedNode());
 	}
 
 	// nonDottedNode: indexer;
-	@Nullable
-	private SpelNodeImpl eatNonDottedNode() {
+	private @Nullable SpelNodeImpl eatNonDottedNode() {
+		// TODO 没有'.'但是有'['时, 有可能就是个索引, 要么就是个表达式.
 		if (peekToken(TokenKind.LSQUARE)) {
-			// TODO 没有'.'但是有'['时, 有可能就是个索引, 要么就是个表达式.
-			if (maybeEatIndexer()) {
+			if (maybeEatIndexer(false)) {
 				return pop();
 			}
 		}
@@ -499,12 +513,12 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		//               3. '.$[expression]': 提取与表达式完全匹配的最后一个元素放入集合. #{person.order.items.$[name eq 'rice']},
 		//                                    表示取得order中最后一个名为'rice'的item
 		if (maybeEatMethodOrProperty(nullSafeNavigation) || maybeEatFunctionOrVar() ||
-				maybeEatProjection(nullSafeNavigation) || maybeEatSelection(nullSafeNavigation)) {
+				maybeEatProjection(nullSafeNavigation) || maybeEatSelection(nullSafeNavigation) ||
+				maybeEatIndexer(nullSafeNavigation)) {
 			// TODO 进到这里时, 已经处理了'.'后的token了, 这里弹出的是刚刚处理的node
 			return pop();
 		}
 		if (peekToken() == null) {
-			// unexpectedly ran out of data
 			throw internalException(t.startPos, SpelMessage.OOD);
 		}
 		else {
@@ -542,8 +556,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	}
 
 	// methodArgs : LPAREN! (argument (COMMA! argument)* (COMMA!)?)? RPAREN!;
-	@Nullable
-	private SpelNodeImpl[] maybeEatMethodArgs() {
+	private SpelNodeImpl @Nullable [] maybeEatMethodArgs() {
 		// TODO 解析方法的参数, 所以要先判断一下当前token是否为'('
 		if (!peekToken(TokenKind.LPAREN)) {
 			return null;
@@ -558,8 +571,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	private void eatConstructorArgs(List<SpelNodeImpl> accumulatedArguments) {
 		// TODO 解析构造器的参数, 与解析方法参数类似
 		if (!peekToken(TokenKind.LPAREN)) {
-			throw new InternalParseException(new SpelParseException(this.expressionString,
-					positionOf(peekToken()), SpelMessage.MISSING_CONSTRUCTOR_ARGS));
+			throw internalException(positionOf(peekToken()), SpelMessage.MISSING_CONSTRUCTOR_ARGS);
 		}
 		consumeArguments(accumulatedArguments);
 		eatToken(TokenKind.RPAREN);
@@ -570,7 +582,9 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	 */
 	private void consumeArguments(List<SpelNodeImpl> accumulatedArguments) {
 		Token t = peekToken();
-		Assert.state(t != null, "Expected token");
+		if (t == null) {
+			return;
+		}
 		int pos = t.startPos;
 		Token next;
 		do {
@@ -613,8 +627,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	//	    | lastSelection
 	//	    | indexer
 	//	    | constructor
-	@Nullable
-	private SpelNodeImpl eatStartNode() {
+	private @Nullable SpelNodeImpl eatStartNode() {
 		if (maybeEatLiteral()) {
 			// TODO token是字面量时, 弹出解析后的node准备下一步计算
 			return pop();
@@ -632,7 +645,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			// TODO token是bean引用时(以'@', 或'&'开头), 弹出解析后的node
 			return pop();
 		}
-		else if (maybeEatProjection(false) || maybeEatSelection(false) || maybeEatIndexer()) {
+		else if (maybeEatProjection(false) || maybeEatSelection(false) || maybeEatIndexer(false)) {
 			// TODO 处理投影, 选择, 和索引类型的token, 并弹出解析后的node
 			return pop();
 		}
@@ -687,8 +700,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		if (peekToken(TokenKind.IDENTIFIER)) {
 			// TODO 如果是IDENTIFIER类型的token, 再拿出来看看是不是类型引用的token(值是'T')
 			Token typeName = peekToken();
-			Assert.state(typeName != null, "Expected token");
-			if (!"T".equals(typeName.stringValue())) {
+			if (typeName == null || !"T".equals(typeName.stringValue())) {
 				return false;
 			}
 			// It looks like a type reference but is T being used as a map key?
@@ -726,8 +738,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	private boolean maybeEatNullReference() {
 		if (peekToken(TokenKind.IDENTIFIER)) {
 			Token nullToken = peekToken();
-			Assert.state(nullToken != null, "Expected token");
-			if (!"null".equalsIgnoreCase(nullToken.stringValue())) {
+			if (nullToken == null || !"null".equalsIgnoreCase(nullToken.stringValue())) {
 				return false;
 			}
 			nextToken();
@@ -740,13 +751,14 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	//projection: PROJECT^ expression RCURLY!;
 	private boolean maybeEatProjection(boolean nullSafeNavigation) {
 		Token t = peekToken();
-		if (!peekToken(TokenKind.PROJECT, true)) {
+		if (t == null || !peekToken(TokenKind.PROJECT, true)) {
 			return false;
 		}
-		Assert.state(t != null, "No token");
 		// TODO 投影操作接受一个表达式, 所以先解析其中的表达式
 		SpelNodeImpl expr = eatExpression();
-		Assert.state(expr != null, "No node");
+		if (expr == null) {
+			throw internalException(t.startPos, SpelMessage.OOD);
+		}
 		eatToken(TokenKind.RSQUARE);
 		// TODO 解析完成后, 生成一个Projection的node放入队列
 		this.constructedNodes.push(new Projection(nullSafeNavigation, t.startPos, t.endPos, expr));
@@ -758,17 +770,15 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	private boolean maybeEatInlineListOrMap() {
 		Token t = peekToken();
 		// TODO 如果token是'{', 则指向下一个token. 如果不是表示并非map或list, 返回false
-		if (!peekToken(TokenKind.LCURLY, true)) {
+		if (t == null || !peekToken(TokenKind.LCURLY, true)) {
 			return false;
 		}
-		Assert.state(t != null, "No token");
 		SpelNodeImpl expr = null;
 		// TODO 拿出'{'的下一个token
 		Token closingCurly = peekToken();
-		if (peekToken(TokenKind.RCURLY, true)) {
+		if (closingCurly != null && peekToken(TokenKind.RCURLY, true)) {
 			// empty list '{}'
 			// TODO 如果是一个'}', 表示为一个空的list, '{}', 返回一个空的InlineList类型的node
-			Assert.state(closingCurly != null, "No token");
 			expr = new InlineList(t.startPos, closingCurly.endPos);
 		}
 		else if (peekToken(TokenKind.COLON, true)) {
@@ -825,26 +835,26 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		return true;
 	}
 
-	private boolean maybeEatIndexer() {
+	private boolean maybeEatIndexer(boolean nullSafeNavigation) {
 		Token t = peekToken();
-		if (!peekToken(TokenKind.LSQUARE, true)) {
+		if (t == null || !peekToken(TokenKind.LSQUARE, true)) {
 			return false;
 		}
-		Assert.state(t != null, "No token");
 		// TODO '[]'内有可能是个索引, 也有可能是个表达式, 对其进行解析, 然后用解析结果生成一个Indexer类型的node放入队列
 		SpelNodeImpl expr = eatExpression();
-		Assert.state(expr != null, "No node");
+		if (expr == null) {
+			throw internalException(t.startPos, SpelMessage.MISSING_SELECTION_EXPRESSION);
+		}
 		eatToken(TokenKind.RSQUARE);
-		this.constructedNodes.push(new Indexer(t.startPos, t.endPos, expr));
+		this.constructedNodes.push(new Indexer(nullSafeNavigation, t.startPos, t.endPos, expr));
 		return true;
 	}
 
 	private boolean maybeEatSelection(boolean nullSafeNavigation) {
 		Token t = peekToken();
-		if (!peekSelectToken()) {
+		if (t == null || !peekSelectToken()) {
 			return false;
 		}
-		Assert.state(t != null, "No token");
 		nextToken();
 		// TODO 选择操作接受一个表达式, 所以先解析其中的表达式
 		SpelNodeImpl expr = eatExpression();
@@ -867,7 +877,6 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 
 	/**
 	 * Eat an identifier, possibly qualified (meaning that it is dotted).
-	 * TODO AndyC Could create complete identifiers (a.b.c) here rather than a sequence of them? (a, b, c)
 	 */
 	private SpelNodeImpl eatPossiblyQualifiedId() {
 		Deque<SpelNodeImpl> qualifiedIdPieces = new ArrayDeque<>();
@@ -890,7 +899,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				throw internalException( this.expressionString.length(), SpelMessage.OOD);
 			}
 			throw internalException(node.startPos, SpelMessage.NOT_EXPECTED_TOKEN,
-					"qualified ID", node.getKind().toString().toLowerCase());
+					"qualified ID", node.getKind().toString().toLowerCase(Locale.ROOT));
 		}
 		// TODO 根据队列生成一个QualifiedIdentifier类型的node, 这个node与全限定名进行了关联, node包含有全限定名数组,
 		//  全限定名中的每个node的父节点都指定这个node
@@ -898,6 +907,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				qualifiedIdPieces.getLast().getEndPosition(), qualifiedIdPieces.toArray(new SpelNodeImpl[0]));
 	}
 
+	@Contract("null -> false")
 	private boolean isValidQualifiedId(@Nullable Token node) {
 		if (node == null || node.kind == TokenKind.LITERAL_STRING) {
 			return false;
@@ -930,7 +940,6 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 			// TODO 有参数表示其为一个方法引用, 创建一个MethodReference类型的node放入队列
 			push(new MethodReference(nullSafeNavigation, methodOrPropertyName.stringValue(),
 					methodOrPropertyName.startPos, methodOrPropertyName.endPos, args));
-			// TODO what is the end position for a method reference? the name or the last arg?
 			return true;
 		}
 		return false;
@@ -966,6 +975,8 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 						dimensions.add(eatExpression());
 					}
 					else {
+						// A missing array dimension is tracked as null and will be
+						// rejected later during evaluation.
 						// TODO 遇到']'时放入一个null
 						dimensions.add(null);
 					}
@@ -984,7 +995,6 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 				// regular constructor invocation
 				// TODO 全限定名后没有'['时, 直接解析全限定名, 然后将生成的表示构造引用的node加入到队列
 				eatConstructorArgs(nodes);
-				// TODO correct end position?
 				push(new ConstructorReference(newToken.startPos, newToken.endPos, nodes.toArray(new SpelNodeImpl[0])));
 			}
 			return true;
@@ -1062,10 +1072,14 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	private boolean maybeEatParenExpression() {
 		if (peekToken(TokenKind.LPAREN)) {
 			// TODO 解析括号, 如果存在左括号, 定位到下一个token
-			nextToken();
-			// TODO 括号内有可能也是表达式, 继续解析括号内的token
+			Token t = nextToken();
+			if (t == null) {
+				return false;
+			}
 			SpelNodeImpl expr = eatExpression();
-			Assert.state(expr != null, "No node");
+			if (expr == null) {
+				throw internalException(t.startPos, SpelMessage.OOD);
+			}
 			// TODO 然后跳过右括号
 			eatToken(TokenKind.RPAREN);
 			// TODO 把处理结果放入队列, 准备后续处理
@@ -1080,8 +1094,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 	// relationalOperator
 	// : EQUAL | NOT_EQUAL | LESS_THAN | LESS_THAN_OR_EQUAL | GREATER_THAN
 	// | GREATER_THAN_OR_EQUAL | INSTANCEOF | BETWEEN | MATCHES
-	@Nullable
-	private Token maybeEatRelationalOperator() {
+	private @Nullable Token maybeEatRelationalOperator() {
 		Token t = peekToken();
 		if (t == null) {
 			return null;
@@ -1113,7 +1126,7 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		}
 		if (t.kind != expectedKind) {
 			throw internalException(t.startPos, SpelMessage.NOT_EXPECTED_TOKEN,
-					expectedKind.toString().toLowerCase(), t.getKind().toString().toLowerCase());
+					expectedKind.toString().toLowerCase(Locale.ROOT), t.getKind().toString().toLowerCase(Locale.ROOT));
 		}
 		// TODO 返回当前token
 		return t;
@@ -1140,9 +1153,9 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		}
 
 		if (desiredTokenKind == TokenKind.IDENTIFIER) {
-			// Might be one of the textual forms of the operators (e.g. NE for != ) -
+			// Might be one of the textual forms of the operators (for example, NE for != ) -
 			// in which case we can treat it as an identifier. The list is represented here:
-			// Tokenizer.alternativeOperatorNames and those ones are in order in the TokenKind enum.
+			// Tokenizer.ALTERNATIVE_OPERATOR_NAMES and those ones are in order in the TokenKind enum.
 			// TODO token是IDENTIFIER的情况, 判断一下其是否为可替换的逻辑操作符:
 			//  DIV -> '/', EQ -> '==', GE -> '>=', GT -> '>', LE -> '<=', LT -> '<', MOD -> '%', NE -> '!=', NOT -> '!'
 			if (t.kind.ordinal() >= TokenKind.DIV.ordinal() && t.kind.ordinal() <= TokenKind.NOT.ordinal() &&
@@ -1194,17 +1207,15 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		return this.tokenStream.get(this.tokenStreamPointer++);
 	}
 
-	@Nullable
-	private Token nextToken() {
+	private @Nullable Token nextToken() {
 		if (this.tokenStreamPointer >= this.tokenStreamLength) {
 			return null;
 		}
 		return this.tokenStream.get(this.tokenStreamPointer++);
 	}
 
-	@Nullable
 	// TODO 用于测试当前要操作的token为某种类型时使用的方法. 直接对token进行操作时, 使用的是getToken()方法(取得当前token, 并指向下一个token位置)
-	private Token peekToken() {
+	private @Nullable Token peekToken() {
 		if (this.tokenStreamPointer >= this.tokenStreamLength) {
 			return null;
 		}
@@ -1218,20 +1229,23 @@ class InternalSpelExpressionParser extends TemplateAwareExpressionParser {
 		if (t.getKind().hasPayload()) {
 			return t.stringValue();
 		}
-		return t.kind.toString().toLowerCase();
+		return t.kind.toString().toLowerCase(Locale.ROOT);
 	}
 
+	@Contract("_, null, _ -> fail; _, _, null -> fail")
 	private void checkOperands(Token token, @Nullable SpelNodeImpl left, @Nullable SpelNodeImpl right) {
 		checkLeftOperand(token, left);
 		checkRightOperand(token, right);
 	}
 
+	@Contract("_, null -> fail")
 	private void checkLeftOperand(Token token, @Nullable SpelNodeImpl operandExpression) {
 		if (operandExpression == null) {
 			throw internalException(token.startPos, SpelMessage.LEFT_OPERAND_PROBLEM);
 		}
 	}
 
+	@Contract("_, null -> fail")
 	private void checkRightOperand(Token token, @Nullable SpelNodeImpl operandExpression) {
 		if (operandExpression == null) {
 			throw internalException(token.startPos, SpelMessage.RIGHT_OPERAND_PROBLEM);

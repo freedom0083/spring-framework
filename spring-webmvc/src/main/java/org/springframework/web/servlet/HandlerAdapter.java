@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@ package org.springframework.web.servlet;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * MVC framework SPI, allowing parameterization of the core MVC workflow.
@@ -40,7 +39,7 @@ import org.springframework.lang.Nullable;
  * <p>Note: {@code HandlerAdapter} implementors may implement the {@link
  * org.springframework.core.Ordered} interface to be able to specify a sorting
  * order (and thus a priority) for getting applied by the {@code DispatcherServlet}.
- * Non-Ordered instances get treated as lowest priority.
+ * Non-Ordered instances get treated as the lowest priority.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -50,7 +49,7 @@ import org.springframework.lang.Nullable;
 public interface HandlerAdapter {
 
 	/**
-	 * Given a handler instance, return whether or not this {@code HandlerAdapter}
+	 * Given a handler instance, return whether this {@code HandlerAdapter}
 	 * can support it. Typical HandlerAdapters will base the decision on the handler
 	 * type. HandlerAdapters will usually only support one handler type each.
 	 * <p>A typical implementation:
@@ -58,7 +57,7 @@ public interface HandlerAdapter {
 	 * return (handler instanceof MyHandler);
 	 * }
 	 * @param handler the handler object to check
-	 * @return whether or not this object can use the given handler
+	 * @return whether this object can use the given handler
 	 */
 	boolean supports(Object handler);
 
@@ -74,19 +73,6 @@ public interface HandlerAdapter {
 	 * model data, or {@code null} if the request has been handled directly
 	 * @throws Exception in case of errors
 	 */
-	@Nullable
-	ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception;
-
-	/**
-	 * Same contract as for HttpServlet's {@code getLastModified} method.
-	 * Can simply return -1 if there's no support in the handler class.
-	 * @param request current HTTP request
-	 * @param handler the handler to use
-	 * @return the lastModified value for the given handler
-	 * @deprecated as of 5.3.9 along with
-	 * {@link org.springframework.web.servlet.mvc.LastModified}.
-	 */
-	@Deprecated
-	long getLastModified(HttpServletRequest request, Object handler);
+	@Nullable ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception;
 
 }

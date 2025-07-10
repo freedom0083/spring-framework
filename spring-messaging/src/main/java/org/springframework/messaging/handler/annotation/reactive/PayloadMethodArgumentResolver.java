@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.messaging.handler.annotation.reactive;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +24,7 @@ import java.util.function.Consumer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,12 +34,10 @@ import org.springframework.core.MethodParameter;
 import org.springframework.core.ReactiveAdapter;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ResolvableType;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.codec.Decoder;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -55,17 +53,17 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.SmartValidator;
 import org.springframework.validation.Validator;
-import org.springframework.validation.annotation.Validated;
+import org.springframework.validation.annotation.ValidationAnnotationUtils;
 
 /**
  * A resolver to extract and decode the payload of a message using a
- * {@link Decoder}, where the payload is expected to be a {@link Publisher} of
- * {@link DataBuffer DataBuffer}.
+ * {@link Decoder}, where the payload is expected to be a {@link Publisher}
+ * of {@link DataBuffer DataBuffer}.
  *
  * <p>Validation is applied if the method argument is annotated with
- * {@code @jakarta.validation.Valid} or
- * {@link org.springframework.validation.annotation.Validated}. Validation
- * failure results in an {@link MethodArgumentNotValidException}.
+ * {@link org.springframework.validation.annotation.Validated} or
+ * {@code @jakarta.validation.Valid}. Validation failure results in an
+ * {@link MethodArgumentNotValidException}.
  *
  * <p>This resolver should be ordered last if {@link #useDefaultResolution} is
  * set to {@code true} since in that case it supports all types and does not
@@ -81,8 +79,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 
 	private final List<Decoder<?>> decoders;
 
-	@Nullable
-	private final Validator validator;
+	private final @Nullable Validator validator;
 
 	private final ReactiveAdapterRegistry adapterRegistry;
 
@@ -93,7 +90,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 			@Nullable ReactiveAdapterRegistry registry, boolean useDefaultResolution) {
 
 		Assert.isTrue(!CollectionUtils.isEmpty(decoders), "At least one Decoder is required");
-		this.decoders = Collections.unmodifiableList(new ArrayList<>(decoders));
+		this.decoders = List.copyOf(decoders);
 		this.validator = validator;
 		this.adapterRegistry = registry != null ? registry : ReactiveAdapterRegistry.getSharedInstance();
 		this.useDefaultResolution = useDefaultResolution;
@@ -110,8 +107,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	/**
 	 * Return the configured validator, if any.
 	 */
-	@Nullable
-	public Validator getValidator() {
+	public @Nullable Validator getValidator() {
 		return this.validator;
 	}
 
@@ -170,13 +166,13 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	@SuppressWarnings("unchecked")
 	private Flux<DataBuffer> extractContent(MethodParameter parameter, Message<?> message) {
 		Object payload = message.getPayload();
-		if (payload instanceof DataBuffer) {
-			return Flux.just((DataBuffer) payload);
+		if (payload instanceof DataBuffer dataBuffer) {
+			return Flux.just(dataBuffer);
 		}
-		if (payload instanceof Publisher) {
-			return Flux.from((Publisher<?>) payload).map(value -> {
-				if (value instanceof DataBuffer) {
-					return (DataBuffer) value;
+		if (payload instanceof Publisher<?> publisher) {
+			return Flux.from(publisher).map(value -> {
+				if (value instanceof DataBuffer dataBuffer) {
+					return dataBuffer;
 				}
 				String className = value.getClass().getName();
 				throw getUnexpectedPayloadError(message, parameter, "Publisher<" + className + ">");
@@ -198,17 +194,16 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	 * {@link MimeType} value or a String to parse to a {@link MimeType}.
 	 * @param message the input message
 	 */
-	@Nullable
-	protected MimeType getMimeType(Message<?> message) {
+	protected @Nullable MimeType getMimeType(Message<?> message) {
 		Object headerValue = message.getHeaders().get(MessageHeaders.CONTENT_TYPE);
 		if (headerValue == null) {
 			return null;
 		}
-		else if (headerValue instanceof String) {
-			return MimeTypeUtils.parseMimeType((String) headerValue);
+		else if (headerValue instanceof String stringHeader) {
+			return MimeTypeUtils.parseMimeType(stringHeader);
 		}
-		else if (headerValue instanceof MimeType) {
-			return (MimeType) headerValue;
+		else if (headerValue instanceof MimeType mimeTypeHeader) {
+			return mimeTypeHeader;
 		}
 		else {
 			throw new IllegalArgumentException("Unexpected MimeType value: " + headerValue);
@@ -233,7 +228,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 					Flux<?> flux = content
 							.filter(this::nonEmptyDataBuffer)
 							.map(buffer -> decoder.decode(buffer, elementType, mimeType, hints))
-							.onErrorResume(ex -> Flux.error(handleReadError(parameter, message, ex)));
+							.onErrorMap(ex -> handleReadError(parameter, message, ex));
 					if (isContentRequired) {
 						flux = flux.switchIfEmpty(Flux.error(() -> handleMissingBody(parameter, message)));
 					}
@@ -247,7 +242,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 					Mono<?> mono = content.next()
 							.filter(this::nonEmptyDataBuffer)
 							.map(buffer -> decoder.decode(buffer, elementType, mimeType, hints))
-							.onErrorResume(ex -> Mono.error(handleReadError(parameter, message, ex)));
+							.onErrorMap(ex -> handleReadError(parameter, message, ex));
 					if (isContentRequired) {
 						mono = mono.switchIfEmpty(Mono.error(() -> handleMissingBody(parameter, message)));
 					}
@@ -281,21 +276,18 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 				"Payload content is missing: " + param.getExecutable().toGenericString());
 	}
 
-	@Nullable
-	private Consumer<Object> getValidator(Message<?> message, MethodParameter parameter) {
+	private @Nullable Consumer<Object> getValidator(Message<?> message, MethodParameter parameter) {
 		if (this.validator == null) {
 			return null;
 		}
 		for (Annotation ann : parameter.getParameterAnnotations()) {
-			Validated validatedAnn = AnnotationUtils.getAnnotation(ann, Validated.class);
-			if (validatedAnn != null || ann.annotationType().getSimpleName().startsWith("Valid")) {
-				Object hints = (validatedAnn != null ? validatedAnn.value() : AnnotationUtils.getValue(ann));
-				Object[] validationHints = (hints instanceof Object[] ? (Object[]) hints : new Object[] {hints});
+			Object[] validationHints = ValidationAnnotationUtils.determineValidationHints(ann);
+			if (validationHints != null) {
 				String name = Conventions.getVariableNameForParameter(parameter);
 				return target -> {
 					BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(target, name);
-					if (!ObjectUtils.isEmpty(validationHints) && this.validator instanceof SmartValidator) {
-						((SmartValidator) this.validator).validate(target, bindingResult, validationHints);
+					if (!ObjectUtils.isEmpty(validationHints) && this.validator instanceof SmartValidator sv) {
+						sv.validate(target, bindingResult, validationHints);
 					}
 					else {
 						this.validator.validate(target, bindingResult);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,10 +44,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.withSettings;
 
 /**
- * Unit tests for {@link DispatcherHandler}.
+ * Tests for {@link DispatcherHandler}.
+ *
  * @author Rossen Stoyanchev
  */
-public class DispatcherHandlerTests {
+class DispatcherHandlerTests {
 
 	private static final MethodParameter RETURN_TYPE =
 			ResolvableMethod.on(DispatcherHandler.class).named("handle").resolveReturnType();
@@ -70,15 +71,15 @@ public class DispatcherHandlerTests {
 		context.refresh();
 
 		MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/"));
-		new DispatcherHandler(context).handle(exchange).block(Duration.ofSeconds(0));
+		new DispatcherHandler(context).handle(exchange).block(Duration.ZERO);
 
 		assertThat(exchange.getResponse().getBodyAsString().block(Duration.ofSeconds(5))).isEqualTo("1");
 	}
 
 	@Test
 	void preFlightRequest() {
-		WebHandler webHandler = mock(WebHandler.class);
-		HandlerMapping handlerMapping = mock(HandlerMapping.class);
+		WebHandler webHandler = mock();
+		HandlerMapping handlerMapping = mock();
 		given((handlerMapping).getHandler(any())).willReturn(Mono.just(webHandler));
 
 		StaticApplicationContext context = new StaticApplicationContext();
@@ -93,7 +94,7 @@ public class DispatcherHandlerTests {
 				.build();
 
 		MockServerWebExchange exchange = MockServerWebExchange.from(request);
-		new DispatcherHandler(context).handle(exchange).block(Duration.ofSeconds(0));
+		new DispatcherHandler(context).handle(exchange).block(Duration.ZERO);
 
 		verifyNoInteractions(webHandler);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ class ModelFactoryOrderingTests {
 
 	@BeforeEach
 	void setup() {
-		this.mavContainer.addAttribute("methods", new ArrayList<String>());
+		this.mavContainer.addAttribute("methods", new ArrayList<>());
 	}
 
 	@Test
@@ -137,9 +137,9 @@ class ModelFactoryOrderingTests {
 	private void assertInvokedBefore(String beforeMethod, String... afterMethods) {
 		List<String> actual = getInvokedMethods();
 		for (String afterMethod : afterMethods) {
-			assertThat(actual.indexOf(beforeMethod) < actual.indexOf(afterMethod))
-				.as(beforeMethod + " should be before " + afterMethod + ". Actual order: " + actual.toString())
-				.isTrue();
+			assertThat(actual.indexOf(beforeMethod))
+				.as(beforeMethod + " should be before " + afterMethod + ". Actual order: " + actual)
+					.isLessThan(actual.indexOf(afterMethod));
 		}
 	}
 
@@ -156,7 +156,7 @@ class ModelFactoryOrderingTests {
 		}
 
 		@SuppressWarnings("unchecked")
-		<T> T updateAndReturn(Model model, String methodName, T returnValue) throws IOException {
+		<T> T updateAndReturn(Model model, String methodName, T returnValue) {
 			((List<String>) model.asMap().get("methods")).add(methodName);
 			return returnValue;
 		}

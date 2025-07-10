@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.GenericTypeResolver;
 import org.springframework.core.MethodParameter;
@@ -39,21 +40,23 @@ import org.springframework.core.codec.Hints;
 import org.springframework.http.HttpLogging;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.codec.JacksonCodecSupport;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Base class providing support methods for Jackson 2.9 encoding and decoding.
+ * Base class providing support methods for Jackson 2.x encoding and decoding.
  *
  * @author Sebastien Deleuze
  * @author Rossen Stoyanchev
  * @since 5.0
+ * @deprecated since 7.0 in favor of {@link JacksonCodecSupport}
  */
+@Deprecated(since = "7.0", forRemoval = true)
 public abstract class Jackson2CodecSupport {
 
 	/**
@@ -75,7 +78,7 @@ public abstract class Jackson2CodecSupport {
 	private static final String JSON_VIEW_HINT_ERROR =
 			"@JsonView only supported for write hints with exactly 1 class argument: ";
 
-	private static final List<MimeType> DEFAULT_MIME_TYPES = List.of(
+	private static final List<MimeType> defaultMimeTypes = List.of(
 			MediaType.APPLICATION_JSON,
 			new MediaType("application", "*+json"),
 			MediaType.APPLICATION_NDJSON);
@@ -85,12 +88,9 @@ public abstract class Jackson2CodecSupport {
 
 	private ObjectMapper defaultObjectMapper;
 
-	@Nullable
-	private Map<Class<?>, Map<MimeType, ObjectMapper>> objectMapperRegistrations;
+	private @Nullable Map<Class<?>, Map<MimeType, ObjectMapper>> objectMapperRegistrations;
 
 	private final List<MimeType> mimeTypes;
-
-	private final List<MimeType> problemDetailMimeTypes;
 
 
 	/**
@@ -99,15 +99,7 @@ public abstract class Jackson2CodecSupport {
 	protected Jackson2CodecSupport(ObjectMapper objectMapper, MimeType... mimeTypes) {
 		Assert.notNull(objectMapper, "ObjectMapper must not be null");
 		this.defaultObjectMapper = objectMapper;
-		this.mimeTypes = (!ObjectUtils.isEmpty(mimeTypes) ? List.of(mimeTypes) : DEFAULT_MIME_TYPES);
-		this.problemDetailMimeTypes = initProblemDetailMediaTypes(this.mimeTypes);
-	}
-
-	private static List<MimeType> initProblemDetailMediaTypes(List<MimeType> supportedMimeTypes) {
-		List<MimeType> mimeTypes = new ArrayList<>();
-		mimeTypes.add(MediaType.APPLICATION_PROBLEM_JSON);
-		mimeTypes.addAll(supportedMimeTypes);
-		return Collections.unmodifiableList(mimeTypes);
+		this.mimeTypes = (!ObjectUtils.isEmpty(mimeTypes) ? List.of(mimeTypes) : defaultMimeTypes);
 	}
 
 
@@ -160,8 +152,7 @@ public abstract class Jackson2CodecSupport {
 	 * or empty if in case of no registrations for the given class.
 	 * @since 5.3.4
 	 */
-	@Nullable
-	public Map<MimeType, ObjectMapper> getObjectMappersForType(Class<?> clazz) {
+	public @Nullable Map<MimeType, ObjectMapper> getObjectMappersForType(Class<?> clazz) {
 		for (Map.Entry<Class<?>, Map<MimeType, ObjectMapper>> entry : getObjectMapperRegistrations().entrySet()) {
 			if (entry.getKey().isAssignableFrom(clazz)) {
 				return entry.getValue();
@@ -193,7 +184,16 @@ public abstract class Jackson2CodecSupport {
 		if (!CollectionUtils.isEmpty(result)) {
 			return result;
 		}
-		return (ProblemDetail.class.isAssignableFrom(elementClass) ? this.problemDetailMimeTypes : getMimeTypes());
+		return (ProblemDetail.class.isAssignableFrom(elementClass) ? getMediaTypesForProblemDetail() : getMimeTypes());
+	}
+
+	/**
+	 * Return the supported media type(s) for {@link ProblemDetail}.
+	 * By default, an empty list, unless overridden in subclasses.
+	 * @since 6.0.5
+	 */
+	protected List<MimeType> getMediaTypesForProblemDetail() {
+		return Collections.emptyList();
 	}
 
 	protected boolean supportsMimeType(@Nullable MimeType mimeType) {
@@ -242,7 +242,7 @@ public abstract class Jackson2CodecSupport {
 			JsonView annotation = getAnnotation(param, JsonView.class);
 			if (annotation != null) {
 				Class<?>[] classes = annotation.value();
-				Assert.isTrue(classes.length == 1, JSON_VIEW_HINT_ERROR + param);
+				Assert.isTrue(classes.length == 1, () -> JSON_VIEW_HINT_ERROR + param);
 				hints = (hints != null ? hints : new HashMap<>(1));
 				hints.put(JSON_VIEW_HINT, classes[0]);
 			}
@@ -253,13 +253,11 @@ public abstract class Jackson2CodecSupport {
 		return Hints.none();
 	}
 
-	@Nullable
-	protected MethodParameter getParameter(ResolvableType type) {
-		return (type.getSource() instanceof MethodParameter ? (MethodParameter) type.getSource() : null);
+	protected @Nullable MethodParameter getParameter(ResolvableType type) {
+		return (type.getSource() instanceof MethodParameter methodParameter ? methodParameter : null);
 	}
 
-	@Nullable
-	protected abstract <A extends Annotation> A getAnnotation(MethodParameter parameter, Class<A> annotType);
+	protected abstract <A extends Annotation> @Nullable A getAnnotation(MethodParameter parameter, Class<A> annotType);
 
 	/**
 	 * Select an ObjectMapper to use, either the main ObjectMapper or another
@@ -267,8 +265,7 @@ public abstract class Jackson2CodecSupport {
 	 * {@link #registerObjectMappersForType(Class, Consumer)}.
 	 * @since 5.3.4
 	 */
-	@Nullable
-	protected ObjectMapper selectObjectMapper(ResolvableType targetType, @Nullable MimeType targetMimeType) {
+	protected @Nullable ObjectMapper selectObjectMapper(ResolvableType targetType, @Nullable MimeType targetMimeType) {
 		if (targetMimeType == null || CollectionUtils.isEmpty(this.objectMapperRegistrations)) {
 			return this.defaultObjectMapper;
 		}

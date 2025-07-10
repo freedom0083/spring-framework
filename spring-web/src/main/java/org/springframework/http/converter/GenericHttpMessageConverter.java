@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.http.converter;
 import java.io.IOException;
 import java.lang.reflect.Type;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 
 /**
  * A specialization of {@link HttpMessageConverter} that can convert an HTTP request
@@ -35,25 +36,26 @@ import org.springframework.lang.Nullable;
  * @since 3.2
  * @param <T> the converted object type
  * @see org.springframework.core.ParameterizedTypeReference
+ * @see SmartHttpMessageConverter
  */
 public interface GenericHttpMessageConverter<T> extends HttpMessageConverter<T> {
 
 	/**
 	 * Indicates whether the given type can be read by this converter.
-	 * This method should perform the same checks than
+	 * This method should perform the same checks as
 	 * {@link HttpMessageConverter#canRead(Class, MediaType)} with additional ones
 	 * related to the generic type.
 	 * @param type the (potentially generic) type to test for readability
 	 * @param contextClass a context class for the target type, for example a class
 	 * in which the target type appears in a method signature (can be {@code null})
 	 * @param mediaType the media type to read, can be {@code null} if not specified.
-	 * Typically the value of a {@code Content-Type} header.
+	 * Typically, the value of a {@code Content-Type} header.
 	 * @return {@code true} if readable; {@code false} otherwise
 	 */
 	boolean canRead(Type type, @Nullable Class<?> contextClass, @Nullable MediaType mediaType);
 
 	/**
-	 * Read an object of the given type form the given input message, and returns it.
+	 * Read an object of the given type from the given input message, and returns it.
 	 * @param type the (potentially generic) type of object to return. This type must have
 	 * previously been passed to the {@link #canRead canRead} method of this interface,
 	 * which must have returned {@code true}.
@@ -69,7 +71,7 @@ public interface GenericHttpMessageConverter<T> extends HttpMessageConverter<T> 
 
 	/**
 	 * Indicates whether the given class can be written by this converter.
-	 * <p>This method should perform the same checks than
+	 * <p>This method should perform the same checks as
 	 * {@link HttpMessageConverter#canWrite(Class, MediaType)} with additional ones
 	 * related to the generic type.
 	 * @param type the (potentially generic) type to test for writability
@@ -83,7 +85,7 @@ public interface GenericHttpMessageConverter<T> extends HttpMessageConverter<T> 
 	boolean canWrite(@Nullable Type type, Class<?> clazz, @Nullable MediaType mediaType);
 
 	/**
-	 * Write an given object to the given output message.
+	 * Write a given object to the given output message.
 	 * @param t the object to write to the output message. The type of this object must
 	 * have previously been passed to the {@link #canWrite canWrite} method of this
 	 * interface, which must have returned {@code true}.

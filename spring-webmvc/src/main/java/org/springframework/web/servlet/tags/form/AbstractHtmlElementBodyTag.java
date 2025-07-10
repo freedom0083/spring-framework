@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ import java.io.IOException;
 import jakarta.servlet.jsp.JspException;
 import jakarta.servlet.jsp.tagext.BodyContent;
 import jakarta.servlet.jsp.tagext.BodyTag;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
- * Convenient super class for many html tags that render content using the databinding
+ * Convenient superclass for many html tags that render content using the databinding
  * features of the {@link AbstractHtmlElementTag AbstractHtmlElementTag}. The only thing
  * sub-tags need to do is override {@link #renderDefaultContent(TagWriter)}.
  *
@@ -38,11 +38,9 @@ import org.springframework.util.StringUtils;
 @SuppressWarnings("serial")
 public abstract class AbstractHtmlElementBodyTag extends AbstractHtmlElementTag implements BodyTag {
 
-	@Nullable
-	private BodyContent bodyContent;
+	private @Nullable BodyContent bodyContent;
 
-	@Nullable
-	private TagWriter tagWriter;
+	private @Nullable TagWriter tagWriter;
 
 
 	@Override

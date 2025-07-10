@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package org.springframework.web;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -35,12 +35,16 @@ import org.springframework.util.CollectionUtils;
 @SuppressWarnings("serial")
 public class HttpMediaTypeNotAcceptableException extends HttpMediaTypeException {
 
+	private static final String PARSE_ERROR_DETAIL_CODE =
+			ErrorResponse.getDefaultDetailMessageCode(HttpMediaTypeNotAcceptableException.class, "parseError");
+
+
 	/**
 	 * Constructor for when the {@code Accept} header cannot be parsed.
 	 * @param message the parse error message
 	 */
 	public HttpMediaTypeNotAcceptableException(String message) {
-		super(message);
+		super(message, Collections.emptyList(), PARSE_ERROR_DETAIL_CODE, null);
 		getBody().setDetail("Could not parse Accept header.");
 	}
 
@@ -49,9 +53,8 @@ public class HttpMediaTypeNotAcceptableException extends HttpMediaTypeException 
 	 * @param mediaTypes the list of supported media types
 	 */
 	public HttpMediaTypeNotAcceptableException(List<MediaType> mediaTypes) {
-		super("No acceptable representation", mediaTypes);
-		getBody().setDetail("Acceptable representations: " +
-				mediaTypes.stream().map(MediaType::toString).collect(Collectors.joining(", ", "'", "'")) + ".");
+		super("No acceptable representation", mediaTypes, null, new Object[] {mediaTypes});
+		getBody().setDetail("Acceptable representations: " + mediaTypes + ".");
 	}
 
 
@@ -66,7 +69,7 @@ public class HttpMediaTypeNotAcceptableException extends HttpMediaTypeException 
 			return HttpHeaders.EMPTY;
 		}
 		HttpHeaders headers = new HttpHeaders();
-		headers.setAccept(this.getSupportedMediaTypes());
+		headers.setAccept(getSupportedMediaTypes());
 		return headers;
 	}
 

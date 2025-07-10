@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import reactor.test.StepVerifier;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -49,12 +48,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link AbstractHandlerMethodMapping}.
+ * Tests for {@link AbstractHandlerMethodMapping}.
  *
  * @author Rossen Stoyanchev
  * @author Sam Brannen
  */
-public class HandlerMethodMappingTests {
+class HandlerMethodMappingTests {
 
 	private MyHandlerMethodMapping mapping;
 
@@ -66,7 +65,7 @@ public class HandlerMethodMappingTests {
 
 
 	@BeforeEach
-	public void setup() throws Exception {
+	void setup() throws Exception {
 		this.mapping = new MyHandlerMethodMapping();
 		this.handler = new MyHandler();
 		this.method1 = handler.getClass().getMethod("handlerMethod1");
@@ -75,14 +74,14 @@ public class HandlerMethodMappingTests {
 
 
 	@Test
-	public void registerDuplicates() {
+	void registerDuplicates() {
 		this.mapping.registerMapping("foo", this.handler, this.method1);
 		assertThatIllegalStateException().isThrownBy(() ->
 				this.mapping.registerMapping("foo", this.handler, this.method2));
 	}
 
 	@Test
-	public void directMatch() {
+	void directMatch() {
 		this.mapping.registerMapping("/foo", this.handler, this.method1);
 		this.mapping.registerMapping("/fo*", this.handler, this.method2);
 		MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/foo"));
@@ -93,7 +92,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test
-	public void patternMatch() {
+	void patternMatch() {
 		this.mapping.registerMapping("/fo*", this.handler, this.method1);
 		this.mapping.registerMapping("/f*", this.handler, this.method2);
 
@@ -103,7 +102,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test
-	public void ambiguousMatch() {
+	void ambiguousMatch() {
 		this.mapping.registerMapping("/f?o", this.handler, this.method1);
 		this.mapping.registerMapping("/fo?", this.handler, this.method2);
 		MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/foo"));
@@ -113,7 +112,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test // gh-26490
-	public void ambiguousMatchOnPreFlightRequestWithoutCorsConfig() throws Exception {
+	public void ambiguousMatchOnPreFlightRequestWithoutCorsConfig() {
 		this.mapping.registerMapping("/f?o", this.handler, this.method1);
 		this.mapping.registerMapping("/fo?", this.handler, this.method2);
 
@@ -124,7 +123,10 @@ public class HandlerMethodMappingTests {
 
 		this.mapping.getHandler(exchange).block();
 
-		assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		MockServerHttpResponse response = exchange.getResponse();
+		assertThat(response.getStatusCode()).isNull();
+		assertThat(response.getHeaders().getAccessControlAllowOrigin()).isNull();
+		assertThat(response.getHeaders().getAccessControlAllowMethods()).isEmpty();
 	}
 
 	@Test // gh-26490
@@ -146,7 +148,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test
-	public void registerMapping() {
+	void registerMapping() {
 		String key1 = "/foo";
 		String key2 = "/foo*";
 		this.mapping.registerMapping(key1, this.handler, this.method1);
@@ -156,7 +158,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test
-	public void registerMappingWithSameMethodAndTwoHandlerInstances() {
+	void registerMappingWithSameMethodAndTwoHandlerInstances() {
 		String key1 = "foo";
 		String key2 = "bar";
 		MyHandler handler1 = new MyHandler();
@@ -168,7 +170,7 @@ public class HandlerMethodMappingTests {
 	}
 
 	@Test
-	public void unregisterMapping() {
+	void unregisterMapping() {
 		String key = "foo";
 		this.mapping.registerMapping(key, this.handler, this.method1);
 		Mono<Object> result = this.mapping.getHandler(MockServerWebExchange.from(MockServerHttpRequest.get(key)));

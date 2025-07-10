@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.convert.ConversionFailedException;
@@ -42,7 +42,6 @@ import org.springframework.core.convert.converter.ConverterFactory;
 import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.io.DescriptiveResource;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import static java.util.Comparator.naturalOrder;
@@ -53,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
- * Unit tests for {@link GenericConversionService}.
+ * Tests for {@link GenericConversionService}.
  *
  * <p>In this package for access to package-local converter implementations.
  *
@@ -104,7 +103,7 @@ class GenericConversionServiceTests {
 	@Test
 	void convert() {
 		conversionService.addConverterFactory(new StringToNumberConverterFactory());
-		assertThat(conversionService.convert("3", Integer.class)).isEqualTo((int) Integer.valueOf(3));
+		assertThat(conversionService.convert("3", Integer.class)).isEqualTo(3);
 	}
 
 	@Test
@@ -132,8 +131,8 @@ class GenericConversionServiceTests {
 
 	@Test
 	void convertAssignableSource() {
-		assertThat(conversionService.convert(false, boolean.class)).isEqualTo(Boolean.FALSE);
-		assertThat(conversionService.convert(false, Boolean.class)).isEqualTo(Boolean.FALSE);
+		assertThat(conversionService.convert(false, boolean.class)).isFalse();
+		assertThat(conversionService.convert(false, Boolean.class)).isFalse();
 	}
 
 	@Test
@@ -192,7 +191,7 @@ class GenericConversionServiceTests {
 	void convertSuperSourceType() {
 		conversionService.addConverter(CharSequence.class, Integer.class, source -> Integer.valueOf(source.toString()));
 		Integer result = conversionService.convert("3", Integer.class);
-		assertThat((int) result).isEqualTo((int) Integer.valueOf(3));
+		assertThat(result).isEqualTo(3);
 	}
 
 	// SPR-8718
@@ -221,7 +220,7 @@ class GenericConversionServiceTests {
 		conversionService.addConverterFactory(new StringToNumberConverterFactory());
 		assertThat(conversionService.canConvert(String.class, int.class)).isTrue();
 		Integer three = conversionService.convert("3", int.class);
-		assertThat(three.intValue()).isEqualTo(3);
+		assertThat(three).isEqualTo(3);
 	}
 
 	@Test
@@ -234,26 +233,21 @@ class GenericConversionServiceTests {
 
 	@Test
 	void listToIterableConversion() {
-		List<Object> raw = new ArrayList<>();
-		raw.add("one");
-		raw.add("two");
+		List<Object> raw = List.of("one", "two");
 		Object converted = conversionService.convert(raw, Iterable.class);
 		assertThat(converted).isSameAs(raw);
 	}
 
 	@Test
 	void listToObjectConversion() {
-		List<Object> raw = new ArrayList<>();
-		raw.add("one");
-		raw.add("two");
+		List<Object> raw = List.of("one", "two");
 		Object converted = conversionService.convert(raw, Object.class);
 		assertThat(converted).isSameAs(raw);
 	}
 
 	@Test
 	void mapToObjectConversion() {
-		Map<Object, Object> raw = new HashMap<>();
-		raw.put("key", "value");
+		Map<Object, Object> raw = Map.of("key", "value");
 		Object converted = conversionService.convert(raw, Object.class);
 		assertThat(converted).isSameAs(raw);
 	}
@@ -308,7 +302,7 @@ class GenericConversionServiceTests {
 	void wildcardMap() throws Exception {
 		Map<String, String> input = new LinkedHashMap<>();
 		input.put("key", "value");
-		Object converted = conversionService.convert(input, TypeDescriptor.forObject(input), new TypeDescriptor(getClass().getField("wildcardMap")));
+		Object converted = conversionService.convert(input, new TypeDescriptor(getClass().getField("wildcardMap")));
 		assertThat(converted).isEqualTo(input);
 	}
 
@@ -341,7 +335,7 @@ class GenericConversionServiceTests {
 		TypeDescriptor sourceType = TypeDescriptor.forObject(list);
 		TypeDescriptor targetType = TypeDescriptor.valueOf(String[].class);
 		assertThat(conversionService.canConvert(sourceType, targetType)).isTrue();
-		assertThat(((String[]) conversionService.convert(list, sourceType, targetType)).length).isEqualTo(0);
+		assertThat(((String[]) conversionService.convert(list, sourceType, targetType))).isEmpty();
 	}
 
 	@Test
@@ -392,8 +386,8 @@ class GenericConversionServiceTests {
 	void convertiblePairDifferentEqualsAndHash() {
 		GenericConverter.ConvertiblePair pair = new GenericConverter.ConvertiblePair(Number.class, String.class);
 		GenericConverter.ConvertiblePair pairOpposite = new GenericConverter.ConvertiblePair(String.class, Number.class);
-		assertThat(pair.equals(pairOpposite)).isFalse();
-		assertThat(pair.hashCode() == pairOpposite.hashCode()).isFalse();
+		assertThat(pair).isNotEqualTo(pairOpposite);
+		assertThat(pair.hashCode()).isNotEqualTo(pairOpposite.hashCode());
 	}
 
 	@Test
@@ -422,7 +416,7 @@ class GenericConversionServiceTests {
 		conversionService.addConverter(new ColorConverter());
 		conversionService.addConverter(converter);
 		assertThat(conversionService.convert("#000000", Color.class)).isEqualTo(Color.BLACK);
-		assertThat(converter.getMatchAttempts() > 0).isTrue();
+		assertThat(converter.getMatchAttempts()).isGreaterThan(0);
 	}
 
 	@Test
@@ -431,8 +425,8 @@ class GenericConversionServiceTests {
 		conversionService.addConverter(new ColorConverter());
 		conversionService.addConverterFactory(converter);
 		assertThat(conversionService.convert("#000000", Color.class)).isEqualTo(Color.BLACK);
-		assertThat(converter.getMatchAttempts() > 0).isTrue();
-		assertThat(converter.getNestedMatchAttempts() > 0).isTrue();
+		assertThat(converter.getMatchAttempts()).isGreaterThan(0);
+		assertThat(converter.getNestedMatchAttempts()).isGreaterThan(0);
 	}
 
 	@Test
@@ -463,16 +457,16 @@ class GenericConversionServiceTests {
 		MyConditionalGenericConverter converter = new MyConditionalGenericConverter();
 		conversionService.addConverter(converter);
 		assertThat(conversionService.convert(3, Integer.class)).isEqualTo(3);
-		assertThat(converter.getSourceTypes().size()).isGreaterThan(2);
+		assertThat(converter.getSourceTypes()).hasSizeGreaterThan(2);
 		assertThat(converter.getSourceTypes().stream().allMatch(td -> Integer.class.equals(td.getType()))).isTrue();
 	}
 
-	@Test
+	@Test  // gh-14200, SPR-9566
 	void convertOptimizeArray() {
-		// SPR-9566
 		byte[] byteArray = new byte[] { 1, 2, 3 };
 		byte[] converted = conversionService.convert(byteArray, byte[].class);
 		assertThat(converted).isSameAs(byteArray);
+		assertThat(converted).containsExactly(1, 2, 3);
 	}
 
 	@Test
@@ -482,7 +476,7 @@ class GenericConversionServiceTests {
 	}
 
 	@Test
-	void subclassOfEnumToString() throws Exception {
+	void subclassOfEnumToString() {
 		conversionService.addConverter(new EnumToStringConverter(conversionService));
 		assertThat(conversionService.convert(EnumWithSubclass.FIRST, String.class)).isEqualTo("FIRST");
 	}
@@ -491,7 +485,7 @@ class GenericConversionServiceTests {
 	void enumWithInterfaceToStringConversion() {
 		// SPR-9692
 		conversionService.addConverter(new EnumToStringConverter(conversionService));
-		conversionService.addConverter(new MyEnumInterfaceToStringConverter<MyEnum>());
+		conversionService.addConverter(new MyEnumInterfaceToStringConverter<>());
 		assertThat(conversionService.convert(MyEnum.A, String.class)).isEqualTo("1");
 	}
 
@@ -571,6 +565,35 @@ class GenericConversionServiceTests {
 		assertThat(conversionService.convert("test", TypeDescriptor.valueOf(String.class), new TypeDescriptor(getClass().getField("integerCollection")))).isEqualTo(Collections.singleton("testX"));
 	}
 
+	@Test
+	void stringListToListOfSubclassOfUnboundGenericClass() {
+		conversionService.addConverter(new StringListToAListConverter());
+		conversionService.addConverter(new StringListToBListConverter());
+
+		List<?> aList = (List<?>) conversionService.convert(List.of("foo"),
+				TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(String.class)),
+				TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(ARaw.class)));
+		assertThat(aList).allMatch(e -> e instanceof ARaw);
+
+		List<?> bList = (List<?>) conversionService.convert(List.of("foo"),
+				TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(String.class)),
+				TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(BRaw.class)));
+		assertThat(bList).allMatch(e -> e instanceof BRaw);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void stringToListOfMapConverterWithFallbackMatch() {
+		conversionService.addConverter(new StringToListOfMapConverter());
+
+		List<Map<String, Object>> result = (List<Map<String, Object>>) conversionService.convert("foo",
+				TypeDescriptor.valueOf(String.class),
+				TypeDescriptor.collection(List.class, TypeDescriptor.valueOf(Map.class))
+		);
+
+		assertThat("foo").isEqualTo(result.get(0).get("bar"));
+	}
+
 
 	@ExampleAnnotation(active = true)
 	public String annotatedString;
@@ -639,7 +662,7 @@ class GenericConversionServiceTests {
 	}
 
 
-	private static class MyStringToIntegerArrayConverter implements Converter<String, Integer[]>	{
+	private static class MyStringToIntegerArrayConverter implements Converter<String, Integer[]> {
 
 		@Override
 		public Integer[] convert(String source) {
@@ -687,8 +710,7 @@ class GenericConversionServiceTests {
 		}
 
 		@Override
-		@Nullable
-		public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+		public @Nullable Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
 			return null;
 		}
 	}
@@ -710,8 +732,7 @@ class GenericConversionServiceTests {
 		}
 
 		@Override
-		@Nullable
-		public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+		public @Nullable Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
 			return null;
 		}
 
@@ -748,7 +769,8 @@ class GenericConversionServiceTests {
 		}
 	}
 
-	private static interface MyEnumBaseInterface {
+
+	private interface MyEnumBaseInterface {
 		String getBaseCode();
 	}
 
@@ -929,4 +951,44 @@ class GenericConversionServiceTests {
 			return Color.decode(source.substring(0, 6));
 		}
 	}
+
+
+	private static class GenericBaseClass<T> {
+	}
+
+	@SuppressWarnings("rawtypes")
+	private static class ARaw extends GenericBaseClass {
+	}
+
+	@SuppressWarnings("rawtypes")
+	private static class BRaw extends GenericBaseClass {
+	}
+
+
+	private static class StringListToAListConverter implements Converter<List<String>, List<ARaw>> {
+
+		@Override
+		public List<ARaw> convert(List<String> source) {
+			return List.of(new ARaw());
+		}
+	}
+
+
+	private static class StringListToBListConverter implements Converter<List<String>, List<BRaw>> {
+
+		@Override
+		public List<BRaw> convert(List<String> source) {
+			return List.of(new BRaw());
+		}
+	}
+
+
+	private static class StringToListOfMapConverter implements Converter<String, List<? extends Map<String, ?>>> {
+
+		@Override
+		public List<? extends Map<String, ?>> convert(String source) {
+			return List.of(Map.of("bar", source));
+		}
+	}
+
 }

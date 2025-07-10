@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,17 +28,17 @@ import jakarta.websocket.Extension;
 import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.socket.handler.BeanCreatingHandlerProvider;
 
 /**
  * An implementation of {@link jakarta.websocket.server.ServerEndpointConfig} for use in
  * Spring-based applications. A {@link ServerEndpointRegistration} bean is detected by
- * {@link ServerEndpointExporter} and registered with a Java WebSocket runtime at startup.
+ * {@link ServerEndpointExporter} and registered with a Jakarta WebSocket runtime at startup.
  *
  * <p>Class constructors accept a singleton {@link jakarta.websocket.Endpoint} instance
  * or an Endpoint specified by type {@link Class}. When specified by type, the endpoint
@@ -59,11 +59,9 @@ public class ServerEndpointRegistration extends ServerEndpointConfig.Configurato
 
 	private final String path;
 
-	@Nullable
-	private final Endpoint endpoint;
+	private final @Nullable Endpoint endpoint;
 
-	@Nullable
-	private final BeanCreatingHandlerProvider<Endpoint> endpointProvider;
+	private final @Nullable BeanCreatingHandlerProvider<Endpoint> endpointProvider;
 
 	private List<String> subprotocols = new ArrayList<>(0);
 

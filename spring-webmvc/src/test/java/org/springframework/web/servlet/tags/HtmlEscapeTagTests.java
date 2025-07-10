@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Juergen Hoeller
  * @author Alef Arendsen
  */
-@SuppressWarnings("serial")
 class HtmlEscapeTagTests extends AbstractTagTests {
 
 	@Test
@@ -42,7 +41,7 @@ class HtmlEscapeTagTests extends AbstractTagTests {
 		tag.doStartTag();
 		HtmlEscapingAwareTag testTag = new HtmlEscapingAwareTag() {
 			@Override
-			public int doStartTagInternal() throws Exception {
+			public int doStartTagInternal() {
 				return EVAL_BODY_INCLUDE;
 			}
 		};
@@ -54,18 +53,18 @@ class HtmlEscapeTagTests extends AbstractTagTests {
 		boolean condition6 = !testTag.isHtmlEscape();
 		assertThat(condition6).as("Correctly applied").isTrue();
 		tag.setDefaultHtmlEscape(true);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		assertThat(tag.getRequestContext().isDefaultHtmlEscape()).as("Correctly enabled").isTrue();
 		assertThat(testTag.isHtmlEscape()).as("Correctly applied").isTrue();
 		tag.setDefaultHtmlEscape(false);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		boolean condition5 = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition5).as("Correctly disabled").isTrue();
 		boolean condition4 = !testTag.isHtmlEscape();
 		assertThat(condition4).as("Correctly applied").isTrue();
 
 		tag.setDefaultHtmlEscape(true);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		testTag.setHtmlEscape(true);
 		assertThat(tag.getRequestContext().isDefaultHtmlEscape()).as("Correctly enabled").isTrue();
 		assertThat(testTag.isHtmlEscape()).as("Correctly applied").isTrue();
@@ -74,7 +73,7 @@ class HtmlEscapeTagTests extends AbstractTagTests {
 		boolean condition3 = !testTag.isHtmlEscape();
 		assertThat(condition3).as("Correctly applied").isTrue();
 		tag.setDefaultHtmlEscape(false);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		testTag.setHtmlEscape(true);
 		boolean condition2 = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition2).as("Correctly disabled").isTrue();
@@ -99,10 +98,10 @@ class HtmlEscapeTagTests extends AbstractTagTests {
 		boolean condition1 = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition1).as("Correct default").isTrue();
 		tag.setDefaultHtmlEscape(true);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		assertThat(tag.getRequestContext().isDefaultHtmlEscape()).as("Correctly enabled").isTrue();
 		tag.setDefaultHtmlEscape(false);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		boolean condition = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition).as("Correctly disabled").isTrue();
 	}
@@ -119,10 +118,10 @@ class HtmlEscapeTagTests extends AbstractTagTests {
 		boolean condition1 = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition1).as("Correct default").isTrue();
 		tag.setDefaultHtmlEscape(true);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		assertThat(tag.getRequestContext().isDefaultHtmlEscape()).as("Correctly enabled").isTrue();
 		tag.setDefaultHtmlEscape(false);
-		assertThat(tag.doStartTag() == Tag.EVAL_BODY_INCLUDE).as("Correct doStartTag return value").isTrue();
+		assertThat(tag.doStartTag()).as("Correct doStartTag return value").isEqualTo(Tag.EVAL_BODY_INCLUDE);
 		boolean condition = !tag.getRequestContext().isDefaultHtmlEscape();
 		assertThat(condition).as("Correctly disabled").isTrue();
 	}

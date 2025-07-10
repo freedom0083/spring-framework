@@ -177,7 +177,7 @@ public class ClassReader {
       final byte[] classFileBuffer,
       final int classFileOffset,
       final int classFileLength) { // NOPMD(UnusedFormalParameter) used for backward compatibility.
-    this(classFileBuffer, classFileOffset, /* checkClassVersion = */ true);
+    this(classFileBuffer, classFileOffset, /* checkClassVersion= */ true);
   }
 
   /**
@@ -188,13 +188,14 @@ public class ClassReader {
    * @param classFileOffset the offset in byteBuffer of the first byte of the ClassFile to be read.
    * @param checkClassVersion whether to check the class version or not.
    */
+  @SuppressWarnings("PMD.ConstructorCallsOverridableMethod")
   ClassReader(
       final byte[] classFileBuffer, final int classFileOffset, final boolean checkClassVersion) {
     this.classFileBuffer = classFileBuffer;
     this.b = classFileBuffer;
     // Check the class' major_version. This field is after the magic and minor_version fields, which
     // use 4 and 2 bytes respectively.
-    if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V19) {
+    if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V25) {
       throw new IllegalArgumentException(
           "Unsupported class file major version " + readShort(classFileOffset + 6));
     }
@@ -308,6 +309,7 @@ public class ClassReader {
    * @return the content of the given input stream.
    * @throws IOException if a problem occurs during reading.
    */
+  @SuppressWarnings("PMD.UseTryWithResources")
   private static byte[] readStream(final InputStream inputStream, final boolean close)
       throws IOException {
     if (inputStream == null) {
@@ -376,7 +378,7 @@ public class ClassReader {
   }
 
   /**
-   * Returns the internal of name of the super class (see {@link Type#getInternalName()}). For
+   * Returns the internal name of the super class (see {@link Type#getInternalName()}). For
    * interfaces, the super class is {@link Object}.
    *
    * @return the internal name of the super class, or {@literal null} for {@link Object} class.
@@ -607,9 +609,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                classVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
+                classVisitor.visitAnnotation(annotationDescriptor, /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -625,9 +627,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                classVisitor.visitAnnotation(annotationDescriptor, /* visible = */ false),
+                classVisitor.visitAnnotation(annotationDescriptor, /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -649,9 +651,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ true),
+                    /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -673,9 +675,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ false),
+                    /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -967,9 +969,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                recordComponentVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
+                recordComponentVisitor.visitAnnotation(annotationDescriptor, /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -985,9 +987,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                recordComponentVisitor.visitAnnotation(annotationDescriptor, /* visible = */ false),
+                recordComponentVisitor.visitAnnotation(annotationDescriptor, /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1009,9 +1011,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ true),
+                    /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1033,9 +1035,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ false),
+                    /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1151,9 +1153,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                fieldVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
+                fieldVisitor.visitAnnotation(annotationDescriptor, /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1169,9 +1171,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                fieldVisitor.visitAnnotation(annotationDescriptor, /* visible = */ false),
+                fieldVisitor.visitAnnotation(annotationDescriptor, /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1193,9 +1195,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ true),
+                    /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1217,9 +1219,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ false),
+                    /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1412,9 +1414,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                methodVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
+                methodVisitor.visitAnnotation(annotationDescriptor, /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1430,9 +1432,9 @@ public class ClassReader {
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
-                methodVisitor.visitAnnotation(annotationDescriptor, /* visible = */ false),
+                methodVisitor.visitAnnotation(annotationDescriptor, /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1454,9 +1456,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ true),
+                    /* visible= */ true),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1478,9 +1480,9 @@ public class ClassReader {
                     context.currentTypeAnnotationTarget,
                     context.currentTypeAnnotationTargetPath,
                     annotationDescriptor,
-                    /* visible = */ false),
+                    /* visible= */ false),
                 currentAnnotationOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -1488,16 +1490,13 @@ public class ClassReader {
     // Visit the RuntimeVisibleParameterAnnotations attribute.
     if (runtimeVisibleParameterAnnotationsOffset != 0) {
       readParameterAnnotations(
-          methodVisitor, context, runtimeVisibleParameterAnnotationsOffset, /* visible = */ true);
+          methodVisitor, context, runtimeVisibleParameterAnnotationsOffset, /* visible= */ true);
     }
 
     // Visit the RuntimeInvisibleParameterAnnotations attribute.
     if (runtimeInvisibleParameterAnnotationsOffset != 0) {
       readParameterAnnotations(
-          methodVisitor,
-          context,
-          runtimeInvisibleParameterAnnotationsOffset,
-          /* visible = */ false);
+          methodVisitor, context, runtimeInvisibleParameterAnnotationsOffset, /* visible= */ false);
     }
 
     // Visit the non standard attributes.
@@ -1926,7 +1925,7 @@ public class ClassReader {
         }
       } else if (Constants.RUNTIME_VISIBLE_TYPE_ANNOTATIONS.equals(attributeName)) {
         visibleTypeAnnotationOffsets =
-            readTypeAnnotations(methodVisitor, context, currentOffset, /* visible = */ true);
+            readTypeAnnotations(methodVisitor, context, currentOffset, /* visible= */ true);
         // Here we do not extract the labels corresponding to the attribute content. This would
         // require a full parsing of the attribute, which would need to be repeated when parsing
         // the bytecode instructions (see below). Instead, the content of the attribute is read one
@@ -1935,7 +1934,7 @@ public class ClassReader {
         // time. This assumes that type annotations are ordered by increasing bytecode offset.
       } else if (Constants.RUNTIME_INVISIBLE_TYPE_ANNOTATIONS.equals(attributeName)) {
         invisibleTypeAnnotationOffsets =
-            readTypeAnnotations(methodVisitor, context, currentOffset, /* visible = */ false);
+            readTypeAnnotations(methodVisitor, context, currentOffset, /* visible= */ false);
         // Same comment as above for the RuntimeVisibleTypeAnnotations attribute.
       } else if (Constants.STACK_MAP_TABLE.equals(attributeName)) {
         if ((context.parsingOptions & SKIP_FRAMES) == 0) {
@@ -2051,6 +2050,7 @@ public class ClassReader {
     currentOffset = bytecodeStartOffset;
     while (currentOffset < bytecodeEndOffset) {
       final int currentBytecodeOffset = currentOffset - bytecodeStartOffset;
+      readBytecodeInstructionOffset(currentBytecodeOffset);
 
       // Visit the label and the line number(s) for this bytecode offset, if any.
       Label currentLabel = labels[currentBytecodeOffset];
@@ -2516,9 +2516,9 @@ public class ClassReader {
                   context.currentTypeAnnotationTarget,
                   context.currentTypeAnnotationTargetPath,
                   annotationDescriptor,
-                  /* visible = */ true),
+                  /* visible= */ true),
               currentAnnotationOffset,
-              /* named = */ true,
+              /* named= */ true,
               charBuffer);
         }
         currentVisibleTypeAnnotationBytecodeOffset =
@@ -2544,9 +2544,9 @@ public class ClassReader {
                   context.currentTypeAnnotationTarget,
                   context.currentTypeAnnotationTargetPath,
                   annotationDescriptor,
-                  /* visible = */ false),
+                  /* visible= */ false),
               currentAnnotationOffset,
-              /* named = */ true,
+              /* named= */ true,
               charBuffer);
         }
         currentInvisibleTypeAnnotationBytecodeOffset =
@@ -2617,9 +2617,9 @@ public class ClassReader {
                   context.currentLocalVariableAnnotationRangeEnds,
                   context.currentLocalVariableAnnotationRangeIndices,
                   annotationDescriptor,
-                  /* visible = */ true),
+                  /* visible= */ true),
               currentOffset,
-              /* named = */ true,
+              /* named= */ true,
               charBuffer);
         }
       }
@@ -2645,9 +2645,9 @@ public class ClassReader {
                   context.currentLocalVariableAnnotationRangeEnds,
                   context.currentLocalVariableAnnotationRangeIndices,
                   annotationDescriptor,
-                  /* visible = */ false),
+                  /* visible= */ false),
               currentOffset,
-              /* named = */ true,
+              /* named= */ true,
               charBuffer);
         }
       }
@@ -2664,6 +2664,20 @@ public class ClassReader {
 
     // Visit the max stack and max locals values.
     methodVisitor.visitMaxs(maxStack, maxLocals);
+  }
+
+  /**
+   * Handles the bytecode offset of the next instruction to be visited in {@link
+   * #accept(ClassVisitor,int)}. This method is called just before the instruction and before its
+   * associated label and stack map frame, if any. The default implementation of this method does
+   * nothing. Subclasses can override this method to store the argument in a mutable field, for
+   * instance, so that {@link MethodVisitor} instances can get the bytecode offset of each visited
+   * instruction (if so, the usual concurrency issues related to mutable data should be addressed).
+   *
+   * @param bytecodeOffset the bytecode offset of the next instruction to be visited.
+   */
+  protected void readBytecodeInstructionOffset(final int bytecodeOffset) {
+    // Do nothing by default.
   }
 
   /**
@@ -2811,7 +2825,7 @@ public class ClassReader {
                 methodVisitor.visitTryCatchAnnotation(
                     targetType & 0xFFFFFF00, path, annotationDescriptor, visible),
                 currentOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       } else {
         // We don't want to visit the other target_type annotations, so we just skip them (which
@@ -2822,7 +2836,7 @@ public class ClassReader {
         // with a null AnnotationVisitor).
         currentOffset =
             readElementValues(
-                /* annotationVisitor = */ null, currentOffset, /* named = */ true, charBuffer);
+                /* annotationVisitor= */ null, currentOffset, /* named= */ true, charBuffer);
       }
     }
     return typeAnnotationsOffsets;
@@ -2962,7 +2976,7 @@ public class ClassReader {
             readElementValues(
                 methodVisitor.visitParameterAnnotation(i, annotationDescriptor, visible),
                 currentOffset,
-                /* named = */ true,
+                /* named= */ true,
                 charBuffer);
       }
     }
@@ -3032,9 +3046,9 @@ public class ClassReader {
         case 'e': // enum_const_value
           return currentOffset + 5;
         case '@': // annotation_value
-          return readElementValues(null, currentOffset + 3, /* named = */ true, charBuffer);
+          return readElementValues(null, currentOffset + 3, /* named= */ true, charBuffer);
         case '[': // array_value
-          return readElementValues(null, currentOffset + 1, /* named = */ false, charBuffer);
+          return readElementValues(null, currentOffset + 1, /* named= */ false, charBuffer);
         default:
           return currentOffset + 3;
       }
@@ -3102,7 +3116,7 @@ public class ClassReader {
           return readElementValues(
               annotationVisitor.visitArray(elementName),
               currentOffset - 2,
-              /* named = */ false,
+              /* named= */ false,
               charBuffer);
         }
         switch (classFileBuffer[currentOffset] & 0xFF) {
@@ -3179,7 +3193,7 @@ public class ClassReader {
                 readElementValues(
                     annotationVisitor.visitArray(elementName),
                     currentOffset - 2,
-                    /* named = */ false,
+                    /* named= */ false,
                     charBuffer);
             break;
         }
@@ -3588,6 +3602,20 @@ public class ClassReader {
    */
   public int readByte(final int offset) {
     return classFileBuffer[offset] & 0xFF;
+  }
+
+  /**
+   * Reads several bytes in this {@link ClassReader}. <i>This method is intended for {@link
+   * Attribute} sub classes, and is normally not needed by class generators or adapters.</i>
+   *
+   * @param offset the start offset of the bytes to be read in this {@link ClassReader}.
+   * @param length the number of bytes to read.
+   * @return the read bytes.
+   */
+  public byte[] readBytes(final int offset, final int length) {
+    byte[] result = new byte[length];
+    System.arraycopy(classFileBuffer, offset, result, 0, length);
+    return result;
   }
 
   /**

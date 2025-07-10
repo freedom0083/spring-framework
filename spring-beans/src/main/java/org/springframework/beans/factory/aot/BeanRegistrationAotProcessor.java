@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,48 @@
 
 package org.springframework.beans.factory.aot;
 
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.support.RegisteredBean;
-import org.springframework.lang.Nullable;
 
 /**
  * AOT processor that makes bean registration contributions by processing
  * {@link RegisteredBean} instances.
  *
+ * <p>{@code BeanRegistrationAotProcessor} implementations may be registered in
+ * a {@value AotServices#FACTORIES_RESOURCE_LOCATION} resource or as a bean.
+ *
+ * <p>Using this interface on a registered bean will cause the bean <em>and</em>
+ * all of its dependencies to be initialized during AOT processing. We generally
+ * recommend that this interface is only used with infrastructure beans such as
+ * {@link BeanPostProcessor} which have limited dependencies and are already
+ * initialized early in the bean factory lifecycle. If such a bean is registered
+ * using a factory method, make sure to make it {@code static} so that its
+ * enclosing class does not have to be initialized.
+ *
+ * <p>An AOT processor replaces its usual runtime behavior by an optimized
+ * arrangement, usually in generated code. For that reason, a component that
+ * implements this interface is not contributed by default. If a component that
+ * implements this interface still needs to be invoked at runtime,
+ * {@link #isBeanExcludedFromAotProcessing} can be overridden.
+ *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  * @see BeanRegistrationAotContribution
  */
 @FunctionalInterface
 public interface BeanRegistrationAotProcessor {
+
+	/**
+	 * The name of an attribute that can be
+	 * {@link org.springframework.core.AttributeAccessor#setAttribute set} on a
+	 * {@link org.springframework.beans.factory.config.BeanDefinition} to signal
+	 * that its registration should not be processed.
+	 * @since 6.2
+	 */
+	String IGNORE_REGISTRATION_ATTRIBUTE = "aotProcessingIgnoreRegistration";
 
 	/**
 	 * Process the given {@link RegisteredBean} instance ahead-of-time and
@@ -44,7 +73,18 @@ public interface BeanRegistrationAotProcessor {
 	 * @param registeredBean the registered bean to process
 	 * @return a {@link BeanRegistrationAotContribution} or {@code null}
 	 */
-	@Nullable
-	BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean);
+	@Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean);
+
+	/**
+	 * Return if the bean instance associated with this processor should be
+	 * excluded from AOT processing itself. By default, this method returns
+	 * {@code true} to automatically exclude the bean, if the definition should
+	 * be written then this method may be overridden to return {@code true}.
+	 * @return if the bean should be excluded from AOT processing
+	 * @see BeanRegistrationExcludeFilter
+	 */
+	default boolean isBeanExcludedFromAotProcessing() {
+		return true;
+	}
 
 }

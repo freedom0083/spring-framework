@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@
 package org.springframework.core.io.buffer;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
@@ -32,13 +34,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
+import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
@@ -52,9 +58,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.testfixture.io.buffer.AbstractDataBufferAllocatingTests;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIOException;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
@@ -66,6 +73,7 @@ import static org.mockito.Mockito.mock;
 class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 
 	private final Resource resource;
+
 	private final Path tempFile;
 
 
@@ -101,7 +109,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	void readByteChannelError(DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
-		ReadableByteChannel channel = mock(ReadableByteChannel.class);
+		ReadableByteChannel channel = mock();
 		given(channel.read(any()))
 				.willAnswer(invocation -> {
 					ByteBuffer buffer = invocation.getArgument(0);
@@ -163,29 +171,28 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAsynchronousFileChannelError(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannelError(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
-		AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
+		AsynchronousFileChannel channel = mock();
 		willAnswer(invocation -> {
 			ByteBuffer byteBuffer = invocation.getArgument(0);
 			byteBuffer.put("foo".getBytes(StandardCharsets.UTF_8));
-			byteBuffer.flip();
 			long pos = invocation.getArgument(1);
 			assertThat(pos).isEqualTo(0);
-			DataBuffer dataBuffer = invocation.getArgument(2);
-			CompletionHandler<Integer, DataBuffer> completionHandler = invocation.getArgument(3);
-			completionHandler.completed(3, dataBuffer);
+			Object attachment = invocation.getArgument(2);
+			CompletionHandler<Integer, Object> completionHandler = invocation.getArgument(3);
+			completionHandler.completed(3, attachment);
 			return null;
 		}).willAnswer(invocation -> {
-			DataBuffer dataBuffer = invocation.getArgument(2);
-			CompletionHandler<Integer, DataBuffer> completionHandler = invocation.getArgument(3);
-			completionHandler.failed(new IOException(), dataBuffer);
+			Object attachment = invocation.getArgument(2);
+			CompletionHandler<Integer, Object> completionHandler = invocation.getArgument(3);
+			completionHandler.failed(new IOException(), attachment);
 			return null;
 		})
 		.given(channel).read(any(), anyLong(), any(), any());
 
-		Flux<DataBuffer> result =
+		Flux<DataBuffer> result=
 				DataBufferUtils.readAsynchronousFileChannel(() -> channel, super.bufferFactory, 3);
 
 		StepVerifier.create(result)
@@ -209,7 +216,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 				.verify();
 	}
 
-	@ParameterizedDataBufferAllocatingTest // gh-22107
+	@ParameterizedDataBufferAllocatingTest  // gh-22107
 	void readAsynchronousFileChannelCancelWithoutDemand(DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
@@ -233,7 +240,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResource(DataBufferFactory bufferFactory) throws Exception {
+	void readResource(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.read(this.resource, super.bufferFactory, 3);
@@ -242,7 +249,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResourcePosition(DataBufferFactory bufferFactory) throws Exception {
+	void readResourcePosition(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.read(this.resource, 9, super.bufferFactory, 3);
@@ -264,7 +271,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) throws Exception {
+	void readResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Resource resource = new ClassPathResource("DataBufferUtilsTests.txt", getClass());
@@ -281,7 +288,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readByteArrayResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) throws Exception {
+	void readByteArrayResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Resource resource = new ByteArrayResource("foobarbazqux" .getBytes());
@@ -362,7 +369,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 		DataBuffer bar = stringBuffer("bar");
 		Flux<DataBuffer> flux = Flux.just(foo, bar);
 
-		WritableByteChannel channel = mock(WritableByteChannel.class);
+		WritableByteChannel channel = mock();
 		given(channel.write(any()))
 				.willAnswer(invocation -> {
 					ByteBuffer buffer = invocation.getArgument(0);
@@ -464,7 +471,6 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	@SuppressWarnings("unchecked")
 	void writeAsynchronousFileChannelErrorInWrite(DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
@@ -472,28 +478,25 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 		DataBuffer bar = stringBuffer("bar");
 		Flux<DataBuffer> flux = Flux.just(foo, bar);
 
-		AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
+		AsynchronousFileChannel channel = mock();
 		willAnswer(invocation -> {
 			ByteBuffer buffer = invocation.getArgument(0);
 			long pos = invocation.getArgument(1);
-			CompletionHandler<Integer, ByteBuffer> completionHandler = invocation.getArgument(3);
-
 			assertThat(pos).isEqualTo(0);
-
+			Object attachment = invocation.getArgument(2);
+			CompletionHandler<Integer, Object> completionHandler = invocation.getArgument(3);
 			int written = buffer.remaining();
 			buffer.position(buffer.limit());
-			completionHandler.completed(written, buffer);
-
+			completionHandler.completed(written, attachment);
 			return null;
 		})
 		.willAnswer(invocation -> {
-			ByteBuffer buffer = invocation.getArgument(0);
-			CompletionHandler<Integer, ByteBuffer> completionHandler =
-					invocation.getArgument(3);
-			completionHandler.failed(new IOException(), buffer);
+			Object attachment = invocation.getArgument(2);
+			CompletionHandler<Integer, Object> completionHandler = invocation.getArgument(3);
+			completionHandler.failed(new IOException(), attachment);
 			return null;
 		})
-		.given(channel).write(isA(ByteBuffer.class), anyLong(), isA(ByteBuffer.class), isA(CompletionHandler.class));
+		.given(channel).write(any(), anyLong(), any(), any());
 
 		Flux<DataBuffer> writeResult = DataBufferUtils.write(flux, channel);
 		StepVerifier.create(writeResult)
@@ -545,6 +548,343 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 
 		List<String> written = Files.readAllLines(tempFile);
 		assertThat(written).contains("foobar");
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void outputStreamPublisher(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		byte[] foo = "foo".getBytes(StandardCharsets.UTF_8);
+		byte[] bar = "bar".getBytes(StandardCharsets.UTF_8);
+		byte[] baz = "baz".getBytes(StandardCharsets.UTF_8);
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(outputStream -> {
+			try {
+				outputStream.write(foo);
+				outputStream.write(bar);
+				outputStream.write(baz);
+			}
+			catch (IOException ex) {
+				fail(ex.getMessage(), ex);
+			}
+		}, super.bufferFactory, Executors.newSingleThreadExecutor());
+
+		StepVerifier.create(publisher)
+				.consumeNextWith(stringConsumer("foobarbaz"))
+				.verifyComplete();
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void outputStreamPublisherFlush(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		byte[] foo = "foo".getBytes(StandardCharsets.UTF_8);
+		byte[] bar = "bar".getBytes(StandardCharsets.UTF_8);
+		byte[] baz = "baz".getBytes(StandardCharsets.UTF_8);
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(outputStream -> {
+			try {
+				outputStream.write(foo);
+				outputStream.flush();
+				outputStream.write(bar);
+				outputStream.flush();
+				outputStream.write(baz);
+				outputStream.flush();
+			}
+			catch (IOException ex) {
+				fail(ex.getMessage(), ex);
+			}
+		}, super.bufferFactory, Executors.newSingleThreadExecutor());
+
+		StepVerifier.create(publisher)
+				.consumeNextWith(stringConsumer("foo"))
+				.consumeNextWith(stringConsumer("bar"))
+				.consumeNextWith(stringConsumer("baz"))
+				.verifyComplete();
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void outputStreamPublisherChunkSize(DataBufferFactory bufferFactory) {
+		super.bufferFactory = bufferFactory;
+
+		byte[] foo = "foo".getBytes(StandardCharsets.UTF_8);
+		byte[] bar = "bar".getBytes(StandardCharsets.UTF_8);
+		byte[] baz = "baz".getBytes(StandardCharsets.UTF_8);
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(outputStream -> {
+			try {
+				outputStream.write(foo);
+				outputStream.write(bar);
+				outputStream.write(baz);
+			}
+			catch (IOException ex) {
+				fail(ex.getMessage(), ex);
+			}
+		}, super.bufferFactory, Executors.newSingleThreadExecutor(), 3);
+
+		StepVerifier.create(publisher)
+				.consumeNextWith(stringConsumer("foo"))
+				.consumeNextWith(stringConsumer("bar"))
+				.consumeNextWith(stringConsumer("baz"))
+				.verifyComplete();
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void outputStreamPublisherCancel(DataBufferFactory bufferFactory) throws InterruptedException {
+		super.bufferFactory = bufferFactory;
+
+		byte[] foo = "foo".getBytes(StandardCharsets.UTF_8);
+		byte[] bar = "bar".getBytes(StandardCharsets.UTF_8);
+
+		CountDownLatch latch = new CountDownLatch(1);
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(outputStream -> {
+			try {
+				assertThatIOException()
+						.isThrownBy(() -> {
+							outputStream.write(foo);
+							outputStream.flush();
+							outputStream.write(bar);
+							outputStream.flush();
+						})
+						.withMessage("Subscription has been terminated");
+			}
+			finally {
+				latch.countDown();
+			}
+		}, super.bufferFactory, Executors.newSingleThreadExecutor());
+
+		StepVerifier.create(publisher, 1)
+				.consumeNextWith(stringConsumer("foo"))
+				.thenCancel()
+				.verify();
+
+		latch.await();
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void outputStreamPublisherClosed(DataBufferFactory bufferFactory) throws InterruptedException {
+		super.bufferFactory = bufferFactory;
+
+		CountDownLatch latch = new CountDownLatch(1);
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(outputStream -> {
+			try {
+				OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+				writer.write("foo");
+				writer.close();
+				assertThatIOException().isThrownBy(() -> writer.write("bar"))
+						.withMessage("Stream closed");
+			}
+			catch (IOException ex) {
+				fail(ex.getMessage(), ex);
+			}
+			finally {
+				latch.countDown();
+			}
+		}, super.bufferFactory, Executors.newSingleThreadExecutor());
+
+		StepVerifier.create(publisher)
+				.consumeNextWith(stringConsumer("foo"))
+				.verifyComplete();
+
+		latch.await();
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 3, 3, 64, List.of("foo", "bar", "baz"), List.of("foo", "bar", "baz"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize2(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 3, 3, 1, List.of("foo", "bar", "baz"), List.of("foo", "bar", "baz"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize3(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(factory, 3, 12, 1, List.of("foo", "bar", "baz"), List.of("foobarbaz"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize4(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 3, 1, 1, List.of("foo", "bar", "baz"), List.of("f", "o", "o", "b", "a", "r", "b", "a", "z"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize5(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 3, 2, 1, List.of("foo", "bar", "baz"), List.of("fo", "ob", "ar", "ba", "z"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize6(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 1, 3, 1, List.of("foo", "bar", "baz"), List.of("foo", "bar", "baz"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberChunkSize7(DataBufferFactory factory) {
+		genericInputStreamSubscriberTest(
+				factory, 1, 3, 64, List.of("foo", "bar", "baz"), List.of("foo", "bar", "baz"));
+	}
+
+	void genericInputStreamSubscriberTest(
+			DataBufferFactory factory, int writeChunkSize, int readChunkSize, int bufferSize,
+			List<String> input, List<String> expectedOutput) {
+
+		super.bufferFactory = factory;
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(
+				out -> {
+					try {
+						for (String word : input) {
+							out.write(word.getBytes(StandardCharsets.UTF_8));
+						}
+					}
+					catch (IOException ex) {
+						fail(ex.getMessage(), ex);
+					}
+				},
+				super.bufferFactory, Executors.newSingleThreadExecutor(), writeChunkSize);
+
+		byte[] chunk = new byte[readChunkSize];
+		List<String> words = new ArrayList<>();
+
+		try (InputStream in = DataBufferUtils.subscriberInputStream(publisher, bufferSize)) {
+			int read;
+			while ((read = in.read(chunk)) > -1) {
+				words.add(new String(chunk, 0, read, StandardCharsets.UTF_8));
+			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		assertThat(words).containsExactlyElementsOf(expectedOutput);
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberError(DataBufferFactory factory) {
+		super.bufferFactory = factory;
+
+		var input = List.of("foo ", "bar ", "baz");
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(
+				out -> {
+					try {
+						for (String word : input) {
+							out.write(word.getBytes(StandardCharsets.UTF_8));
+						}
+						throw new RuntimeException("boom");
+					}
+					catch (IOException ex) {
+						fail(ex.getMessage(), ex);
+					}
+				},
+				super.bufferFactory, Executors.newSingleThreadExecutor(), 1);
+
+
+		RuntimeException error = null;
+		byte[] chunk = new byte[4];
+		List<String> words = new ArrayList<>();
+
+		try (InputStream in = DataBufferUtils.subscriberInputStream(publisher, 1)) {
+			int read;
+			while ((read = in.read(chunk)) > -1) {
+				words.add(new String(chunk, 0, read, StandardCharsets.UTF_8));
+			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		catch (RuntimeException e) {
+			error = e;
+		}
+		assertThat(words).containsExactlyElementsOf(List.of("foo ", "bar ", "baz"));
+		assertThat(error).hasMessage("boom");
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberMixedReadMode(DataBufferFactory factory) {
+		super.bufferFactory = factory;
+
+		var input = List.of("foo ", "bar ", "baz");
+
+		Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(
+				out -> {
+					try {
+						for (String word : input) {
+							out.write(word.getBytes(StandardCharsets.UTF_8));
+						}
+					}
+					catch (IOException ex) {
+						fail(ex.getMessage(), ex);
+					}
+				},
+				super.bufferFactory, Executors.newSingleThreadExecutor(), 1);
+
+
+		byte[] chunk = new byte[3];
+		ArrayList<String> words = new ArrayList<>();
+
+		try (InputStream inputStream = DataBufferUtils.subscriberInputStream(publisher, 1)) {
+			words.add(new String(chunk,0, inputStream.read(chunk), StandardCharsets.UTF_8));
+			assertThat(inputStream.read()).isEqualTo(' ' & 0xFF);
+			words.add(new String(chunk,0, inputStream.read(chunk), StandardCharsets.UTF_8));
+			assertThat(inputStream.read()).isEqualTo(' ' & 0xFF);
+			words.add(new String(chunk,0, inputStream.read(chunk), StandardCharsets.UTF_8));
+			assertThat(inputStream.read()).isEqualTo(-1);
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		assertThat(words).containsExactlyElementsOf(List.of("foo", "bar", "baz"));
+	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void inputStreamSubscriberClose(DataBufferFactory bufferFactory) throws InterruptedException {
+		for (int i = 1; i < 100; i++) {
+			CountDownLatch latch = new CountDownLatch(1);
+			super.bufferFactory = bufferFactory;
+
+			var input = List.of("foo", "bar", "baz");
+
+			Publisher<DataBuffer> publisher = DataBufferUtils.outputStreamPublisher(
+					out -> {
+						try {
+							assertThatIOException()
+									.isThrownBy(() -> {
+										for (String word : input) {
+											out.write(word.getBytes(StandardCharsets.UTF_8));
+											out.flush();
+										}
+									})
+									.withMessage("Subscription has been terminated");
+						}
+						finally {
+							latch.countDown();
+						}
+					},
+					super.bufferFactory, Executors.newSingleThreadExecutor(), 1);
+
+
+			byte[] chunk = new byte[3];
+			ArrayList<String> words = new ArrayList<>();
+
+			try (InputStream in = DataBufferUtils.subscriberInputStream(publisher, ThreadLocalRandom.current().nextInt(1, 4))) {
+				in.read(chunk);
+				String word = new String(chunk, StandardCharsets.UTF_8);
+				words.add(word);
+			}
+			catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			assertThat(words).containsExactlyElementsOf(List.of("foo"));
+			latch.await();
+		}
 	}
 
 	@ParameterizedDataBufferAllocatingTest
@@ -769,8 +1109,8 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	private static void assertReleased(DataBuffer dataBuffer) {
-		if (dataBuffer instanceof NettyDataBuffer) {
-			ByteBuf byteBuf = ((NettyDataBuffer) dataBuffer).getNativeBuffer();
+		if (dataBuffer instanceof NettyDataBuffer nettyDataBuffer) {
+			ByteBuf byteBuf = nettyDataBuffer.getNativeBuffer();
 			assertThat(byteBuf.refCnt()).isEqualTo(0);
 		}
 	}
@@ -779,7 +1119,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	void SPR16070(DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
-		ReadableByteChannel channel = mock(ReadableByteChannel.class);
+		ReadableByteChannel channel = mock();
 		given(channel.read(any()))
 				.willAnswer(putByte('a'))
 				.willAnswer(putByte('b'))
@@ -795,7 +1135,6 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 				.consumeNextWith(stringConsumer("c"))
 				.expectComplete()
 				.verify(Duration.ofSeconds(5));
-
 	}
 
 	private Answer<Integer> putByte(int b) {
@@ -838,7 +1177,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 				.verifyError(DataBufferLimitException.class);
 	}
 
-	@Test // gh-26060
+	@Test  // gh-26060
 	void joinWithLimitDoesNotOverRelease() {
 		NettyDataBufferFactory bufferFactory = new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT);
 		byte[] bytes = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
@@ -989,6 +1328,28 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 
 		}
 	}
+
+	@ParameterizedDataBufferAllocatingTest
+	void propagateContextPath(DataBufferFactory bufferFactory) throws IOException {
+		Path path = Paths.get(this.resource.getURI());
+		Path out = Files.createTempFile("data-buffer-utils-tests", ".tmp");
+
+		Flux<Void> result = DataBufferUtils.read(path, bufferFactory, 1024, StandardOpenOption.READ)
+				.transformDeferredContextual((f, ctx) -> {
+					assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
+					return f;
+				})
+				.transform(f -> DataBufferUtils.write(f, out))
+				.transformDeferredContextual((f, ctx) -> {
+					assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
+					return f;
+				})
+				.contextWrite(Context.of("key", "TEST"));
+
+		StepVerifier.create(result)
+				.verifyComplete();
+	}
+
 
 	private static class ZeroDemandSubscriber extends BaseSubscriber<DataBuffer> {
 

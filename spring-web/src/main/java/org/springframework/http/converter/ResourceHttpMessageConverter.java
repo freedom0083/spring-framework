@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,9 @@ package org.springframework.http.converter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.InputStreamResource;
@@ -27,7 +30,6 @@ import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StreamUtils;
 
 /**
@@ -81,7 +83,7 @@ public class ResourceHttpMessageConverter extends AbstractHttpMessageConverter<R
 		if (this.supportsReadStreaming && InputStreamResource.class == clazz) {
 			return new InputStreamResource(inputMessage.getBody()) {
 				@Override
-				public String getFilename() {
+				public @Nullable String getFilename() {
 					return inputMessage.getHeaders().getContentDisposition().getFilename();
 				}
 				@Override
@@ -95,8 +97,7 @@ public class ResourceHttpMessageConverter extends AbstractHttpMessageConverter<R
 			byte[] body = StreamUtils.copyToByteArray(inputMessage.getBody());
 			return new ByteArrayResource(body) {
 				@Override
-				@Nullable
-				public String getFilename() {
+				public @Nullable String getFilename() {
 					return inputMessage.getHeaders().getContentDisposition().getFilename();
 				}
 			};
@@ -107,12 +108,29 @@ public class ResourceHttpMessageConverter extends AbstractHttpMessageConverter<R
 	}
 
 	@Override
+	protected void writeInternal(Resource resource, HttpOutputMessage outputMessage)
+			throws IOException, HttpMessageNotWritableException {
+
+		writeContent(resource, outputMessage);
+	}
+
+	/**
+	 * Add the default headers for the given resource to the given message.
+	 * @since 6.0
+	 */
+	public void addDefaultHeaders(HttpOutputMessage message, Resource resource, @Nullable MediaType contentType)
+			throws IOException {
+
+		addDefaultHeaders(message.getHeaders(), resource, contentType);
+	}
+
+	@Override
 	protected MediaType getDefaultContentType(Resource resource) {
 		return MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
 	}
 
 	@Override
-	protected Long getContentLength(Resource resource, @Nullable MediaType contentType) throws IOException {
+	protected @Nullable Long getContentLength(Resource resource, @Nullable MediaType contentType) throws IOException {
 		// Don't try to determine contentLength on InputStreamResource - cannot be read afterwards...
 		// Note: custom InputStreamResource subclasses could provide a pre-calculated content length!
 		if (InputStreamResource.class == resource.getClass()) {
@@ -122,44 +140,38 @@ public class ResourceHttpMessageConverter extends AbstractHttpMessageConverter<R
 		return (contentLength < 0 ? null : contentLength);
 	}
 
-	/**
-	 * Adds the default headers for the given resource to the given message.
-	 * @since 6.0
-	 */
-	public void addDefaultHeaders(HttpOutputMessage message, Resource resource, @Nullable MediaType contentType) throws IOException {
-		addDefaultHeaders(message.getHeaders(), resource, contentType);
-	}
-
 	@Override
-	protected void writeInternal(Resource resource, HttpOutputMessage outputMessage)
-			throws IOException, HttpMessageNotWritableException {
-
-		writeContent(resource, outputMessage);
+	protected boolean supportsRepeatableWrites(Resource resource) {
+		return !(resource instanceof InputStreamResource);
 	}
+
 
 	protected void writeContent(Resource resource, HttpOutputMessage outputMessage)
 			throws IOException, HttpMessageNotWritableException {
+
 		// We cannot use try-with-resources here for the InputStream, since we have
 		// custom handling of the close() method in a finally-block.
 		try {
 			InputStream in = resource.getInputStream();
 			try {
-				StreamUtils.copy(in, outputMessage.getBody());
+				OutputStream out = outputMessage.getBody();
+				in.transferTo(out);
+				out.flush();
 			}
-			catch (NullPointerException ex) {
-				// ignore, see SPR-13620
+			catch (NullPointerException ignored) {
+				// see SPR-13620
 			}
 			finally {
 				try {
 					in.close();
 				}
-				catch (Throwable ex) {
-					// ignore, see SPR-12999
+				catch (Throwable ignored) {
+					// see SPR-12999
 				}
 			}
 		}
-		catch (FileNotFoundException ex) {
-			// ignore, see SPR-12999
+		catch (FileNotFoundException ignored) {
+			// see SPR-12999
 		}
 	}
 

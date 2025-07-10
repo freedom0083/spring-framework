@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.beans;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -78,6 +79,21 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	}
 
 	@Test
+	void replaceWrappedInstance() {
+		GetterBean target = new GetterBean();
+		BeanWrapperImpl accessor = createAccessor(target);
+		accessor.setPropertyValue("name", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+
+		target = new GetterBean();
+		accessor.setWrappedInstance(target);
+		accessor.setPropertyValue("name", "tom");
+		assertThat(target.getAliasedName()).isEqualTo("tom");
+		assertThat(accessor.getPropertyValue("aliasedName")).isEqualTo("tom");
+	}
+
+	@Test
 	void setValidAndInvalidPropertyValuesShouldContainExceptionDetails() {
 		TestBean target = new TestBean();
 		String newName = "tony";
@@ -87,13 +103,13 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 		pvs.addPropertyValue(new PropertyValue("age", "foobar"));
 		pvs.addPropertyValue(new PropertyValue("name", newName));
 		pvs.addPropertyValue(new PropertyValue("touchy", invalidTouchy));
-		assertThatExceptionOfType(PropertyBatchUpdateException.class).isThrownBy(() ->
-				accessor.setPropertyValues(pvs))
-			.satisfies(ex -> {
-				assertThat(ex.getExceptionCount()).isEqualTo(2);
-				assertThat(ex.getPropertyAccessException("touchy").getPropertyChangeEvent()
-						.getNewValue()).isEqualTo(invalidTouchy);
-			});
+		assertThatExceptionOfType(PropertyBatchUpdateException.class)
+				.isThrownBy(() -> accessor.setPropertyValues(pvs))
+				.satisfies(ex -> {
+					assertThat(ex.getExceptionCount()).isEqualTo(2);
+					assertThat(ex.getPropertyAccessException("touchy").getPropertyChangeEvent()
+							.getNewValue()).isEqualTo(invalidTouchy);
+				});
 		// Test validly set property matches
 		assertThat(target.getName()).as("Valid set property must stick").isEqualTo(newName);
 		assertThat(target.getAge()).as("Invalid set property must retain old value").isEqualTo(0);
@@ -103,9 +119,9 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	void checkNotWritablePropertyHoldPossibleMatches() {
 		TestBean target = new TestBean();
 		BeanWrapper accessor = createAccessor(target);
-		assertThatExceptionOfType(NotWritablePropertyException.class).isThrownBy(() ->
-				accessor.setPropertyValue("ag", "foobar"))
-			.satisfies(ex -> assertThat(ex.getPossibleMatches()).containsExactly("age"));
+		assertThatExceptionOfType(NotWritablePropertyException.class)
+				.isThrownBy(() -> accessor.setPropertyValue("ag", "foobar"))
+				.satisfies(ex -> assertThat(ex.getPossibleMatches()).containsExactly("age"));
 	}
 
 	@Test  // Can't be shared; there is no such thing as a read-only field
@@ -151,6 +167,32 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 		assertThat(target.value).isEqualTo("a String");
 		assertThat(target.getObject()).isEqualTo(8);
 		assertThat(accessor.getPropertyValue("object")).isEqualTo(8);
+	}
+
+	@Test
+	void setterOverload() {
+		SetterOverload target = new SetterOverload();
+		BeanWrapper accessor = createAccessor(target);
+
+		accessor.setPropertyValue("object", "a String");
+		assertThat(target.value).isEqualTo("a String");
+		assertThat(target.getObject()).isEqualTo("a String");
+		assertThat(accessor.getPropertyValue("object")).isEqualTo("a String");
+
+		accessor.setPropertyValue("object", 1000);
+		assertThat(target.value).isEqualTo("1000");
+		assertThat(target.getObject()).isEqualTo("1000");
+		assertThat(accessor.getPropertyValue("object")).isEqualTo("1000");
+
+		accessor.setPropertyValue("value", 1000);
+		assertThat(target.value).isEqualTo("1000i");
+		assertThat(target.getObject()).isEqualTo("1000i");
+		assertThat(accessor.getPropertyValue("object")).isEqualTo("1000i");
+
+		accessor.setPropertyValue("value", Duration.ofSeconds(1000));
+		assertThat(target.value).isEqualTo("1000s");
+		assertThat(target.getObject()).isEqualTo("1000s");
+		assertThat(accessor.getPropertyValue("object")).isEqualTo("1000s");
 	}
 
 	@Test
@@ -206,6 +248,10 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 		assertThat(accessor.isReadableProperty("inputStream")).isFalse();
 		assertThat(accessor.isReadableProperty("filename")).isTrue();
 		assertThat(accessor.isReadableProperty("description")).isTrue();
+
+		accessor = createAccessor(new ActiveResource());
+
+		assertThat(accessor.isReadableProperty("resource")).isTrue();
 	}
 
 	@Test
@@ -217,16 +263,16 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 
 		accessor.setPropertyValue("object", tb);
 		assertThat(target.value).isSameAs(tb);
-		assertThat(target.getObject().get()).isSameAs(tb);
-		assertThat(((Optional<TestBean>) accessor.getPropertyValue("object")).get()).isSameAs(tb);
+		assertThat(target.getObject()).containsSame(tb);
+		assertThat(((Optional<TestBean>) accessor.getPropertyValue("object"))).containsSame(tb);
 		assertThat(target.value.getName()).isEqualTo("x");
 		assertThat(target.getObject().get().getName()).isEqualTo("x");
 		assertThat(accessor.getPropertyValue("object.name")).isEqualTo("x");
 
 		accessor.setPropertyValue("object.name", "y");
 		assertThat(target.value).isSameAs(tb);
-		assertThat(target.getObject().get()).isSameAs(tb);
-		assertThat(((Optional<TestBean>) accessor.getPropertyValue("object")).get()).isSameAs(tb);
+		assertThat(target.getObject()).containsSame(tb);
+		assertThat(((Optional<TestBean>) accessor.getPropertyValue("object"))).containsSame(tb);
 		assertThat(target.value.getName()).isEqualTo("y");
 		assertThat(target.getObject().get().getName()).isEqualTo("y");
 		assertThat(accessor.getPropertyValue("object.name")).isEqualTo("y");
@@ -248,9 +294,9 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 	void incompletelyQuotedKeyLeadsToPropertyException() {
 		TestBean target = new TestBean();
 		BeanWrapper accessor = createAccessor(target);
-		assertThatExceptionOfType(NotWritablePropertyException.class).isThrownBy(() ->
-				accessor.setPropertyValue("[']", "foobar"))
-			.satisfies(ex -> assertThat(ex.getPossibleMatches()).isNull());
+		assertThatExceptionOfType(NotWritablePropertyException.class)
+				.isThrownBy(() -> accessor.setPropertyValue("[']", "foobar"))
+				.satisfies(ex -> assertThat(ex.getPossibleMatches()).isNull());
 	}
 
 
@@ -344,6 +390,45 @@ class BeanWrapperTests extends AbstractPropertyAccessorTests {
 
 		public Integer getObject() {
 			return (this.value != null ? this.value.length() : null);
+		}
+	}
+
+
+	public static class SetterOverload {
+
+		public String value;
+
+		public void setObject(Integer length) {
+			this.value = length + "i";
+		}
+
+		public void setObject(String object) {
+			this.value = object;
+		}
+
+		public String getObject() {
+			return this.value;
+		}
+
+		public void setValue(int length) {
+			this.value = length + "i";
+		}
+
+		public void setValue(Duration duration) {
+			this.value = duration.getSeconds() + "s";
+		}
+	}
+
+
+	@SuppressWarnings("try")
+	public static class ActiveResource implements AutoCloseable {
+
+		public ActiveResource getResource() {
+			return this;
+		}
+
+		@Override
+		public void close() {
 		}
 	}
 

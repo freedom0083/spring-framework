@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ package org.springframework.beans.factory.parsing;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.BeanReference;
-import org.springframework.lang.Nullable;
 
 /**
  * ComponentDefinition based on a standard BeanDefinition, exposing the given bean
@@ -56,7 +57,7 @@ public class BeanComponentDefinition extends BeanDefinitionHolder implements Com
 	 * @param beanName the name of the bean
 	 * @param aliases alias names for the bean, or {@code null} if none
 	 */
-	public BeanComponentDefinition(BeanDefinition beanDefinition, String beanName, @Nullable String[] aliases) {
+	public BeanComponentDefinition(BeanDefinition beanDefinition, String beanName, String @Nullable [] aliases) {
 		this(new BeanDefinitionHolder(beanDefinition, beanName, aliases));
 	}
 
@@ -73,14 +74,14 @@ public class BeanComponentDefinition extends BeanDefinitionHolder implements Com
 		PropertyValues propertyValues = beanDefinitionHolder.getBeanDefinition().getPropertyValues();
 		for (PropertyValue propertyValue : propertyValues.getPropertyValues()) {
 			Object value = propertyValue.getValue();
-			if (value instanceof BeanDefinitionHolder) {
-				innerBeans.add(((BeanDefinitionHolder) value).getBeanDefinition());
+			if (value instanceof BeanDefinitionHolder beanDefHolder) {
+				innerBeans.add(beanDefHolder.getBeanDefinition());
 			}
-			else if (value instanceof BeanDefinition) {
-				innerBeans.add((BeanDefinition) value);
+			else if (value instanceof BeanDefinition beanDef) {
+				innerBeans.add(beanDef);
 			}
-			else if (value instanceof BeanReference) {
-				references.add((BeanReference) value);
+			else if (value instanceof BeanReference beanRef) {
+				references.add(beanRef);
 			}
 		}
 		this.innerBeanDefinitions = innerBeans.toArray(new BeanDefinition[0]);
@@ -124,7 +125,7 @@ public class BeanComponentDefinition extends BeanDefinitionHolder implements Com
 	}
 
 	/**
-	 * This implementations expects the other object to be of type BeanComponentDefinition
+	 * This implementation expects the other object to be of type BeanComponentDefinition
 	 * as well, in addition to the superclass's equality requirements.
 	 */
 	@Override

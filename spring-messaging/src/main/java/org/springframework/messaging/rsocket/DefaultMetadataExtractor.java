@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.springframework.messaging.rsocket;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,13 +32,13 @@ import io.rsocket.metadata.RoutingMetadata;
 import io.rsocket.metadata.WellKnownMimeType;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.Decoder;
 import org.springframework.core.io.buffer.NettyDataBuffer;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 
 /**
@@ -73,7 +72,7 @@ public class DefaultMetadataExtractor implements MetadataExtractor, MetadataExtr
 	 * Constructor with list of decoders for de-serializing metadata entries.
 	 */
 	public DefaultMetadataExtractor(List<Decoder<?>> decoders) {
-		this.decoders = Collections.unmodifiableList(new ArrayList<>(decoders));
+		this.decoders = List.copyOf(decoders);
 	}
 
 
@@ -152,7 +151,7 @@ public class DefaultMetadataExtractor implements MetadataExtractor, MetadataExtr
 	private static class EntryExtractor<T> {
 
 		// We only need this to wrap ByteBufs
-		private final static NettyDataBufferFactory bufferFactory =
+		private static final NettyDataBufferFactory bufferFactory =
 				new NettyDataBufferFactory(ByteBufAllocator.DEFAULT);
 
 

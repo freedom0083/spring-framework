@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -75,13 +76,7 @@ final class DefaultPathContainer implements PathContainer {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof PathContainer)) {
-			return false;
-		}
-		return value().equals(((PathContainer) other).value());
+		return (this == other) || (other instanceof PathContainer that && value().equals(that.value()));
 	}
 
 	@Override
@@ -288,13 +283,7 @@ final class DefaultPathContainer implements PathContainer {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof PathSegment)) {
-				return false;
-			}
-			return value().equals(((PathSegment) other).value());
+			return (this == other || (other instanceof PathSegment that && this.value.equals(that.value())));
 		}
 
 		@Override

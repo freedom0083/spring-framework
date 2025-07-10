@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@ import javax.naming.NamingException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.jndi.JndiLocatorDelegate;
 import org.springframework.jndi.JndiTemplate;
-import org.springframework.lang.Nullable;
 
 /**
  * JNDI-based variant of {@link ConcurrentTaskScheduler}, performing a default lookup for
  * JSR-236's "java:comp/DefaultManagedScheduledExecutorService" in a Jakarta EE environment.
+ * Expected to be exposed as a bean, in particular as the default lookup happens in the
+ * standard {@link InitializingBean#afterPropertiesSet()} callback.
  *
  * <p>Note: This class is not strictly JSR-236 based; it can work with any regular
  * {@link java.util.concurrent.ScheduledExecutorService} that can be found in JNDI.
@@ -43,8 +44,13 @@ public class DefaultManagedTaskScheduler extends ConcurrentTaskScheduler impleme
 
 	private final JndiLocatorDelegate jndiLocator = new JndiLocatorDelegate();
 
-	@Nullable
 	private String jndiName = "java:comp/DefaultManagedScheduledExecutorService";
+
+
+	public DefaultManagedTaskScheduler() {
+		// Executor initialization happens in afterPropertiesSet
+		super(null);
+	}
 
 
 	/**
@@ -87,11 +93,9 @@ public class DefaultManagedTaskScheduler extends ConcurrentTaskScheduler impleme
 
 	@Override
 	public void afterPropertiesSet() throws NamingException {
-		if (this.jndiName != null) {
-			ScheduledExecutorService executor = this.jndiLocator.lookup(this.jndiName, ScheduledExecutorService.class);
-			setConcurrentExecutor(executor);
-			setScheduledExecutor(executor);
-		}
+		ScheduledExecutorService executor = this.jndiLocator.lookup(this.jndiName, ScheduledExecutorService.class);
+		setConcurrentExecutor(executor);
+		setScheduledExecutor(executor);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,12 +28,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.ContextLoader;
 
 /**
  * {@code @SpringJUnitConfig} is a <em>composed annotation</em> that combines
  * {@link ExtendWith @ExtendWith(SpringExtension.class)} from JUnit Jupiter with
  * {@link ContextConfiguration @ContextConfiguration} from the <em>Spring TestContext
  * Framework</em>.
+ *
+ * <p>This annotation will be inherited from an enclosing test class by default. See
+ * {@link org.springframework.test.context.NestedTestConfiguration @NestedTestConfiguration}
+ * for details.
  *
  * @author Sam Brannen
  * @since 5.0
@@ -85,6 +90,13 @@ public @interface SpringJUnitConfig {
 	 */
 	@AliasFor(annotation = ContextConfiguration.class)
 	boolean inheritInitializers() default true;
+
+	/**
+	 * Alias for {@link ContextConfiguration#loader}.
+	 * @since 6.1
+	 */
+	@AliasFor(annotation = ContextConfiguration.class)
+	Class<? extends ContextLoader> loader() default ContextLoader.class;
 
 	/**
 	 * Alias for {@link ContextConfiguration#name}.

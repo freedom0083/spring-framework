@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ public class AspectMetadata implements Serializable {
 
 	/**
 	 * Spring AOP pointcut corresponding to the per clause of the
-	 * aspect. Will be the Pointcut.TRUE canonical instance in the
+	 * aspect. Will be the {@code Pointcut.TRUE} canonical instance in the
 	 * case of a singleton, otherwise an AspectJExpressionPointcut.
 	 */
 	// TODO 解析切入点表达式用的, 但是真正的解析工作为委托给'org.aspectj.weaver.tools.PointcutExpression'来解析的
@@ -145,11 +145,17 @@ public class AspectMetadata implements Serializable {
 	 * Extract contents from String of form {@code pertarget(contents)}.
 	 */
 	private String findPerClause(Class<?> aspectClass) {
-		String str = aspectClass.getAnnotation(Aspect.class).value();
-		int beginIndex = str.indexOf('(') + 1;
-		int endIndex = str.length() - 1;
+		Aspect ann = aspectClass.getAnnotation(Aspect.class);
+		if (ann == null) {
+			return "";
+		}
+		String value = ann.value();
+		int beginIndex = value.indexOf('(');
+		if (beginIndex < 0) {
+			return "";
+		}
 		// TODO 取出@Aspect注解中的切点表达式, 比如: @Aspect(pertarget(切点表达式)), 执行后得到的会是pertarget(切点表达式)
-		return str.substring(beginIndex, endIndex);
+		return value.substring(beginIndex + 1, value.length() - 1);
 	}
 
 
@@ -176,7 +182,7 @@ public class AspectMetadata implements Serializable {
 
 	/**
 	 * Return a Spring pointcut expression for a singleton aspect.
-	 * (e.g. {@code Pointcut.TRUE} if it's a singleton).
+	 * (for example, {@code Pointcut.TRUE} if it's a singleton).
 	 */
 	public Pointcut getPerClausePointcut() {
 		return this.perClausePointcut;

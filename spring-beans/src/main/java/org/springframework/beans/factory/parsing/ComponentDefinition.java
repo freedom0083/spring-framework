@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.config.BeanReference;
  * it is now possible for a single logical configuration entity, in this case an XML tag, to
  * create multiple {@link BeanDefinition BeanDefinitions} and {@link BeanReference RuntimeBeanReferences}
  * in order to provide more succinct configuration and greater convenience to end users. As such, it can
- * no longer be assumed that each configuration entity (e.g. XML tag) maps to one {@link BeanDefinition}.
+ * no longer be assumed that each configuration entity (for example, XML tag) maps to one {@link BeanDefinition}.
  * For tool vendors and other users who wish to present visualization or support for configuring Spring
  * applications it is important that there is some mechanism in place to tie the {@link BeanDefinition BeanDefinitions}
  * in the {@link org.springframework.beans.factory.BeanFactory} back to the configuration data in a way
@@ -50,13 +50,13 @@ import org.springframework.beans.factory.config.BeanReference;
  * {@link #getBeanReferences}, tools may wish to inspect all {@link BeanDefinition BeanDefinitions} to gather
  * the full set of {@link BeanReference BeanReferences}. Implementations are required to provide
  * all {@link BeanReference BeanReferences} that are required to validate the configuration of the
- * overall logical entity as well as those required to provide full user visualisation of the configuration.
+ * overall logical entity as well as those required to provide full user visualization of the configuration.
  * It is expected that certain {@link BeanReference BeanReferences} will not be important to
  * validation or to the user view of the configuration and as such these may be omitted. A tool may wish to
  * display any additional {@link BeanReference BeanReferences} sourced through the supplied
  * {@link BeanDefinition BeanDefinitions} but this is not considered to be a typical case.
  *
- * <p>Tools can determine the important of contained {@link BeanDefinition BeanDefinitions} by checking the
+ * <p>Tools can determine the importance of contained {@link BeanDefinition BeanDefinitions} by checking the
  * {@link BeanDefinition#getRole role identifier}. The role is essentially a hint to the tool as to how
  * important the configuration provider believes a {@link BeanDefinition} is to the end user. It is expected
  * that tools will <strong>not</strong> display all {@link BeanDefinition BeanDefinitions} for a given

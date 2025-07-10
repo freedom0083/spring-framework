@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 
@@ -38,6 +39,7 @@ import io.undertow.util.HeaderMap;
 import io.undertow.util.HttpString;
 import io.undertow.util.Methods;
 import io.undertow.util.StringReadChannelListener;
+import org.jspecify.annotations.Nullable;
 import org.xnio.ChannelListener;
 import org.xnio.ChannelListeners;
 import org.xnio.IoUtils;
@@ -51,11 +53,9 @@ import org.xnio.channels.StreamSourceChannel;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.util.concurrent.SettableListenableFuture;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -67,10 +67,11 @@ import org.springframework.web.socket.sockjs.frame.SockJsFrame;
 
 /**
  * An XHR transport based on Undertow's {@link io.undertow.client.UndertowClient}.
- * Requires Undertow 1.3 or 1.4, including XNIO, as of Spring Framework 5.0.
  *
- * <p>When used for testing purposes (e.g. load testing) or for specific use cases
- * (like HTTPS configuration), a custom OptionMap should be provided:
+ * <p>Requires Undertow 1.3 or 1.4, including XNIO.
+ *
+ * <p>When used for testing purposes (for example, load testing) or for specific use cases
+ * (like HTTPS configuration), a custom {@link OptionMap} should be provided:
  *
  * <pre class="code">
  * OptionMap optionMap = OptionMap.builder()
@@ -135,14 +136,14 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 	@Override
 	protected void connectInternal(TransportRequest request, WebSocketHandler handler, URI receiveUrl,
 			HttpHeaders handshakeHeaders, XhrClientSockJsSession session,
-			SettableListenableFuture<WebSocketSession> connectFuture) {
+			CompletableFuture<WebSocketSession> connectFuture) {
 
 		executeReceiveRequest(request, receiveUrl, handshakeHeaders, session, connectFuture);
 	}
 
 	private void executeReceiveRequest(final TransportRequest transportRequest,
 			final URI url, final HttpHeaders headers, final XhrClientSockJsSession session,
-			final SettableListenableFuture<WebSocketSession> connectFuture) {
+			final CompletableFuture<WebSocketSession> connectFuture) {
 
 		if (logger.isTraceEnabled()) {
 			logger.trace("Starting XHR receive request for " + url);
@@ -180,12 +181,12 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 
 	private ClientCallback<ClientExchange> createReceiveCallback(final TransportRequest transportRequest,
 			final URI url, final HttpHeaders headers, final XhrClientSockJsSession sockJsSession,
-			final SettableListenableFuture<WebSocketSession> connectFuture) {
+			final CompletableFuture<WebSocketSession> connectFuture) {
 
 		return new ClientCallback<>() {
 			@Override
 			public void completed(final ClientExchange exchange) {
-				exchange.setResponseListener(new ClientCallback<ClientExchange>() {
+				exchange.setResponseListener(new ClientCallback<>() {
 					@Override
 					public void completed(ClientExchange result) {
 						ClientResponse response = result.getResponse();
@@ -231,7 +232,7 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 			}
 
 			private void onFailure(Throwable failure) {
-				if (connectFuture.setException(failure)) {
+				if (connectFuture.completeExceptionally(failure)) {
 					return;
 				}
 				if (sockJsSession.isDisconnected()) {
@@ -312,7 +313,7 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 		return new ClientCallback<>() {
 			@Override
 			public void completed(ClientExchange result) {
-				result.setResponseListener(new ClientCallback<ClientExchange>() {
+				result.setResponseListener(new ClientCallback<>() {
 					@Override
 					public void completed(final ClientExchange result) {
 						responses.add(result.getResponse());
@@ -374,13 +375,13 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 
 		private final XhrClientSockJsSession session;
 
-		private final SettableListenableFuture<WebSocketSession> connectFuture;
+		private final CompletableFuture<WebSocketSession> connectFuture;
 
 		private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
 		public SockJsResponseListener(TransportRequest request, ClientConnection connection, URI url,
 				HttpHeaders headers, XhrClientSockJsSession sockJsSession,
-				SettableListenableFuture<WebSocketSession> connectFuture) {
+				CompletableFuture<WebSocketSession> connectFuture) {
 
 			this.request = request;
 			this.connection = connection;
@@ -462,7 +463,7 @@ public class UndertowXhrTransport extends AbstractXhrTransport {
 
 		public void onFailure(Throwable failure) {
 			IoUtils.safeClose(this.connection);
-			if (this.connectFuture.setException(failure)) {
+			if (this.connectFuture.completeExceptionally(failure)) {
 				return;
 			}
 			if (this.session.isDisconnected()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,13 +28,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.Lifecycle;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.context.ServletContextAware;
@@ -124,8 +124,8 @@ public class WebSocketHttpRequestHandler implements HttpRequestHandler, Lifecycl
 
 	@Override
 	public void setServletContext(ServletContext servletContext) {
-		if (this.handshakeHandler instanceof ServletContextAware) {
-			((ServletContextAware) this.handshakeHandler).setServletContext(servletContext);
+		if (this.handshakeHandler instanceof ServletContextAware servletContextAware) {
+			servletContextAware.setServletContext(servletContext);
 		}
 	}
 
@@ -134,8 +134,8 @@ public class WebSocketHttpRequestHandler implements HttpRequestHandler, Lifecycl
 	public void start() {
 		if (!isRunning()) {
 			this.running = true;
-			if (this.handshakeHandler instanceof Lifecycle) {
-				((Lifecycle) this.handshakeHandler).start();
+			if (this.handshakeHandler instanceof Lifecycle lifecycle) {
+				lifecycle.start();
 			}
 		}
 	}
@@ -144,8 +144,8 @@ public class WebSocketHttpRequestHandler implements HttpRequestHandler, Lifecycl
 	public void stop() {
 		if (isRunning()) {
 			this.running = false;
-			if (this.handshakeHandler instanceof Lifecycle) {
-				((Lifecycle) this.handshakeHandler).stop();
+			if (this.handshakeHandler instanceof Lifecycle lifecycle) {
+				lifecycle.stop();
 			}
 		}
 	}
@@ -181,7 +181,8 @@ public class WebSocketHttpRequestHandler implements HttpRequestHandler, Lifecycl
 			failure = ex;
 		}
 		catch (Exception ex) {
-			failure = new HandshakeFailureException("Uncaught failure for request " + request.getURI(), ex);
+			failure = new HandshakeFailureException(
+					"Uncaught failure for request " + request.getURI() + " - " + ex.getMessage(), ex);
 		}
 		finally {
 			if (failure != null) {

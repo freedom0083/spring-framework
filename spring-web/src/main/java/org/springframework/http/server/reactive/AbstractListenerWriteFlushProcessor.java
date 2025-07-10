@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 import org.springframework.core.log.LogDelegateFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -40,6 +40,7 @@ import org.springframework.util.Assert;
  * @since 5.0
  * @param <T> the type of element signaled to the {@link Subscriber}
  */
+@SuppressWarnings("NullAway") // Dataflow analysis limitation
 public abstract class AbstractListenerWriteFlushProcessor<T> implements Processor<Publisher<? extends T>, Void> {
 
 	/**
@@ -55,13 +56,11 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 	private final AtomicReference<State> state = new AtomicReference<>(State.UNSUBSCRIBED);
 
-	@Nullable
-	private Subscription subscription;
+	private @Nullable Subscription subscription;
 
 	private volatile boolean sourceCompleted;
 
-	@Nullable
-	private volatile AbstractListenerWriteProcessor<?> currentWriteProcessor;
+	private volatile @Nullable AbstractListenerWriteProcessor<?> currentWriteProcessor;
 
 	private final WriteResultPublisher resultPublisher;
 
@@ -122,7 +121,7 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 	/**
 	 * Error signal from the upstream, write Publisher. This is also used by
-	 * sub-classes to delegate error notifications from the container.
+	 * subclasses to delegate error notifications from the container.
 	 */
 	@Override
 	public final void onError(Throwable ex) {
@@ -135,7 +134,7 @@ public abstract class AbstractListenerWriteFlushProcessor<T> implements Processo
 
 	/**
 	 * Completion signal from the upstream, write Publisher. This is also used
-	 * by sub-classes to delegate completion notifications from the container.
+	 * by subclasses to delegate completion notifications from the container.
 	 */
 	@Override
 	public final void onComplete() {

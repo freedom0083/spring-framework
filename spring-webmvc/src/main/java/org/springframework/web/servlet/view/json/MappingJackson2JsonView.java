@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.servlet.View;
@@ -38,11 +38,9 @@ import org.springframework.web.servlet.View;
  *
  * <p>By default, the entire contents of the model map (with the exception of framework-specific classes)
  * will be encoded as JSON. If the model contains only one key, you can have it extracted encoded as JSON
- * alone via  {@link #setExtractValueFromSingleKeyModel}.
+ * alone via {@link #setExtractValueFromSingleKeyModel}.
  *
  * <p>The default constructor uses the default configuration provided by {@link Jackson2ObjectMapperBuilder}.
- *
- * <p>Compatible with Jackson 2.9 to 2.12, as of Spring 5.3.
  *
  * @author Jeremy Grelle
  * @author Arjen Poutsma
@@ -50,7 +48,10 @@ import org.springframework.web.servlet.View;
  * @author Juergen Hoeller
  * @author Sebastien Deleuze
  * @since 3.1.2
+ * @deprecated since 7.0 in favor of {@link JacksonJsonView}
  */
+@Deprecated(since = "7.0", forRemoval = true)
+@SuppressWarnings("removal")
 public class MappingJackson2JsonView extends AbstractJackson2View {
 
 	/**
@@ -59,11 +60,9 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 	 */
 	public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
-	@Nullable
-	private String jsonPrefix;
+	private @Nullable String jsonPrefix;
 
-	@Nullable
-	private Set<String> modelKeys;
+	private @Nullable Set<String> modelKeys;
 
 	private boolean extractValueFromSingleKeyModel = false;
 
@@ -97,7 +96,7 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 	}
 
 	/**
-	 * Indicates whether the JSON output by this view should be prefixed with <tt>")]}', "</tt>.
+	 * Indicates whether the JSON output by this view should be prefixed with <code>")]}', "</code>.
 	 * Default is {@code false}.
 	 * <p>Prefixing the JSON string in this manner is used to help prevent JSON Hijacking.
 	 * The prefix renders the string syntactically invalid as a script so that it cannot be hijacked.
@@ -108,9 +107,6 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 		this.jsonPrefix = (prefixJson ? ")]}', " : null);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void setModelKey(String modelKey) {
 		this.modelKeys = Collections.singleton(modelKey);
@@ -127,8 +123,7 @@ public class MappingJackson2JsonView extends AbstractJackson2View {
 	/**
 	 * Return the attributes in the model that should be rendered by this view.
 	 */
-	@Nullable
-	public final Set<String> getModelKeys() {
+	public final @Nullable Set<String> getModelKeys() {
 		return this.modelKeys;
 	}
 

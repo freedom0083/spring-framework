@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.web.util.pattern;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.pattern.PathPattern.MatchingContext;
@@ -25,6 +26,7 @@ import org.springframework.web.util.pattern.PathPattern.MatchingContext;
  * Common supertype for the Ast nodes created to represent a path pattern.
  *
  * @author Andy Clement
+ * @author Brian Clozel
  * @since 5.0
  */
 abstract class PathElement {
@@ -43,12 +45,10 @@ abstract class PathElement {
 	protected final char separator;
 
 	// The next path element in the chain
-	@Nullable
-	protected PathElement next;
+	protected @Nullable PathElement next;
 
 	// The previous path element in the chain
-	@Nullable
-	protected PathElement prev;
+	protected @Nullable PathElement prev;
 
 
 	/**
@@ -97,6 +97,14 @@ abstract class PathElement {
 	 */
 	public int getScore() {
 		return 0;
+	}
+
+	/**
+	 * Return whether this PathElement can be strictly {@link String#compareTo(String) compared}
+	 * against another element for matching.
+	 */
+	public boolean isLiteral() {
+		return false;
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,12 @@
 package org.springframework.orm.jpa.persistenceunit;
 
 import jakarta.persistence.spi.ClassTransformer;
+import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.DecoratingClassLoader;
 import org.springframework.instrument.classloading.LoadTimeWeaver;
 import org.springframework.instrument.classloading.SimpleThrowawayClassLoader;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -38,11 +39,9 @@ import org.springframework.util.Assert;
  */
 class SpringPersistenceUnitInfo extends MutablePersistenceUnitInfo {
 
-	@Nullable
-	private LoadTimeWeaver loadTimeWeaver;
+	private @Nullable LoadTimeWeaver loadTimeWeaver;
 
-	@Nullable
-	private ClassLoader classLoader;
+	private @Nullable ClassLoader classLoader;
 
 
 	/**
@@ -69,8 +68,7 @@ class SpringPersistenceUnitInfo extends MutablePersistenceUnitInfo {
 	 * if specified.
 	 */
 	@Override
-	@Nullable
-	public ClassLoader getClassLoader() {
+	public @Nullable ClassLoader getClassLoader() {
 		return this.classLoader;
 	}
 
@@ -79,10 +77,12 @@ class SpringPersistenceUnitInfo extends MutablePersistenceUnitInfo {
 	 */
 	@Override
 	public void addTransformer(ClassTransformer classTransformer) {
-		if (this.loadTimeWeaver == null) {
-			throw new IllegalStateException("Cannot apply class transformer without LoadTimeWeaver specified");
+		if (this.loadTimeWeaver != null) {
+			this.loadTimeWeaver.addTransformer(new ClassFileTransformerAdapter(classTransformer));
 		}
-		this.loadTimeWeaver.addTransformer(new ClassFileTransformerAdapter(classTransformer));
+		else {
+			LogFactory.getLog(getClass()).info("No LoadTimeWeaver setup: ignoring JPA class transformer");
+		}
 	}
 
 	/**
@@ -93,8 +93,8 @@ class SpringPersistenceUnitInfo extends MutablePersistenceUnitInfo {
 		ClassLoader tcl = (this.loadTimeWeaver != null ? this.loadTimeWeaver.getThrowawayClassLoader() :
 				new SimpleThrowawayClassLoader(this.classLoader));
 		String packageToExclude = getPersistenceProviderPackageName();
-		if (packageToExclude != null && tcl instanceof DecoratingClassLoader) {
-			((DecoratingClassLoader) tcl).excludePackage(packageToExclude);
+		if (packageToExclude != null && tcl instanceof DecoratingClassLoader dcl) {
+			dcl.excludePackage(packageToExclude);
 		}
 		return tcl;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,11 @@
 
 package org.springframework.expression.spel;
 
+import java.util.Locale;
+
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.SpringProperties;
-import org.springframework.lang.Nullable;
 
 /**
  * Configuration object for the SpEL expression parser.
@@ -25,10 +28,17 @@ import org.springframework.lang.Nullable;
  * @author Juergen Hoeller
  * @author Phillip Webb
  * @author Andy Clement
+ * @author Sam Brannen
  * @since 3.0
  * @see org.springframework.expression.spel.standard.SpelExpressionParser#SpelExpressionParser(SpelParserConfiguration)
  */
 public class SpelParserConfiguration {
+
+	/**
+	 * Default maximum length permitted for a SpEL expression: {@value}.
+	 * @since 5.2.24
+	 */
+	public static final int DEFAULT_MAX_EXPRESSION_LENGTH = 10_000;
 
 	/** System property to configure the default compiler mode for SpEL expression parsers: {@value}. */
 	public static final String SPRING_EXPRESSION_COMPILER_MODE_PROPERTY_NAME = "spring.expression.compiler.mode";
@@ -39,20 +49,21 @@ public class SpelParserConfiguration {
 	static {
 		String compilerMode = SpringProperties.getProperty(SPRING_EXPRESSION_COMPILER_MODE_PROPERTY_NAME);
 		defaultCompilerMode = (compilerMode != null ?
-				SpelCompilerMode.valueOf(compilerMode.toUpperCase()) : SpelCompilerMode.OFF);
+				SpelCompilerMode.valueOf(compilerMode.toUpperCase(Locale.ROOT)) : SpelCompilerMode.OFF);
 	}
 
 
 	private final SpelCompilerMode compilerMode;
 
-	@Nullable
-	private final ClassLoader compilerClassLoader;
+	private final @Nullable ClassLoader compilerClassLoader;
 
 	private final boolean autoGrowNullReferences;
 
 	private final boolean autoGrowCollections;
 
 	private final int maximumAutoGrowSize;
+
+	private final int maximumExpressionLength;
 
 
 	/**
@@ -102,11 +113,30 @@ public class SpelParserConfiguration {
 	public SpelParserConfiguration(@Nullable SpelCompilerMode compilerMode, @Nullable ClassLoader compilerClassLoader,
 			boolean autoGrowNullReferences, boolean autoGrowCollections, int maximumAutoGrowSize) {
 
+		this(compilerMode, compilerClassLoader, autoGrowNullReferences, autoGrowCollections,
+				maximumAutoGrowSize, DEFAULT_MAX_EXPRESSION_LENGTH);
+	}
+
+	/**
+	 * Create a new {@code SpelParserConfiguration} instance.
+	 * @param compilerMode the compiler mode that parsers using this configuration object should use
+	 * @param compilerClassLoader the ClassLoader to use as the basis for expression compilation
+	 * @param autoGrowNullReferences if null references should automatically grow
+	 * @param autoGrowCollections if collections should automatically grow
+	 * @param maximumAutoGrowSize the maximum size that a collection can auto grow
+	 * @param maximumExpressionLength the maximum length of a SpEL expression;
+	 * must be a positive number
+	 * @since 5.2.25
+	 */
+	public SpelParserConfiguration(@Nullable SpelCompilerMode compilerMode, @Nullable ClassLoader compilerClassLoader,
+			boolean autoGrowNullReferences, boolean autoGrowCollections, int maximumAutoGrowSize, int maximumExpressionLength) {
+
 		this.compilerMode = (compilerMode != null ? compilerMode : defaultCompilerMode);
 		this.compilerClassLoader = compilerClassLoader;
 		this.autoGrowNullReferences = autoGrowNullReferences;
 		this.autoGrowCollections = autoGrowCollections;
 		this.maximumAutoGrowSize = maximumAutoGrowSize;
+		this.maximumExpressionLength = maximumExpressionLength;
 	}
 
 
@@ -120,8 +150,7 @@ public class SpelParserConfiguration {
 	/**
 	 * Return the ClassLoader to use as the basis for expression compilation.
 	 */
-	@Nullable
-	public ClassLoader getCompilerClassLoader() {
+	public @Nullable ClassLoader getCompilerClassLoader() {
 		return this.compilerClassLoader;
 	}
 
@@ -144,6 +173,14 @@ public class SpelParserConfiguration {
 	 */
 	public int getMaximumAutoGrowSize() {
 		return this.maximumAutoGrowSize;
+	}
+
+	/**
+	 * Return the maximum number of characters that a SpEL expression can contain.
+	 * @since 5.2.25
+	 */
+	public int getMaximumExpressionLength() {
+		return this.maximumExpressionLength;
 	}
 
 }

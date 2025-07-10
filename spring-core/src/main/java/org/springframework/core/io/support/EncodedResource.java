@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.InputStreamSource;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -37,6 +38,7 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Juergen Hoeller
  * @author Sam Brannen
+ * @author Arjen Poutsma
  * @since 1.2.6
  * @see Resource#getInputStream()
  * @see java.io.Reader
@@ -46,11 +48,9 @@ public class EncodedResource implements InputStreamSource {
 
 	private final Resource resource;
 
-	@Nullable
-	private final String encoding;
+	private final @Nullable String encoding;
 
-	@Nullable
-	private final Charset charset;
+	private final @Nullable Charset charset;
 
 
 	/**
@@ -102,8 +102,7 @@ public class EncodedResource implements InputStreamSource {
 	 * Return the encoding to use for reading from the {@linkplain #getResource() resource},
 	 * or {@code null} if none specified.
 	 */
-	@Nullable
-	public final String getEncoding() {
+	public final @Nullable String getEncoding() {
 		return this.encoding;
 	}
 
@@ -111,8 +110,7 @@ public class EncodedResource implements InputStreamSource {
 	 * Return the {@code Charset} to use for reading from the {@linkplain #getResource() resource},
 	 * or {@code null} if none specified.
 	 */
-	@Nullable
-	public final Charset getCharset() {
+	public final @Nullable Charset getCharset() {
 		return this.charset;
 	}
 
@@ -159,18 +157,34 @@ public class EncodedResource implements InputStreamSource {
 		return this.resource.getInputStream();
 	}
 
+	/**
+	 * Returns the contents of the specified resource as a string, using the specified
+	 * {@link #getCharset() Charset} or {@linkplain #getEncoding() encoding} (if any).
+	 * @throws IOException if opening the resource failed
+	 * @since 6.0.5
+	 * @see Resource#getContentAsString(Charset)
+	 */
+	public String getContentAsString() throws IOException {
+		Charset charset;
+		if (this.charset != null) {
+			charset = this.charset;
+		}
+		else if (this.encoding != null) {
+			charset = Charset.forName(this.encoding);
+		}
+		else {
+			charset = Charset.defaultCharset();
+		}
+		return this.resource.getContentAsString(charset);
+	}
+
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (!(other instanceof EncodedResource otherResource)) {
-			return false;
-		}
-		return (this.resource.equals(otherResource.resource) &&
-				ObjectUtils.nullSafeEquals(this.charset, otherResource.charset) &&
-				ObjectUtils.nullSafeEquals(this.encoding, otherResource.encoding));
+		return (this == other || (other instanceof EncodedResource that &&
+				this.resource.equals(that.resource) &&
+				ObjectUtils.nullSafeEquals(this.charset, that.charset) &&
+				ObjectUtils.nullSafeEquals(this.encoding, that.encoding)));
 	}
 
 	@Override

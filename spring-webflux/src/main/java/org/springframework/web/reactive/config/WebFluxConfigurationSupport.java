@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package org.springframework.web.reactive.config;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
@@ -38,17 +39,19 @@ import org.springframework.format.FormatterRegistry;
 import org.springframework.format.support.DefaultFormattingConversionService;
 import org.springframework.format.support.FormattingConversionService;
 import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.validation.Errors;
 import org.springframework.validation.MessageCodesResolver;
 import org.springframework.validation.Validator;
+import org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.support.ConfigurableWebBindingInitializer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.reactive.DispatcherHandler;
 import org.springframework.web.reactive.HandlerMapping;
+import org.springframework.web.reactive.accept.ApiVersionStrategy;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolver;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
 import org.springframework.web.reactive.function.server.support.HandlerFunctionAdapter;
@@ -85,17 +88,23 @@ import org.springframework.web.server.i18n.LocaleContextResolver;
  */
 public class WebFluxConfigurationSupport implements ApplicationContextAware {
 
-	@Nullable
-	private Map<String, CorsConfiguration> corsConfigurations;
+	private static final boolean jakartaValidatorPresent =
+			ClassUtils.isPresent("jakarta.validation.Validator", WebFluxConfigurationSupport.class.getClassLoader());
 
-	@Nullable
-	private PathMatchConfigurer pathMatchConfigurer;
 
-	@Nullable
-	private ViewResolverRegistry viewResolverRegistry;
+	private @Nullable Map<String, CorsConfiguration> corsConfigurations;
 
-	@Nullable
-	private ApplicationContext applicationContext;
+	private @Nullable PathMatchConfigurer pathMatchConfigurer;
+
+	private @Nullable BlockingExecutionConfigurer blockingExecutionConfigurer;
+
+	private @Nullable ApiVersionStrategy apiVersionStrategy;
+
+	private @Nullable List<ErrorResponse.Interceptor> errorResponseInterceptors;
+
+	private @Nullable ViewResolverRegistry viewResolverRegistry;
+
+	private @Nullable ApplicationContext applicationContext;
 
 
 	@Override
@@ -104,12 +113,11 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 		if (applicationContext != null) {
 				Assert.state(!applicationContext.containsBean("mvcContentNegotiationManager"),
 						"The Java/XML config for Spring MVC and Spring WebFlux cannot both be enabled, " +
-						"e.g. via @EnableWebMvc and @EnableWebFlux, in the same application.");
+						"for example, via @EnableWebMvc and @EnableWebFlux, in the same application.");
 		}
 	}
 
-	@Nullable
-	public final ApplicationContext getApplicationContext() {
+	public final @Nullable ApplicationContext getApplicationContext() {
 		return this.applicationContext;
 	}
 
@@ -127,13 +135,17 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 
 	@Bean
 	public RequestMappingHandlerMapping requestMappingHandlerMapping(
-			@Qualifier("webFluxContentTypeResolver") RequestedContentTypeResolver contentTypeResolver) {
+			@Qualifier("webFluxContentTypeResolver") RequestedContentTypeResolver contentTypeResolver,
+			@Qualifier("mvcApiVersionStrategy") @Nullable ApiVersionStrategy apiVersionStrategy) {
 
 		RequestMappingHandlerMapping mapping = createRequestMappingHandlerMapping();
 		mapping.setOrder(0);
 		mapping.setContentTypeResolver(contentTypeResolver);
+		mapping.setApiVersionStrategy(apiVersionStrategy);
+
 		PathMatchConfigurer configurer = getPathMatchConfigurer();
 		configureAbstractHandlerMapping(mapping, configurer);
+
 		Map<String, Predicate<Class<?>>> pathPrefixes = configurer.getPathPrefixes();
 		if (pathPrefixes != null) {
 			mapping.setPathPrefixes(pathPrefixes);
@@ -144,10 +156,6 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 
 	private void configureAbstractHandlerMapping(AbstractHandlerMapping mapping, PathMatchConfigurer configurer) {
 		mapping.setCorsConfigurations(getCorsConfigurations());
-		Boolean useTrailingSlashMatch = configurer.isUseTrailingSlashMatch();
-		if (useTrailingSlashMatch != null) {
-			mapping.setUseTrailingSlashMatch(useTrailingSlashMatch);
-		}
 		Boolean useCaseSensitiveMatch = configurer.isUseCaseSensitiveMatch();
 		if (useCaseSensitiveMatch != null) {
 			mapping.setUseCaseSensitiveMatch(useCaseSensitiveMatch);
@@ -155,7 +163,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	/**
-	 * Override to plug a sub-class of {@link RequestMappingHandlerMapping}.
+	 * Override to plug a subclass of {@link RequestMappingHandlerMapping}.
 	 */
 	protected RequestMappingHandlerMapping createRequestMappingHandlerMapping() {
 		return new RequestMappingHandlerMapping();
@@ -175,8 +183,33 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	/**
+	 * Return the central strategy to manage API versioning with, or {@code null}
+	 * if the application does not use versioning.
+	 * @since 7.0
+	 */
+	@Bean
+	public @Nullable ApiVersionStrategy mvcApiVersionStrategy() {
+		if (this.apiVersionStrategy == null) {
+			ApiVersionConfigurer configurer = new ApiVersionConfigurer();
+			configureApiVersioning(configurer);
+			ApiVersionStrategy strategy = configurer.getApiVersionStrategy();
+			if (strategy != null) {
+				this.apiVersionStrategy = strategy;
+			}
+		}
+		return this.apiVersionStrategy;
+	}
+
+	/**
+	 * Override this method to configure API versioning.
+	 * @since 7.0
+	 */
+	protected void configureApiVersioning(ApiVersionConfigurer configurer) {
+	}
+
+	/**
 	 * Callback for building the global CORS configuration. This method is final.
-	 * Use {@link #addCorsMappings(CorsRegistry)} to customize the CORS conifg.
+	 * Use {@link #addCorsMappings(CorsRegistry)} to customize the CORS config.
 	 */
 	protected final Map<String, CorsConfiguration> getCorsConfigurations() {
 		if (this.corsConfigurations == null) {
@@ -188,7 +221,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	/**
-	 * Override this method to configure cross origin requests processing.
+	 * Override this method to configure cross-origin requests processing.
 	 * @see CorsRegistry
 	 */
 	protected void addCorsMappings(CorsRegistry registry) {
@@ -213,16 +246,19 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	@Bean
-	public RouterFunctionMapping routerFunctionMapping(ServerCodecConfigurer serverCodecConfigurer) {
+	public RouterFunctionMapping routerFunctionMapping(
+			ServerCodecConfigurer serverCodecConfigurer, @Nullable ApiVersionStrategy apiVersionStrategy) {
+
 		RouterFunctionMapping mapping = createRouterFunctionMapping();
 		mapping.setOrder(-1);  // go before RequestMappingHandlerMapping
 		mapping.setMessageReaders(serverCodecConfigurer.getReaders());
+		mapping.setApiVersionStrategy(apiVersionStrategy);
 		configureAbstractHandlerMapping(mapping, getPathMatchConfigurer());
 		return mapping;
 	}
 
 	/**
-	 * Override to plug a sub-class of {@link RouterFunctionMapping}.
+	 * Override to plug a subclass of {@link RouterFunctionMapping}.
 	 */
 	protected RouterFunctionMapping createRouterFunctionMapping() {
 		return new RouterFunctionMapping();
@@ -270,12 +306,22 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 			@Qualifier("webFluxAdapterRegistry") ReactiveAdapterRegistry reactiveAdapterRegistry,
 			ServerCodecConfigurer serverCodecConfigurer,
 			@Qualifier("webFluxConversionService") FormattingConversionService conversionService,
+			@Qualifier("webFluxContentTypeResolver") RequestedContentTypeResolver contentTypeResolver,
 			@Qualifier("webFluxValidator") Validator validator) {
 
 		RequestMappingHandlerAdapter adapter = createRequestMappingHandlerAdapter();
 		adapter.setMessageReaders(serverCodecConfigurer.getReaders());
 		adapter.setWebBindingInitializer(getConfigurableWebBindingInitializer(conversionService, validator));
 		adapter.setReactiveAdapterRegistry(reactiveAdapterRegistry);
+		adapter.setContentTypeResolver(contentTypeResolver);
+
+		BlockingExecutionConfigurer executorConfigurer = getBlockingExecutionConfigurer();
+		if (executorConfigurer.getExecutor() != null) {
+			adapter.setBlockingExecutor(executorConfigurer.getExecutor());
+		}
+		if (executorConfigurer.getBlockingControllerMethodPredicate() != null) {
+			adapter.setBlockingMethodPredicate(executorConfigurer.getBlockingControllerMethodPredicate());
+		}
 
 		ArgumentResolverConfigurer configurer = new ArgumentResolverConfigurer();
 		configureArgumentResolvers(configurer);
@@ -285,7 +331,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	/**
-	 * Override to plug a sub-class of {@link RequestMappingHandlerAdapter}.
+	 * Override to plug a subclass of {@link RequestMappingHandlerAdapter}.
 	 */
 	protected RequestMappingHandlerAdapter createRequestMappingHandlerAdapter() {
 		return new RequestMappingHandlerAdapter();
@@ -310,7 +356,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	}
 
 	/**
-	 * Override to plug a sub-class of {@link LocaleContextResolver}.
+	 * Override to plug a subclass of {@link LocaleContextResolver}.
 	 */
 	protected LocaleContextResolver createLocaleContextResolver() {
 		return new AcceptHeaderLocaleContextResolver();
@@ -383,16 +429,13 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	public Validator webFluxValidator() {
 		Validator validator = getValidator();
 		if (validator == null) {
-			if (ClassUtils.isPresent("jakarta.validation.Validator", getClass().getClassLoader())) {
-				Class<?> clazz;
+			if (jakartaValidatorPresent) {
 				try {
-					String name = "org.springframework.validation.beanvalidation.OptionalValidatorFactoryBean";
-					clazz = ClassUtils.forName(name, getClass().getClassLoader());
+					validator = new OptionalValidatorFactoryBean();
 				}
-				catch (ClassNotFoundException | LinkageError ex) {
-					throw new BeanInitializationException("Failed to resolve default validator class", ex);
+				catch (Throwable ex) {
+					throw new BeanInitializationException("Failed to create default validator", ex);
 				}
-				validator = (Validator) BeanUtils.instantiateClass(clazz);
 			}
 			else {
 				validator = new NoOpValidator();
@@ -404,17 +447,36 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 	/**
 	 * Override this method to provide a custom {@link Validator}.
 	 */
-	@Nullable
-	protected Validator getValidator() {
+	protected @Nullable Validator getValidator() {
 		return null;
 	}
 
 	/**
 	 * Override this method to provide a custom {@link MessageCodesResolver}.
 	 */
-	@Nullable
-	protected MessageCodesResolver getMessageCodesResolver() {
+	protected @Nullable MessageCodesResolver getMessageCodesResolver() {
 		return null;
+	}
+
+	/**
+	 * Callback to build and cache the {@link BlockingExecutionConfigurer}.
+	 * This method is final, but subclasses can override
+	 * {@link #configureBlockingExecution}.
+	 * @since 6.1
+	 */
+	protected final BlockingExecutionConfigurer getBlockingExecutionConfigurer() {
+		if (this.blockingExecutionConfigurer == null) {
+			this.blockingExecutionConfigurer = new BlockingExecutionConfigurer();
+			configureBlockingExecution(this.blockingExecutionConfigurer);
+		}
+		return this.blockingExecutionConfigurer;
+	}
+
+	/**
+	 * Override this method to configure blocking execution.
+	 * @since 6.1
+	 */
+	protected void configureBlockingExecution(BlockingExecutionConfigurer configurer) {
 	}
 
 	@Bean
@@ -444,16 +506,15 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 			try {
 				service = new HandshakeWebSocketService();
 			}
-			catch (IllegalStateException ex) {
+			catch (Throwable ex) {
 				// Don't fail, test environment perhaps
-				service = new NoUpgradeStrategyWebSocketService();
+				service = new NoUpgradeStrategyWebSocketService(ex);
 			}
 		}
 		return service;
 	}
 
-	@Nullable
-	protected WebSocketService getWebSocketService() {
+	protected @Nullable WebSocketService getWebSocketService() {
 		return null;
 	}
 
@@ -464,7 +525,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 			@Qualifier("webFluxContentTypeResolver") RequestedContentTypeResolver contentTypeResolver) {
 
 		return new ResponseEntityResultHandler(serverCodecConfigurer.getWriters(),
-				contentTypeResolver, reactiveAdapterRegistry);
+				contentTypeResolver, reactiveAdapterRegistry, getErrorResponseInterceptors());
 	}
 
 	@Bean
@@ -474,7 +535,7 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 			@Qualifier("webFluxContentTypeResolver") RequestedContentTypeResolver contentTypeResolver) {
 
 		return new ResponseBodyResultHandler(serverCodecConfigurer.getWriters(),
-				contentTypeResolver, reactiveAdapterRegistry);
+				contentTypeResolver, reactiveAdapterRegistry, getErrorResponseInterceptors());
 	}
 
 	@Bean
@@ -498,6 +559,29 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 		handler.setMessageWriters(serverCodecConfigurer.getWriters());
 		handler.setViewResolvers(resolvers);
 		return handler;
+	}
+
+	/**
+	 * Provide access to the list of {@link ErrorResponse.Interceptor}'s to apply
+	 * in result handlers when rendering error responses.
+	 * <p>This method cannot be overridden; use {@link #configureErrorResponseInterceptors(List)} instead.
+	 * @since 6.2
+	 */
+	protected final List<ErrorResponse.Interceptor> getErrorResponseInterceptors() {
+		if (this.errorResponseInterceptors == null) {
+			this.errorResponseInterceptors = new ArrayList<>();
+			configureErrorResponseInterceptors(this.errorResponseInterceptors);
+		}
+		return this.errorResponseInterceptors;
+	}
+
+	/**
+	 * Override this method for control over the {@link ErrorResponse.Interceptor}'s
+	 * to apply in result handling when rendering error responses.
+	 * @param interceptors the list to add handlers to
+	 * @since 6.2
+	 */
+	protected void configureErrorResponseInterceptors(List<ErrorResponse.Interceptor> interceptors) {
 	}
 
 	/**
@@ -544,9 +628,15 @@ public class WebFluxConfigurationSupport implements ApplicationContextAware {
 
 	private static final class NoUpgradeStrategyWebSocketService implements WebSocketService {
 
+		private final Throwable ex;
+
+		public NoUpgradeStrategyWebSocketService(Throwable ex) {
+			this.ex = ex;
+		}
+
 		@Override
 		public Mono<Void> handleRequest(ServerWebExchange exchange, WebSocketHandler webSocketHandler) {
-			return Mono.error(new IllegalStateException("No suitable RequestUpgradeStrategy"));
+			return Mono.error(new IllegalStateException("No suitable RequestUpgradeStrategy", this.ex));
 		}
 	}
 

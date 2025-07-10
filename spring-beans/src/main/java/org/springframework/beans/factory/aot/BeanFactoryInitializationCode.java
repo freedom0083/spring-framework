@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.beans.factory.aot;
 
-import org.springframework.aot.generate.MethodGenerator;
+import org.springframework.aot.generate.GeneratedMethods;
 import org.springframework.aot.generate.MethodReference;
 
 /**
@@ -24,28 +24,34 @@ import org.springframework.aot.generate.MethodReference;
  * perform bean factory initialization.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  * @see BeanFactoryInitializationAotContribution
  */
 public interface BeanFactoryInitializationCode {
 
 	/**
-	 * The recommended variable name to used referring to the bean factory.
+	 * The recommended variable name to use to refer to the bean factory.
 	 */
 	String BEAN_FACTORY_VARIABLE = "beanFactory";
 
 	/**
-	 * Return a {@link MethodGenerator} that can be used to add more methods to
-	 * the Initializing code.
-	 * @return the method generator
+	 * Get the {@link GeneratedMethods} used by the initializing code.
+	 * @return the generated methods
 	 */
-	MethodGenerator getMethodGenerator();
+	GeneratedMethods getMethods();
 
 	/**
-	 * Add an initializer method call.
-	 * @param methodReference a reference to the initialize method to call. The
-	 * referenced method must have the same functional signature as
-	 * {@code Consumer<DefaultListableBeanFactory>}.
+	 * Add an initializer method call. An initializer can use a flexible signature,
+	 * using any of the following:
+	 * <ul>
+	 * <li>{@code DefaultListableBeanFactory}, or {@code ConfigurableListableBeanFactory}
+	 * to use the bean factory.</li>
+	 * <li>{@code ConfigurableEnvironment} or {@code Environment} to access the
+	 * environment.</li>
+	 * <li>{@code ResourceLoader} to load resources.</li>
+	 * </ul>
+	 * @param methodReference a reference to the initialize method to call.
 	 */
 	void addInitializer(MethodReference methodReference);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,26 +21,29 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.AbstractResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.server.ServerWebExchange;
 
 /**
  * Resolver that delegates to the chain, and if a resource is found, it then
- * attempts to find an encoded (e.g. gzip, brotli) variant that is acceptable
+ * attempts to find an encoded (for example, gzip, brotli) variant that is acceptable
  * based on the "Accept-Encoding" request header.
  *
  * <p>The list of supported {@link #setContentCodings(List) contentCodings} can
@@ -163,11 +166,10 @@ public class EncodedResourceResolver extends AbstractResourceResolver {
 		});
 	}
 
-	@Nullable
-	private String getAcceptEncoding(ServerWebExchange exchange) {
+	private @Nullable String getAcceptEncoding(ServerWebExchange exchange) {
 		ServerHttpRequest request = exchange.getRequest();
 		String header = request.getHeaders().getFirst(HttpHeaders.ACCEPT_ENCODING);
-		return (header != null ? header.toLowerCase() : null);
+		return (header != null ? header.toLowerCase(Locale.ROOT) : null);
 	}
 
 	private String getExtension(String coding) {
@@ -201,11 +203,6 @@ public class EncodedResourceResolver extends AbstractResourceResolver {
 			this.original = original;
 			this.coding = coding;
 			this.encoded = original.createRelative(original.getFilename() + extension);
-		}
-
-		@Override
-		public InputStream getInputStream() throws IOException {
-			return this.encoded.getInputStream();
 		}
 
 		@Override
@@ -244,6 +241,26 @@ public class EncodedResourceResolver extends AbstractResourceResolver {
 		}
 
 		@Override
+		public InputStream getInputStream() throws IOException {
+			return this.encoded.getInputStream();
+		}
+
+		@Override
+		public ReadableByteChannel readableChannel() throws IOException {
+			return this.encoded.readableChannel();
+		}
+
+		@Override
+		public byte[] getContentAsByteArray() throws IOException {
+			return this.encoded.getContentAsByteArray();
+		}
+
+		@Override
+		public String getContentAsString(Charset charset) throws IOException {
+			return this.encoded.getContentAsString(charset);
+		}
+
+		@Override
 		public long contentLength() throws IOException {
 			return this.encoded.contentLength();
 		}
@@ -259,8 +276,7 @@ public class EncodedResourceResolver extends AbstractResourceResolver {
 		}
 
 		@Override
-		@Nullable
-		public String getFilename() {
+		public @Nullable String getFilename() {
 			return this.original.getFilename();
 		}
 
@@ -272,8 +288,8 @@ public class EncodedResourceResolver extends AbstractResourceResolver {
 		@Override
 		public HttpHeaders getResponseHeaders() {
 			HttpHeaders headers;
-			if (this.original instanceof HttpResource) {
-				headers = ((HttpResource) this.original).getResponseHeaders();
+			if (this.original instanceof HttpResource httpResource) {
+				headers = httpResource.getResponseHeaders();
 			}
 			else {
 				headers = new HttpHeaders();

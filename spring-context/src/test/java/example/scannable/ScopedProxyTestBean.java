@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package example.scannable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import org.springframework.context.annotation.Scope;
-import org.springframework.scheduling.annotation.AsyncResult;
 
 /**
  * @author Mark Fisher
@@ -35,7 +35,7 @@ public class ScopedProxyTestBean implements FooService {
 
 	@Override
 	public Future<String> asyncFoo(int id) {
-		return new AsyncResult<>("bar");
+		return CompletableFuture.completedFuture("bar");
 	}
 
 	@Override

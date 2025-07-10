@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@
 package org.springframework.web;
 
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import jakarta.servlet.ServletException;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
-import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
  * specific request method.
  *
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 2.0
  */
 @SuppressWarnings("serial")
@@ -43,14 +44,13 @@ public class HttpRequestMethodNotSupportedException extends ServletException imp
 
 	private final String method;
 
-	@Nullable
-	private final String[] supportedMethods;
+	private final String @Nullable [] supportedMethods;
 
 	private final ProblemDetail body;
 
 
 	/**
-	 * Create a new HttpRequestMethodNotSupportedException.
+	 * Create a new {@code HttpRequestMethodNotSupportedException}.
 	 * @param method the unsupported HTTP request method
 	 */
 	public HttpRequestMethodNotSupportedException(String method) {
@@ -58,45 +58,26 @@ public class HttpRequestMethodNotSupportedException extends ServletException imp
 	}
 
 	/**
-	 * Create a new HttpRequestMethodNotSupportedException.
+	 * Create a new {@code HttpRequestMethodNotSupportedException}.
 	 * @param method the unsupported HTTP request method
-	 * @param msg the detail message
-	 */
-	public HttpRequestMethodNotSupportedException(String method, String msg) {
-		this(method, null, msg);
-	}
-
-	/**
-	 * Create a new HttpRequestMethodNotSupportedException.
-	 * @param method the unsupported HTTP request method
-	 * @param supportedMethods the actually supported HTTP methods (may be {@code null})
+	 * @param supportedMethods the actually supported HTTP methods (possibly {@code null})
 	 */
 	public HttpRequestMethodNotSupportedException(String method, @Nullable Collection<String> supportedMethods) {
 		this(method, (supportedMethods != null ? StringUtils.toStringArray(supportedMethods) : null));
 	}
 
 	/**
-	 * Create a new HttpRequestMethodNotSupportedException.
+	 * Create a new {@code HttpRequestMethodNotSupportedException}.
 	 * @param method the unsupported HTTP request method
-	 * @param supportedMethods the actually supported HTTP methods (may be {@code null})
+	 * @param supportedMethods the actually supported HTTP methods (possibly {@code null})
 	 */
-	public HttpRequestMethodNotSupportedException(String method, @Nullable String[] supportedMethods) {
-		this(method, supportedMethods, "Request method '" + method + "' is not supported");
-	}
-
-	/**
-	 * Create a new HttpRequestMethodNotSupportedException.
-	 * @param method the unsupported HTTP request method
-	 * @param supportedMethods the actually supported HTTP methods
-	 * @param msg the detail message
-	 */
-	public HttpRequestMethodNotSupportedException(String method, @Nullable String[] supportedMethods, String msg) {
-		super(msg);
+	private HttpRequestMethodNotSupportedException(String method, String @Nullable [] supportedMethods) {
+		super("Request method '" + method + "' is not supported");
 		this.method = method;
 		this.supportedMethods = supportedMethods;
 
 		String detail = "Method '" + method + "' is not supported.";
-		this.body = ProblemDetail.forStatus(getStatusCode()).withDetail(detail);
+		this.body = ProblemDetail.forStatusAndDetail(getStatusCode(), detail);
 	}
 
 
@@ -110,8 +91,7 @@ public class HttpRequestMethodNotSupportedException extends ServletException imp
 	/**
 	 * Return the actually supported HTTP methods, or {@code null} if not known.
 	 */
-	@Nullable
-	public String[] getSupportedMethods() {
+	public String @Nullable [] getSupportedMethods() {
 		return this.supportedMethods;
 	}
 
@@ -120,12 +100,11 @@ public class HttpRequestMethodNotSupportedException extends ServletException imp
 	 * or {@code null} if not known.
 	 * @since 3.2
 	 */
-	@Nullable
-	public Set<HttpMethod> getSupportedHttpMethods() {
+	public @Nullable Set<HttpMethod> getSupportedHttpMethods() {
 		if (this.supportedMethods == null) {
 			return null;
 		}
-		Set<HttpMethod> supportedMethods = new LinkedHashSet<>(this.supportedMethods.length);
+		Set<HttpMethod> supportedMethods = CollectionUtils.newLinkedHashSet(this.supportedMethods.length);
 		for (String value : this.supportedMethods) {
 			HttpMethod method = HttpMethod.valueOf(value);
 			supportedMethods.add(method);
@@ -151,6 +130,11 @@ public class HttpRequestMethodNotSupportedException extends ServletException imp
 	@Override
 	public ProblemDetail getBody() {
 		return this.body;
+	}
+
+	@Override
+	public Object[] getDetailMessageArguments() {
+		return new Object[] {getMethod(), getSupportedHttpMethods()};
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 package org.springframework.web.cors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -43,7 +43,7 @@ public abstract class CorsUtils {
 		if (origin == null) {
 			return false;
 		}
-		UriComponents originUrl = UriComponentsBuilder.fromOriginHeader(origin).build();
+		UriComponents originUrl = UriComponentsBuilder.fromUriString(origin).build();
 		String scheme = request.getScheme();
 		String host = request.getServerName();
 		int port = request.getServerPort();
@@ -66,7 +66,7 @@ public abstract class CorsUtils {
 	}
 
 	/**
-	 * Returns {@code true} if the request is a valid CORS pre-flight one by checking {code OPTIONS} method with
+	 * Returns {@code true} if the request is a valid CORS pre-flight one by checking {@code OPTIONS} method with
 	 * {@code Origin} and {@code Access-Control-Request-Method} headers presence.
 	 */
 	public static boolean isPreFlightRequest(HttpServletRequest request) {

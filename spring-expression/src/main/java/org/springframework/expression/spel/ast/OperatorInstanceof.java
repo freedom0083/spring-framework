@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.expression.spel.ast;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.asm.MethodVisitor;
 import org.springframework.asm.Type;
 import org.springframework.expression.EvaluationException;
@@ -25,20 +27,18 @@ import org.springframework.expression.spel.ExpressionState;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.SpelMessage;
 import org.springframework.expression.spel.support.BooleanTypedValue;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * The operator 'instanceof' checks if an object is of the class specified in the right
- * hand operand, in the same way that {@code instanceof} does in Java.
+ * The operator 'instanceof' checks if an object is of the class specified in the
+ * right-hand operand, in the same way that {@code instanceof} does in Java.
  *
  * @author Andy Clement
  * @since 3.0
  */
 public class OperatorInstanceof extends Operator {
 
-	@Nullable
-	private Class<?> type;
+	private @Nullable Class<?> type;
 
 
 	public OperatorInstanceof(int startPos, int endPos, SpelNodeImpl... operands) {
@@ -62,12 +62,11 @@ public class OperatorInstanceof extends Operator {
 		Object leftValue = left.getValue();
 		Object rightValue = right.getValue();
 		BooleanTypedValue result;
-		if (!(rightValue instanceof Class)) {
+		if (!(rightValue instanceof Class<?> rightClass)) {
 			throw new SpelEvaluationException(getRightOperand().getStartPosition(),
 					SpelMessage.INSTANCEOF_OPERATOR_NEEDS_CLASS_OPERAND,
 					(rightValue == null ? "null" : rightValue.getClass().getName()));
 		}
-		Class<?> rightClass = (Class<?>) rightValue;
 		if (leftValue == null) {
 			result = BooleanTypedValue.FALSE;  // null is not an instanceof anything
 		}

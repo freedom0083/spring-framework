@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
 
-import org.springframework.lang.Nullable;
+import org.springframework.aot.hint.annotation.Reflective;
 import org.springframework.util.Assert;
 
 /**
@@ -40,15 +41,16 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
 	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private Executor taskExecutor;
+	private @Nullable Executor taskExecutor;
 
 
 	@Override
+	@Reflective
 	public void setInstanceId(String schedInstId) {
 	}
 
 	@Override
+	@Reflective
 	public void setInstanceName(String schedName) {
 	}
 

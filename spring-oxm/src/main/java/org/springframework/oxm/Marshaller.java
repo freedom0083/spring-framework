@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import javax.xml.transform.Result;
  *
  * <p>Although the {@code marshal} method accepts a {@code java.lang.Object} as its
  * first parameter, most {@code Marshaller} implementations cannot handle arbitrary
- * {@code Object}s. Instead, a object class must be registered with the marshaller,
+ * {@code Object}s. Instead, an object class must be registered with the marshaller,
  * or have a common base class.
  *
  * @author Arjen Poutsma

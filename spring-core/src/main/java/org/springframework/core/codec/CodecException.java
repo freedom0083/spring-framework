@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.springframework.core.codec;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.NestedRuntimeException;
-import org.springframework.lang.Nullable;
 
 /**
  * General error that indicates a problem while encoding and decoding to and
@@ -34,7 +35,7 @@ public class CodecException extends NestedRuntimeException {
 	 * Create a new CodecException.
 	 * @param msg the detail message
 	 */
-	public CodecException(String msg) {
+	public CodecException(@Nullable String msg) {
 		super(msg);
 	}
 
@@ -43,7 +44,7 @@ public class CodecException extends NestedRuntimeException {
 	 * @param msg the detail message
 	 * @param cause root cause for the exception, if any
 	 */
-	public CodecException(String msg, @Nullable Throwable cause) {
+	public CodecException(@Nullable String msg, @Nullable Throwable cause) {
 		super(msg, cause);
 	}
 

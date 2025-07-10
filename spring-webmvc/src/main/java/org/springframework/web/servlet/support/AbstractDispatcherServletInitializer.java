@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,13 @@ import jakarta.servlet.FilterRegistration.Dynamic;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.core.Conventions;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.context.AbstractContextLoaderInitializer;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
@@ -77,13 +78,13 @@ public abstract class AbstractDispatcherServletInitializer extends AbstractConte
 	 */
 	protected void registerDispatcherServlet(ServletContext servletContext) {
 		String servletName = getServletName();
-		Assert.hasLength(servletName, "getServletName() must not return null or empty");
+		Assert.state(StringUtils.hasLength(servletName), "getServletName() must not return null or empty");
 
 		WebApplicationContext servletAppContext = createServletApplicationContext();
-		Assert.notNull(servletAppContext, "createServletApplicationContext() must not return null");
+		Assert.state(servletAppContext != null, "createServletApplicationContext() must not return null");
 
 		FrameworkServlet dispatcherServlet = createDispatcherServlet(servletAppContext);
-		Assert.notNull(dispatcherServlet, "createDispatcherServlet(WebApplicationContext) must not return null");
+		Assert.state(dispatcherServlet != null, "createDispatcherServlet(WebApplicationContext) must not return null");
 		dispatcherServlet.setContextInitializers(getServletApplicationContextInitializers());
 
 		ServletRegistration.Dynamic registration = servletContext.addServlet(servletName, dispatcherServlet);
@@ -143,8 +144,7 @@ public abstract class AbstractDispatcherServletInitializer extends AbstractConte
 	 * @see DispatcherServlet#setContextInitializers
 	 * @see #getRootApplicationContextInitializers()
 	 */
-	@Nullable
-	protected ApplicationContextInitializer<?>[] getServletApplicationContextInitializers() {
+	protected ApplicationContextInitializer<?> @Nullable [] getServletApplicationContextInitializers() {
 		return null;
 	}
 
@@ -160,8 +160,7 @@ public abstract class AbstractDispatcherServletInitializer extends AbstractConte
 	 * @return an array of filters or {@code null}
 	 * @see #registerServletFilter(ServletContext, Filter)
 	 */
-	@Nullable
-	protected Filter[] getServletFilters() {
+	protected Filter @Nullable [] getServletFilters() {
 		return null;
 	}
 

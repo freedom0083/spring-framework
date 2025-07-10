@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -51,7 +51,7 @@ import org.springframework.web.util.WebUtils;
 /**
  * View that redirects to an absolute, context relative, or current request
  * relative URL. The URL may be a URI template in which case the URI template
- * variables will be replaced with values available in the model. By default
+ * variables will be replaced with values available in the model. By default,
  * all primitive model attributes (or collections thereof) are exposed as HTTP
  * query parameters (assuming they've not been used as URI template variables),
  * but this behavior can be changed by overriding the
@@ -95,18 +95,15 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 
 	private boolean exposeModelAttributes = true;
 
-	@Nullable
-	private String encodingScheme;
+	private @Nullable String encodingScheme;
 
-	@Nullable
-	private HttpStatusCode statusCode;
+	private @Nullable HttpStatusCode statusCode;
 
 	private boolean expandUriTemplateVariables = true;
 
 	private boolean propagateQueryParams = false;
 
-	@Nullable
-	private String[] hosts;
+	private String @Nullable [] hosts;
 
 
 	/**
@@ -160,7 +157,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	 * @param contextRelative whether to interpret the given URL as
 	 * relative to the current ServletContext
 	 * @param http10Compatible whether to stay compatible with HTTP 1.0 clients
-	 * @param exposeModelAttributes whether or not model attributes should be
+	 * @param exposeModelAttributes whether model attributes should be
 	 * exposed as query parameters
 	 */
 	public RedirectView(String url, boolean contextRelative, boolean http10Compatible, boolean exposeModelAttributes) {
@@ -202,7 +199,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 
 	/**
 	 * Set the {@code exposeModelAttributes} flag which denotes whether
-	 * or not model attributes should be exposed as HTTP query parameters.
+	 * model attributes should be exposed as HTTP query parameters.
 	 * <p>Defaults to {@code true}.
 	 */
 	public void setExposeModelAttributes(final boolean exposeModelAttributes) {
@@ -266,7 +263,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	 * @param hosts one or more application hosts
 	 * @since 4.3
 	 */
-	public void setHosts(@Nullable String... hosts) {
+	public void setHosts(String @Nullable ... hosts) {
 		this.hosts = hosts;
 	}
 
@@ -274,8 +271,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	 * Return the configured application hosts.
 	 * @since 4.3
 	 */
-	@Nullable
-	public String[] getHosts() {
+	public String @Nullable [] getHosts() {
 		return this.hosts;
 	}
 
@@ -328,11 +324,11 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 		String url = getUrl();
 		Assert.state(url != null, "'url' not set");
 
-		if (this.contextRelative && getUrl().startsWith("/")) {
+		if (this.contextRelative && url.startsWith("/")) {
 			// Do not apply context path to relative URLs.
 			targetUrl.append(getContextPath(request));
 		}
-		targetUrl.append(getUrl());
+		targetUrl.append(url);
 
 		String enc = this.encodingScheme;
 		if (enc == null) {
@@ -461,8 +457,8 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 			if (rawValue != null && rawValue.getClass().isArray()) {
 				values = CollectionUtils.arrayToList(rawValue);
 			}
-			else if (rawValue instanceof Collection) {
-				values = ((Collection<?>) rawValue);
+			else if (rawValue instanceof Collection<?> collection) {
+				values = collection;
 			}
 			else {
 				values = Collections.singleton(rawValue);
@@ -537,8 +533,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 			}
 			return true;
 		}
-		if (value instanceof Collection) {
-			Collection<?> coll = (Collection<?>) value;
+		if (value instanceof Collection<?> coll) {
 			if (coll.isEmpty()) {
 				return false;
 			}
@@ -555,7 +550,7 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	/**
 	 * Determine whether the given model element value is eligible for exposure.
 	 * <p>The default implementation considers primitives, strings, numbers, dates,
-	 * URIs, URLs etc as eligible, according to {@link BeanUtils#isSimpleValueType}.
+	 * URIs, URLs etc. as eligible, according to {@link BeanUtils#isSimpleValueType}.
 	 * This can be overridden in subclasses.
 	 * @param value the model element value
 	 * @return whether the element value is eligible
@@ -638,11 +633,11 @@ public class RedirectView extends AbstractUrlBasedView implements SmartView {
 	/**
 	 * Whether the given targetUrl has a host that is a "foreign" system in which
 	 * case {@link HttpServletResponse#encodeRedirectURL} will not be applied.
-	 * This method returns {@code true} if the {@link #setHosts(String[])}
+	 * <p>This method returns {@code true} if the {@link #setHosts(String[])}
 	 * property is configured and the target URL has a host that does not match.
 	 * @param targetUrl the target redirect URL
-	 * @return {@code true} the target URL has a remote host, {@code false} if it
-	 * the URL does not have a host or the "host" property is not configured.
+	 * @return {@code true} if the target URL has a remote host, {@code false} if
+	 * the URL does not have a host or the "host" property is not configured
 	 * @since 4.3
 	 */
 	protected boolean isRemoteHost(String targetUrl) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,60 @@
 
 package org.springframework.http;
 
+import java.io.Serializable;
 import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
+import org.springframework.util.ObjectUtils;
 
 /**
- * Representation of an RFC 7807 problem detail, including all RFC-defined
- * fields. For an extended response with more fields, create a subclass that
- * exposes the additional fields.
+ * Representation for an RFC 9457 problem detail. Includes spec-defined
+ * properties, and a {@link #getProperties() properties} map for additional,
+ * non-standard properties.
+ *
+ * <p>For an extended response, an application can add to the
+ * {@link #getProperties() properties} map. When using the Jackson library, the
+ * {@code properties} map is expanded as top level JSON properties through the
+ * {@link org.springframework.http.converter.json.ProblemDetailJacksonMixin}.
+ *
+ * <p>For an extended response, an application can also create a subclass with
+ * additional properties. Subclasses can use the protected copy constructor to
+ * re-create an existing {@code ProblemDetail} instance as the subclass, for example,
+ * from an {@code @ControllerAdvice} such as
+ * {@link org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler} or
+ * {@link org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler}.
  *
  * @author Rossen Stoyanchev
+ * @author Juergen Hoeller
  * @since 6.0
- *
- * @see <a href="https://datatracker.ietf.org/doc/html/rfc7807">RFC 7807</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc9457">RFC 9457</a>
  * @see org.springframework.web.ErrorResponse
  * @see org.springframework.web.ErrorResponseException
  */
-public class ProblemDetail {
+public class ProblemDetail implements Serializable {
+
+	private static final long serialVersionUID = 3307761915842206538L;
 
 	private static final URI BLANK_TYPE = URI.create("about:blank");
 
 
 	private URI type = BLANK_TYPE;
 
-	@Nullable
-	private String title;
+	private @Nullable String title;
 
 	private int status;
 
-	@Nullable
-	private String detail;
+	private @Nullable String detail;
 
-	@Nullable
-	private URI instance;
+	private @Nullable URI instance;
+
+	@SuppressWarnings("serial")
+	private @Nullable Map<String, Object> properties;
 
 
 	/**
@@ -63,8 +83,8 @@ public class ProblemDetail {
 	}
 
 	/**
-	 * Copy constructor that could be used from a subclass to re-create a
-	 * {@code ProblemDetail} in order to extend it with more fields.
+	 * Copy constructor that a subclass can use to re-create and extend a
+	 * {@code ProblemDetail} with additional properties.
 	 */
 	protected ProblemDetail(ProblemDetail other) {
 		this.type = other.type;
@@ -72,134 +92,25 @@ public class ProblemDetail {
 		this.status = other.status;
 		this.detail = other.detail;
 		this.instance = other.instance;
+		this.properties = (other.properties != null ? new LinkedHashMap<>(other.properties) : null);
 	}
 
 	/**
-	 * For deserialization.
+	 * No-arg constructor, for deserialization.
 	 */
 	protected ProblemDetail() {
 	}
 
 
 	/**
-	 * Variant of {@link #setType(URI)} for chained initialization.
-	 * @param type the problem type
-	 * @return the same instance
-	 */
-	public ProblemDetail withType(URI type) {
-		setType(type);
-		return this;
-	}
-
-	/**
-	 * Variant of {@link #setTitle(String)} for chained initialization.
-	 * @param title the problem title
-	 * @return the same instance
-	 */
-	public ProblemDetail withTitle(@Nullable String title) {
-		setTitle(title);
-		return this;
-	}
-
-	/**
-	 * Variant of {@link #setStatus(int)} for chained initialization.
-	 * @param statusCode the response status for the problem
-	 * @return the same instance
-	 */
-	public ProblemDetail withStatus(HttpStatusCode statusCode) {
-		Assert.notNull(statusCode, "HttpStatus is required");
-		setStatus(statusCode.value());
-		return this;
-	}
-
-	/**
-	 * Variant of {@link #setStatus(int)} for chained initialization.
-	 * @param status the response status value for the problem
-	 * @return the same instance
-	 */
-	public ProblemDetail withStatus(int status) {
-		setStatus(status);
-		return this;
-	}
-
-	/**
-	 * Variant of {@link #setDetail(String)} for chained initialization.
-	 * @param detail the problem detail
-	 * @return the same instance
-	 */
-	public ProblemDetail withDetail(@Nullable String detail) {
-		setDetail(detail);
-		return this;
-	}
-
-	/**
-	 * Variant of {@link #setInstance(URI)} for chained initialization.
-	 * @param instance the problem instance URI
-	 * @return the same instance
-	 */
-	public ProblemDetail withInstance(@Nullable URI instance) {
-		setInstance(instance);
-		return this;
-	}
-
-
-	// Setters for deserialization
-
-	/**
 	 * Setter for the {@link #getType() problem type}.
 	 * <p>By default, this is {@link #BLANK_TYPE}.
 	 * @param type the problem type
-	 * @see #withType(URI)
 	 */
 	public void setType(URI type) {
 		Assert.notNull(type, "'type' is required");
 		this.type = type;
 	}
-
-	/**
-	 * Setter for the {@link #getTitle() problem title}.
-	 * <p>By default, if not explicitly set and the status is well-known, this
-	 * is sourced from the {@link HttpStatus#getReasonPhrase()}.
-	 * @param title the problem title
-	 * @see #withTitle(String)
-	 */
-	public void setTitle(@Nullable String title) {
-		this.title = title;
-	}
-
-	/**
-	 * Setter for the {@link #getStatus() problem status}.
-	 * @param status the problem status
-	 * @see #withStatus(HttpStatusCode)
-	 * @see #withStatus(int)
-	 */
-	public void setStatus(int status) {
-		this.status = status;
-	}
-
-	/**
-	 * Setter for the {@link #getDetail() problem detail}.
-	 * <p>By default, this is not set.
-	 * @param detail the problem detail
-	 * @see #withDetail(String)
-	 */
-	public void setDetail(@Nullable String detail) {
-		this.detail = detail;
-	}
-
-	/**
-	 * Setter for the {@link #getInstance() problem instance}.
-	 * <p>By default, when {@code ProblemDetail} is returned from an
-	 * {@code @ExceptionHandler} method, this is initialized to the request path.
-	 * @param instance the problem instance
-	 * @see #withInstance(URI)
-	 */
-	public void setInstance(@Nullable URI instance) {
-		this.instance = instance;
-	}
-
-
-	// Getters
 
 	/**
 	 * Return the configured {@link #setType(URI) problem type}.
@@ -209,10 +120,19 @@ public class ProblemDetail {
 	}
 
 	/**
+	 * Setter for the {@link #getTitle() problem title}.
+	 * <p>By default, if not explicitly set and the status is well-known, this
+	 * is sourced from the {@link HttpStatus#getReasonPhrase()}.
+	 * @param title the problem title
+	 */
+	public void setTitle(@Nullable String title) {
+		this.title = title;
+	}
+
+	/**
 	 * Return the configured {@link #setTitle(String) problem title}.
 	 */
-	@Nullable
-	public String getTitle() {
+	public @Nullable String getTitle() {
 		if (this.title == null) {
 			HttpStatus httpStatus = HttpStatus.resolve(this.status);
 			if (httpStatus != null) {
@@ -220,6 +140,22 @@ public class ProblemDetail {
 			}
 		}
 		return this.title;
+	}
+
+	/**
+	 * Setter for the {@link #getStatus() problem status}.
+	 * @param httpStatus the problem status
+	 */
+	public void setStatus(HttpStatus httpStatus) {
+		this.status = httpStatus.value();
+	}
+
+	/**
+	 * Setter for the {@link #getStatus() problem status}.
+	 * @param status the problem status
+	 */
+	public void setStatus(int status) {
+		this.status = status;
 	}
 
 	/**
@@ -231,21 +167,97 @@ public class ProblemDetail {
 	}
 
 	/**
+	 * Setter for the {@link #getDetail() problem detail}.
+	 * <p>By default, this is not set.
+	 * @param detail the problem detail
+	 */
+	public void setDetail(@Nullable String detail) {
+		this.detail = detail;
+	}
+
+	/**
 	 * Return the configured {@link #setDetail(String) problem detail}.
 	 */
-	@Nullable
-	public String getDetail() {
+	public @Nullable String getDetail() {
 		return this.detail;
+	}
+
+	/**
+	 * Setter for the {@link #getInstance() problem instance}.
+	 * <p>By default, when {@code ProblemDetail} is returned from an
+	 * {@code @ExceptionHandler} method, this is initialized to the request path.
+	 * @param instance the problem instance
+	 */
+	public void setInstance(@Nullable URI instance) {
+		this.instance = instance;
 	}
 
 	/**
 	 * Return the configured {@link #setInstance(URI) problem instance}.
 	 */
-	@Nullable
-	public URI getInstance() {
+	public @Nullable URI getInstance() {
 		return this.instance;
 	}
 
+	/**
+	 * Set a "dynamic" property to be added to a generic {@link #getProperties()
+	 * properties map}.
+	 * <p>When Jackson JSON is present on the classpath, any properties set here
+	 * are rendered as top level key-value pairs in the output JSON. Otherwise,
+	 * they are rendered as a {@code "properties"} sub-map.
+	 * @param name the property name
+	 * @param value the property value, possibly {@code null} if the intent is
+	 * to include a property with its value set to "null"
+	 * @see org.springframework.http.converter.json.ProblemDetailJacksonMixin
+	 */
+	public void setProperty(String name, @Nullable Object value) {
+		this.properties = (this.properties != null ? this.properties : new LinkedHashMap<>());
+		this.properties.put(name, value);
+	}
+
+	/**
+	 * Setter for the {@link #getProperties() properties map}.
+	 * <p>By default, this is not set.
+	 * <p>When Jackson JSON is present on the classpath, any properties set here
+	 * are rendered as top level key-value pairs in the output JSON. Otherwise,
+	 * they are rendered as a {@code "properties"} sub-map.
+	 * @param properties the properties map
+	 * @since 6.0.14
+	 */
+	public void setProperties(@Nullable Map<String, Object> properties) {
+		this.properties = properties;
+	}
+
+	/**
+	 * Return a generic map of properties that are not known ahead of time,
+	 * possibly {@code null} if no properties have been added. To add a property,
+	 * use {@link #setProperty(String, Object)}.
+	 * <p>When Jackson JSON is present on the classpath, the content of this map
+	 * is unwrapped and rendered as top level key-value pairs in the output JSON.
+	 * Otherwise, they are rendered as a {@code "properties"} sub-map.
+	 * @see org.springframework.http.converter.json.ProblemDetailJacksonMixin
+	 */
+	public @Nullable Map<String, Object> getProperties() {
+		return this.properties;
+	}
+
+
+	@Override
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof ProblemDetail that &&
+				getType().equals(that.getType()) &&
+				ObjectUtils.nullSafeEquals(getTitle(), that.getTitle()) &&
+				this.status == that.status &&
+				ObjectUtils.nullSafeEquals(this.detail, that.detail) &&
+				ObjectUtils.nullSafeEquals(this.instance, that.instance) &&
+				ObjectUtils.nullSafeEquals(this.properties, that.properties)));
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.type, getTitle(), this.status, this.detail,
+				this.instance, this.properties);
+	}
 
 	@Override
 	public String toString() {
@@ -257,11 +269,12 @@ public class ProblemDetail {
 	 * Subclasses can override this to append additional fields.
 	 */
 	protected String initToStringContent() {
-		return "type='" + this.type + "'" +
+		return "type='" + getType() + "'" +
 				", title='" + getTitle() + "'" +
 				", status=" + getStatus() +
 				", detail='" + getDetail() + "'" +
-				", instance='" + getInstance() + "'";
+				", instance='" + getInstance() + "'" +
+				", properties='" + getProperties() + "'";
 	}
 
 
@@ -280,6 +293,16 @@ public class ProblemDetail {
 	 */
 	public static ProblemDetail forStatus(int status) {
 		return new ProblemDetail(status);
+	}
+
+	/**
+	 * Create a {@code ProblemDetail} instance with the given status and detail.
+	 */
+	public static ProblemDetail forStatusAndDetail(HttpStatusCode status, @Nullable String detail) {
+		Assert.notNull(status, "HttpStatusCode is required");
+		ProblemDetail problemDetail = forStatus(status.value());
+		problemDetail.setDetail(detail);
+		return problemDetail;
 	}
 
 }

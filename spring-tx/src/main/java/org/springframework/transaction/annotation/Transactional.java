@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.springframework.aot.hint.annotation.Reflective;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.transaction.TransactionDefinition;
 
@@ -34,7 +35,7 @@ import org.springframework.transaction.TransactionDefinition;
  * apply to ancestor classes up the class hierarchy; inherited methods need to be
  * locally redeclared in order to participate in a subclass-level annotation. For
  * details on method visibility constraints, consult the
- * <a href="https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#transaction">Transaction Management</a>
+ * <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html#transaction-declarative-annotations-method-visibility">Transaction Management</a>
  * section of the reference manual.
  *
  * <p>This annotation is generally directly comparable to Spring's
@@ -104,6 +105,11 @@ import org.springframework.transaction.TransactionDefinition;
  * all participating data access operations need to execute within the same
  * Reactor context in the same reactive pipeline.
  *
+ * <p><b>Note: When configured with a {@code ReactiveTransactionManager}, all
+ * transaction-demarcated methods are expected to return a reactive pipeline.</b>
+ * Void methods or regular return types need to be associated with a regular
+ * {@code PlatformTransactionManager}, for example, through {@link #transactionManager()}.
+ *
  * @author Colin Sampaleanu
  * @author Juergen Hoeller
  * @author Sam Brannen
@@ -117,6 +123,7 @@ import org.springframework.transaction.TransactionDefinition;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
+@Reflective
 public @interface Transactional {
 
 	/**
@@ -132,6 +139,14 @@ public @interface Transactional {
 	 * qualifier value (or the bean name) of a specific
 	 * {@link org.springframework.transaction.TransactionManager TransactionManager}
 	 * bean definition.
+	 * <p>Alternatively, as of 6.2, a type-level bean qualifier annotation with a
+	 * {@link org.springframework.beans.factory.annotation.Qualifier#value() qualifier value}
+	 * is also taken into account. If it matches the qualifier value (or bean name)
+	 * of a specific transaction manager, that transaction manager is going to be used
+	 * for transaction definitions without a specific qualifier on this attribute here.
+	 * Such a type-level qualifier can be declared on the concrete class, applying
+	 * to transaction definitions from a base class as well, effectively overriding
+	 * the default transaction manager choice for any unqualified base class methods.
 	 * @since 4.2
 	 * @see #value
 	 * @see org.springframework.transaction.PlatformTransactionManager
@@ -190,7 +205,7 @@ public @interface Transactional {
 	 * <p>Exclusively designed for use with {@link Propagation#REQUIRED} or
 	 * {@link Propagation#REQUIRES_NEW} since it only applies to newly started
 	 * transactions.
-	 * @return the timeout in seconds as a String value, e.g. a placeholder
+	 * @return the timeout in seconds as a String value, for example, a placeholder
 	 * @since 5.3
 	 * @see org.springframework.transaction.interceptor.TransactionAttribute#getTimeout()
 	 */

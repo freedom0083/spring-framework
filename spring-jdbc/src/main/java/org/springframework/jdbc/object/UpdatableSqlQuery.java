@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.lang.Nullable;
 
 /**
  * Reusable RDBMS query in which concrete subclasses must implement
@@ -62,7 +63,7 @@ public abstract class UpdatableSqlQuery<T> extends SqlQuery<T> {
 	 * implementation of the {@code updateRow()} method.
 	 */
 	@Override
-	protected RowMapper<T> newRowMapper(@Nullable Object[] parameters, @Nullable Map<?, ?> context) {
+	protected RowMapper<T> newRowMapper(@Nullable Object @Nullable [] parameters, @Nullable Map<?, ?> context) {
 		return new RowMapperImpl(context);
 	}
 
@@ -71,13 +72,13 @@ public abstract class UpdatableSqlQuery<T> extends SqlQuery<T> {
 	 * ResultSet and optionally create object of the result type.
 	 * @param rs the ResultSet we're working through
 	 * @param rowNum row number (from 0) we're up to
-	 * @param context passed to the execute() method.
+	 * @param context passed to the {@code execute()} method.
 	 * It can be {@code null} if no contextual information is need.  If you
 	 * need to pass in data for each row, you can pass in a HashMap with
 	 * the primary key of the row being the key for the HashMap.  That way
 	 * it is easy to locate the updates for each row
 	 * @return an object of the result type
-	 * @throws SQLException if there's an error updateing data.
+	 * @throws SQLException if there's an error updating data.
 	 * Subclasses can simply not catch SQLExceptions, relying on the
 	 * framework to clean up.
 	 */
@@ -90,8 +91,7 @@ public abstract class UpdatableSqlQuery<T> extends SqlQuery<T> {
 	 */
 	protected class RowMapperImpl implements RowMapper<T> {
 
-		@Nullable
-		private final Map<?, ?> context;
+		private final @Nullable Map<?, ?> context;
 
 		public RowMapperImpl(@Nullable Map<?, ?> context) {
 			this.context = context;

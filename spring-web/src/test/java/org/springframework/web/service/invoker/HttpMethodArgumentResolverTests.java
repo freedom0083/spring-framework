@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package org.springframework.web.service.invoker;
 
-import org.junit.jupiter.api.BeforeEach;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.http.HttpMethod;
-import org.springframework.lang.Nullable;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 
@@ -34,19 +35,12 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * @author Olga Maciaszek-Sharma
  * @author Rossen Stoyanchev
  */
-public class HttpMethodArgumentResolverTests {
+class HttpMethodArgumentResolverTests {
 
-	private final TestHttpClientAdapter client = new TestHttpClientAdapter();
+	private final TestExchangeAdapter client = new TestExchangeAdapter();
 
-	private Service service;
-
-
-	@BeforeEach
-	void setUp() throws Exception {
-		HttpServiceProxyFactory proxyFactory = new HttpServiceProxyFactory(this.client);
-		proxyFactory.afterPropertiesSet();
-		this.service = proxyFactory.createClient(Service.class);
-	}
+	private final Service service =
+			HttpServiceProxyFactory.builderFor(this.client).build().createClient(Service.class);
 
 
 	@Test
@@ -76,12 +70,37 @@ public class HttpMethodArgumentResolverTests {
 		assertThatIllegalArgumentException().isThrownBy(() -> this.service.execute(null));
 	}
 
-	@Nullable
-	private HttpMethod getActualMethod() {
+	@Test
+	void nullHttpMethodWithNullable() {
+		this.service.executeNullableHttpMethod(null);
+		assertThat(getActualMethod()).isEqualTo(HttpMethod.GET);
+	}
+
+	@Test
+	void nullHttpMethodWithOptional() {
+		this.service.executeOptionalHttpMethod(null);
+		assertThat(getActualMethod()).isEqualTo(HttpMethod.GET);
+	}
+
+	@Test
+	void emptyOptionalHttpMethod() {
+		this.service.executeOptionalHttpMethod(Optional.empty());
+		assertThat(getActualMethod()).isEqualTo(HttpMethod.GET);
+	}
+
+	@Test
+	void optionalHttpMethod() {
+		this.service.executeOptionalHttpMethod(Optional.of(HttpMethod.POST));
+		assertThat(getActualMethod()).isEqualTo(HttpMethod.POST);
+	}
+
+
+	private @Nullable HttpMethod getActualMethod() {
 		return this.client.getRequestValues().getHttpMethod();
 	}
 
 
+	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private interface Service {
 
 		@HttpExchange
@@ -92,6 +111,12 @@ public class HttpMethodArgumentResolverTests {
 
 		@GetExchange
 		void executeNotHttpMethod(String test);
+
+		@GetExchange
+		void executeNullableHttpMethod(@Nullable HttpMethod method);
+
+		@GetExchange
+		void executeOptionalHttpMethod(Optional<HttpMethod> method);
 
 	}
 

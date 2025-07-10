@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,16 @@ package org.springframework.beans.factory.support;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanCurrentlyInCreationException;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.FactoryBeanNotInitializedException;
-import org.springframework.lang.Nullable;
+import org.springframework.beans.factory.SmartFactoryBean;
+import org.springframework.core.AttributeAccessor;
+import org.springframework.core.ResolvableType;
 
 /**
  * Support base class for singleton registries which need to handle
@@ -48,8 +52,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @return the FactoryBean's object type,
 	 * or {@code null} if the type cannot be determined yet
 	 */
-	@Nullable
-	protected Class<?> getTypeForFactoryBean(FactoryBean<?> factoryBean) {
+	protected @Nullable Class<?> getTypeForFactoryBean(FactoryBean<?> factoryBean) {
 		try {
 			return factoryBean.getObjectType();
 		}
@@ -62,14 +65,45 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	}
 
 	/**
+	 * Determine the bean type for a FactoryBean by inspecting its attributes for a
+	 * {@link FactoryBean#OBJECT_TYPE_ATTRIBUTE} value.
+	 * @param attributes the attributes to inspect
+	 * @return a {@link ResolvableType} extracted from the attributes or
+	 * {@code ResolvableType.NONE}
+	 * @since 5.2
+	 */
+	ResolvableType getTypeForFactoryBeanFromAttributes(AttributeAccessor attributes) {
+		Object attribute = attributes.getAttribute(FactoryBean.OBJECT_TYPE_ATTRIBUTE);
+		if (attribute == null) {
+			return ResolvableType.NONE;
+		}
+		if (attribute instanceof ResolvableType resolvableType) {
+			return resolvableType;
+		}
+		if (attribute instanceof Class<?> clazz) {
+			return ResolvableType.forClass(clazz);
+		}
+		throw new IllegalArgumentException("Invalid value type for attribute '" +
+				FactoryBean.OBJECT_TYPE_ATTRIBUTE + "': " + attribute.getClass().getName());
+	}
+
+	/**
+	 * Determine the FactoryBean object type from the given generic declaration.
+	 * @param type the FactoryBean type
+	 * @return the nested object type, or {@code NONE} if not resolvable
+	 */
+	ResolvableType getFactoryBeanGeneric(@Nullable ResolvableType type) {
+		return (type != null ? type.as(FactoryBean.class).getGeneric() : ResolvableType.NONE);
+	}
+
+	/**
 	 * Obtain an object to expose from the given FactoryBean, if available
 	 * in cached form. Quick check for minimal synchronization.
 	 * @param beanName the name of the bean
 	 * @return the object obtained from the FactoryBean,
 	 * or {@code null} if not available
 	 */
-	@Nullable
-	protected Object getCachedObjectForFactoryBean(String beanName) {
+	protected @Nullable Object getCachedObjectForFactoryBean(String beanName) {
 		return this.factoryBeanObjectCache.get(beanName);
 	}
 
@@ -82,18 +116,31 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @throws BeanCreationException if FactoryBean object creation failed
 	 * @see org.springframework.beans.factory.FactoryBean#getObject()
 	 */
-	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
+	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, @Nullable Class<?> requiredType,
+			String beanName, boolean shouldPostProcess) {
+
 		if (factory.isSingleton() && containsSingleton(beanName)) {
 			// TODO 工厂类是单例, 并且要找的bean已经存在于singletonObjects缓存中时, 获取bean的动作需要对singletonObjects进行加锁来保证线程安全问题
-			synchronized (getSingletonMutex()) {
+			Boolean lockFlag = isCurrentThreadAllowedToHoldSingletonLock();
+			boolean locked;
+			if (lockFlag == null) {
+				this.singletonLock.lock();
+				locked = true;
+			}
+			else {
+				locked = (lockFlag && this.singletonLock.tryLock());
+			}
+			try {
+				// A SmartFactoryBean may return multiple object types -> do not cache.
 				// TODO 首先从factoryBeanObjectCache缓存取得对应的bean, 如果得到直接返回
-				Object object = this.factoryBeanObjectCache.get(beanName);
+				boolean smart = (factory instanceof SmartFactoryBean<?>);
+				Object object = (!smart ? this.factoryBeanObjectCache.get(beanName) : null);
 				if (object == null) {
 					// TODO 如果没有取到, 就通过getObject()从工厂类中取, 这里就是前面说的不加'&'时, 实际是取出的FactoryBean内的对象
-					object = doGetObjectFromFactoryBean(factory, beanName);
+					object = doGetObjectFromFactoryBean(factory, requiredType, beanName);
 					// Only post-process and store if not put there already during getObject() call above
-					// (e.g. because of circular reference processing triggered by custom getBean calls)
-					Object alreadyThere = this.factoryBeanObjectCache.get(beanName);
+					// (for example, because of circular reference processing triggered by custom getBean calls)
+					Object alreadyThere = (!smart ? this.factoryBeanObjectCache.get(beanName) : null);
 					if (alreadyThere != null) {
 						// TODO double check如果在factoryBeanObjectCache缓存中, 则用缓存中的实例
 						object = alreadyThere;
@@ -101,15 +148,17 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 					else {
 						// TODO 缓存中没有时, 就准备开始对bean进行后处理了
 						if (shouldPostProcess) {
-							// TODO 在允许对bean进行后处理时, 判断一下指定的bean是否正在进行创建
-							if (isSingletonCurrentlyInCreation(beanName)) {
-								// Temporarily return non-post-processed object, not storing it yet..
-								// TODO 如果正在创建, 则直接返回
-								return object;
+							if (locked) {
+								// TODO 在允许对bean进行后处理时, 判断一下指定的bean是否正在进行创建
+								if (isSingletonCurrentlyInCreation(beanName)) {
+									// Temporarily return non-post-processed object, not storing it yet
+									// TODO 如果正在创建, 则直接返回
+									return object;
+								}
+								// TODO 回调函数, 目前缺省实现是: 将bean注册到正在创建缓存singletonsCurrentlyInCreation中
+								//  如果注册失败, 并且还不在排除列表里时, 抛出BeanCurrentlyInCreationException异常
+								beforeSingletonCreation(beanName);
 							}
-							// TODO 回调函数, 目前缺省实现是: 将bean注册到正在创建缓存singletonsCurrentlyInCreation中
-							//  如果注册失败, 并且还不在排除列表里时, 抛出BeanCurrentlyInCreationException异常
-							beforeSingletonCreation(beanName);
 							try {
 								// TODO 对取得的原始bean对象进行后处理
 								//  1. 默认实现: 不做任何处理, 直接返回原始bean对象
@@ -122,12 +171,14 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 										"Post-processing of FactoryBean's singleton object failed", ex);
 							}
 							finally {
-								// TODO 回调函数, 目前缺省实现是: 将bean从正在创建缓存singletonsCurrentlyInCreation中注销
-								//  如果注销失败, 并且还不在排除列表里时, 抛出IllegalStateException异常
-								afterSingletonCreation(beanName);
+								if (locked) {
+									// TODO 回调函数, 目前缺省实现是: 将bean从正在创建缓存singletonsCurrentlyInCreation中注销
+									//  如果注销失败, 并且还不在排除列表里时, 抛出IllegalStateException异常
+									afterSingletonCreation(beanName);
+								}
 							}
 						}
-						if (containsSingleton(beanName)) {
+						if (!smart && containsSingleton(beanName)) {
 							// TODO singletonObjects缓存中存在待查找bean时, 将其放入factoryBeanObjectCache缓存
 							this.factoryBeanObjectCache.put(beanName, object);
 						}
@@ -136,10 +187,15 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 				// TODO 返回一个可能经过后处理器加工后的bean对象
 				return object;
 			}
+			finally {
+				if (locked) {
+					this.singletonLock.unlock();
+				}
+			}
 		}
 		else {
 			// TODO 工厂类不是单例, 或要找的bean不在singletonObjects缓存中时, 就直接从工厂类中拿原始bean对象
-			Object object = doGetObjectFromFactoryBean(factory, beanName);
+			Object object = doGetObjectFromFactoryBean(factory, requiredType, beanName);
 			if (shouldPostProcess) {
 				try {
 					// TODO 然后和单例处理方式一样, 挨个儿调用后处理器对原始bean对象进行加工并返回
@@ -161,12 +217,15 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @throws BeanCreationException if FactoryBean object creation failed
 	 * @see org.springframework.beans.factory.FactoryBean#getObject()
 	 */
-	private Object doGetObjectFromFactoryBean(FactoryBean<?> factory, String beanName) throws BeanCreationException {
+	private Object doGetObjectFromFactoryBean(FactoryBean<?> factory, @Nullable Class<?> requiredType, String beanName)
+			throws BeanCreationException {
+
 		Object object;
 		try {
 			// 调用工厂类的getObject()取得原始bean. 如果存在于缓存singletonInstance
 			//  或earlySingletonInstance中, 直接从缓存获取, 否则创建一个实例
-			object = factory.getObject();
+			object = (requiredType != null && factory instanceof SmartFactoryBean<?> smartFactoryBean ?
+					smartFactoryBean.getObject(requiredType) : factory.getObject());
 		}
 		catch (FactoryBeanNotInitializedException ex) {
 			throw new BeanCurrentlyInCreationException(beanName, ex.toString());
@@ -209,11 +268,11 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @throws BeansException if the given bean cannot be exposed as a FactoryBean
 	 */
 	protected FactoryBean<?> getFactoryBean(String beanName, Object beanInstance) throws BeansException {
-		if (!(beanInstance instanceof FactoryBean)) {
+		if (!(beanInstance instanceof FactoryBean<?> factoryBean)) {
 			throw new BeanCreationException(beanName,
 					"Bean instance of type [" + beanInstance.getClass() + "] is not a FactoryBean");
 		}
-		return (FactoryBean<?>) beanInstance;
+		return factoryBean;
 	}
 
 	/**
@@ -221,10 +280,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	@Override
 	protected void removeSingleton(String beanName) {
-		synchronized (getSingletonMutex()) {
-			super.removeSingleton(beanName);
-			this.factoryBeanObjectCache.remove(beanName);
-		}
+		super.removeSingleton(beanName);
+		this.factoryBeanObjectCache.remove(beanName);
 	}
 
 	/**
@@ -232,10 +289,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 */
 	@Override
 	protected void clearSingletonCache() {
-		synchronized (getSingletonMutex()) {
-			super.clearSingletonCache();
-			this.factoryBeanObjectCache.clear();
-		}
+		super.clearSingletonCache();
+		this.factoryBeanObjectCache.clear();
 	}
 
 }

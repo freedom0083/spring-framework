@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ public interface ThrowingConsumer<T> extends Consumer<T> {
 	 * @param exceptionWrapper {@link BiFunction} that wraps the given message
 	 * and checked exception into a runtime exception
 	 */
-	default void accept(T t,BiFunction<String, Exception, RuntimeException> exceptionWrapper) {
+	default void accept(T t, BiFunction<String, Exception, RuntimeException> exceptionWrapper) {
 		try {
 			acceptWithException(t);
 		}
@@ -77,24 +77,29 @@ public interface ThrowingConsumer<T> extends Consumer<T> {
 	 */
 	default ThrowingConsumer<T> throwing(BiFunction<String, Exception, RuntimeException> exceptionWrapper) {
 		return new ThrowingConsumer<>() {
-
 			@Override
 			public void acceptWithException(T t) throws Exception {
 				ThrowingConsumer.this.acceptWithException(t);
 			}
-
 			@Override
 			public void accept(T t) {
 				accept(t, exceptionWrapper);
 			}
-
 		};
 	}
 
 	/**
-	 * Lambda friendly convenience method that can be used to create
+	 * Lambda friendly convenience method that can be used to create a
 	 * {@link ThrowingConsumer} where the {@link #accept(Object)} method wraps
-	 * any thrown checked exceptions using the given {@code exceptionWrapper}.
+	 * any checked exception thrown by the supplied lambda expression or method
+	 * reference.
+	 * <p>This method can be especially useful when working with method references.
+	 * It allows you to easily convert a method that throws a checked exception
+	 * into an instance compatible with a regular {@link Consumer}.
+	 * <p>For example:
+	 * <pre class="code">
+	 * list.forEach(ThrowingConsumer.of(Example::methodThatCanThrowCheckedException));
+	 * </pre>
 	 * @param <T> the type of the input to the operation
 	 * @param consumer the source consumer
 	 * @return a new {@link ThrowingConsumer} instance
@@ -104,9 +109,16 @@ public interface ThrowingConsumer<T> extends Consumer<T> {
 	}
 
 	/**
-	 * Lambda friendly convenience method that can be used to create
+	 * Lambda friendly convenience method that can be used to create a
 	 * {@link ThrowingConsumer} where the {@link #accept(Object)} method wraps
 	 * any thrown checked exceptions using the given {@code exceptionWrapper}.
+	 * <p>This method can be especially useful when working with method references.
+	 * It allows you to easily convert a method that throws a checked exception
+	 * into an instance compatible with a regular {@link Consumer}.
+	 * <p>For example:
+	 * <pre class="code">
+	 * list.forEach(ThrowingConsumer.of(Example::methodThatCanThrowCheckedException, IllegalStateException::new));
+	 * </pre>
 	 * @param <T> the type of the input to the operation
 	 * @param consumer the source consumer
 	 * @param exceptionWrapper the exception wrapper to use

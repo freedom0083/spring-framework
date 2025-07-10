@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -28,6 +27,7 @@ import java.util.function.Supplier;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -36,14 +36,12 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.BeanFactoryAnnotationUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.EmbeddedValueResolver;
-import org.springframework.core.task.AsyncListenableTaskExecutor;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.support.TaskExecutorAdapter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.util.concurrent.ListenableFuture;
+import org.springframework.util.StringValueResolver;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
@@ -54,11 +52,13 @@ import org.springframework.util.function.SingletonSupplier;
  * <p>Provides support for <i>executor qualification</i> on a method-by-method basis.
  * {@code AsyncExecutionAspectSupport} objects must be constructed with a default {@code
  * Executor}, but each individual method may further qualify a specific {@code Executor}
- * bean to be used when executing it, e.g. through an annotation attribute.
+ * bean to be used when executing it, for example, through an annotation attribute.
  *
  * @author Chris Beams
  * @author Juergen Hoeller
  * @author Stephane Nicoll
+ * @author He Bo
+ * @author Sebastien Deleuze
  * @since 3.1.2
  */
 public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
@@ -74,14 +74,15 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	private final Map<Method, AsyncTaskExecutor> executors = new ConcurrentHashMap<>(16);
-
 	private SingletonSupplier<Executor> defaultExecutor;
 
 	private SingletonSupplier<AsyncUncaughtExceptionHandler> exceptionHandler;
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
+
+	private @Nullable StringValueResolver embeddedValueResolver;
+
+	private final Map<Method, AsyncTaskExecutor> executors = new ConcurrentHashMap<>(16);
 
 
 	/**
@@ -115,8 +116,8 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * applying the corresponding default if a supplier is not resolvable.
 	 * @since 5.1
 	 */
-	public void configure(@Nullable Supplier<Executor> defaultExecutor,
-			@Nullable Supplier<AsyncUncaughtExceptionHandler> exceptionHandler) {
+	public void configure(@Nullable Supplier<? extends @Nullable Executor> defaultExecutor,
+			@Nullable Supplier<? extends @Nullable AsyncUncaughtExceptionHandler> exceptionHandler) {
 
 		this.defaultExecutor = new SingletonSupplier<>(defaultExecutor, () -> getDefaultExecutor(this.beanFactory));
 		this.exceptionHandler = new SingletonSupplier<>(exceptionHandler, SimpleAsyncUncaughtExceptionHandler::new);
@@ -153,20 +154,25 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) {
 		this.beanFactory = beanFactory;
+		if (beanFactory instanceof ConfigurableBeanFactory configurableBeanFactory) {
+			this.embeddedValueResolver = new EmbeddedValueResolver(configurableBeanFactory);
+		}
+		this.executors.clear();
 	}
 
 
 	/**
 	 * Determine the specific executor to use when executing the given method.
-	 * <p>Should preferably return an {@link AsyncListenableTaskExecutor} implementation.
 	 * @return the executor to use (or {@code null}, but just if no default executor is available)
 	 */
-	@Nullable
-	protected AsyncTaskExecutor determineAsyncExecutor(Method method) {
+	protected @Nullable AsyncTaskExecutor determineAsyncExecutor(Method method) {
 		AsyncTaskExecutor executor = this.executors.get(method);
 		if (executor == null) {
 			Executor targetExecutor;
 			String qualifier = getExecutorQualifier(method);
+			if (this.embeddedValueResolver != null && StringUtils.hasLength(qualifier)) {
+				qualifier = this.embeddedValueResolver.resolveStringValue(qualifier);
+			}
 			if (StringUtils.hasLength(qualifier)) {
 				targetExecutor = findQualifiedExecutor(this.beanFactory, qualifier);
 			}
@@ -176,8 +182,8 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 			if (targetExecutor == null) {
 				return null;
 			}
-			executor = (targetExecutor instanceof AsyncListenableTaskExecutor ?
-					(AsyncListenableTaskExecutor) targetExecutor : new TaskExecutorAdapter(targetExecutor));
+			executor = (targetExecutor instanceof AsyncTaskExecutor asyncTaskExecutor ?
+					asyncTaskExecutor : new TaskExecutorAdapter(targetExecutor));
 			this.executors.put(method, executor);
 		}
 		return executor;
@@ -194,8 +200,7 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @see #determineAsyncExecutor(Method)
 	 * @see #findQualifiedExecutor(BeanFactory, String)
 	 */
-	@Nullable
-	protected abstract String getExecutorQualifier(Method method);
+	protected abstract @Nullable String getExecutorQualifier(Method method);
 
 	/**
 	 * Retrieve a target executor for the given qualifier.
@@ -204,15 +209,10 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @since 4.2.6
 	 * @see #getExecutorQualifier(Method)
 	 */
-	@Nullable
-	protected Executor findQualifiedExecutor(@Nullable BeanFactory beanFactory, String qualifier) {
+	protected @Nullable Executor findQualifiedExecutor(@Nullable BeanFactory beanFactory, String qualifier) {
 		if (beanFactory == null) {
 			throw new IllegalStateException("BeanFactory must be set on " + getClass().getSimpleName() +
 					" to access qualified executor '" + qualifier + "'");
-		}
-		if (beanFactory instanceof ConfigurableBeanFactory configurableBeanFactory) {
-			EmbeddedValueResolver embeddedValueResolver = new EmbeddedValueResolver(configurableBeanFactory);
-			qualifier = embeddedValueResolver.resolveStringValue(qualifier);
 		}
 		return BeanFactoryAnnotationUtils.qualifiedBeanOfType(beanFactory, Executor.class, qualifier);
 	}
@@ -229,8 +229,7 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @see #findQualifiedExecutor(BeanFactory, String)
 	 * @see #DEFAULT_TASK_EXECUTOR_BEAN_NAME
 	 */
-	@Nullable
-	protected Executor getDefaultExecutor(@Nullable BeanFactory beanFactory) {
+	protected @Nullable Executor getDefaultExecutor(@Nullable BeanFactory beanFactory) {
 		if (beanFactory != null) {
 			try {
 				// Search for TaskExecutor bean... not plain Executor since that would
@@ -276,25 +275,14 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @param returnType the declared return type (potentially a {@link Future} variant)
 	 * @return the execution result (potentially a corresponding {@link Future} handle)
 	 */
-	@Nullable
-	protected Object doSubmit(Callable<Object> task, AsyncTaskExecutor executor, Class<?> returnType) {
+	protected @Nullable Object doSubmit(Callable<Object> task, AsyncTaskExecutor executor, Class<?> returnType) {
 		if (CompletableFuture.class.isAssignableFrom(returnType)) {
-			return CompletableFuture.supplyAsync(() -> {
-				try {
-					return task.call();
-				}
-				catch (Throwable ex) {
-					throw new CompletionException(ex);
-				}
-			}, executor);
-		}
-		else if (ListenableFuture.class.isAssignableFrom(returnType)) {
-			return ((AsyncListenableTaskExecutor) executor).submitListenable(task);
+			return executor.submitCompletable(task);
 		}
 		else if (Future.class.isAssignableFrom(returnType)) {
 			return executor.submit(task);
 		}
-		else if (void.class == returnType) {
+		else if (void.class == returnType || "kotlin.Unit".equals(returnType.getName())) {
 			executor.submit(task);
 			return null;
 		}
@@ -316,7 +304,7 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @param method the method that was invoked
 	 * @param params the parameters used to invoke the method
 	 */
-	protected void handleError(Throwable ex, Method method, Object... params) throws Exception {
+	protected void handleError(Throwable ex, Method method, @Nullable Object... params) throws Exception {
 		if (Future.class.isAssignableFrom(method.getReturnType())) {
 			ReflectionUtils.rethrowException(ex);
 		}

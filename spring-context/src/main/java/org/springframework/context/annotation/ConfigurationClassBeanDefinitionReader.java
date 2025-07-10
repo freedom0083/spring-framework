@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.context.annotation;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,8 +27,12 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.BeanRegistrar;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -36,14 +41,14 @@ import org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader;
 import org.springframework.beans.factory.parsing.SourceExtractor;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinitionReader;
+import org.springframework.beans.factory.support.BeanDefinitionOverrideException;
 import org.springframework.beans.factory.support.BeanDefinitionReader;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanNameGenerator;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.support.BeanRegistryAdapter;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.context.annotation.ConfigurationCondition.ConfigurationPhase;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
@@ -52,8 +57,8 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.MethodMetadata;
 import org.springframework.core.type.StandardAnnotationMetadata;
 import org.springframework.core.type.StandardMethodMetadata;
-import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -77,13 +82,6 @@ class ConfigurationClassBeanDefinitionReader {
 	private static final Log logger = LogFactory.getLog(ConfigurationClassBeanDefinitionReader.class);
 
 	private static final ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
-
-	/**
-	 * Boolean flag controlled by a {@code spring.xml.ignore} system property that instructs Spring to
-	 * ignore XML, i.e. to not initialize the XML-related infrastructure.
-	 * <p>The default is "false".
-	 */
-	private static final boolean shouldIgnoreXml = SpringProperties.getFlag("spring.xml.ignore");
 
 	private final BeanDefinitionRegistry registry;
 
@@ -155,9 +153,10 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 		// TODO 解析并注册@ImportResources指定的xml配置文件内定义的bean
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+		loadBeanDefinitionsFromImportBeanDefinitionRegistrars(configClass.getImportBeanDefinitionRegistrars());
 		// TODO 解析实现ImportBeanDefinitionRegistrar接口的类, 通过registerBeanDefinitions()来进行自定义的处理工作
 		//  比如AspectJAutoProxyRegistrar通过解析自已的注解来进行后面的AOP处理
-		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
+		loadBeanDefinitionsFromBeanRegistrars(configClass.getBeanRegistrars());
 	}
 
 	/**
@@ -223,7 +222,7 @@ class ConfigurationClassBeanDefinitionReader {
 			this.registry.registerAlias(beanName, alias);
 		}
 
-		// Has this effectively been overridden before (e.g. via XML)?
+		// Has this effectively been overridden before (for example, via XML)?
 		// TODO 判断一下当前@Bean方法是否可以覆盖其他的同名@Bean方法, 如果不可以, 会使用第一个注册的@Bean方法
 		//  否则使用当前@Bean方法重新注册, 会检查以下几点:
 		//  1. @Bean方法是否在容器中: 如果不存在, 则返回false表示可以被覆盖
@@ -272,9 +271,13 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
-		if (metadata instanceof StandardMethodMetadata sam) {
-			// TODO @Bean标注的方法的元数据是StandardMethodMetadata时, 将其内省对象做为bean的解析过的工厂方法
-			beanDef.setResolvedFactoryMethod(sam.getIntrospectedMethod());
+		if (metadata instanceof StandardMethodMetadata smm &&
+				configClass.getMetadata() instanceof StandardAnnotationMetadata sam) {
+			Method method = ClassUtils.getMostSpecificMethod(smm.getIntrospectedMethod(), sam.getIntrospectedClass());
+			if (method == smm.getIntrospectedMethod()) {
+				// TODO @Bean标注的方法的元数据是StandardMethodMetadata时, 将其内省对象做为bean的解析过的工厂方法
+				beanDef.setResolvedFactoryMethod(method);
+			}
 		}
 		// TODO 设置自动装配模式, 默认为构造器模式
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
@@ -286,6 +289,16 @@ class ConfigurationClassBeanDefinitionReader {
 		boolean autowireCandidate = bean.getBoolean("autowireCandidate");
 		if (!autowireCandidate) {
 			beanDef.setAutowireCandidate(false);
+		}
+
+		boolean defaultCandidate = bean.getBoolean("defaultCandidate");
+		if (!defaultCandidate) {
+			beanDef.setDefaultCandidate(false);
+		}
+
+		Bean.Bootstrap instantiation = bean.getEnum("bootstrap");
+		if (instantiation == Bean.Bootstrap.BACKGROUND) {
+			beanDef.setBackgroundInit(true);
 		}
 
 		String initMethodName = bean.getString("initMethod");
@@ -322,43 +335,53 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 
 		if (logger.isTraceEnabled()) {
-			logger.trace(String.format("Registering bean definition for @Bean method %s.%s()",
-					configClass.getMetadata().getClassName(), beanName));
+			logger.trace("Registering bean definition for @Bean method %s.%s()"
+					.formatted(configClass.getMetadata().getClassName(), beanName));
 		}
 		// TODO 将@Bean方法注册到容器中
 		this.registry.registerBeanDefinition(beanName, beanDefToRegister);
 	}
 
+	@SuppressWarnings("NullAway") // Reflection
 	protected boolean isOverriddenByExistingDefinition(BeanMethod beanMethod, String beanName) {
 		if (!this.registry.containsBeanDefinition(beanName)) {
 			return false;
 		}
 		BeanDefinition existingBeanDef = this.registry.getBeanDefinition(beanName);
+		ConfigurationClass configClass = beanMethod.getConfigurationClass();
 
-		// Is the existing bean definition one that was created from a configuration class?
-		// -> allow the current bean method to override, since both are at second-pass level.
-		// However, if the bean method is an overloaded case on the same configuration class,
-		// preserve the existing bean definition.
+		// If the bean method is an overloaded case on the same configuration class,
+		// preserve the existing bean definition and mark it as overloaded.
 		if (existingBeanDef instanceof ConfigurationClassBeanDefinition ccbd) {
-			if (ccbd.getMetadata().getClassName().equals(
-					beanMethod.getConfigurationClass().getMetadata().getClassName())) {
-				// TODO 配置类中@Bean注解的不同方法可以使用相同的名字, 对于同一个配置类来说, 如果出现@Bean注解的方法拥有相同的名字的情况, 则本次注册不会覆盖第一个注册的@Bean方法
-				//  即, 返回true来表示之前有@Bean方法已经注册了相同的方法名, 当前@Bean方法已经被覆盖过, 不需要再注册, 直接跳过
-				if (ccbd.getFactoryMethodMetadata().getMethodName().equals(ccbd.getFactoryMethodName())) {
-					// TODO 然后再设置一下第一个注册的@Bean方法, 通知其并非唯一, 还有其他同名@Bean方法被覆盖过
-					ccbd.setNonUniqueFactoryMethodName(ccbd.getFactoryMethodMetadata().getMethodName());
-				}
-				return true;
-			}
-			else {
-				// TODO 对于不同的配置文件, 并不受影响, 返回false表示可以覆盖之前的@Bean方法
+			if (!ccbd.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
 				return false;
 			}
+			// TODO 配置类中@Bean注解的不同方法可以使用相同的名字, 对于同一个配置类来说, 如果出现@Bean注解的方法拥有相同的名字的情况, 则本次注册不会覆盖第一个注册的@Bean方法
+			//  即, 返回true来表示之前有@Bean方法已经注册了相同的方法名, 当前@Bean方法已经被覆盖过, 不需要再注册, 直接跳过
+			if (ccbd.getFactoryMethodMetadata().getMethodName().equals(beanMethod.getMetadata().getMethodName())) {
+				// TODO 然后再设置一下第一个注册的@Bean方法, 通知其并非唯一, 还有其他同名@Bean方法被覆盖过
+				ccbd.setNonUniqueFactoryMethodName(ccbd.getFactoryMethodMetadata().getMethodName());
+				return true;
+			}
+			Map<String, @Nullable Object> attributes =
+					configClass.getMetadata().getAnnotationAttributes(Configuration.class.getName());
+			if ((attributes != null && (Boolean) attributes.get("enforceUniqueMethods")) ||
+					!this.registry.isBeanDefinitionOverridable(beanName)) {
+				throw new BeanDefinitionOverrideException(beanName,
+						new ConfigurationClassBeanDefinition(configClass, beanMethod.getMetadata(), beanName),
+						existingBeanDef,
+						"@Bean method override with same bean name but different method name: " + existingBeanDef);
+			}
+			return true;
 		}
 
 		// A bean definition resulting from a component scan can be silently overridden
-		// by an @Bean method, as of 4.2...
-		if (existingBeanDef instanceof ScannedGenericBeanDefinition) {
+		// by an @Bean method - and as of 6.1, even when general overriding is disabled
+		// as long as the bean class is the same.
+		if (existingBeanDef instanceof ScannedGenericBeanDefinition scannedBeanDef) {
+			if (beanMethod.getMetadata().getReturnTypeName().equals(scannedBeanDef.getBeanClassName())) {
+				this.registry.removeBeanDefinition(beanName);
+			}
 			// TODO @Component内的bean可以被覆盖
 			return false;
 		}
@@ -373,16 +396,16 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// At this point, it's a top-level override (probably XML), just having been parsed
 		// before configuration class processing kicks in...
-		if (this.registry instanceof DefaultListableBeanFactory dlbf &&
-				!dlbf.isAllowBeanDefinitionOverriding()) {
+		if (!this.registry.isBeanDefinitionOverridable(beanName)) {
 			// TODO 如果设置了不允许覆盖方法, 则会抛出异常
-			throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
-					beanName, "@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
+			throw new BeanDefinitionOverrideException(beanName,
+					new ConfigurationClassBeanDefinition(configClass, beanMethod.getMetadata(), beanName),
+					existingBeanDef,
+					"@Bean definition illegally overridden by existing bean definition: " + existingBeanDef);
 		}
 		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("Skipping bean definition for %s: a definition for bean '%s' " +
-					"already exists. This top-level bean definition is considered as an override.",
-					beanMethod, beanName));
+			logger.debug("Skipping bean definition for %s: a definition for bean '%s' already exists. " +
+					"This top-level bean definition is considered as an override.".formatted(beanMethod, beanName));
 		}
 		// TODO 走到这里就表示@Bean方法可以覆盖的条件都不满足了, 即返回true
 		return true;
@@ -400,9 +423,6 @@ class ConfigurationClassBeanDefinitionReader {
 					// When clearly asking for Groovy, that's what they'll get...
 					readerClass = GroovyBeanDefinitionReader.class;
 				}
-				else if (shouldIgnoreXml) {
-					throw new UnsupportedOperationException("XML support disabled");
-				}
 				else {
 					// Primarily ".xml" files but for any other extension as well
 					// TODO 除了groovy以外的其他情况
@@ -413,9 +433,11 @@ class ConfigurationClassBeanDefinitionReader {
 			BeanDefinitionReader reader = readerInstanceCache.get(readerClass);
 			if (reader == null) {
 				try {
+					Constructor<? extends BeanDefinitionReader> constructor =
+							readerClass.getDeclaredConstructor(BeanDefinitionRegistry.class);
 					// Instantiate the specified BeanDefinitionReader
-					reader = readerClass.getConstructor(BeanDefinitionRegistry.class).newInstance(this.registry);
-					// Delegate the current ResourceLoader to it if possible
+					reader = BeanUtils.instantiateClass(constructor, this.registry);
+					// Delegate the current ResourceLoader and Environment to it if possible
 					if (reader instanceof AbstractBeanDefinitionReader abdr) {
 						abdr.setResourceLoader(this.resourceLoader);
 						abdr.setEnvironment(this.environment);
@@ -424,18 +446,24 @@ class ConfigurationClassBeanDefinitionReader {
 				}
 				catch (Throwable ex) {
 					throw new IllegalStateException(
-							"Could not instantiate BeanDefinitionReader class [" + readerClass.getName() + "]");
+							"Could not instantiate BeanDefinitionReader class [" + readerClass.getName() + "]", ex);
 				}
 			}
-
-			// TODO SPR-6310: qualify relative path locations as done in AbstractContextLoader.modifyLocations
 			reader.loadBeanDefinitions(resource);
 		});
 	}
 
-	private void loadBeanDefinitionsFromRegistrars(Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> registrars) {
+	private void loadBeanDefinitionsFromImportBeanDefinitionRegistrars(Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> registrars) {
 		registrars.forEach((registrar, metadata) ->
 				registrar.registerBeanDefinitions(metadata, this.registry, this.importBeanNameGenerator));
+	}
+
+	private void loadBeanDefinitionsFromBeanRegistrars(Map<String, BeanRegistrar> registrars) {
+		Assert.isInstanceOf(ListableBeanFactory.class, this.registry,
+				"Cannot support bean registrars since " + this.registry.getClass().getName() +
+						" does not implement BeanDefinitionRegistry");
+		registrars.values().forEach(registrar -> registrar.register(new BeanRegistryAdapter(this.registry,
+				(ListableBeanFactory) this.registry, this.environment, registrar.getClass()), this.environment));
 	}
 
 
@@ -466,6 +494,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		public ConfigurationClassBeanDefinition(RootBeanDefinition original,
 				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
+
 			super(original);
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
@@ -485,7 +514,6 @@ class ConfigurationClassBeanDefinitionReader {
 		}
 
 		@Override
-		@NonNull
 		public MethodMetadata getFactoryMethodMetadata() {
 			return this.factoryMethodMetadata;
 		}

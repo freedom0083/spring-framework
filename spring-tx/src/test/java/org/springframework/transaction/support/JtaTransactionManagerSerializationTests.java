@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,13 @@ import static org.mockito.Mockito.mock;
 /**
  * @author Rod Johnson
  */
-public class JtaTransactionManagerSerializationTests {
+class JtaTransactionManagerSerializationTests {
 
 	@Test
-	public void serializable() throws Exception {
-		UserTransaction ut1 = mock(UserTransaction.class);
-		UserTransaction ut2 = mock(UserTransaction.class);
-		TransactionManager tm = mock(TransactionManager.class);
+	void serializable() throws Exception {
+		UserTransaction ut1 = mock();
+		UserTransaction ut2 = mock();
+		TransactionManager tm = mock();
 
 		JtaTransactionManager jtam = new JtaTransactionManager();
 		jtam.setUserTransaction(ut1);
@@ -52,7 +52,7 @@ public class JtaTransactionManagerSerializationTests {
 		// should do client-side lookup
 		assertThat(serializedJtatm.logger).as("Logger must survive serialization").isNotNull();
 		assertThat(serializedJtatm
-				.getUserTransaction() == ut2).as("UserTransaction looked up on client").isTrue();
+				.getUserTransaction()).as("UserTransaction looked up on client").isSameAs(ut2);
 		assertThat(serializedJtatm
 				.getTransactionManager()).as("TransactionManager didn't survive").isNull();
 		assertThat(serializedJtatm.isRollbackOnCommitFailure()).isTrue();

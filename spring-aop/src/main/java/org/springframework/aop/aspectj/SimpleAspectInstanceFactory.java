@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ package org.springframework.aop.aspectj;
 
 import java.lang.reflect.InvocationTargetException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.framework.AopConfigException;
 import org.springframework.core.Ordered;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 
@@ -77,8 +78,7 @@ public class SimpleAspectInstanceFactory implements AspectInstanceFactory {
 	}
 
 	@Override
-	@Nullable
-	public ClassLoader getAspectClassLoader() {
+	public @Nullable ClassLoader getAspectClassLoader() {
 		return this.aspectClass.getClassLoader();
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,11 +27,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import jakarta.servlet.MultipartConfigElement;
+import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.NetworkConnector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,9 +50,10 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.MultiValueMap;
@@ -75,7 +78,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
  * @author Brian Clozel
  * @author Sam Brannen
  */
-public class RequestPartIntegrationTests {
+class RequestPartIntegrationTests {
 
 	private RestTemplate restTemplate;
 
@@ -83,18 +86,22 @@ public class RequestPartIntegrationTests {
 
 	private static String baseUrl;
 
+	private static Path tempDirectory;
+
 
 	@BeforeAll
-	public static void startServer() throws Exception {
+	static void startServer() throws Exception {
 		// Let server pick its own random, available port.
 		server = new Server(0);
+
+		tempDirectory = Files.createTempDirectory("RequestPartIntegrationTests");
 
 		ServletContextHandler handler = new ServletContextHandler();
 		handler.setContextPath("/");
 		ServletHolder standardResolverServlet = new ServletHolder(DispatcherServlet.class);
 		standardResolverServlet.setInitParameter("contextConfigLocation", StandardMultipartResolverTestConfig.class.getName());
 		standardResolverServlet.setInitParameter("contextClass", AnnotationConfigWebApplicationContext.class.getName());
-		standardResolverServlet.getRegistration().setMultipartConfig(new MultipartConfigElement(""));
+		standardResolverServlet.getRegistration().setMultipartConfig(new MultipartConfigElement(tempDirectory.toString()));
 		handler.addServlet(standardResolverServlet, "/standard-resolver/*");
 
 		server.setHandler(handler);
@@ -106,14 +113,19 @@ public class RequestPartIntegrationTests {
 	}
 
 	@AfterAll
-	public static void stopServer() throws Exception {
-		if (server != null) {
-			server.stop();
+	static void stopServer() throws Exception {
+		try {
+			if (server != null) {
+				server.stop();
+			}
+		}
+		finally {
+			FileSystemUtils.deleteRecursively(tempDirectory);
 		}
 	}
 
 	@BeforeEach
-	public void setup() {
+	void setup() {
 		ByteArrayHttpMessageConverter emptyBodyConverter = new ByteArrayHttpMessageConverter();
 		emptyBodyConverter.setSupportedMediaTypes(Collections.singletonList(MediaType.APPLICATION_JSON));
 
@@ -121,7 +133,7 @@ public class RequestPartIntegrationTests {
 		converters.add(emptyBodyConverter);
 		converters.add(new ByteArrayHttpMessageConverter());
 		converters.add(new ResourceHttpMessageConverter());
-		converters.add(new MappingJackson2HttpMessageConverter());
+		converters.add(new JacksonJsonHttpMessageConverter());
 
 		AllEncompassingFormHttpMessageConverter converter = new AllEncompassingFormHttpMessageConverter();
 		converter.setPartConverters(converters);
@@ -132,13 +144,13 @@ public class RequestPartIntegrationTests {
 
 
 	@Test
-	public void standardMultipartResolver() throws Exception {
+	void standardMultipartResolver() {
 		testCreate(baseUrl + "/standard-resolver/test", "Jason");
 		testCreate(baseUrl + "/standard-resolver/test", "Arjen");
 	}
 
 	@Test  // SPR-13319
-	public void standardMultipartResolverWithEncodedFileName() throws Exception {
+	void standardMultipartResolverWithEncodedFileName() {
 		String boundaryText = MimeTypeUtils.generateMultipartBoundaryString();
 		Map<String, String> params = Collections.singletonMap("boundary", boundaryText);
 
@@ -149,10 +161,10 @@ public class RequestPartIntegrationTests {
 				"Content-Length: 7\r\n" +
 				"\r\n" +
 				"content\r\n" +
-				"--" + boundaryText + "--";
+				"--" + boundaryText + "--\r\n ";
 
 		RequestEntity<byte[]> requestEntity =
-				RequestEntity.post(new URI(baseUrl + "/standard-resolver/spr13319"))
+				RequestEntity.post(URI.create(baseUrl + "/standard-resolver/spr13319"))
 						.contentType(new MediaType(MediaType.MULTIPART_FORM_DATA, params))
 						.body(content.getBytes(StandardCharsets.US_ASCII));
 
@@ -233,7 +245,6 @@ public class RequestPartIntegrationTests {
 		private String name;
 
 		public TestData() {
-			super();
 		}
 
 		public TestData(String name) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,15 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 /**
- * A SimpleJdbcCall is a multi-threaded, reusable object representing a call
+ * A SimpleJdbcCall is a multithreaded, reusable object representing a call
  * to a stored procedure or a stored function. It provides meta-data processing
  * to simplify the code needed to access basic stored procedures/functions.
  * All you need to provide is the name of the procedure/function and a Map
@@ -47,7 +49,7 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
  * any meta-data processing if you want to use parameter names that do not
  * match what is declared during the stored procedure compilation.
  *
- * <p>The actual insert is being handled using Spring's {@link JdbcTemplate}.
+ * <p>The actual call is being handled using Spring's {@link JdbcTemplate}.
  *
  * <p>Many of the configuration methods return the current instance of the
  * SimpleJdbcCall in order to provide the ability to chain multiple ones
@@ -149,52 +151,52 @@ public class SimpleJdbcCall extends AbstractJdbcCall implements SimpleJdbcCallOp
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeFunction(Class<T> returnType, Object... args) {
+	public <T> @Nullable T executeFunction(Class<T> returnType, Object... args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeFunction(Class<T> returnType, Map<String, ?> args) {
+	public <T> @Nullable T executeFunction(Class<T> returnType, Map<String, ?> args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeFunction(Class<T> returnType, SqlParameterSource args) {
+	public <T> @Nullable T executeFunction(Class<T> returnType, SqlParameterSource args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeObject(Class<T> returnType, Object... args) {
+	public <T> @Nullable T executeObject(Class<T> returnType, Object... args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeObject(Class<T> returnType, Map<String, ?> args) {
+	public <T> @Nullable T executeObject(Class<T> returnType, Map<String, ?> args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T executeObject(Class<T> returnType, SqlParameterSource args) {
+	public <T> @Nullable T executeObject(Class<T> returnType, SqlParameterSource args) {
 		return (T) doExecute(args).get(getScalarOutParameterName());
 	}
 
 	@Override
-	public Map<String, Object> execute(Object... args) {
+	public Map<String, @Nullable Object> execute(Object... args) {
 		return doExecute(args);
 	}
 
 	@Override
-	public Map<String, Object> execute(Map<String, ?> args) {
+	public Map<String, @Nullable Object> execute(Map<String, ?> args) {
 		return doExecute(args);
 	}
 
 	@Override
-	public Map<String, Object> execute(SqlParameterSource parameterSource) {
+	public Map<String, @Nullable Object> execute(SqlParameterSource parameterSource) {
 		return doExecute(parameterSource);
 	}
 

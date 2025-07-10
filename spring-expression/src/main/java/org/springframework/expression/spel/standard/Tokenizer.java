@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.expression.spel.standard;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.expression.spel.InternalParseException;
 import org.springframework.expression.spel.SpelMessage;
@@ -30,11 +31,19 @@ import org.springframework.expression.spel.SpelParseException;
  * @author Andy Clement
  * @author Juergen Hoeller
  * @author Phillip Webb
+ * @author Sam Brannen
  * @since 3.0
  */
 class Tokenizer {
 
-	// If this gets changed, it must remain sorted...
+	/**
+	 * Alternative textual operator names which must match enum constant names
+	 * in {@link TokenKind}.
+	 * <p>Note that {@code AND} and {@code OR} are also alternative textual
+	 * names, but they are handled later in {@link InternalSpelExpressionParser}.
+	 * <p>If this list gets changed, it must remain sorted since we use it with
+	 * {@link Arrays#binarySearch(Object[], Object)}.
+	 */
 	private static final String[] ALTERNATIVE_OPERATOR_NAMES =
 			{"DIV", "EQ", "GE", "GT", "LE", "LT", "MOD", "NE", "NOT"};
 
@@ -43,8 +52,6 @@ class Tokenizer {
 	private static final byte IS_DIGIT = 0x01;
 
 	private static final byte IS_HEXDIGIT = 0x02;
-
-	private static final byte IS_ALPHA = 0x04;
 
 	static {
 		for (int ch = '0'; ch <= '9'; ch++) {
@@ -55,12 +62,6 @@ class Tokenizer {
 		}
 		for (int ch = 'a'; ch <= 'f'; ch++) {
 			FLAGS[ch] |= IS_HEXDIGIT;
-		}
-		for (int ch = 'A'; ch <= 'Z'; ch++) {
-			FLAGS[ch] |= IS_ALPHA;
-		}
-		for (int ch = 'a'; ch <= 'z'; ch++) {
-			FLAGS[ch] |= IS_ALPHA;
 		}
 	}
 
@@ -105,9 +106,9 @@ class Tokenizer {
 							pushCharToken(TokenKind.PLUS);
 						}
 						break;
-					case '_': // the other way to start an identifier
+					case '_':
 						// TODO '_'开头的情况也要做词法分析
-						lexIdentifier();
+						lexIdentifier();  // '_' is another way to start an identifier
 						break;
 					case '-':
 						if (isTwoCharToken(TokenKind.DEC)) {
@@ -219,7 +220,7 @@ class Tokenizer {
 							pushPairToken(TokenKind.SELECT_LAST);
 						}
 						else {
-							lexIdentifier();
+							lexIdentifier();  // '$' is another way to start an identifier
 						}
 						break;
 					case '>':
@@ -271,7 +272,7 @@ class Tokenizer {
 						raiseParseException(this.pos, SpelMessage.UNEXPECTED_ESCAPE_CHAR);
 						break;
 					default:
-						throw new IllegalStateException("Cannot handle (" + (int) ch + ") '" + ch + "'");
+						raiseParseException(this.pos + 1, SpelMessage.UNSUPPORTED_CHARACTER, ch, (int) ch);
 				}
 			}
 		}
@@ -462,11 +463,11 @@ class Tokenizer {
 		char[] subarray = subarray(start, this.pos);
 
 		// Check if this is the alternative (textual) representation of an operator (see
-		// alternativeOperatorNames)
-		if ((this.pos - start) == 2 || (this.pos - start) == 3) {
+		// ALTERNATIVE_OPERATOR_NAMES).
+		if (subarray.length == 2 || subarray.length == 3) {
 			// TODO 操作符长度为2, 或3时, 需要判断一下是否为SpEL定义的关系运算符, 如果是, 则用对应的关系运算符进行替换:
 			//  DIV -> '/', EQ -> '==', GE -> '>=', GT -> '>', LE -> '<=', LT -> '<', MOD -> '%', NE -> '!=', NOT -> '!'
-			String asString = new String(subarray).toUpperCase();
+			String asString = new String(subarray).toUpperCase(Locale.ROOT);
 			int idx = Arrays.binarySearch(ALTERNATIVE_OPERATOR_NAMES, asString);
 			if (idx >= 0) {
 				// TODO 如果是, 生成对应的关系运算符类型的token放入tokens
@@ -580,10 +581,7 @@ class Tokenizer {
 	}
 
 	private boolean isAlphabetic(char ch) {
-		if (ch > 255) {
-			return false;
-		}
-		return (FLAGS[ch] & IS_ALPHA) != 0;
+		return Character.isLetter(ch);
 	}
 
 	private boolean isHexadecimalDigit(char ch) {

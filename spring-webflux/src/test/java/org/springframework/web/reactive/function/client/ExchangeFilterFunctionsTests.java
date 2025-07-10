@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,19 +40,19 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link ExchangeFilterFunctions}.
+ * Tests for {@link ExchangeFilterFunctions}.
  *
  * @author Arjen Poutsma
  */
-public class ExchangeFilterFunctionsTests {
+class ExchangeFilterFunctionsTests {
 
 	private static final URI DEFAULT_URL = URI.create("https://example.com");
 
 
 	@Test
-	public void andThen() {
+	void andThen() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
+		ClientResponse response = mock();
 		ExchangeFunction exchange = r -> Mono.just(response);
 
 		boolean[] filtersInvoked = new boolean[2];
@@ -60,7 +60,6 @@ public class ExchangeFilterFunctionsTests {
 			assertThat(filtersInvoked[0]).isFalse();
 			assertThat(filtersInvoked[1]).isFalse();
 			filtersInvoked[0] = true;
-			assertThat(filtersInvoked[1]).isFalse();
 			return n.exchange(r);
 		};
 		ExchangeFilterFunction filter2 = (r, n) -> {
@@ -80,9 +79,9 @@ public class ExchangeFilterFunctionsTests {
 	}
 
 	@Test
-	public void apply() {
+	void apply() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
+		ClientResponse response = mock();
 		ExchangeFunction exchange = r -> Mono.just(response);
 
 		boolean[] filterInvoked = new boolean[1];
@@ -99,73 +98,35 @@ public class ExchangeFilterFunctionsTests {
 	}
 
 	@Test
-	public void basicAuthenticationUsernamePassword() {
+	void basicAuthenticationUsernamePassword() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
+		ClientResponse response = mock();
 
 		ExchangeFunction exchange = r -> {
-			assertThat(r.headers().containsKey(HttpHeaders.AUTHORIZATION)).isTrue();
-			assertThat(r.headers().getFirst(HttpHeaders.AUTHORIZATION).startsWith("Basic ")).isTrue();
+			assertThat(r.headers().containsHeader(HttpHeaders.AUTHORIZATION)).isTrue();
+			assertThat(r.headers().getFirst(HttpHeaders.AUTHORIZATION)).startsWith("Basic ");
 			return Mono.just(response);
 		};
 
 		ExchangeFilterFunction auth = ExchangeFilterFunctions.basicAuthentication("foo", "bar");
-		assertThat(request.headers().containsKey(HttpHeaders.AUTHORIZATION)).isFalse();
+		assertThat(request.headers().containsHeader(HttpHeaders.AUTHORIZATION)).isFalse();
 		ClientResponse result = auth.filter(request, exchange).block();
 		assertThat(result).isEqualTo(response);
 	}
 
 	@Test
-	public void basicAuthenticationInvalidCharacters() {
+	void basicAuthenticationInvalidCharacters() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ExchangeFunction exchange = r -> Mono.just(mock(ClientResponse.class));
+		ExchangeFunction exchange = r -> Mono.just(mock());
 
 		assertThatIllegalArgumentException().isThrownBy(() ->
 				ExchangeFilterFunctions.basicAuthentication("foo", "\ud83d\udca9").filter(request, exchange));
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	public void basicAuthenticationAttributes() {
-		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL)
-				.attributes(org.springframework.web.reactive.function.client.ExchangeFilterFunctions
-						.Credentials.basicAuthenticationCredentials("foo", "bar"))
-				.build();
-		ClientResponse response = mock(ClientResponse.class);
-
-		ExchangeFunction exchange = r -> {
-			assertThat(r.headers().containsKey(HttpHeaders.AUTHORIZATION)).isTrue();
-			assertThat(r.headers().getFirst(HttpHeaders.AUTHORIZATION).startsWith("Basic ")).isTrue();
-			return Mono.just(response);
-		};
-
-		ExchangeFilterFunction auth = ExchangeFilterFunctions.basicAuthentication();
-		assertThat(request.headers().containsKey(HttpHeaders.AUTHORIZATION)).isFalse();
-		ClientResponse result = auth.filter(request, exchange).block();
-		assertThat(result).isEqualTo(response);
-	}
-
-	@Test
-	@SuppressWarnings("deprecation")
-	public void basicAuthenticationAbsentAttributes() {
+	void statusHandlerMatch() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
-
-		ExchangeFunction exchange = r -> {
-			assertThat(r.headers().containsKey(HttpHeaders.AUTHORIZATION)).isFalse();
-			return Mono.just(response);
-		};
-
-		ExchangeFilterFunction auth = ExchangeFilterFunctions.basicAuthentication();
-		assertThat(request.headers().containsKey(HttpHeaders.AUTHORIZATION)).isFalse();
-		ClientResponse result = auth.filter(request, exchange).block();
-		assertThat(result).isEqualTo(response);
-	}
-
-	@Test
-	public void statusHandlerMatch() {
-		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
+		ClientResponse response = mock();
 		given(response.statusCode()).willReturn(HttpStatus.NOT_FOUND);
 
 		ExchangeFunction exchange = r -> Mono.just(response);
@@ -181,9 +142,9 @@ public class ExchangeFilterFunctionsTests {
 	}
 
 	@Test
-	public void statusHandlerNoMatch() {
+	void statusHandlerNoMatch() {
 		ClientRequest request = ClientRequest.create(HttpMethod.GET, DEFAULT_URL).build();
-		ClientResponse response = mock(ClientResponse.class);
+		ClientResponse response = mock();
 		given(response.statusCode()).willReturn(HttpStatus.NOT_FOUND);
 
 		Mono<ClientResponse> result = ExchangeFilterFunctions
@@ -197,7 +158,7 @@ public class ExchangeFilterFunctionsTests {
 	}
 
 	@Test
-	public void limitResponseSize() {
+	void limitResponseSize() {
 		DataBuffer b1 = dataBuffer("foo");
 		DataBuffer b2 = dataBuffer("bar");
 		DataBuffer b3 = dataBuffer("baz");

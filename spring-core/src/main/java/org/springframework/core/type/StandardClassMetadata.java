@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package org.springframework.core.type;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -39,9 +40,9 @@ public class StandardClassMetadata implements ClassMetadata {
 	/**
 	 * Create a new StandardClassMetadata wrapper for the given Class.
 	 * @param introspectedClass the Class to introspect
-	 * @deprecated since 5.2 in favor of {@link StandardAnnotationMetadata}
+	 * @deprecated in favor of {@link StandardAnnotationMetadata}
 	 */
-	@Deprecated
+	@Deprecated(since = "5.2")
 	public StandardClassMetadata(Class<?> introspectedClass) {
 		Assert.notNull(introspectedClass, "Class must not be null");
 		// TODO 设置内省对象
@@ -89,15 +90,13 @@ public class StandardClassMetadata implements ClassMetadata {
 	}
 
 	@Override
-	@Nullable
-	public String getEnclosingClassName() {
+	public @Nullable String getEnclosingClassName() {
 		Class<?> enclosingClass = this.introspectedClass.getEnclosingClass();
 		return (enclosingClass != null ? enclosingClass.getName() : null);
 	}
 
 	@Override
-	@Nullable
-	public String getSuperClassName() {
+	public @Nullable String getSuperClassName() {
 		Class<?> superClass = this.introspectedClass.getSuperclass();
 		return (superClass != null ? superClass.getName() : null);
 	}
@@ -121,10 +120,11 @@ public class StandardClassMetadata implements ClassMetadata {
 		return StringUtils.toStringArray(memberClassNames);
 	}
 
+
 	@Override
-	public boolean equals(@Nullable Object obj) {
-		return ((this == obj) || ((obj instanceof StandardClassMetadata) &&
-				getIntrospectedClass().equals(((StandardClassMetadata) obj).getIntrospectedClass())));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof StandardClassMetadata that &&
+				getIntrospectedClass().equals(that.getIntrospectedClass())));
 	}
 
 	@Override

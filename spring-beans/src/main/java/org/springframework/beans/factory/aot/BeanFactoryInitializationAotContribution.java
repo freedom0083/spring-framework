@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import org.springframework.aot.generate.GenerationContext;
  * AOT contribution from a {@link BeanFactoryInitializationAotProcessor} used to
  * initialize a bean factory.
  *
- * <p>Note: Beans implementing interface will not have registration methods
+ * <p>Note: Beans implementing this interface will not have registration methods
  * generated during AOT processing unless they also implement
  * {@link org.springframework.beans.factory.aot.BeanRegistrationExcludeFilter}.
  *
@@ -34,8 +34,7 @@ import org.springframework.aot.generate.GenerationContext;
 public interface BeanFactoryInitializationAotContribution {
 
 	/**
-	 * Apply this contribution to the given
-	 * {@link BeanFactoryInitializationCode}.
+	 * Apply this contribution to the given {@link BeanFactoryInitializationCode}.
 	 * @param generationContext the active generation context
 	 * @param beanFactoryInitializationCode the bean factory initialization code
 	 */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.rsocket.metadata.WellKnownMimeType;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.ReactiveAdapter;
@@ -35,7 +36,6 @@ import org.springframework.core.codec.Encoder;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MimeType;
@@ -63,8 +63,7 @@ final class MetadataEncoder {
 
 	private final ByteBufAllocator allocator;
 
-	@Nullable
-	private String route;
+	private @Nullable String route;
 
 	private final List<MetadataEntry> metadataEntries = new ArrayList<>(4);
 
@@ -78,8 +77,8 @@ final class MetadataEncoder {
 		this.strategies = strategies;
 		this.isComposite = this.metadataMimeType.toString().equals(
 				WellKnownMimeType.MESSAGE_RSOCKET_COMPOSITE_METADATA.getString());
-		this.allocator = bufferFactory() instanceof NettyDataBufferFactory ?
-				((NettyDataBufferFactory) bufferFactory()).getByteBufAllocator() : ByteBufAllocator.DEFAULT;
+		this.allocator = bufferFactory() instanceof NettyDataBufferFactory nettyDBF ?
+				nettyDBF.getByteBufAllocator() : ByteBufAllocator.DEFAULT;
 	}
 
 
@@ -107,8 +106,7 @@ final class MetadataEncoder {
 		Matcher matcher = VARS_PATTERN.matcher(route);
 		while (matcher.find()) {
 			Assert.isTrue(index < routeVars.length, () -> "No value for variable '" + matcher.group(1) + "'");
-			String value = routeVars[index].toString();
-			value = value.contains(".") ? value.replaceAll("\\.", "%2E") : value;
+			String value = routeVars[index].toString().replace(".", "%2E");
 			matcher.appendReplacement(sb, value);
 			index++;
 		}
@@ -141,7 +139,8 @@ final class MetadataEncoder {
 		}
 		ReactiveAdapter adapter = this.strategies.reactiveAdapterRegistry().getAdapter(metadata.getClass());
 		if (adapter != null) {
-			Assert.isTrue(!adapter.isMultiValue(), "Expected single value: " + metadata);
+			Object originalMetadata = metadata;
+			Assert.isTrue(!adapter.isMultiValue(), () -> "Expected single value: " + originalMetadata);
 			metadata = Mono.from(adapter.toPublisher(metadata)).defaultIfEmpty(NO_VALUE);
 			this.hasAsyncValues = true;
 		}
@@ -154,7 +153,7 @@ final class MetadataEncoder {
 	 * Add route and/or metadata, both optional.
 	 */
 	public MetadataEncoder metadataAndOrRoute(@Nullable Map<Object, MimeType> metadata,
-			@Nullable String route, @Nullable Object[] vars) {
+			@Nullable String route, Object @Nullable [] vars) {
 
 		if (route != null) {
 			this.route = expand(route, vars != null ? vars : new Object[0]);
@@ -192,7 +191,7 @@ final class MetadataEncoder {
 					Object value = entry.value();
 					io.rsocket.metadata.CompositeMetadataCodec.encodeAndAddMetadata(
 							composite, this.allocator, entry.mimeType().toString(),
-							value instanceof ByteBuf ? (ByteBuf) value : PayloadUtils.asByteBuf(encodeEntry(entry)));
+							value instanceof ByteBuf byteBuf ? byteBuf : PayloadUtils.asByteBuf(encodeEntry(entry)));
 				});
 				return asDataBuffer(composite);
 				}
@@ -231,8 +230,8 @@ final class MetadataEncoder {
 
 	@SuppressWarnings("unchecked")
 	private <T> DataBuffer encodeEntry(Object value, MimeType mimeType) {
-		if (value instanceof ByteBuf) {
-			return asDataBuffer((ByteBuf) value);
+		if (value instanceof ByteBuf byteBuf) {
+			return asDataBuffer(byteBuf);
 		}
 		ResolvableType type = ResolvableType.forInstance(value);
 		Encoder<T> encoder = this.strategies.encoder(type, mimeType);
@@ -241,8 +240,8 @@ final class MetadataEncoder {
 	}
 
 	private DataBuffer asDataBuffer(ByteBuf byteBuf) {
-		if (bufferFactory() instanceof NettyDataBufferFactory) {
-			return ((NettyDataBufferFactory) bufferFactory()).wrap(byteBuf);
+		if (bufferFactory() instanceof NettyDataBufferFactory nettyDBF) {
+			return nettyDBF.wrap(byteBuf);
 		}
 		else {
 			DataBuffer buffer = bufferFactory().wrap(byteBuf.nioBuffer());
@@ -256,7 +255,7 @@ final class MetadataEncoder {
 		List<Mono<?>> valueMonos = new ArrayList<>();
 		this.metadataEntries.forEach(entry -> {
 			Object v = entry.value();
-			valueMonos.add(v instanceof Mono ? (Mono<?>) v : Mono.just(v));
+			valueMonos.add(v instanceof Mono<?> mono ? mono : Mono.just(v));
 		});
 		return Mono.zip(valueMonos, values -> {
 			List<MetadataEntry> result = new ArrayList<>(values.length);

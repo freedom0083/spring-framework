@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for {@link WebSocketMessageBrokerStats}.
+ * Tests for {@link WebSocketMessageBrokerStats}.
  *
  * @author Sam Brannen
  * @since 5.3.10
@@ -60,13 +60,13 @@ class WebSocketMessageBrokerStatsTests {
 
 	@Test
 	void inboundAndOutboundChannelsWithMockedTaskExecutor() {
-		TaskExecutor executor = mock(TaskExecutor.class);
+		TaskExecutor executor = mock();
 
 		stats.setInboundChannelExecutor(executor);
 		stats.setOutboundChannelExecutor(executor);
 
-		assertThat(stats.getClientInboundExecutorStatsInfo()).as("inbound channel stats").isEqualTo("unknown");
-		assertThat(stats.getClientOutboundExecutorStatsInfo()).as("outbound channel stats").isEqualTo("unknown");
+		assertThat(stats.getClientInboundExecutorStatsInfo()).as("inbound channel stats").isEqualTo("thread-per-task");
+		assertThat(stats.getClientOutboundExecutorStatsInfo()).as("outbound channel stats").isEqualTo("thread-per-task");
 	}
 
 	@Test
@@ -82,11 +82,11 @@ class WebSocketMessageBrokerStatsTests {
 
 	@Test
 	void sockJsTaskSchedulerWithMockedTaskScheduler() {
-		TaskScheduler scheduler = mock(TaskScheduler.class);
+		TaskScheduler scheduler = mock();
 
 		stats.setSockJsTaskScheduler(scheduler);
 
-		assertThat(stats.getSockJsTaskSchedulerStatsInfo()).isEqualTo("unknown");
+		assertThat(stats.getSockJsTaskSchedulerStatsInfo()).isEqualTo("thread-per-task");
 	}
 
 }

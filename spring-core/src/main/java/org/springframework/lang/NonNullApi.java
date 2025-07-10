@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,12 +32,13 @@ import javax.annotation.meta.TypeQualifierDefault;
  * <p>Leverages JSR-305 meta-annotations to indicate nullability in Java to common
  * tools with JSR-305 support and used by Kotlin to infer nullability of Spring API.
  *
- * <p>Should be used at package level in association with {@link Nullable}
- * annotations at parameter and return value level.
+ * <p>Should be used at the package level in association with {@link Nullable}
+ * annotations at the parameter and return value level.
  *
  * @author Sebastien Deleuze
  * @author Juergen Hoeller
  * @since 5.0
+ * @deprecated use {@link org.jspecify.annotations.NullMarked} instead
  * @see NonNullFields
  * @see Nullable
  * @see NonNull
@@ -47,5 +48,6 @@ import javax.annotation.meta.TypeQualifierDefault;
 @Documented
 @Nonnull
 @TypeQualifierDefault({ElementType.METHOD, ElementType.PARAMETER})
+@Deprecated(since = "7.0")
 public @interface NonNullApi {
 }

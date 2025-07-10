@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.core;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper class for implementing exception classes which are capable of
@@ -29,8 +29,6 @@ import org.springframework.lang.Nullable;
  * @since 2.0
  * @see NestedRuntimeException
  * @see NestedCheckedException
- * @see NestedIOException
- * @see org.springframework.web.util.NestedServletException
  */
 public abstract class NestedExceptionUtils {
 
@@ -39,9 +37,11 @@ public abstract class NestedExceptionUtils {
 	 * @param message the base message
 	 * @param cause the root cause
 	 * @return the full exception message
+	 * @deprecated as of 6.0, in favor of custom exception messages
+	 * with selective inclusion of cause messages
 	 */
-	@Nullable
-	public static String buildMessage(@Nullable String message, @Nullable Throwable cause) {
+	@Deprecated(since = "6.0")
+	public static @Nullable String buildMessage(@Nullable String message, @Nullable Throwable cause) {
 		if (cause == null) {
 			return message;
 		}
@@ -59,8 +59,7 @@ public abstract class NestedExceptionUtils {
 	 * @return the innermost exception, or {@code null} if none
 	 * @since 4.3.9
 	 */
-	@Nullable
-	public static Throwable getRootCause(@Nullable Throwable original) {
+	public static @Nullable Throwable getRootCause(@Nullable Throwable original) {
 		if (original == null) {
 			return null;
 		}

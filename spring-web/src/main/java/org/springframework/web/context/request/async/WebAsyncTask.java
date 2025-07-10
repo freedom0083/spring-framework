@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ package org.springframework.web.context.request.async;
 
 import java.util.concurrent.Callable;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.context.request.NativeWebRequest;
 
@@ -30,6 +31,7 @@ import org.springframework.web.context.request.NativeWebRequest;
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 3.2
  * @param <V> the value type
  */
@@ -37,19 +39,19 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 
 	private final Callable<V> callable;
 
-	private Long timeout;
+	private final @Nullable Long timeout;
 
-	private AsyncTaskExecutor executor;
+	private final @Nullable AsyncTaskExecutor executor;
 
-	private String executorName;
+	private final @Nullable String executorName;
 
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
-	private Callable<V> timeoutCallback;
+	private @Nullable Callable<V> timeoutCallback;
 
-	private Callable<V> errorCallback;
+	private @Nullable Callable<V> errorCallback;
 
-	private Runnable completionCallback;
+	private @Nullable Runnable completionCallback;
 
 
 	/**
@@ -59,6 +61,9 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	public WebAsyncTask(Callable<V> callable) {
 		Assert.notNull(callable, "Callable must not be null");
 		this.callable = callable;
+		this.timeout = null;
+		this.executor = null;
+		this.executorName = null;
 	}
 
 	/**
@@ -67,8 +72,11 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	 * @param callable the callable for concurrent handling
 	 */
 	public WebAsyncTask(long timeout, Callable<V> callable) {
-		this(callable);
+		Assert.notNull(callable, "Callable must not be null");
+		this.callable = callable;
 		this.timeout = timeout;
+		this.executor = null;
+		this.executorName = null;
 	}
 
 	/**
@@ -78,10 +86,12 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	 * @param callable the callable for concurrent handling
 	 */
 	public WebAsyncTask(@Nullable Long timeout, String executorName, Callable<V> callable) {
-		this(callable);
+		Assert.notNull(callable, "Callable must not be null");
 		Assert.notNull(executorName, "Executor name must not be null");
-		this.executorName = executorName;
+		this.callable = callable;
 		this.timeout = timeout;
+		this.executor = null;
+		this.executorName = executorName;
 	}
 
 	/**
@@ -91,10 +101,12 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	 * @param callable the callable for concurrent handling
 	 */
 	public WebAsyncTask(@Nullable Long timeout, AsyncTaskExecutor executor, Callable<V> callable) {
-		this(callable);
+		Assert.notNull(callable, "Callable must not be null");
 		Assert.notNull(executor, "Executor must not be null");
-		this.executor = executor;
+		this.callable = callable;
 		this.timeout = timeout;
+		this.executor = executor;
+		this.executorName = null;
 	}
 
 
@@ -108,8 +120,7 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	/**
 	 * Return the timeout value in milliseconds, or {@code null} if no timeout is set.
 	 */
-	@Nullable
-	public Long getTimeout() {
+	public @Nullable Long getTimeout() {
 		return this.timeout;
 	}
 
@@ -127,8 +138,7 @@ public class WebAsyncTask<V> implements BeanFactoryAware {
 	 * Return the AsyncTaskExecutor to use for concurrent handling,
 	 * or {@code null} if none specified.
 	 */
-	@Nullable
-	public AsyncTaskExecutor getExecutor() {
+	public @Nullable AsyncTaskExecutor getExecutor() {
 		if (this.executor != null) {
 			return this.executor;
 		}

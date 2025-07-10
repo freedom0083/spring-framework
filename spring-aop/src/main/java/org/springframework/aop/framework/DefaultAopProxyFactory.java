@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ package org.springframework.aop.framework;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
 
-import org.springframework.aop.SpringProxy;
-import org.springframework.core.NativeDetector;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -49,6 +47,12 @@ import org.springframework.util.ClassUtils;
  */
 public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 
+	/**
+	 * Singleton instance of this class.
+	 * @since 6.0.10
+	 */
+	public static final DefaultAopProxyFactory INSTANCE = new DefaultAopProxyFactory();
+
 	private static final long serialVersionUID = 7930414337282325166L;
 
 
@@ -57,15 +61,15 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 	//  2. 类: 使用CGLIB代理;
 	@Override
 	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
-		if (!NativeDetector.inNativeImage() &&
-				(config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config))) {
+		if (config.isOptimize() || config.isProxyTargetClass() || !config.hasUserSuppliedInterfaces()) {
 			// TODO 对于需要优化的, 或者代理目标是类, 或者是没有代理接口/接口是SpringProxy的情况下, 需要对代理目标的类型进行判断
 			Class<?> targetClass = config.getTargetClass();
-			if (targetClass == null) {
+			if (targetClass == null && config.getProxiedInterfaces().length == 0) {
 				throw new AopConfigException("TargetSource cannot determine target class: " +
 						"Either an interface or a target is required for proxy creation.");
 			}
-			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass) || ClassUtils.isLambdaClass(targetClass)) {
+			if (targetClass == null || targetClass.isInterface() ||
+					Proxy.isProxyClass(targetClass) || ClassUtils.isLambdaClass(targetClass)) {
 				// TODO 如果代理目标是接口, 或者是Proxy类型, 用JDK动态代理
 				return new JdkDynamicAopProxy(config);
 			}
@@ -76,16 +80,6 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 			// TODO 在不需要优化, 且代理目标是接口时, 还是用JDK的动态代理
 			return new JdkDynamicAopProxy(config);
 		}
-	}
-
-	/**
-	 * Determine whether the supplied {@link AdvisedSupport} has only the
-	 * {@link org.springframework.aop.SpringProxy} interface specified
-	 * (or no proxy interfaces specified at all).
-	 */
-	private boolean hasNoUserSuppliedProxyInterfaces(AdvisedSupport config) {
-		Class<?>[] ifcs = config.getProxiedInterfaces();
-		return (ifcs.length == 0 || (ifcs.length == 1 && SpringProxy.class.isAssignableFrom(ifcs[0])));
 	}
 
 }

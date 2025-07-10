@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,14 +46,14 @@ public abstract class ModelAndViewAssert {
 
 	/**
 	 * Checks whether the model value under the given {@code modelName}
-	 * exists and checks it type, based on the {@code expectedType}. If the
+	 * exists and checks its type, based on the {@code expectedType}. If the
 	 * model entry exists and the type matches, the model value is returned.
 	 * @param mav the ModelAndView to test against (never {@code null})
 	 * @param modelName name of the object to add to the model (never {@code null})
 	 * @param expectedType expected type of the model value
 	 * @return the model value
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "NullAway"})
 	public static <T> T assertAndReturnModelAttributeOfType(ModelAndView mav, String modelName, Class<T> expectedType) {
 		Map<String, Object> model = mav.getModel();
 		Object obj = model.get(modelName);
@@ -81,7 +81,7 @@ public abstract class ModelAndViewAssert {
 	}
 
 	/**
-	 * Assert whether or not a model attribute is available.
+	 * Assert whether a model attribute is available.
 	 * @param mav the ModelAndView to test against (never {@code null})
 	 * @param modelName name of the object to add to the model (never {@code null})
 	 */
@@ -109,6 +109,7 @@ public abstract class ModelAndViewAssert {
 	 * @param mav the ModelAndView to test against (never {@code null})
 	 * @param expectedModel the expected model
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	public static void assertModelAttributeValues(ModelAndView mav, Map<String, Object> expectedModel) {
 		Map<String, Object> model = mav.getModel();
 

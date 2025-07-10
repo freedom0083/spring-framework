@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package org.springframework.aop.config;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.aspectj.AspectInstanceFactory;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.core.Ordered;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -35,11 +36,9 @@ import org.springframework.util.ClassUtils;
  */
 public class SimpleBeanFactoryAwareAspectInstanceFactory implements AspectInstanceFactory, BeanFactoryAware {
 
-	@Nullable
-	private String aspectBeanName;
+	private @Nullable String aspectBeanName;
 
-	@Nullable
-	private BeanFactory beanFactory;
+	private @Nullable BeanFactory beanFactory;
 
 
 	/**
@@ -58,7 +57,7 @@ public class SimpleBeanFactoryAwareAspectInstanceFactory implements AspectInstan
 
 
 	/**
-	 * Look up the aspect bean from the {@link BeanFactory} and returns it.
+	 * Look up the aspect bean from the {@link BeanFactory} and return it.
 	 * @see #setAspectBeanName
 	 */
 	@Override
@@ -69,10 +68,9 @@ public class SimpleBeanFactoryAwareAspectInstanceFactory implements AspectInstan
 	}
 
 	@Override
-	@Nullable
-	public ClassLoader getAspectClassLoader() {
-		if (this.beanFactory instanceof ConfigurableBeanFactory) {
-			return ((ConfigurableBeanFactory) this.beanFactory).getBeanClassLoader();
+	public @Nullable ClassLoader getAspectClassLoader() {
+		if (this.beanFactory instanceof ConfigurableBeanFactory cbf) {
+			return cbf.getBeanClassLoader();
 		}
 		else {
 			return ClassUtils.getDefaultClassLoader();

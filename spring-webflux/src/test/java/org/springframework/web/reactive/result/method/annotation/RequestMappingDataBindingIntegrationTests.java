@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,8 +110,8 @@ class RequestMappingDataBindingIntegrationTests extends AbstractRequestMappingIn
 		}
 
 		@ModelAttribute
-		public Mono<Foo> addFooAttribute(@PathVariable("id") Optional<Long> optiponalId) {
-			return optiponalId.map(id -> Mono.just(new Foo(id))).orElse(Mono.empty());
+		public Mono<Foo> addFooAttribute(@PathVariable("id") Optional<Long> optionalId) {
+			return optionalId.map(id -> Mono.just(new Foo(id))).orElse(Mono.empty());
 		}
 
 		@PostMapping("/foos/{id}")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,18 @@
 
 package org.springframework.context.expression;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.expression.AccessException;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.PropertyAccessor;
 import org.springframework.expression.TypedValue;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * EL property accessor that knows how to traverse the beans of a
- * Spring {@link org.springframework.beans.factory.BeanFactory}.
+ * SpEL {@link PropertyAccessor} that knows how to access the beans of a
+ * Spring {@link BeanFactory}.
  *
  * @author Juergen Hoeller
  * @author Andy Clement
@@ -41,7 +42,7 @@ public class BeanFactoryAccessor implements PropertyAccessor {
 
 	@Override
 	public boolean canRead(EvaluationContext context, @Nullable Object target, String name) throws AccessException {
-		return (target instanceof BeanFactory && ((BeanFactory) target).containsBean(name));
+		return (target instanceof BeanFactory beanFactory && beanFactory.containsBean(name));
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.net.URI;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.util.StreamUtils;
 
 /**
  * Simple implementation of {@link ClientHttpRequest} that wraps another request.
@@ -45,12 +44,6 @@ final class BufferingClientHttpRequestWrapper extends AbstractBufferingClientHtt
 	}
 
 	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.request.getMethodValue();
-	}
-
-	@Override
 	public URI getURI() {
 		return this.request.getURI();
 	}
@@ -58,9 +51,7 @@ final class BufferingClientHttpRequestWrapper extends AbstractBufferingClientHtt
 	@Override
 	protected ClientHttpResponse executeInternal(HttpHeaders headers, byte[] bufferedOutput) throws IOException {
 		this.request.getHeaders().putAll(headers);
-		StreamUtils.copy(bufferedOutput, this.request.getBody());
-		ClientHttpResponse response = this.request.execute();
-		return new BufferingClientHttpResponseWrapper(response);
+		return executeWithRequest(this.request, bufferedOutput, true);
 	}
 
 }

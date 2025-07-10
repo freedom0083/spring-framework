@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ package org.springframework.core.io;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -100,6 +102,19 @@ public class ByteArrayResource extends AbstractResource {
 		return new ByteArrayInputStream(this.byteArray);
 	}
 
+	@Override
+	public byte[] getContentAsByteArray() throws IOException {
+		int length = this.byteArray.length;
+		byte[] result = new byte[length];
+		System.arraycopy(this.byteArray, 0, result, 0, length);
+		return result;
+	}
+
+	@Override
+	public String getContentAsString(Charset charset) throws IOException {
+		return new String(this.byteArray, charset);
+	}
+
 	/**
 	 * This implementation returns a description that includes the passed-in
 	 * {@code description}, if any.
@@ -116,8 +131,8 @@ public class ByteArrayResource extends AbstractResource {
 	 */
 	@Override
 	public boolean equals(@Nullable Object other) {
-		return (this == other || (other instanceof ByteArrayResource &&
-				Arrays.equals(((ByteArrayResource) other).byteArray, this.byteArray)));
+		return (this == other || (other instanceof ByteArrayResource that &&
+				Arrays.equals(this.byteArray, that.byteArray)));
 	}
 
 	/**

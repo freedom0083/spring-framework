@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -42,7 +44,6 @@ import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.core.SqlRowSetResultSetExtractor;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ConcurrentLruCache;
 
@@ -55,16 +56,25 @@ import org.springframework.util.ConcurrentLruCache;
  * done at execution time. It also allows for expanding a {@link java.util.List}
  * of values to the appropriate number of placeholders.
  *
- * <p>The underlying {@link org.springframework.jdbc.core.JdbcTemplate} is
+ * <p>An instance of this template class is thread-safe once configured.
+ * The underlying {@link org.springframework.jdbc.core.JdbcTemplate} is
  * exposed to allow for convenient access to the traditional
  * {@link org.springframework.jdbc.core.JdbcTemplate} methods.
  *
- * <p><b>NOTE: An instance of this class is thread-safe once configured.</b>
+ * <p><b>NOTE: As of 6.1, there is a unified JDBC access facade available in
+ * the form of {@link org.springframework.jdbc.core.simple.JdbcClient}.</b>
+ * {@code JdbcClient} provides a fluent API style for common JDBC queries/updates
+ * with flexible use of indexed or named parameters. It delegates to a
+ * {@code JdbcTemplate}/{@code NamedParameterJdbcTemplate} for actual execution.
  *
  * @author Thomas Risberg
  * @author Juergen Hoeller
  * @since 2.0
  * @see NamedParameterJdbcOperations
+ * @see SqlParameterSource
+ * @see ResultSetExtractor
+ * @see RowCallbackHandler
+ * @see RowMapper
  * @see org.springframework.jdbc.core.JdbcTemplate
  */
 public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations {
@@ -77,8 +87,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	private final JdbcOperations classicJdbcTemplate;
 
 	/** Cache of original SQL String to ParsedSql representation. */
-	private volatile ConcurrentLruCache<String, ParsedSql> parsedSqlCache =
-			new ConcurrentLruCache<>(DEFAULT_CACHE_LIMIT, NamedParameterUtils::parseSqlStatement);
+	private volatile ConcurrentLruCache<String, ParsedSql> parsedSqlCache;
 
 
 	/**
@@ -87,8 +96,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	 * @param dataSource the JDBC DataSource to access
 	 */
 	public NamedParameterJdbcTemplate(DataSource dataSource) {
-		Assert.notNull(dataSource, "DataSource must not be null");
-		this.classicJdbcTemplate = new JdbcTemplate(dataSource);
+		this(new JdbcTemplate(dataSource));
 	}
 
 	/**
@@ -99,6 +107,19 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	public NamedParameterJdbcTemplate(JdbcOperations classicJdbcTemplate) {
 		Assert.notNull(classicJdbcTemplate, "JdbcTemplate must not be null");
 		this.classicJdbcTemplate = classicJdbcTemplate;
+		this.parsedSqlCache = new ConcurrentLruCache<>(DEFAULT_CACHE_LIMIT, NamedParameterUtils::parseSqlStatement);
+	}
+
+	/**
+	 * Copy constructor for a derived NamedParameterJdbcTemplate.
+	 * @param original the original NamedParameterJdbcTemplate to copy from
+	 * @param classicJdbcTemplate the actual JdbcTemplate delegate to use
+	 * @since 7.0
+	 */
+	public NamedParameterJdbcTemplate(NamedParameterJdbcTemplate original, JdbcTemplate classicJdbcTemplate) {
+		Assert.notNull(classicJdbcTemplate, "JdbcTemplate must not be null");
+		this.classicJdbcTemplate = classicJdbcTemplate;
+		this.parsedSqlCache = original.parsedSqlCache;
 	}
 
 
@@ -135,51 +156,45 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	 * Return the maximum number of entries for this template's SQL cache.
 	 */
 	public int getCacheLimit() {
-		return this.parsedSqlCache.sizeLimit();
+		return this.parsedSqlCache.capacity();
 	}
 
 
 	@Override
-	@Nullable
-	public <T> T execute(String sql, SqlParameterSource paramSource, PreparedStatementCallback<T> action)
+	public <T extends @Nullable Object> T execute(String sql, SqlParameterSource paramSource, PreparedStatementCallback<T> action)
 			throws DataAccessException {
 
 		return getJdbcOperations().execute(getPreparedStatementCreator(sql, paramSource), action);
 	}
 
 	@Override
-	@Nullable
-	public <T> T execute(String sql, Map<String, ?> paramMap, PreparedStatementCallback<T> action)
+	public <T extends @Nullable Object> T execute(String sql, Map<String, ?> paramMap, PreparedStatementCallback<T> action)
 			throws DataAccessException {
 
 		return execute(sql, new MapSqlParameterSource(paramMap), action);
 	}
 
 	@Override
-	@Nullable
-	public <T> T execute(String sql, PreparedStatementCallback<T> action) throws DataAccessException {
+	public <T extends @Nullable Object> T execute(String sql, PreparedStatementCallback<T> action) throws DataAccessException {
 		return execute(sql, EmptySqlParameterSource.INSTANCE, action);
 	}
 
 	@Override
-	@Nullable
-	public <T> T query(String sql, SqlParameterSource paramSource, ResultSetExtractor<T> rse)
+	public <T extends @Nullable Object> T query(String sql, SqlParameterSource paramSource, ResultSetExtractor<T> rse)
 			throws DataAccessException {
 
 		return getJdbcOperations().query(getPreparedStatementCreator(sql, paramSource), rse);
 	}
 
 	@Override
-	@Nullable
-	public <T> T query(String sql, Map<String, ?> paramMap, ResultSetExtractor<T> rse)
+	public <T extends @Nullable Object> T query(String sql, Map<String, ?> paramMap, ResultSetExtractor<T> rse)
 			throws DataAccessException {
 
 		return query(sql, new MapSqlParameterSource(paramMap), rse);
 	}
 
 	@Override
-	@Nullable
-	public <T> T query(String sql, ResultSetExtractor<T> rse) throws DataAccessException {
+	public <T extends @Nullable Object> T query(String sql, ResultSetExtractor<T> rse) throws DataAccessException {
 		return query(sql, EmptySqlParameterSource.INSTANCE, rse);
 	}
 
@@ -203,14 +218,14 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	}
 
 	@Override
-	public <T> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
+	public <T extends @Nullable Object> List<T> query(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
 			throws DataAccessException {
 
 		return getJdbcOperations().query(getPreparedStatementCreator(sql, paramSource), rowMapper);
 	}
 
 	@Override
-	public <T> List<T> query(String sql, Map<String, ?> paramMap, RowMapper<T> rowMapper)
+	public <T extends @Nullable Object> List<T> query(String sql, Map<String, ?> paramMap, RowMapper<T> rowMapper)
 			throws DataAccessException {
 
 		return query(sql, new MapSqlParameterSource(paramMap), rowMapper);
@@ -222,22 +237,21 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	}
 
 	@Override
-	public <T> Stream<T> queryForStream(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
+	public <T extends @Nullable Object> Stream<T> queryForStream(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
 			throws DataAccessException {
 
 		return getJdbcOperations().queryForStream(getPreparedStatementCreator(sql, paramSource), rowMapper);
 	}
 
 	@Override
-	public <T> Stream<T> queryForStream(String sql, Map<String, ?> paramMap, RowMapper<T> rowMapper)
+	public <T extends @Nullable Object> Stream<T> queryForStream(String sql, Map<String, ?> paramMap, RowMapper<T> rowMapper)
 			throws DataAccessException {
 
 		return queryForStream(sql, new MapSqlParameterSource(paramMap), rowMapper);
 	}
 
 	@Override
-	@Nullable
-	public <T> T queryForObject(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
+	public <T extends @Nullable Object> T queryForObject(String sql, SqlParameterSource paramSource, RowMapper<T> rowMapper)
 			throws DataAccessException {
 
 		List<T> results = getJdbcOperations().query(getPreparedStatementCreator(sql, paramSource), rowMapper);
@@ -245,66 +259,65 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	}
 
 	@Override
-	@Nullable
-	public <T> T queryForObject(String sql, Map<String, ?> paramMap, RowMapper<T>rowMapper)
+	public <T extends @Nullable Object> T queryForObject(String sql, Map<String, ?> paramMap, RowMapper<T>rowMapper)
 			throws DataAccessException {
 
 		return queryForObject(sql, new MapSqlParameterSource(paramMap), rowMapper);
 	}
 
 	@Override
-	@Nullable
-	public <T> T queryForObject(String sql, SqlParameterSource paramSource, Class<T> requiredType)
+	public <T> @Nullable T queryForObject(String sql, SqlParameterSource paramSource, Class<T> requiredType)
 			throws DataAccessException {
 
 		return queryForObject(sql, paramSource, new SingleColumnRowMapper<>(requiredType));
 	}
 
 	@Override
-	@Nullable
-	public <T> T queryForObject(String sql, Map<String, ?> paramMap, Class<T> requiredType)
+	public <T> @Nullable T queryForObject(String sql, Map<String, ?> paramMap, Class<T> requiredType)
 			throws DataAccessException {
 
 		return queryForObject(sql, paramMap, new SingleColumnRowMapper<>(requiredType));
 	}
 
 	@Override
-	public Map<String, Object> queryForMap(String sql, SqlParameterSource paramSource) throws DataAccessException {
-		Map<String, Object> result = queryForObject(sql, paramSource, new ColumnMapRowMapper());
+	public Map<String, @Nullable Object> queryForMap(String sql, SqlParameterSource paramSource) throws DataAccessException {
+		Map<String, @Nullable Object> result = queryForObject(sql, paramSource, new ColumnMapRowMapper());
 		Assert.state(result != null, "No result map");
 		return result;
 	}
 
 	@Override
-	public Map<String, Object> queryForMap(String sql, Map<String, ?> paramMap) throws DataAccessException {
-		Map<String, Object> result = queryForObject(sql, paramMap, new ColumnMapRowMapper());
+	public Map<String, @Nullable Object> queryForMap(String sql, Map<String, ?> paramMap) throws DataAccessException {
+		Map<String, @Nullable Object> result = queryForObject(sql, paramMap, new ColumnMapRowMapper());
 		Assert.state(result != null, "No result map");
 		return result;
 	}
 
 	@Override
-	public <T> List<T> queryForList(String sql, SqlParameterSource paramSource, Class<T> elementType)
+	@SuppressWarnings("NullAway") // See https://github.com/uber/NullAway/issues/1075
+	public <T> List<@Nullable T> queryForList(String sql, SqlParameterSource paramSource, Class<T> elementType)
 			throws DataAccessException {
 
 		return query(sql, paramSource, new SingleColumnRowMapper<>(elementType));
 	}
 
 	@Override
-	public <T> List<T> queryForList(String sql, Map<String, ?> paramMap, Class<T> elementType)
+	@SuppressWarnings("NullAway") // See https://github.com/uber/NullAway/issues/1075
+	public <T> List<@Nullable T> queryForList(String sql, Map<String, ?> paramMap, Class<T> elementType)
 			throws DataAccessException {
 
 		return queryForList(sql, new MapSqlParameterSource(paramMap), elementType);
 	}
 
 	@Override
-	public List<Map<String, Object>> queryForList(String sql, SqlParameterSource paramSource)
+	public List<Map<String, @Nullable Object>> queryForList(String sql, SqlParameterSource paramSource)
 			throws DataAccessException {
 
 		return query(sql, paramSource, new ColumnMapRowMapper());
 	}
 
 	@Override
-	public List<Map<String, Object>> queryForList(String sql, Map<String, ?> paramMap)
+	public List<Map<String, @Nullable Object>> queryForList(String sql, Map<String, ?> paramMap)
 			throws DataAccessException {
 
 		return queryForList(sql, new MapSqlParameterSource(paramMap));
@@ -342,7 +355,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 
 	@Override
 	public int update(
-			String sql, SqlParameterSource paramSource, KeyHolder generatedKeyHolder, @Nullable String[] keyColumnNames)
+			String sql, SqlParameterSource paramSource, KeyHolder generatedKeyHolder, String @Nullable [] keyColumnNames)
 			throws DataAccessException {
 
 		PreparedStatementCreator psc = getPreparedStatementCreator(sql, paramSource, pscf -> {
@@ -354,11 +367,6 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 			}
 		});
 		return getJdbcOperations().update(psc, generatedKeyHolder);
-	}
-
-	@Override
-	public int[] batchUpdate(String sql, Map<String, ?>[] batchValues) {
-		return batchUpdate(sql, SqlParameterSourceUtils.createBatch(batchValues));
 	}
 
 	@Override
@@ -375,7 +383,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 				new BatchPreparedStatementSetter() {
 					@Override
 					public void setValues(PreparedStatement ps, int i) throws SQLException {
-						Object[] values = NamedParameterUtils.buildValueArray(parsedSql, batchArgs[i], null);
+						@Nullable Object[] values = NamedParameterUtils.buildValueArray(parsedSql, batchArgs[i], null);
 						pscf.newPreparedStatementSetter(values).setValues(ps);
 					}
 					@Override
@@ -383,6 +391,49 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 						return batchArgs.length;
 					}
 				});
+	}
+
+	@Override
+	public int[] batchUpdate(String sql, Map<String, ?>[] batchValues) {
+		return batchUpdate(sql, SqlParameterSourceUtils.createBatch(batchValues));
+	}
+
+	@Override
+	public int[] batchUpdate(String sql, SqlParameterSource[] batchArgs, KeyHolder generatedKeyHolder) {
+		return batchUpdate(sql, batchArgs, generatedKeyHolder, null);
+	}
+
+	@Override
+	public int[] batchUpdate(String sql, SqlParameterSource[] batchArgs, KeyHolder generatedKeyHolder,
+			String @Nullable [] keyColumnNames) {
+
+		if (batchArgs.length == 0) {
+			return new int[0];
+		}
+
+		ParsedSql parsedSql = getParsedSql(sql);
+		SqlParameterSource paramSource = batchArgs[0];
+		PreparedStatementCreatorFactory pscf = getPreparedStatementCreatorFactory(parsedSql, paramSource);
+		if (keyColumnNames != null) {
+			pscf.setGeneratedKeysColumnNames(keyColumnNames);
+		}
+		else {
+			pscf.setReturnGeneratedKeys(true);
+		}
+		@Nullable Object[] params = NamedParameterUtils.buildValueArray(parsedSql, paramSource, null);
+		PreparedStatementCreator psc = pscf.newPreparedStatementCreator(params);
+		return getJdbcOperations().batchUpdate(psc, new BatchPreparedStatementSetter() {
+			@Override
+			public void setValues(PreparedStatement ps, int i) throws SQLException {
+				@Nullable Object[] values = NamedParameterUtils.buildValueArray(parsedSql, batchArgs[i], null);
+				pscf.newPreparedStatementSetter(values).setValues(ps);
+			}
+
+			@Override
+			public int getBatchSize() {
+				return batchArgs.length;
+			}
+		}, generatedKeyHolder);
 	}
 
 
@@ -406,7 +457,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	 * @param sql the SQL statement to execute
 	 * @param paramSource container of arguments to bind
 	 * @param customizer callback for setting further properties on the
-	 * {@link PreparedStatementCreatorFactory} in use), applied before the
+	 * {@link PreparedStatementCreatorFactory} in use, applied before the
 	 * actual {@code newPreparedStatementCreator} call
 	 * @return the corresponding {@link PreparedStatementCreator}
 	 * @since 5.0.5
@@ -422,7 +473,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 		if (customizer != null) {
 			customizer.accept(pscf);
 		}
-		Object[] params = NamedParameterUtils.buildValueArray(parsedSql, paramSource, null);
+		@Nullable Object[] params = NamedParameterUtils.buildValueArray(parsedSql, paramSource, null);
 		return pscf.newPreparedStatementCreator(params);
 	}
 
@@ -433,6 +484,7 @@ public class NamedParameterJdbcTemplate implements NamedParameterJdbcOperations 
 	 * @return a representation of the parsed SQL statement
 	 */
 	protected ParsedSql getParsedSql(String sql) {
+		Assert.notNull(sql, "SQL must not be null");
 		return this.parsedSqlCache.get(sql);
 	}
 

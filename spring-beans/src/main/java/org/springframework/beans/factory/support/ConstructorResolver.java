@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
@@ -32,10 +33,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.apache.commons.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.BeanMetadataElement;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.BeansException;
@@ -43,21 +49,29 @@ import org.springframework.beans.TypeConverter;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.UnsatisfiedDependencyException;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanReference;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.config.ConstructorArgumentValues.ValueHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
+import org.springframework.beans.factory.config.RuntimeBeanReference;
+import org.springframework.beans.factory.config.TypedStringValue;
 import org.springframework.core.CollectionFactory;
+import org.springframework.core.KotlinDetector;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.NamedThreadLocal;
 import org.springframework.core.ParameterNameDiscoverer;
-import org.springframework.lang.Nullable;
+import org.springframework.core.ResolvableType;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.MethodInvoker;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
@@ -74,20 +88,17 @@ import org.springframework.util.StringUtils;
  * @author Costin Leau
  * @author Sebastien Deleuze
  * @author Sam Brannen
+ * @author Stephane Nicoll
+ * @author Phillip Webb
  * @since 2.0
  * @see #autowireConstructor
  * @see #instantiateUsingFactoryMethod
+ * @see #resolveConstructorOrFactoryMethod
  * @see AbstractAutowireCapableBeanFactory
  */
 class ConstructorResolver {
 
 	private static final Object[] EMPTY_ARGS = new Object[0];
-
-	/**
-	 * Marker for autowired arguments in a cached argument array, to be replaced
-	 * by a {@linkplain #resolveAutowiredArgument resolved autowired argument}.
-	 */
-	private static final Object autowiredArgumentMarker = new Object();
 
 	private static final NamedThreadLocal<InjectionPoint> currentInjectionPoint =
 			new NamedThreadLocal<>("Current injection point");
@@ -108,13 +119,11 @@ class ConstructorResolver {
 	}
 
 
+	// BeanWrapper-based construction
+
 	/**
 	 * "autowire constructor" (with constructor arguments by type) behavior.
-	 * Also applied if explicit constructor argument values are specified,
-	 * matching all remaining arguments with beans from the bean factory.
-	 * <p>This corresponds to constructor injection: In this mode, a Spring
-	 * bean factory is able to host components that expect constructor-based
-	 * dependency resolution.
+	 * Also applied if explicit constructor argument values are specified.
 	 * @param beanName the name of the bean 要实例化的bean
 	 * @param mbd the merged bean definition for the bean 要实例化的bean的mbd
 	 * @param chosenCtors chosen candidate constructors (or {@code null} if none) 用于实例化bean的候选构造器, 或工厂方法
@@ -122,9 +131,11 @@ class ConstructorResolver {
 	 * or {@code null} if none (-> use constructor argument values from bean definition) 实例化bean时, 指定的参数
 	 * @return a BeanWrapper for the new instance
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	// TODO 整体和instantiateUsingFactoryMethod()类似, 只不过这里是用的构造器, 而非工厂方法
 	public BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mbd,
-			@Nullable Constructor<?>[] chosenCtors, @Nullable Object[] explicitArgs) {
+			Constructor<?> @Nullable [] chosenCtors, @Nullable Object @Nullable [] explicitArgs) {
+
 		// TODO 创建一个用于返回的BeanWrapperImpl实例
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		// TODO 由容器来初始化, 初始化时会设置数据转换和属性编辑器
@@ -133,7 +144,7 @@ class ConstructorResolver {
 		Constructor<?> constructorToUse = null;
 		// TODO 构造bean所需要的参数
 		ArgumentsHolder argsHolderToUse = null;
-		Object[] argsToUse = null;
+		@Nullable Object[] argsToUse = null;
 
 		if (explicitArgs != null) {
 			// TODO 提供了用于实例化bean的参数时, 直接使用提供的参数
@@ -242,16 +253,19 @@ class ConstructorResolver {
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 				if (resolvedValues != null) {
 					try {
-						// TODO 只有在没有指定实例化bean所需要的参数时才会进行参数解析, resolvedValues才会有值. 这时, 首选要
-						//  评估一下候选构造器@ConstructorProperties注解的value内容. 如果没有, 返回的是null. 数量少于要求的
-						//  参数数量时, 会抛出IllegalStateException异常
-						String[] paramNames = ConstructorPropertiesChecker.evaluate(candidate, parameterCount);
-						if (paramNames == null) {
-							// TODO 没有@ConstructorProperties注解时, 就要用参数名发现器来解析参数名了
-							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
-							if (pnd != null) {
-								// TODO 容器里配置参数名发现器时, 用其构造器进行解析, 得到构造器所有的参数名
-								paramNames = pnd.getParameterNames(candidate);
+						@Nullable String[] paramNames = null;
+						if (resolvedValues.containsNamedArgument()) {
+							// TODO 只有在没有指定实例化bean所需要的参数时才会进行参数解析, resolvedValues才会有值. 这时, 首选要
+							//  评估一下候选构造器@ConstructorProperties注解的value内容. 如果没有, 返回的是null. 数量少于要求的
+							//  参数数量时, 会抛出IllegalStateException异常
+							paramNames = ConstructorPropertiesChecker.evaluate(candidate, parameterCount);
+							if (paramNames == null) {
+								// TODO 没有@ConstructorProperties注解时, 就要用参数名发现器来解析参数名了
+								ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
+								if (pnd != null) {
+									// TODO 容器里配置参数名发现器时, 用其构造器进行解析, 得到构造器所有的参数名
+									paramNames = pnd.getParameterNames(candidate);
+								}
 							}
 						}
 						// TODO 用构造器的参数名, 参数类型来创建参数
@@ -320,7 +334,9 @@ class ConstructorResolver {
 				// TODO 异常列表里没有记录任何异常时, 则抛出BeanCreationException
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Could not resolve matching constructor on bean class [" + mbd.getBeanClassName() + "] " +
-						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities)");
+						"(hint: specify index/type/name arguments for simple parameters to avoid type ambiguities. " +
+						"You should also check the consistency of arguments when mixing indexed and named arguments, " +
+						"especially in case of bean definition inheritance)");
 			}
 			else if (ambiguousConstructors != null && !mbd.isLenientConstructorResolution()) {
 				// TODO 严格模式下出现有歧义的构造器时, 也抛出BeanCreationException异常
@@ -362,8 +378,7 @@ class ConstructorResolver {
 			return strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse);
 		}
 		catch (Throwable ex) {
-			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-					"Bean instantiation via constructor failed", ex);
+			throw new BeanCreationException(mbd.getResourceDescription(), beanName, ex.getMessage(), ex);
 		}
 	}
 
@@ -393,7 +408,7 @@ class ConstructorResolver {
 		Method[] candidates = getCandidateMethods(factoryClass, mbd);
 		Method uniqueCandidate = null;
 		for (Method candidate : candidates) {
-			if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
+			if ((!isStatic || isStaticCandidate(candidate, factoryClass)) && mbd.isFactoryMethod(candidate)) {
 				// TODO 迭代候选方法中的所有静态工厂方法
 				if (uniqueCandidate == null) {
 					// TODO 如果还没有唯一候选方法, 则将其设置为唯一候选方法
@@ -433,7 +448,11 @@ class ConstructorResolver {
 	//  2. 不允许非公有方法: 直接调用类对象取得所有公有方法
 	private Method[] getCandidateMethods(Class<?> factoryClass, RootBeanDefinition mbd) {
 		return (mbd.isNonPublicAccessAllowed() ?
-				ReflectionUtils.getAllDeclaredMethods(factoryClass) : factoryClass.getMethods());
+				ReflectionUtils.getUniqueDeclaredMethods(factoryClass) : factoryClass.getMethods());
+	}
+
+	private boolean isStaticCandidate(Method method, Class<?> factoryClass) {
+		return (Modifier.isStatic(method.getModifiers()) && method.getDeclaringClass() == factoryClass);
 	}
 
 	/**
@@ -453,6 +472,7 @@ class ConstructorResolver {
 	 *                     可以通过这个参数直接确定用于初始化的构造函数
 	 * @return a BeanWrapper for the new instance
 	 */
+	@SuppressWarnings("NullAway") // Dataflow analysis limitation
 	// TODO 用工厂方法实例化对应的bean. 工厂方法有两种类型:
 	//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
 	//     A. XML配置方式:
@@ -502,7 +522,8 @@ class ConstructorResolver {
 	//        c. factoryMethod: @Bean所标注的方法 mark
 	//        d. explicitArgs: mark
 	public BeanWrapper instantiateUsingFactoryMethod(
-			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
+			String beanName, RootBeanDefinition mbd, @Nullable Object @Nullable [] explicitArgs) {
+
 		// TODO 创建一个用于返回的BeanWrapperImpl实例
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		// TODO 由容器来初始化, 初始化时会设置数据转换和属性编辑器
@@ -555,7 +576,7 @@ class ConstructorResolver {
 		// TODO 创建工厂方法所需要的参数
 		ArgumentsHolder argsHolderToUse = null;
 		// TODO 所有后续要用的参数
-		Object[] argsToUse = null;
+		@Nullable Object[] argsToUse = null;
 
 		if (explicitArgs != null) {
 			// TODO 如果指定了实例化bean所需要的参数时, 直接使用这些参数进行实例化
@@ -563,7 +584,7 @@ class ConstructorResolver {
 		}
 		else {
 			// TODO 如果没指定实例化bean所需要的参数, 需要先对其进行解析
-			Object[] argsToResolve = null;
+			@Nullable Object[] argsToResolve = null;
 			// TODO 解析参数时需要进行同步
 			synchronized (mbd.constructorArgumentLock) {
 				// TODO 先看一下缓存里是否有用于实例化的bean的已经解析好的工厂方法(不是第一次使用此方法)
@@ -615,7 +636,7 @@ class ConstructorResolver {
 				// TODO 没有任何候选的工厂方法时, 就要自己找了. 先取得工厂类中所有的方法
 				Method[] rawCandidates = getCandidateMethods(factoryClass, mbd);
 				for (Method candidate : rawCandidates) {
-					if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
+					if ((!isStatic || isStaticCandidate(candidate, factoryClass)) && mbd.isFactoryMethod(candidate)) {
 						// TODO 把其中的静态工厂方法加入到要检查的候选集合中
 						candidates.add(candidate);
 					}
@@ -694,13 +715,15 @@ class ConstructorResolver {
 					else {
 						// Resolved constructor arguments: type conversion and/or autowiring necessary.
 						try {
-							String[] paramNames = null;
-							// TODO 从容器中拿出参数名发现器, 默认是DefaultParameterNameDiscoverer. 在getTypeForFactoryMethod()
-							//  方法中也有同样的逻辑
-							ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
-							if (pnd != null) {
-								// TODO 用探测器取得方法参数的名字, 有好多实现, 这个得慢慢看, 最后得到的就是参数名
-								paramNames = pnd.getParameterNames(candidate);
+							@Nullable String[] paramNames = null;
+							if (resolvedValues != null && resolvedValues.containsNamedArgument()) {
+								// TODO 从容器中拿出参数名发现器, 默认是DefaultParameterNameDiscoverer. 在getTypeForFactoryMethod()
+								//  方法中也有同样的逻辑
+								ParameterNameDiscoverer pnd = this.beanFactory.getParameterNameDiscoverer();
+								if (pnd != null) {
+									// TODO 用探测器取得方法参数的名字, 有好多实现, 这个得慢慢看, 最后得到的就是参数名
+									paramNames = pnd.getParameterNames(candidate);
+								}
 							}
 							// TODO 用工厂方法的参数名, 参数类型来创建参数
 							argsHolder = createArgumentArray(beanName, mbd, resolvedValues, bw,
@@ -776,7 +799,7 @@ class ConstructorResolver {
 				}
 				else if (resolvedValues != null) {
 					// TODO 没指定创建bean所需要的参数, 但是已经有了解析好的值时, 把解析好的值的索引参数, 以及泛型参数全部加到Set<ValueHolder>中
-					Set<ValueHolder> valueHolders = new LinkedHashSet<>(resolvedValues.getArgumentCount());
+					Set<ValueHolder> valueHolders = CollectionUtils.newLinkedHashSet(resolvedValues.getArgumentCount());
 					valueHolders.addAll(resolvedValues.getIndexedArgumentValues().values());
 					valueHolders.addAll(resolvedValues.getGenericArgumentValues());
 					for (ValueHolder value : valueHolders) {
@@ -790,19 +813,21 @@ class ConstructorResolver {
 				String argDesc = StringUtils.collectionToCommaDelimitedString(argTypes);
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"No matching factory method found on class [" + factoryClass.getName() + "]: " +
-						(mbd.getFactoryBeanName() != null ?
-							"factory bean '" + mbd.getFactoryBeanName() + "'; " : "") +
+						(mbd.getFactoryBeanName() != null ? "factory bean '" + mbd.getFactoryBeanName() + "'; " : "") +
 						"factory method '" + mbd.getFactoryMethodName() + "(" + argDesc + ")'. " +
-						"Check that a method with the specified name " +
-						(minNrOfArgs > 0 ? "and arguments " : "") +
-						"exists and that it is " +
-						(isStatic ? "static" : "non-static") + ".");
+						"Check that a method with the specified name " + (minNrOfArgs > 0 ? "and arguments " : "") +
+						"exists and that it is " + (isStatic ? "static" : "non-static") + ".");
 			}
 			else if (void.class == factoryMethodToUse.getReturnType()) {
 				// TODO 找到的工厂方法的返回类型是void时, 抛出'Invalid factory method'的BeanCreationException异常
 				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 						"Invalid factory method '" + mbd.getFactoryMethodName() + "' on class [" +
 						factoryClass.getName() + "]: needs to have a non-void return type!");
+			}
+			else if (KotlinDetector.isSuspendingFunction(factoryMethodToUse)) {
+				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
+						"Invalid factory method '" + mbd.getFactoryMethodName() + "' on class [" +
+								factoryClass.getName() + "]: suspending functions are not supported!");
 			}
 			else if (ambiguousFactoryMethods != null) {
 				// TODO 严格模式下出现有歧义的工厂方法时, 抛出'Ambiguous factory method matches found'的BeanCreationException异常
@@ -837,15 +862,14 @@ class ConstructorResolver {
 	 */
 	// TODO 通过容器的实例化策略调用工厂方法对bean进行实例化, 默认的实例化策略是SimpleInstantiationStrategy
 	private Object instantiate(String beanName, RootBeanDefinition mbd,
-			@Nullable Object factoryBean, Method factoryMethod, Object[] args) {
+			@Nullable Object factoryBean, Method factoryMethod, @Nullable Object[] args) {
 
 		try {
 			return this.beanFactory.getInstantiationStrategy().instantiate(
 					mbd, beanName, this.beanFactory, factoryBean, factoryMethod, args);
 		}
 		catch (Throwable ex) {
-			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
-					"Bean instantiation via factory method failed", ex);
+			throw new BeanCreationException(mbd.getResourceDescription(), beanName, ex.getMessage(), ex);
 		}
 	}
 
@@ -938,7 +962,7 @@ class ConstructorResolver {
 	 */
 	private ArgumentsHolder createArgumentArray(
 			String beanName, RootBeanDefinition mbd, @Nullable ConstructorArgumentValues resolvedValues,
-			BeanWrapper bw, Class<?>[] paramTypes, @Nullable String[] paramNames, Executable executable,
+			BeanWrapper bw, Class<?>[] paramTypes, @Nullable String @Nullable [] paramNames, Executable executable,
 			boolean autowiring, boolean fallback) throws UnsatisfiedDependencyException {
 		// TODO 取得容器中的自定义类型转换器, 如果没有就用用于返回的bw做为类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
@@ -948,7 +972,7 @@ class ConstructorResolver {
 		// TODO 已经解析过的参数
 		Set<ConstructorArgumentValues.ValueHolder> usedValueHolders = new HashSet<>(paramTypes.length);
 		// TODO 自动装配过的bean
-		Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
+		Set<String> allAutowiredBeanNames = new LinkedHashSet<>(paramTypes.length * 2);
 
 		// TODO 遍历方法的每个参数
 		for (int paramIndex = 0; paramIndex < paramTypes.length; paramIndex++) {
@@ -992,13 +1016,13 @@ class ConstructorResolver {
 						throw new UnsatisfiedDependencyException(
 								mbd.getResourceDescription(), beanName, new InjectionPoint(methodParam),
 								"Could not convert argument value of type [" +
-										ObjectUtils.nullSafeClassName(valueHolder.getValue()) +
-										"] to required type [" + paramType.getName() + "]: " + ex.getMessage());
+								ObjectUtils.nullSafeClassName(valueHolder.getValue()) +
+								"] to required type [" + paramType.getName() + "]: " + ex.getMessage());
 					}
 					Object sourceHolder = valueHolder.getSource();
-					if (sourceHolder instanceof ConstructorArgumentValues.ValueHolder) {
+					if (sourceHolder instanceof ConstructorArgumentValues.ValueHolder constructorValueHolder) {
 						// TODO 如果参数的值是ValueHolder, 将其来源放到preparedArguments已准备好的参数缓存中, 并且标识需要解析
-						Object sourceValue = ((ConstructorArgumentValues.ValueHolder) sourceHolder).getValue();
+						Object sourceValue = constructorValueHolder.getValue();
 						args.resolveNecessary = true;
 						args.preparedArguments[paramIndex] = sourceValue;
 					}
@@ -1020,14 +1044,20 @@ class ConstructorResolver {
 							"] - did you specify the correct bean references as arguments?");
 				}
 				try {
+					ConstructorDependencyDescriptor desc = new ConstructorDependencyDescriptor(methodParam, true);
+					Set<String> autowiredBeanNames = new LinkedHashSet<>(2);
 					// TODO 支持自动装配时, 会进行自动装配处理
-					Object autowiredArgument = resolveAutowiredArgument(
-							methodParam, beanName, autowiredBeanNames, converter, fallback);
+					Object arg = resolveAutowiredArgument(
+							desc, paramType, beanName, autowiredBeanNames, converter, fallback);
+					if (arg != null) {
+						setShortcutIfPossible(desc, paramType, autowiredBeanNames);
+					}
+					allAutowiredBeanNames.addAll(autowiredBeanNames);
 					// TODO 原生参数, 以及参数都设置为自动装配解析后的参数
-					args.rawArguments[paramIndex] = autowiredArgument;
-					args.arguments[paramIndex] = autowiredArgument;
+					args.rawArguments[paramIndex] = arg;
+					args.arguments[paramIndex] = arg;
 					// TODO 设置自动装配参数标示
-					args.preparedArguments[paramIndex] = autowiredArgumentMarker;
+					args.preparedArguments[paramIndex] = desc;
 					args.resolveNecessary = true;
 				}
 				catch (BeansException ex) {
@@ -1037,17 +1067,7 @@ class ConstructorResolver {
 			}
 		}
 
-		for (String autowiredBeanName : autowiredBeanNames) {
-			// TODO 注册一下要实例化的bean与自动装配项之前的关系:
-			//  1. dependentBeanMap: 自动装配项被要实例化的bean所依赖
-			//  2. dependenciesForBeanMap: 要实例化的bean依赖哪些自动装配项
-			this.beanFactory.registerDependentBean(autowiredBeanName, beanName);
-			if (logger.isDebugEnabled()) {
-				logger.debug("Autowiring by type from bean name '" + beanName +
-						"' via " + (executable instanceof Constructor ? "constructor" : "factory method") +
-						" to bean named '" + autowiredBeanName + "'");
-			}
-		}
+		registerDependentBeans(executable, beanName, allAutowiredBeanNames);
 
 		return args;
 	}
@@ -1067,7 +1087,7 @@ class ConstructorResolver {
 	 *         3. String: 评估解析, 因为其有可能是SpEL表达式
 	 */
 	// TODO 按顺序解析参数
-	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
+	private @Nullable Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
 			Executable executable, Object[] argsToResolve) {
 		// TODO 取得容器中的自定义类型转换器
 		TypeConverter customConverter = this.beanFactory.getCustomTypeConverter();
@@ -1079,49 +1099,77 @@ class ConstructorResolver {
 		// TODO 按顺序取出用于实例化bean的构造函数, 或工厂方法所使用的全部参数的参数类型(executable可能是factory-method指定的工厂方法)
 		Class<?>[] paramTypes = executable.getParameterTypes();
 		// TODO 这里是用来放解析好的参数用的
-		Object[] resolvedArgs = new Object[argsToResolve.length];
+		@Nullable Object[] resolvedArgs = new Object[argsToResolve.length];
 		for (int argIndex = 0; argIndex < argsToResolve.length; argIndex++) {
 			// TODO 按顺序挨个解析参数, 先取得要解析的参数的值
 			Object argValue = argsToResolve[argIndex];
-			// TODO 用待处理方法(executable)加当前处理的参数的位置一同封装为MethodParameter. MethodParameter封装了当前方法,
-			//  包含此方法的类, 指定位置上的参数的信息(参数名, 参数类型, 参数的泛型类型, 参数上的注解信息, 参数的索引位置)
-			MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
-			if (argValue == autowiredArgumentMarker) {
-				// TODO 参数是Object时, 表示需要进行自动装配处理. 比如下面这种情况:
-				//  public String getCar(@Autowire Car car) {
-				//  }
-				//  MethodParameter里封装的就是方法(工厂方法, 或构造函数), 以及第一个参数Car的信息. 在解析自动装配时, 会把符合要求
-				//  的bean(Car类型的bean)拿出来做为参数的值argValue. 如果注入的是一个集合, 数组, Map等多值对象, 这里会返回Object[]
-				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter, true);
+			// TODO 取得用于实例化bean的构造函数, 或工厂方法对应位置的参数类型
+			Class<?> paramType = paramTypes[argIndex];
+			boolean convertNecessary = false;
+			if (argValue instanceof ConstructorDependencyDescriptor descriptor) {
+				try {
+					argValue = resolveAutowiredArgument(descriptor, paramType, beanName,
+							null, converter, true);
+				}
+				catch (BeansException ex) {
+					// Unexpected target bean mismatch for cached argument -> re-resolve
+					Set<String> autowiredBeanNames = null;
+					if (descriptor.hasShortcut()) {
+						// Reset shortcut and try to re-resolve it in this thread...
+						descriptor.setShortcut(null);
+						autowiredBeanNames = new LinkedHashSet<>(2);
+					}
+					logger.debug("Failed to resolve cached argument", ex);
+					// TODO 参数是Object时, 表示需要进行自动装配处理. 比如下面这种情况:
+					//  public String getCar(@Autowire Car car) {
+					//  }
+					//  MethodParameter里封装的就是方法(工厂方法, 或构造函数), 以及第一个参数Car的信息. 在解析自动装配时, 会把符合要求
+					//  的bean(Car类型的bean)拿出来做为参数的值argValue. 如果注入的是一个集合, 数组, Map等多值对象, 这里会返回Object[]
+					argValue = resolveAutowiredArgument(descriptor, paramType, beanName,
+							autowiredBeanNames, converter, true);
+					if (autowiredBeanNames != null && !descriptor.hasShortcut()) {
+						// We encountered as stale shortcut before, and the shortcut has
+						// not been re-resolved by another thread in the meantime...
+						if (argValue != null) {
+							setShortcutIfPossible(descriptor, paramType, autowiredBeanNames);
+						}
+						registerDependentBeans(executable, beanName, autowiredBeanNames);
+					}
+				}
 			}
 			else if (argValue instanceof BeanMetadataElement) {
 				// TODO 参数是BeanMetadataElement类型时, 解析propertyValues
 				argValue = valueResolver.resolveValueIfNecessary("constructor argument", argValue);
+				convertNecessary = true;
 			}
-			else if (argValue instanceof String) {
+			else if (argValue instanceof String text) {
 				// TODO 参数是字符串时, 有可能是SpEL表达式, 所以对其进行评估解析
-				argValue = this.beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
+				argValue = this.beanFactory.evaluateBeanDefinitionString(text, mbd);
+				convertNecessary = true;
 			}
-			// TODO 取得用于实例化bean的构造函数, 或工厂方法对应位置的参数类型
-			Class<?> paramType = paramTypes[argIndex];
-			try {
-				// TODO 对要解析的参数的值进行必要的类型转换(转换为方法对应位置的参数的类型. Converter就是从这里起作用的):
-				//  1. DataBinder:
-				//  2. TypeConverterSupport:
-				resolvedArgs[argIndex] = converter.convertIfNecessary(argValue, paramType, methodParam);
+			if (convertNecessary) {
+				MethodParameter methodParam = MethodParameter.forExecutable(executable, argIndex);
+				try {
+					// TODO 对要解析的参数的值进行必要的类型转换(转换为方法对应位置的参数的类型. Converter就是从这里起作用的):
+					//  1. DataBinder:
+					//  2. TypeConverterSupport:
+					argValue = converter.convertIfNecessary(argValue, paramType, methodParam);
+				}
+				catch (TypeMismatchException ex) {
+					throw new UnsatisfiedDependencyException(
+							mbd.getResourceDescription(), beanName, new InjectionPoint(methodParam),
+							"Could not convert argument value of type [" + ObjectUtils.nullSafeClassName(argValue) +
+							"] to required type [" + paramType.getName() + "]: " + ex.getMessage());
+				}
 			}
-			catch (TypeMismatchException ex) {
-				throw new UnsatisfiedDependencyException(
-						mbd.getResourceDescription(), beanName, new InjectionPoint(methodParam),
-						"Could not convert argument value of type [" + ObjectUtils.nullSafeClassName(argValue) +
-						"] to required type [" + paramType.getName() + "]: " + ex.getMessage());
-			}
+			resolvedArgs[argIndex] = argValue;
 		}
 		// TODO 全处理完后, 返回解析后的参数数组
 		return resolvedArgs;
 	}
+
 	// TODO 取得用户声明的构造器, 如果构造器所在的类是由CGLib代理过的, 则取得其原始类中同类型的构造器
-	protected Constructor<?> getUserDeclaredConstructor(Constructor<?> constructor) {
+	private Constructor<?> getUserDeclaredConstructor(Constructor<?> constructor) {
 		// TODO 先得到构造器所在的类
 		Class<?> declaringClass = constructor.getDeclaringClass();
 		// TODO 因为构造器所在的类可能是由CGLib创建的代理类, 所以再处理一下
@@ -1140,18 +1188,17 @@ class ConstructorResolver {
 	}
 
 	/**
-	 * Template method for resolving the specified argument which is supposed to be autowired.
+	 * Resolve the specified argument which is supposed to be autowired.
 	 *
-	 * @param param 用于实例化bean的方法(工厂方法, 或构造函数)参数, 封装了当前方法, 包含此方法的类, 指定位置上的参数的信息
-	 *                 (参数名, 参数类型, 参数的泛型类型, 参数上的注解信息, 参数的索引位置)
+	 * @param descriptor
+	 * @param paramType
 	 * @param beanName 要创建实例的bean, 即要得到的bean
 	 * @param autowiredBeanNames 自动装配过的bean集合
 	 * @param typeConverter 类型转换器
 	 * @param fallback
 	 * @return
 	 */
-	@Nullable
-	protected Object resolveAutowiredArgument(MethodParameter param, String beanName,
+	@Nullable Object resolveAutowiredArgument(DependencyDescriptor descriptor, Class<?> paramType, String beanName,
 			@Nullable Set<String> autowiredBeanNames, TypeConverter typeConverter, boolean fallback) {
 		// TODO 取得用于实例化bean的方法参数(工厂方法, 或构造函数的参数)的类型
 		Class<?> paramType = param.getParameterType();
@@ -1159,10 +1206,11 @@ class ConstructorResolver {
 			// TODO 如果方法的参数类型是InjectionPoint类型, 直接从当前线程中取得注入点返回, 如果没有注入点, 则抛出异常
 			InjectionPoint injectionPoint = currentInjectionPoint.get();
 			if (injectionPoint == null) {
-				throw new IllegalStateException("No current InjectionPoint available for " + param);
+				throw new IllegalStateException("No current InjectionPoint available for " + descriptor);
 			}
 			return injectionPoint;
 		}
+
 		try {
 			// TODO 其他情况就需要解析一下依赖:
 			//  1. 将方法参数(用于实例化bean的方法参数)封装为一个DependencyDescriptor. DependencyDescriptor是InjectionPoint的子类,
@@ -1172,8 +1220,7 @@ class ConstructorResolver {
 			//           构造函数. 因此用于实例化bean的方法参数(工厂方法, 或构造函数的参数)会设置到父类InjectionPoint$methodParameter的属性中.
 			//           而与字段(成员属性)相关的属性(DependencyDescriptor$fieldName, InjectionPoint$field), 则会是null
 			//  2. 在当前容器中解析依赖关系
-			return this.beanFactory.resolveDependency(
-					new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
+			return this.beanFactory.resolveDependency(descriptor, beanName, autowiredBeanNames, typeConverter);
 		}
 		catch (NoUniqueBeanDefinitionException ex) {
 			// TODO 向外传递解析过程中出现多个候选bean的NoUniqueBeanDefinitionException异常
@@ -1182,10 +1229,10 @@ class ConstructorResolver {
 		catch (NoSuchBeanDefinitionException ex) {
 			if (fallback) {
 				// Single constructor or factory method -> let's return an empty array/collection
-				// for e.g. a vararg or a non-null List/Set/Map parameter.
+				// for example, a vararg or a non-null List/Set/Map parameter.
 				// TODO 遇到NoSuchBeanDefinitionException异常时, 如果支持回退, 则会为数组, 集合, Map类型创建空对象并返回
 				if (paramType.isArray()) {
-					return Array.newInstance(paramType.getComponentType(), 0);
+					return Array.newInstance(paramType.componentType(), 0);
 				}
 				else if (CollectionFactory.isApproximableCollectionType(paramType)) {
 					return CollectionFactory.createCollection(paramType, 0);
@@ -1199,6 +1246,344 @@ class ConstructorResolver {
 		}
 	}
 
+	private void setShortcutIfPossible(
+			ConstructorDependencyDescriptor descriptor, Class<?> paramType, Set<String> autowiredBeanNames) {
+
+		if (autowiredBeanNames.size() == 1) {
+			String autowiredBeanName = autowiredBeanNames.iterator().next();
+			if (this.beanFactory.containsBean(autowiredBeanName) &&
+					this.beanFactory.isTypeMatch(autowiredBeanName, paramType)) {
+				descriptor.setShortcut(autowiredBeanName);
+			}
+		}
+	}
+
+	private void registerDependentBeans(
+			Executable executable, String beanName, Set<String> autowiredBeanNames) {
+
+		for (String autowiredBeanName : autowiredBeanNames) {
+			// TODO 注册一下要实例化的bean与自动装配项之前的关系:
+			//  1. dependentBeanMap: 自动装配项被要实例化的bean所依赖
+			//  2. dependenciesForBeanMap: 要实例化的bean依赖哪些自动装配项
+			this.beanFactory.registerDependentBean(autowiredBeanName, beanName);
+			if (logger.isDebugEnabled()) {
+				logger.debug("Autowiring by type from bean name '" + beanName + "' via " +
+						(executable instanceof Constructor ? "constructor" : "factory method") +
+						" to bean named '" + autowiredBeanName + "'");
+			}
+		}
+	}
+
+
+	// AOT-oriented pre-resolution
+
+	public Executable resolveConstructorOrFactoryMethod(String beanName, RootBeanDefinition mbd) {
+		Supplier<ResolvableType> beanType = () -> getBeanType(beanName, mbd);
+		List<ResolvableType> valueTypes = (mbd.hasConstructorArgumentValues() ?
+				determineParameterValueTypes(mbd) : Collections.emptyList());
+		Method resolvedFactoryMethod = resolveFactoryMethod(beanName, mbd, valueTypes);
+		if (resolvedFactoryMethod != null) {
+			return resolvedFactoryMethod;
+		}
+
+		Class<?> factoryBeanClass = getFactoryBeanClass(beanName, mbd);
+		if (factoryBeanClass != null && !factoryBeanClass.equals(mbd.getResolvableType().toClass())) {
+			ResolvableType resolvableType = mbd.getResolvableType();
+			boolean isCompatible = ResolvableType.forClass(factoryBeanClass)
+					.as(FactoryBean.class).getGeneric(0).isAssignableFrom(resolvableType);
+			Assert.state(isCompatible, () -> String.format(
+					"Incompatible target type '%s' for factory bean '%s'",
+					resolvableType.toClass().getName(), factoryBeanClass.getName()));
+			Constructor<?> constructor = resolveConstructor(beanName, mbd,
+					() -> ResolvableType.forClass(factoryBeanClass), valueTypes);
+			if (constructor != null) {
+				return constructor;
+			}
+			throw new IllegalStateException("No suitable FactoryBean constructor found for " +
+					mbd + " and argument types " + valueTypes);
+
+		}
+
+		Constructor<?> constructor = resolveConstructor(beanName, mbd, beanType, valueTypes);
+		if (constructor != null) {
+			return constructor;
+		}
+
+		throw new IllegalStateException("No constructor or factory method candidate found for " +
+				mbd + " and argument types " + valueTypes);
+	}
+
+	private List<ResolvableType> determineParameterValueTypes(RootBeanDefinition mbd) {
+		List<ResolvableType> parameterTypes = new ArrayList<>();
+		for (ValueHolder valueHolder : mbd.getConstructorArgumentValues().getIndexedArgumentValues().values()) {
+			parameterTypes.add(determineParameterValueType(mbd, valueHolder));
+		}
+		for (ValueHolder valueHolder : mbd.getConstructorArgumentValues().getGenericArgumentValues()) {
+			parameterTypes.add(determineParameterValueType(mbd, valueHolder));
+		}
+		return parameterTypes;
+	}
+
+	private ResolvableType determineParameterValueType(RootBeanDefinition mbd, ValueHolder valueHolder) {
+		if (valueHolder.getType() != null) {
+			return ResolvableType.forClass(
+					ClassUtils.resolveClassName(valueHolder.getType(), this.beanFactory.getBeanClassLoader()));
+		}
+		Object value = valueHolder.getValue();
+		if (value instanceof BeanReference br) {
+			if (value instanceof RuntimeBeanReference rbr) {
+				if (rbr.getBeanType() != null) {
+					return ResolvableType.forClass(rbr.getBeanType());
+				}
+			}
+			return ResolvableType.forClass(this.beanFactory.getType(br.getBeanName(), false));
+		}
+		if (value instanceof BeanDefinition innerBd) {
+			String nameToUse = "(inner bean)";
+			ResolvableType type = getBeanType(nameToUse,
+					this.beanFactory.getMergedBeanDefinition(nameToUse, innerBd, mbd));
+			return (FactoryBean.class.isAssignableFrom(type.toClass()) ?
+					type.as(FactoryBean.class).getGeneric(0) : type);
+		}
+		if (value instanceof TypedStringValue typedValue) {
+			if (typedValue.hasTargetType()) {
+				return ResolvableType.forClass(typedValue.getTargetType());
+			}
+			return ResolvableType.forClass(String.class);
+		}
+		if (value instanceof Class<?> clazz) {
+			return ResolvableType.forClassWithGenerics(Class.class, clazz);
+		}
+		return ResolvableType.forInstance(value);
+	}
+
+	private @Nullable Constructor<?> resolveConstructor(String beanName, RootBeanDefinition mbd,
+			Supplier<ResolvableType> beanType, List<ResolvableType> valueTypes) {
+
+		Class<?> type = ClassUtils.getUserClass(beanType.get().toClass());
+		Constructor<?>[] ctors = this.beanFactory.determineConstructorsFromBeanPostProcessors(type, beanName);
+		if (ctors == null) {
+			if (!mbd.hasConstructorArgumentValues()) {
+				ctors = mbd.getPreferredConstructors();
+			}
+			if (ctors == null) {
+				ctors = (mbd.isNonPublicAccessAllowed() ? type.getDeclaredConstructors() : type.getConstructors());
+			}
+		}
+		if (ctors.length == 1) {
+			return ctors[0];
+		}
+
+		Function<Constructor<?>, List<ResolvableType>> parameterTypesFactory = executable -> {
+			List<ResolvableType> types = new ArrayList<>();
+			for (int i = 0; i < executable.getParameterCount(); i++) {
+				types.add(ResolvableType.forConstructorParameter(executable, i));
+			}
+			return types;
+		};
+		List<Constructor<?>> matches = Arrays.stream(ctors)
+				.filter(executable -> match(parameterTypesFactory.apply(executable),
+						valueTypes, FallbackMode.NONE))
+				.toList();
+		if (matches.size() == 1) {
+			return matches.get(0);
+		}
+		List<Constructor<?>> assignableElementFallbackMatches = Arrays
+				.stream(ctors)
+				.filter(executable -> match(parameterTypesFactory.apply(executable),
+						valueTypes, FallbackMode.ASSIGNABLE_ELEMENT))
+				.toList();
+		if (assignableElementFallbackMatches.size() == 1) {
+			return assignableElementFallbackMatches.get(0);
+		}
+		List<Constructor<?>> typeConversionFallbackMatches = Arrays
+				.stream(ctors)
+				.filter(executable -> match(parameterTypesFactory.apply(executable),
+						valueTypes, FallbackMode.TYPE_CONVERSION))
+				.toList();
+		return (typeConversionFallbackMatches.size() == 1 ? typeConversionFallbackMatches.get(0) : null);
+	}
+
+	private @Nullable Method resolveFactoryMethod(String beanName, RootBeanDefinition mbd, List<ResolvableType> valueTypes) {
+		if (mbd.isFactoryMethodUnique) {
+			Method resolvedFactoryMethod = mbd.getResolvedFactoryMethod();
+			if (resolvedFactoryMethod != null) {
+				return resolvedFactoryMethod;
+			}
+		}
+
+		String factoryMethodName = mbd.getFactoryMethodName();
+		if (factoryMethodName != null) {
+			String factoryBeanName = mbd.getFactoryBeanName();
+			Class<?> factoryClass;
+			boolean isStatic;
+			if (factoryBeanName != null) {
+				factoryClass = this.beanFactory.getType(factoryBeanName);
+				isStatic = false;
+			}
+			else {
+				factoryClass = this.beanFactory.resolveBeanClass(mbd, beanName);
+				isStatic = true;
+			}
+
+			Assert.state(factoryClass != null, () -> "Failed to determine bean class of " + mbd);
+			Method[] rawCandidates = getCandidateMethods(factoryClass, mbd);
+			List<Method> candidates = new ArrayList<>();
+			for (Method candidate : rawCandidates) {
+				if ((!isStatic || isStaticCandidate(candidate, factoryClass)) && mbd.isFactoryMethod(candidate)) {
+					candidates.add(candidate);
+				}
+			}
+
+			Method result = null;
+			if (candidates.size() == 1) {
+				result = candidates.get(0);
+			}
+			else if (candidates.size() > 1) {
+				Function<Method, List<ResolvableType>> parameterTypesFactory = method -> {
+					List<ResolvableType> types = new ArrayList<>();
+					for (int i = 0; i < method.getParameterCount(); i++) {
+						types.add(ResolvableType.forMethodParameter(method, i));
+					}
+					return types;
+				};
+				result = resolveFactoryMethod(candidates, parameterTypesFactory, valueTypes);
+			}
+
+			if (result == null) {
+				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
+						"No matching factory method found on class [" + factoryClass.getName() + "]: " +
+						(mbd.getFactoryBeanName() != null ?
+								"factory bean '" + mbd.getFactoryBeanName() + "'; " : "") +
+						"factory method '" + mbd.getFactoryMethodName() + "'. ");
+			}
+			return result;
+		}
+
+		return null;
+	}
+
+	private @Nullable Method resolveFactoryMethod(List<Method> executables,
+			Function<Method, List<ResolvableType>> parameterTypesFactory,
+			List<ResolvableType> valueTypes) {
+
+		List<Method> matches = executables.stream()
+				.filter(executable -> match(parameterTypesFactory.apply(executable), valueTypes, FallbackMode.NONE))
+				.toList();
+		if (matches.size() == 1) {
+			return matches.get(0);
+		}
+		List<Method> assignableElementFallbackMatches = executables.stream()
+				.filter(executable -> match(parameterTypesFactory.apply(executable),
+						valueTypes, FallbackMode.ASSIGNABLE_ELEMENT))
+				.toList();
+		if (assignableElementFallbackMatches.size() == 1) {
+			return assignableElementFallbackMatches.get(0);
+		}
+		List<Method> typeConversionFallbackMatches = executables.stream()
+				.filter(executable -> match(parameterTypesFactory.apply(executable),
+						valueTypes, FallbackMode.TYPE_CONVERSION))
+				.toList();
+		Assert.state(typeConversionFallbackMatches.size() <= 1,
+				() -> "Multiple matches with parameters '" + valueTypes + "': " + typeConversionFallbackMatches);
+		return (typeConversionFallbackMatches.size() == 1 ? typeConversionFallbackMatches.get(0) : null);
+	}
+
+	private boolean match(
+			List<ResolvableType> parameterTypes, List<ResolvableType> valueTypes, FallbackMode fallbackMode) {
+
+		if (parameterTypes.size() != valueTypes.size()) {
+			return false;
+		}
+		for (int i = 0; i < parameterTypes.size(); i++) {
+			if (!isMatch(parameterTypes.get(i), valueTypes.get(i), fallbackMode)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean isMatch(ResolvableType parameterType, ResolvableType valueType, FallbackMode fallbackMode) {
+		if (isAssignable(valueType).test(parameterType)) {
+			return true;
+		}
+		return switch (fallbackMode) {
+			case ASSIGNABLE_ELEMENT -> isAssignable(valueType).test(extractElementType(parameterType));
+			case TYPE_CONVERSION -> typeConversionFallback(valueType).test(parameterType);
+			default -> false;
+		};
+	}
+
+	private Predicate<ResolvableType> isAssignable(ResolvableType valueType) {
+		return parameterType -> (valueType == ResolvableType.NONE || parameterType.isAssignableFrom(valueType));
+	}
+
+	private ResolvableType extractElementType(ResolvableType parameterType) {
+		if (parameterType.isArray()) {
+			return parameterType.getComponentType();
+		}
+		if (Collection.class.isAssignableFrom(parameterType.toClass())) {
+			return parameterType.as(Collection.class).getGeneric(0);
+		}
+		return ResolvableType.NONE;
+	}
+
+	private Predicate<ResolvableType> typeConversionFallback(ResolvableType valueType) {
+		return parameterType -> {
+			if (valueOrCollection(valueType, this::isStringForClassFallback).test(parameterType)) {
+				return true;
+			}
+			return valueOrCollection(valueType, this::isSimpleValueType).test(parameterType);
+		};
+	}
+
+	private Predicate<ResolvableType> valueOrCollection(ResolvableType valueType,
+			Function<ResolvableType, Predicate<ResolvableType>> predicateProvider) {
+
+		return parameterType -> {
+			if (predicateProvider.apply(valueType).test(parameterType)) {
+				return true;
+			}
+			if (predicateProvider.apply(extractElementType(valueType)).test(extractElementType(parameterType))) {
+				return true;
+			}
+			return (predicateProvider.apply(valueType).test(extractElementType(parameterType)));
+		};
+	}
+
+	/**
+	 * Return a {@link Predicate} for a parameter type that checks if its target
+	 * value is a {@link Class} and the value type is a {@link String}. This is
+	 * a regular use case where a {@link Class} is defined in the bean definition
+	 * as a fully-qualified class name.
+	 * @param valueType the type of the value
+	 * @return a predicate to indicate a fallback match for a String to Class
+	 * parameter
+	 */
+	private Predicate<ResolvableType> isStringForClassFallback(ResolvableType valueType) {
+		return parameterType -> (valueType.isAssignableFrom(String.class) &&
+				parameterType.isAssignableFrom(Class.class));
+	}
+
+	private Predicate<ResolvableType> isSimpleValueType(ResolvableType valueType) {
+		return parameterType -> (BeanUtils.isSimpleValueType(parameterType.toClass()) &&
+				BeanUtils.isSimpleValueType(valueType.toClass()));
+	}
+
+	private @Nullable Class<?> getFactoryBeanClass(String beanName, RootBeanDefinition mbd) {
+		Class<?> beanClass = this.beanFactory.resolveBeanClass(mbd, beanName);
+		return (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass) ? beanClass : null);
+	}
+
+	private ResolvableType getBeanType(String beanName, RootBeanDefinition mbd) {
+		ResolvableType resolvableType = mbd.getResolvableType();
+		if (resolvableType != ResolvableType.NONE) {
+			return resolvableType;
+		}
+		return ResolvableType.forClass(this.beanFactory.resolveBeanClass(mbd, beanName));
+	}
+
+
 	static InjectionPoint setCurrentInjectionPoint(@Nullable InjectionPoint injectionPoint) {
 		InjectionPoint old = currentInjectionPoint.get();
 		if (injectionPoint != null) {
@@ -1210,17 +1595,64 @@ class ConstructorResolver {
 		return old;
 	}
 
+	/**
+	 * See {@link BeanUtils#getResolvableConstructor(Class)} for alignment.
+	 * This variant adds a lenient fallback to the default constructor if available, similar to
+	 * {@link org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor#determineCandidateConstructors}.
+	 */
+	static Constructor<?> @Nullable [] determinePreferredConstructors(Class<?> clazz) {
+		Constructor<?> primaryCtor = BeanUtils.findPrimaryConstructor(clazz);
+
+		Constructor<?> defaultCtor;
+		try {
+			defaultCtor = clazz.getDeclaredConstructor();
+		}
+		catch (NoSuchMethodException ex) {
+			defaultCtor = null;
+		}
+
+		if (primaryCtor != null) {
+			if (defaultCtor != null && !primaryCtor.equals(defaultCtor)) {
+				return new Constructor<?>[] {primaryCtor, defaultCtor};
+			}
+			else {
+				return new Constructor<?>[] {primaryCtor};
+			}
+		}
+
+		Constructor<?>[] ctors = clazz.getConstructors();
+		if (ctors.length == 1) {
+			// A single public constructor, potentially in combination with a non-public default constructor
+			if (defaultCtor != null && !ctors[0].equals(defaultCtor)) {
+				return new Constructor<?>[] {ctors[0], defaultCtor};
+			}
+			else {
+				return ctors;
+			}
+		}
+		else if (ctors.length == 0) {
+			// No public constructors -> check non-public
+			ctors = clazz.getDeclaredConstructors();
+			if (ctors.length == 1) {
+				// A single non-public constructor, for example, from a non-public record type
+				return ctors;
+			}
+		}
+
+		return null;
+	}
+
 
 	/**
 	 * Private inner class for holding argument combinations.
 	 */
 	private static class ArgumentsHolder {
 
-		public final Object[] rawArguments;
+		public final @Nullable Object[] rawArguments;
 
-		public final Object[] arguments;
+		public final @Nullable Object[] arguments;
 
-		public final Object[] preparedArguments;
+		public final @Nullable Object[] preparedArguments;
 
 		public boolean resolveNecessary = false;
 
@@ -1230,7 +1662,7 @@ class ConstructorResolver {
 			this.preparedArguments = new Object[size];
 		}
 
-		public ArgumentsHolder(Object[] args) {
+		public ArgumentsHolder(@Nullable Object[] args) {
 			this.rawArguments = args;
 			this.arguments = args;
 			this.preparedArguments = args;
@@ -1302,8 +1734,7 @@ class ConstructorResolver {
 	 */
 	private static class ConstructorPropertiesChecker {
 
-		@Nullable
-		public static String[] evaluate(Constructor<?> candidate, int paramCount) {
+		public static String @Nullable [] evaluate(Constructor<?> candidate, int paramCount) {
 			// TODO 取得候选方法上的@ConstructorProperties注解
 			ConstructorProperties cp = candidate.getAnnotation(ConstructorProperties.class);
 			if (cp != null) {
@@ -1321,6 +1752,51 @@ class ConstructorResolver {
 				return null;
 			}
 		}
+	}
+
+
+	/**
+	 * DependencyDescriptor marker for constructor arguments,
+	 * for differentiating between a provided DependencyDescriptor instance
+	 * and an internally built DependencyDescriptor for autowiring purposes.
+	 */
+	@SuppressWarnings("serial")
+	private static class ConstructorDependencyDescriptor extends DependencyDescriptor {
+
+		private volatile @Nullable String shortcut;
+
+		public ConstructorDependencyDescriptor(MethodParameter methodParameter, boolean required) {
+			super(methodParameter, required);
+		}
+
+		public void setShortcut(@Nullable String shortcut) {
+			this.shortcut = shortcut;
+		}
+
+		public boolean hasShortcut() {
+			return (this.shortcut != null);
+		}
+
+		@Override
+		public @Nullable Object resolveShortcut(BeanFactory beanFactory) {
+			String shortcut = this.shortcut;
+			return (shortcut != null ? beanFactory.getBean(shortcut, getDependencyType()) : null);
+		}
+
+		@Override
+		public boolean usesStandardBeanLookup() {
+			return true;
+		}
+	}
+
+
+	private enum FallbackMode {
+
+		NONE,
+
+		ASSIGNABLE_ELEMENT,
+
+		TYPE_CONVERSION
 	}
 
 }

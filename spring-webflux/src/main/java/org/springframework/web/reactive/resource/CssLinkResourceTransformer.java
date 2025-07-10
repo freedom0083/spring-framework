@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.web.reactive.resource;
 
 import java.io.StringWriter;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,6 +28,7 @@ import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -36,14 +36,13 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 
 /**
  * A {@link ResourceTransformer} implementation that modifies links in a CSS
- * file to match the public URL paths that should be exposed to clients (e.g.
+ * file to match the public URL paths that should be exposed to clients (for example,
  * with an MD5 content-based hash inserted in the URL).
  *
  * <p>The implementation looks for links in CSS {@code @import} statements and
@@ -88,9 +87,8 @@ public class CssLinkResourceTransformer extends ResourceTransformerSupport {
 							.read(outputResource, bufferFactory, StreamUtils.BUFFER_SIZE);
 					return DataBufferUtils.join(flux)
 							.flatMap(dataBuffer -> {
-								CharBuffer charBuffer = DEFAULT_CHARSET.decode(dataBuffer.asByteBuffer());
+								String cssContent = dataBuffer.toString(DEFAULT_CHARSET);
 								DataBufferUtils.release(dataBuffer);
-								String cssContent = charBuffer.toString();
 								return transformContent(cssContent, outputResource, transformerChain, exchange);
 							});
 				});
@@ -166,7 +164,7 @@ public class CssLinkResourceTransformer extends ResourceTransformerSupport {
 	 */
 	protected abstract static class AbstractLinkParser implements LinkParser {
 
-		/** Return the keyword to use to search for links, e.g. "@import", "url(" */
+		/** Return the keyword to use to search for links, for example, "@import", "url(". */
 		protected abstract String getKeyword();
 
 		@Override
@@ -284,13 +282,8 @@ public class CssLinkResourceTransformer extends ResourceTransformerSupport {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			if (this == other) {
-				return true;
-			}
-			if (!(other instanceof ContentChunkInfo otherCci)) {
-				return false;
-			}
-			return (this.start == otherCci.start && this.end == otherCci.end);
+			return (this == other || (other instanceof ContentChunkInfo that &&
+					this.start == that.start && this.end == that.end));
 		}
 
 		@Override

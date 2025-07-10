@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,17 +29,16 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static org.springframework.web.reactive.function.server.RequestPredicates.method;
 import static org.springframework.web.reactive.function.server.RequestPredicates.methods;
 import static org.springframework.web.reactive.function.server.RequestPredicates.path;
-import static org.springframework.web.reactive.function.server.RequestPredicates.pathExtension;
 import static org.springframework.web.reactive.function.server.RequestPredicates.queryParam;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 /**
  * @author Arjen Poutsma
  */
-public class ToStringVisitorTests {
+class ToStringVisitorTests {
 
 	@Test
-	public void nested() {
+	void nested() {
 		HandlerFunction<ServerResponse> handler = new SimpleHandlerFunction();
 		RouterFunction<ServerResponse> routerFunction = route()
 				.path("/foo", builder ->
@@ -53,22 +52,21 @@ public class ToStringVisitorTests {
 		routerFunction.accept(visitor);
 		String result = visitor.toString();
 
-		String expected = "/foo => {\n" +
-				" /bar => {\n" +
-				"  (GET && /baz) -> \n" +
-				" }\n" +
-				"}";
+		String expected = """
+				/foo => {
+					/bar => {
+						(GET && /baz) ->\s
+					}
+				}""".replace('\t', ' ');
 		assertThat(result).isEqualTo(expected);
 	}
 
 	@Test
-	public void predicates() {
+	void predicates() {
 		testPredicate(methods(HttpMethod.GET), "GET");
 		testPredicate(methods(HttpMethod.GET, HttpMethod.POST), "[GET, POST]");
 
 		testPredicate(path("/foo"), "/foo");
-
-		testPredicate(pathExtension("foo"), "*.foo");
 
 		testPredicate(contentType(MediaType.APPLICATION_JSON), "Content-Type: application/json");
 
@@ -95,9 +93,7 @@ public class ToStringVisitorTests {
 	private void testPredicate(RequestPredicate predicate, String expected) {
 		ToStringVisitor visitor = new ToStringVisitor();
 		predicate.accept(visitor);
-		String result = visitor.toString();
-
-		assertThat(result).isEqualTo(expected);
+		assertThat(visitor).asString().isEqualTo(expected);
 	}
 
 

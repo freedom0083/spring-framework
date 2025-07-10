@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
@@ -39,6 +40,7 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * @author Rob Harrop
  * @author Sam Brannen
  * @author Phillip Webb
+ * @author Yanming Zhou
  * @since 2.5.2
  */
 public final class GenericTypeResolver {
@@ -57,9 +59,9 @@ public final class GenericTypeResolver {
 	 * @param methodParameter the method parameter specification
 	 * @param implementationClass the class to resolve type variables against
 	 * @return the corresponding generic parameter or return type
-	 * @deprecated since 5.2 in favor of {@code methodParameter.withContainingClass(implementationClass).getParameterType()}
+	 * @deprecated in favor of {@code methodParameter.withContainingClass(implementationClass).getParameterType()}
 	 */
-	@Deprecated
+	@Deprecated(since = "5.2")
 	public static Class<?> resolveParameterType(MethodParameter methodParameter, Class<?> implementationClass) {
 		Assert.notNull(methodParameter, "MethodParameter must not be null");
 		Assert.notNull(implementationClass, "Class must not be null");
@@ -81,18 +83,17 @@ public final class GenericTypeResolver {
 	}
 
 	/**
-	 * Resolve the single type argument of the given generic interface against the given
-	 * target method which is assumed to return the given interface or an implementation
+	 * Resolve the single type argument of the given generic type against the given
+	 * target method which is assumed to return the given type or an implementation
 	 * of it.
 	 * @param method the target method to check the return type of
-	 * @param genericIfc the generic interface or superclass to resolve the type argument from
+	 * @param genericType the generic interface or superclass to resolve the type argument from
 	 * @return the resolved parameter type of the method return type, or {@code null}
 	 * if not resolvable or if the single argument is of type {@link WildcardType}.
 	 */
-	@Nullable
-	public static Class<?> resolveReturnTypeArgument(Method method, Class<?> genericIfc) {
+	public static @Nullable Class<?> resolveReturnTypeArgument(Method method, Class<?> genericType) {
 		Assert.notNull(method, "Method must not be null");
-		ResolvableType resolvableType = ResolvableType.forMethodReturnType(method).as(genericIfc);
+		ResolvableType resolvableType = ResolvableType.forMethodReturnType(method).as(genericType);
 		if (!resolvableType.hasGenerics() || resolvableType.getType() instanceof WildcardType) {
 			return null;
 		}
@@ -100,24 +101,22 @@ public final class GenericTypeResolver {
 	}
 
 	/**
-	 * Resolve the single type argument of the given generic interface against
-	 * the given target class which is assumed to implement the generic interface
+	 * Resolve the single type argument of the given generic type against
+	 * the given target class which is assumed to implement the given type
 	 * and possibly declare a concrete type for its type variable.
 	 * @param clazz the target class to check against
-	 * @param genericIfc the generic interface or superclass to resolve the type argument from
+	 * @param genericType the generic interface or superclass to resolve the type argument from
 	 * @return the resolved type of the argument, or {@code null} if not resolvable
 	 */
-	@Nullable
-	public static Class<?> resolveTypeArgument(Class<?> clazz, Class<?> genericIfc) {
-		ResolvableType resolvableType = ResolvableType.forClass(clazz).as(genericIfc);
+	public static @Nullable Class<?> resolveTypeArgument(Class<?> clazz, Class<?> genericType) {
+		ResolvableType resolvableType = ResolvableType.forClass(clazz).as(genericType);
 		if (!resolvableType.hasGenerics()) {
 			return null;
 		}
 		return getSingleGeneric(resolvableType);
 	}
 
-	@Nullable
-	private static Class<?> getSingleGeneric(ResolvableType resolvableType) {
+	private static @Nullable Class<?> getSingleGeneric(ResolvableType resolvableType) {
 		Assert.isTrue(resolvableType.getGenerics().length == 1,
 				() -> "Expected 1 type argument on generic interface [" + resolvableType +
 				"] but found " + resolvableType.getGenerics().length);
@@ -126,18 +125,17 @@ public final class GenericTypeResolver {
 
 
 	/**
-	 * Resolve the type arguments of the given generic interface against the given
-	 * target class which is assumed to implement the generic interface and possibly
-	 * declare concrete types for its type variables.
+	 * Resolve the type arguments of the given generic type against the given
+	 * target class which is assumed to implement or extend from the given type
+	 * and possibly declare concrete types for its type variables.
 	 * @param clazz the target class to check against
-	 * @param genericIfc the generic interface or superclass to resolve the type argument from
+	 * @param genericType the generic interface or superclass to resolve the type argument from
 	 * @return the resolved type of each argument, with the array size matching the
 	 * number of actual type arguments, or {@code null} if not resolvable
 	 */
-	@Nullable
-	public static Class<?>[] resolveTypeArguments(Class<?> clazz, Class<?> genericIfc) {
-		ResolvableType type = ResolvableType.forClass(clazz).as(genericIfc);
-		if (!type.hasGenerics() || type.isEntirelyUnresolvable()) {
+	public static Class<?> @Nullable [] resolveTypeArguments(Class<?> clazz, Class<?> genericType) {
+		ResolvableType type = ResolvableType.forClass(clazz).as(genericType);
+		if (!type.hasGenerics() || !type.hasResolvableGenerics()) {
 			return null;
 		}
 		return type.resolveGenerics(Object.class);
@@ -146,6 +144,7 @@ public final class GenericTypeResolver {
 	/**
 	 * Resolve the given generic type against the given context class,
 	 * substituting type variables as far as possible.
+	 * <p>As of 6.2, this method resolves type variables recursively.
 	 * @param genericType the (potentially) generic type
 	 * @param contextClass a context class for the target type, for example a class
 	 * in which the target type appears in a method signature (can be {@code null})
@@ -154,9 +153,12 @@ public final class GenericTypeResolver {
 	 */
 	public static Type resolveType(Type genericType, @Nullable Class<?> contextClass) {
 		if (contextClass != null) {
-			if (genericType instanceof TypeVariable) {
+			if (genericType instanceof TypeVariable<?> typeVariable) {
 				ResolvableType resolvedTypeVariable = resolveVariable(
-						(TypeVariable<?>) genericType, ResolvableType.forClass(contextClass));
+						typeVariable, ResolvableType.forClass(contextClass));
+				if (resolvedTypeVariable == ResolvableType.NONE) {
+					resolvedTypeVariable = ResolvableType.forVariableBounds(typeVariable);
+				}
 				if (resolvedTypeVariable != ResolvableType.NONE) {
 					Class<?> resolved = resolvedTypeVariable.resolve();
 					if (resolved != null) {
@@ -164,27 +166,31 @@ public final class GenericTypeResolver {
 					}
 				}
 			}
-			else if (genericType instanceof ParameterizedType) {
+			else if (genericType instanceof ParameterizedType parameterizedType) {
 				ResolvableType resolvedType = ResolvableType.forType(genericType);
 				if (resolvedType.hasUnresolvableGenerics()) {
-					ParameterizedType parameterizedType = (ParameterizedType) genericType;
-					Class<?>[] generics = new Class<?>[parameterizedType.getActualTypeArguments().length];
 					Type[] typeArguments = parameterizedType.getActualTypeArguments();
+					ResolvableType[] generics = new ResolvableType[typeArguments.length];
 					ResolvableType contextType = ResolvableType.forClass(contextClass);
 					for (int i = 0; i < typeArguments.length; i++) {
 						Type typeArgument = typeArguments[i];
-						if (typeArgument instanceof TypeVariable) {
-							ResolvableType resolvedTypeArgument = resolveVariable(
-									(TypeVariable<?>) typeArgument, contextType);
+						if (typeArgument instanceof TypeVariable<?> typeVariable) {
+							ResolvableType resolvedTypeArgument = resolveVariable(typeVariable, contextType);
+							if (resolvedTypeArgument == ResolvableType.NONE) {
+								resolvedTypeArgument = ResolvableType.forVariableBounds(typeVariable);
+							}
 							if (resolvedTypeArgument != ResolvableType.NONE) {
-								generics[i] = resolvedTypeArgument.resolve();
+								generics[i] = resolvedTypeArgument;
 							}
 							else {
-								generics[i] = ResolvableType.forType(typeArgument).resolve();
+								generics[i] = ResolvableType.forType(typeArgument);
 							}
 						}
+						else if (typeArgument instanceof ParameterizedType) {
+							generics[i] = ResolvableType.forType(resolveType(typeArgument, contextClass));
+						}
 						else {
-							generics[i] = ResolvableType.forType(typeArgument).resolve();
+							generics[i] = ResolvableType.forType(typeArgument);
 						}
 					}
 					Class<?> rawClass = resolvedType.getRawClass();
@@ -200,8 +206,15 @@ public final class GenericTypeResolver {
 	private static ResolvableType resolveVariable(TypeVariable<?> typeVariable, ResolvableType contextType) {
 		ResolvableType resolvedType;
 		if (contextType.hasGenerics()) {
-			resolvedType = ResolvableType.forType(typeVariable, contextType);
-			if (resolvedType.resolve() != null) {
+			ResolvableType.VariableResolver variableResolver = contextType.asVariableResolver();
+			if (variableResolver == null) {
+				return ResolvableType.NONE;
+			}
+			resolvedType = variableResolver.resolveVariable(typeVariable);
+			if (resolvedType != null) {
+				while (resolvedType.getType() instanceof TypeVariable<?>) {
+					resolvedType = resolvedType.resolveType();
+				}
 				return resolvedType;
 			}
 		}
@@ -209,13 +222,13 @@ public final class GenericTypeResolver {
 		ResolvableType superType = contextType.getSuperType();
 		if (superType != ResolvableType.NONE) {
 			resolvedType = resolveVariable(typeVariable, superType);
-			if (resolvedType.resolve() != null) {
+			if (resolvedType != ResolvableType.NONE) {
 				return resolvedType;
 			}
 		}
 		for (ResolvableType ifc : contextType.getInterfaces()) {
 			resolvedType = resolveVariable(typeVariable, ifc);
-			if (resolvedType.resolve() != null) {
+			if (resolvedType != ResolvableType.NONE) {
 				return resolvedType;
 			}
 		}
@@ -237,7 +250,7 @@ public final class GenericTypeResolver {
 	/**
 	 * Build a mapping of {@link TypeVariable#getName TypeVariable names} to
 	 * {@link Class concrete classes} for the specified {@link Class}.
-	 * Searches all super types, enclosing types and interfaces.
+	 * Searches all supertypes, enclosing types and interfaces.
 	 * @see #resolveType(Type, Map)
 	 */
 	@SuppressWarnings("rawtypes")
@@ -288,9 +301,8 @@ public final class GenericTypeResolver {
 		}
 
 		@Override
-		@Nullable
 		// TODO 从缓存取解析好的泛型类型
-		public ResolvableType resolveVariable(TypeVariable<?> variable) {
+		public @Nullable ResolvableType resolveVariable(TypeVariable<?> variable) {
 			// TODO 先从缓存中取得泛型变量对应的type类型
 			Type type = this.typeVariableMap.get(variable);
 			// TODO 如果缓存中存在, 则将其包装为一个ResolvableType返回, 否则返回null

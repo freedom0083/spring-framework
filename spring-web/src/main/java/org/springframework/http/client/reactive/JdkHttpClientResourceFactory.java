@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,14 @@ package org.springframework.http.client.reactive;
 
 import java.net.http.HttpClient;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
-import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.lang.Nullable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 
@@ -43,8 +42,7 @@ import org.springframework.util.Assert;
  */
 public class JdkHttpClientResourceFactory implements InitializingBean, DisposableBean {
 
-	@Nullable
-	private Executor executor;
+	private @Nullable Executor executor;
 
 	private String threadPrefix = "jdk-http";
 
@@ -64,16 +62,15 @@ public class JdkHttpClientResourceFactory implements InitializingBean, Disposabl
 	/**
 	 * Return the configured {@link Executor}.
 	 */
-	@Nullable
-	public Executor getExecutor() {
+	public @Nullable Executor getExecutor() {
 		return this.executor;
 	}
 
 	/**
-	 * Configure the thread prefix to initialize {@link QueuedThreadPool} executor with. This
+	 * Configure the thread prefix to initialize the executor with. This
 	 * is used only when a {@link Executor} instance isn't
 	 * {@link #setExecutor(Executor) provided}.
-	 * <p>By default set to "jetty-http".
+	 * <p>By default set to "jdk-http".
 	 * @param threadPrefix the thread prefix to use
 	 */
 	public void setThreadPrefix(String threadPrefix) {
@@ -88,20 +85,12 @@ public class JdkHttpClientResourceFactory implements InitializingBean, Disposabl
 			String name = this.threadPrefix + "@" + Integer.toHexString(hashCode());
 			this.executor = Executors.newCachedThreadPool(new CustomizableThreadFactory(name));
 		}
-		if (this.executor instanceof LifeCycle) {
-			((LifeCycle)this.executor).start();
-		}
 	}
 
 	@Override
 	public void destroy() throws Exception {
-		try {
-			if (this.executor instanceof LifeCycle) {
-				((LifeCycle)this.executor).stop();
-			}
-		}
-		catch (Throwable ex) {
-			// ignore
+		if (this.executor instanceof ExecutorService executorService) {
+			executorService.shutdown();
 		}
 	}
 

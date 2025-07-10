@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.scheduling.config;
 
 import org.w3c.dom.Element;
 
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.AbstractSingleBeanDefinitionParser;
@@ -53,6 +54,7 @@ public class ExecutorBeanDefinitionParser extends AbstractSingleBeanDefinitionPa
 		if (StringUtils.hasText(poolSize)) {
 			builder.addPropertyValue("poolSize", poolSize);
 		}
+		builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
 	}
 
 	private void configureRejectionPolicy(Element element, BeanDefinitionBuilder builder) {
@@ -61,22 +63,13 @@ public class ExecutorBeanDefinitionParser extends AbstractSingleBeanDefinitionPa
 			return;
 		}
 		String prefix = "java.util.concurrent.ThreadPoolExecutor.";
-		String policyClassName;
-		if (rejectionPolicy.equals("ABORT")) {
-			policyClassName = prefix + "AbortPolicy";
-		}
-		else if (rejectionPolicy.equals("CALLER_RUNS")) {
-			policyClassName = prefix + "CallerRunsPolicy";
-		}
-		else if (rejectionPolicy.equals("DISCARD")) {
-			policyClassName = prefix + "DiscardPolicy";
-		}
-		else if (rejectionPolicy.equals("DISCARD_OLDEST")) {
-			policyClassName = prefix + "DiscardOldestPolicy";
-		}
-		else {
-			policyClassName = rejectionPolicy;
-		}
+		String policyClassName = switch (rejectionPolicy) {
+			case "ABORT" -> prefix + "AbortPolicy";
+			case "CALLER_RUNS" -> prefix + "CallerRunsPolicy";
+			case "DISCARD" -> prefix + "DiscardPolicy";
+			case "DISCARD_OLDEST" -> prefix + "DiscardOldestPolicy";
+			default -> rejectionPolicy;
+		};
 		builder.addPropertyValue("rejectedExecutionHandler", new RootBeanDefinition(policyClassName));
 	}
 

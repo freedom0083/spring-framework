@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.web.context.support;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -25,10 +26,6 @@ import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.lang.Nullable;
-import org.springframework.ui.context.Theme;
-import org.springframework.ui.context.ThemeSource;
-import org.springframework.ui.context.support.UiApplicationContextUtils;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -48,10 +45,6 @@ import org.springframework.web.context.ServletContextAware;
  * the web application root. Absolute paths &mdash; for example, for files outside
  * the web app root &mdash; can be accessed via {@code file:} URLs, as implemented
  * by {@code AbstractApplicationContext}.
- *
- * <p>In addition to the special beans detected by
- * {@link org.springframework.context.support.AbstractApplicationContext AbstractApplicationContext},
- * this class detects a {@link ThemeSource} bean in the context, with the name "themeSource".
  *
  * <p>If you wish to register annotated <em>component classes</em> with a
  * {@code GenericWebApplicationContext}, you can use an
@@ -78,13 +71,9 @@ import org.springframework.web.context.ServletContextAware;
  * @since 1.2
  */
 public class GenericWebApplicationContext extends GenericApplicationContext
-		implements ConfigurableWebApplicationContext, ThemeSource {
+		implements ConfigurableWebApplicationContext {
 
-	@Nullable
-	private ServletContext servletContext;
-
-	@Nullable
-	private ThemeSource themeSource;
+	private @Nullable ServletContext servletContext;
 
 
 	/**
@@ -94,7 +83,6 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	 * @see #refresh
 	 */
 	public GenericWebApplicationContext() {
-		super();
 	}
 
 	/**
@@ -141,8 +129,7 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	}
 
 	@Override
-	@Nullable
-	public ServletContext getServletContext() {
+	public @Nullable ServletContext getServletContext() {
 		return this.servletContext;
 	}
 
@@ -192,30 +179,15 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	}
 
 	/**
-	 * Initialize the theme capability.
-	 */
-	@Override
-	protected void onRefresh() {
-		this.themeSource = UiApplicationContextUtils.initThemeSource(this);
-	}
-
-	/**
 	 * {@inheritDoc}
 	 * <p>Replace {@code Servlet}-related property sources.
 	 */
 	@Override
 	protected void initPropertySources() {
 		ConfigurableEnvironment env = getEnvironment();
-		if (env instanceof ConfigurableWebEnvironment) {
-			((ConfigurableWebEnvironment) env).initPropertySources(this.servletContext, null);
+		if (env instanceof ConfigurableWebEnvironment configurableWebEnv) {
+			configurableWebEnv.initPropertySources(this.servletContext, null);
 		}
-	}
-
-	@Override
-	@Nullable
-	public Theme getTheme(String themeName) {
-		Assert.state(this.themeSource != null, "No ThemeSource available");
-		return this.themeSource.getTheme(themeName);
 	}
 
 
@@ -229,8 +201,7 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	}
 
 	@Override
-	@Nullable
-	public ServletConfig getServletConfig() {
+	public @Nullable ServletConfig getServletConfig() {
 		throw new UnsupportedOperationException(
 				"GenericWebApplicationContext does not support getServletConfig()");
 	}
@@ -241,8 +212,7 @@ public class GenericWebApplicationContext extends GenericApplicationContext
 	}
 
 	@Override
-	@Nullable
-	public String getNamespace() {
+	public @Nullable String getNamespace() {
 		throw new UnsupportedOperationException(
 				"GenericWebApplicationContext does not support getNamespace()");
 	}

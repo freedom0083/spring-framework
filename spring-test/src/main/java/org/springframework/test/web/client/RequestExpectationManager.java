@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ public interface RequestExpectationManager {
 	 * Variant of {@link #verify()} that waits for up to the specified time for
 	 * all expectations to be fulfilled. This can be useful for tests that
 	 * involve asynchronous requests.
-	 * @param timeout how long to wait for all expecations to be met
+	 * @param timeout how long to wait for all expectations to be met
 	 * @throws AssertionError if not all expectations are met by the specified
 	 * timeout, or if any expectation fails at any time before that.
 	 * @since 5.3.4

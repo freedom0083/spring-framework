@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package org.springframework.core.codec;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
 import org.springframework.core.ResolvableType;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
@@ -35,7 +35,7 @@ import org.springframework.util.MimeTypeUtils;
  * after they have been consumed. In addition, if using {@code Flux} or
  * {@code Mono} operators such as flatMap, reduce, and others that prefetch,
  * cache, and skip or filter out data items internally, please add
- * {@code doOnDiscard(PooledDataBuffer.class, DataBufferUtils::release)} to the
+ * {@code doOnDiscard(DataBuffer.class, DataBufferUtils::release)} to the
  * composition chain to ensure cached data buffers are released prior to an
  * error or cancellation signal.
  *

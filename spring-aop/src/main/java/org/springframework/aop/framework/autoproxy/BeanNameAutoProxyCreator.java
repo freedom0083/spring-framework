@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package org.springframework.aop.framework.autoproxy;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aop.TargetSource;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.PatternMatchUtils;
 
@@ -52,18 +53,17 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 	// TODO 可以理解为存储的是所有配置的规则. 可以直接是某个bean的名字, 也可能是'*', 'xx*'等.
 	//  1. 如果带'*', 表示模糊匹配所有bean. 如果是'tx*', 表示是所有tx开始的bean. 如果是'*tx', 表示所有tx结尾的bean.
 	//  2. 如果是个确定的名字, 则是直接匹配. 如果是'myBean', 则直接匹配所有名字为'myBean'的bean
-	@Nullable
-	private List<String> beanNames;
+	private @Nullable List<String> beanNames;
 
 	/**
 	 * Set the names of the beans that should automatically get wrapped with proxies.
-	 * A name can specify a prefix to match by ending with "*", e.g. "myBean,tx*"
+	 * A name can specify a prefix to match by ending with "*", for example, "myBean,tx*"
 	 * will match the bean named "myBean" and all beans whose name start with "tx".
 	 * <p><b>NOTE:</b> In case of a FactoryBean, only the objects created by the
 	 * FactoryBean will get proxied. This default behavior applies as of Spring 2.0.
 	 * If you intend to proxy a FactoryBean instance itself (a rare use case, but
 	 * Spring 1.2's default behavior), specify the bean name of the FactoryBean
-	 * including the factory-bean prefix "&amp;": e.g. "&amp;myFactoryBean".
+	 * including the factory-bean prefix "&amp;": for example, "&amp;myFactoryBean".
 	 * @see org.springframework.beans.factory.FactoryBean
 	 * @see org.springframework.beans.factory.BeanFactory#FACTORY_BEAN_PREFIX
 	 */
@@ -84,7 +84,7 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 	 * @see #setBeanNames(String...)
 	 */
 	@Override
-	protected TargetSource getCustomTargetSource(Class<?> beanClass, String beanName) {
+	protected @Nullable TargetSource getCustomTargetSource(Class<?> beanClass, String beanName) {
 		return (isSupportedBeanName(beanClass, beanName) ?
 				super.getCustomTargetSource(beanClass, beanName) : null);
 	}
@@ -96,8 +96,7 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 	 */
 	// TODO 直接从配置的列表里拿出正在操作的bean所对应的Advisor. 除了用bean的id外, 还会用别名进行匹配动作
 	@Override
-	@Nullable
-	protected Object[] getAdvicesAndAdvisorsForBean(
+	protected Object @Nullable [] getAdvicesAndAdvisorsForBean(
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
 
 		return (isSupportedBeanName(beanClass, beanName) ?
@@ -118,10 +117,10 @@ public class BeanNameAutoProxyCreator extends AbstractAutoProxyCreator {
 			for (String mappedName : this.beanNames) {
 				if (isFactoryBean) {
 					// TODO 如果当前操作的bean是个工厂类, 只会专注于缓存中以'&'开头的工厂bean
-					if (!mappedName.startsWith(BeanFactory.FACTORY_BEAN_PREFIX)) {
+					if (mappedName.isEmpty() || mappedName.charAt(0) != BeanFactory.FACTORY_BEAN_PREFIX_CHAR) {
 						continue;
 					}
-					mappedName = mappedName.substring(BeanFactory.FACTORY_BEAN_PREFIX.length());
+					mappedName = mappedName.substring(1);  // length of '&'
 				}
 				if (isMatch(beanName, mappedName)) {
 					// TODO 如果缓存中有与当前操作的bean匹配的bean, 则返回一个新的Object数组

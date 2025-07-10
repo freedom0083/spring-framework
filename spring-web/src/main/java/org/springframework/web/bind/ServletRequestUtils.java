@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 package org.springframework.web.bind;
 
 import jakarta.servlet.ServletRequest;
-
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Parameter extraction methods, for an approach distinct from data binding,
@@ -48,15 +47,14 @@ public abstract class ServletRequestUtils {
 
 	/**
 	 * Get an Integer parameter, or {@code null} if not present.
-	 * Throws an exception if it the parameter value isn't a number.
+	 * Throws an exception if the parameter value isn't a number.
 	 * @param request current HTTP request
 	 * @param name the name of the parameter
 	 * @return the Integer value, or {@code null} if not present
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static Integer getIntParameter(ServletRequest request, String name)
+	public static @Nullable Integer getIntParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {
@@ -112,7 +110,7 @@ public abstract class ServletRequestUtils {
 	}
 
 	/**
-	 * Get an array of int parameters, throwing an exception if not found or one is not a number..
+	 * Get an array of int parameters, throwing an exception if not found or one is not a number.
 	 * @param request current HTTP request
 	 * @param name the name of the parameter with multiple possible values
 	 * @throws ServletRequestBindingException a subclass of ServletException,
@@ -127,15 +125,14 @@ public abstract class ServletRequestUtils {
 
 	/**
 	 * Get a Long parameter, or {@code null} if not present.
-	 * Throws an exception if it the parameter value isn't a number.
+	 * Throws an exception if the parameter value isn't a number.
 	 * @param request current HTTP request
 	 * @param name the name of the parameter
 	 * @return the Long value, or {@code null} if not present
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static Long getLongParameter(ServletRequest request, String name)
+	public static @Nullable Long getLongParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {
@@ -206,15 +203,14 @@ public abstract class ServletRequestUtils {
 
 	/**
 	 * Get a Float parameter, or {@code null} if not present.
-	 * Throws an exception if it the parameter value isn't a number.
+	 * Throws an exception if the parameter value isn't a number.
 	 * @param request current HTTP request
 	 * @param name the name of the parameter
 	 * @return the Float value, or {@code null} if not present
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static Float getFloatParameter(ServletRequest request, String name)
+	public static @Nullable Float getFloatParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {
@@ -285,15 +281,14 @@ public abstract class ServletRequestUtils {
 
 	/**
 	 * Get a Double parameter, or {@code null} if not present.
-	 * Throws an exception if it the parameter value isn't a number.
+	 * Throws an exception if the parameter value isn't a number.
 	 * @param request current HTTP request
 	 * @param name the name of the parameter
 	 * @return the Double value, or {@code null} if not present
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static Double getDoubleParameter(ServletRequest request, String name)
+	public static @Nullable Double getDoubleParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {
@@ -364,7 +359,7 @@ public abstract class ServletRequestUtils {
 
 	/**
 	 * Get a Boolean parameter, or {@code null} if not present.
-	 * Throws an exception if it the parameter value isn't a boolean.
+	 * Throws an exception if the parameter value isn't a boolean.
 	 * <p>Accepts "true", "on", "yes" (any case) and "1" as values for true;
 	 * treats every other non-empty value as false (i.e. parses leniently).
 	 * @param request current HTTP request
@@ -373,8 +368,7 @@ public abstract class ServletRequestUtils {
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static Boolean getBooleanParameter(ServletRequest request, String name)
+	public static @Nullable Boolean getBooleanParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {
@@ -461,8 +455,7 @@ public abstract class ServletRequestUtils {
 	 * @throws ServletRequestBindingException a subclass of ServletException,
 	 * so it doesn't need to be caught
 	 */
-	@Nullable
-	public static String getStringParameter(ServletRequest request, String name)
+	public static @Nullable String getStringParameter(ServletRequest request, String name)
 			throws ServletRequestBindingException {
 
 		if (request.getParameter(name) == null) {

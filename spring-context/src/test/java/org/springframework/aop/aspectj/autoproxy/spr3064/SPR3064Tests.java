@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatRuntimeException;
 
 /**
  * @author Adrian Colyer
@@ -35,12 +35,12 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 class SPR3064Tests {
 
 	@Test
-	void testServiceIsAdvised() {
+	void serviceIsAdvised() {
 		ClassPathXmlApplicationContext ctx =
 			new ClassPathXmlApplicationContext(getClass().getSimpleName() + ".xml", getClass());
 
-		Service service  = ctx.getBean(Service.class);
-		assertThatExceptionOfType(RuntimeException.class)
+		Service service = ctx.getBean(Service.class);
+		assertThatRuntimeException()
 			.isThrownBy(service::serveMe)
 			.withMessage("advice invoked");
 
@@ -59,7 +59,7 @@ class SPR3064Tests {
 class TransactionInterceptor {
 
 	@Around(value="execution(* *..Service.*(..)) && @annotation(transaction)")
-	public Object around(ProceedingJoinPoint pjp, Transaction transaction) throws Throwable {
+	public Object around(ProceedingJoinPoint pjp, Transaction transaction) {
 		throw new RuntimeException("advice invoked");
 		//return pjp.proceed();
 	}

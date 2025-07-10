@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package org.springframework.expression.spel.standard;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.expression.ParseException;
 import org.springframework.expression.ParserContext;
 import org.springframework.expression.common.TemplateAwareExpressionParser;
 import org.springframework.expression.spel.SpelParserConfiguration;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
@@ -28,6 +29,7 @@ import org.springframework.util.Assert;
  *
  * @author Andy Clement
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 3.0
  */
 public class SpelExpressionParser extends TemplateAwareExpressionParser {
@@ -53,6 +55,7 @@ public class SpelExpressionParser extends TemplateAwareExpressionParser {
 
 
 	public SpelExpression parseRaw(String expressionString) throws ParseException {
+		Assert.hasText(expressionString, "'expressionString' must not be null or blank");
 		return doParseExpression(expressionString, null);
 	}
 

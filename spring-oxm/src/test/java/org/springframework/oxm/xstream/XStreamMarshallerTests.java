@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -149,13 +150,13 @@ class XStreamMarshallerTests {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		StreamResult result = new StreamResult(os);
 		marshaller.marshal(flight, result);
-		String s = os.toString("UTF-8");
+		String s = os.toString(StandardCharsets.UTF_8);
 		assertThat(XmlContent.of(s)).isSimilarToIgnoringWhitespace(EXPECTED_STRING);
 	}
 
 	@Test
 	void marshalSaxResult() throws Exception {
-		ContentHandler contentHandler = mock(ContentHandler.class);
+		ContentHandler contentHandler = mock();
 		SAXResult result = new SAXResult(contentHandler);
 		marshaller.marshal(flight, result);
 		InOrder ordered = inOrder(contentHandler);
@@ -206,7 +207,7 @@ class XStreamMarshallerTests {
 	}
 
 	@Test
-	void converters() throws Exception {
+	void converters() {
 		marshaller.setConverters(new EncodedByteArrayConverter());
 		byte[] buf = {0x1, 0x2};
 
@@ -229,7 +230,7 @@ class XStreamMarshallerTests {
 
 	@Test
 	void useAttributesFor() throws Exception {
-		marshaller.setUseAttributeForTypes(Long.TYPE);
+		marshaller.setUseAttributeForTypes(long.class);
 		Writer writer = new StringWriter();
 		marshaller.marshal(flight, new StreamResult(writer));
 		String expected = "<flight flightNumber=\"42\" />";
@@ -238,7 +239,7 @@ class XStreamMarshallerTests {
 
 	@Test
 	void useAttributesForStringClassMap() throws Exception {
-		marshaller.setUseAttributeFor(Collections.singletonMap("flightNumber", Long.TYPE));
+		marshaller.setUseAttributeFor(Collections.singletonMap("flightNumber", long.class));
 		Writer writer = new StringWriter();
 		marshaller.marshal(flight, new StreamResult(writer));
 		String expected = "<flight flightNumber=\"42\" />";
@@ -339,7 +340,7 @@ class XStreamMarshallerTests {
 		marshaller.marshal(flight, new StreamResult(writer));
 		assertThat(writer.toString()).as("Invalid result").isEqualTo("{\"flight\":{\"flightNumber\":42}}");
 		Object o = marshaller.unmarshal(new StreamSource(new StringReader(writer.toString())));
-		assertThat(o instanceof Flight).as("Unmarshalled object is not Flights").isTrue();
+		assertThat(o).as("Unmarshalled object is not Flights").isInstanceOf(Flight.class);
 		Flight unflight = (Flight) o;
 		assertThat(unflight).as("Flight is null").isNotNull();
 		assertThat(unflight.getFlightNumber()).as("Number is invalid").isEqualTo(42L);
@@ -377,7 +378,7 @@ class XStreamMarshallerTests {
 	private static void assertXpathExists(String xPathExpression, String inXMLString){
 		Source source = Input.fromString(inXMLString).build();
 		Iterable<Node> nodes = new JAXPXPathEngine().selectNodes(xPathExpression, source);
-		assertThat(nodes).as("Expecting to find matches for Xpath " + xPathExpression).hasSizeGreaterThan(0);
+		assertThat(nodes).as("Expecting to find matches for Xpath " + xPathExpression).isNotEmpty();
 	}
 
 	private static void assertXpathDoesNotExist(String xPathExpression, String inXMLString){

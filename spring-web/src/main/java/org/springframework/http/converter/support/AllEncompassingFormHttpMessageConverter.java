@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,14 @@
 
 package org.springframework.http.converter.support;
 
-import org.springframework.core.SpringProperties;
 import org.springframework.http.converter.FormHttpMessageConverter;
-import org.springframework.http.converter.json.GsonHttpMessageConverter;
-import org.springframework.http.converter.json.JsonbHttpMessageConverter;
-import org.springframework.http.converter.json.KotlinSerializationJsonHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.http.converter.smile.MappingJackson2SmileHttpMessageConverter;
-import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
-import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
-import org.springframework.http.converter.xml.SourceHttpMessageConverter;
-import org.springframework.util.ClassUtils;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.HttpMessageConverters;
 
 /**
  * Extension of {@link org.springframework.http.converter.FormHttpMessageConverter},
- * adding support for XML and JSON-based parts.
+ * adding support for XML, JSON, Smile, CBOR, Protobuf and Yaml based parts when
+ * related libraries are present in the classpath.
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
@@ -39,74 +32,24 @@ import org.springframework.util.ClassUtils;
  */
 public class AllEncompassingFormHttpMessageConverter extends FormHttpMessageConverter {
 
+
 	/**
-	 * Boolean flag controlled by a {@code spring.xml.ignore} system property that instructs Spring to
-	 * ignore XML, i.e. to not initialize the XML-related infrastructure.
-	 * <p>The default is "false".
+	 * Create a new {@link AllEncompassingFormHttpMessageConverter} instance
+	 * that will auto-detect part converters.
 	 */
-	private static final boolean shouldIgnoreXml = SpringProperties.getFlag("spring.xml.ignore");
-
-	private static final boolean jaxb2Present;
-
-	private static final boolean jackson2Present;
-
-	private static final boolean jackson2XmlPresent;
-
-	private static final boolean jackson2SmilePresent;
-
-	private static final boolean gsonPresent;
-
-	private static final boolean jsonbPresent;
-
-	private static final boolean kotlinSerializationJsonPresent;
-
-	static {
-		ClassLoader classLoader = AllEncompassingFormHttpMessageConverter.class.getClassLoader();
-		jaxb2Present = ClassUtils.isPresent("jakarta.xml.bind.Binder", classLoader);
-		jackson2Present = ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", classLoader) &&
-						ClassUtils.isPresent("com.fasterxml.jackson.core.JsonGenerator", classLoader);
-		jackson2XmlPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.xml.XmlMapper", classLoader);
-		jackson2SmilePresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.smile.SmileFactory", classLoader);
-		gsonPresent = ClassUtils.isPresent("com.google.gson.Gson", classLoader);
-		jsonbPresent = ClassUtils.isPresent("jakarta.json.bind.Jsonb", classLoader);
-		kotlinSerializationJsonPresent = ClassUtils.isPresent("kotlinx.serialization.json.Json", classLoader);
+	@SuppressWarnings("removal")
+	public AllEncompassingFormHttpMessageConverter() {
+		HttpMessageConverters.withDefaults().build().forClient().forEach(this::addPartConverter);
 	}
 
-
-	public AllEncompassingFormHttpMessageConverter() {
-		if (!shouldIgnoreXml) {
-			try {
-				addPartConverter(new SourceHttpMessageConverter<>());
-			}
-			catch (Error err) {
-				// Ignore when no TransformerFactory implementation is available
-			}
-
-			if (jaxb2Present && !jackson2XmlPresent) {
-				addPartConverter(new Jaxb2RootElementHttpMessageConverter());
-			}
-		}
-
-		if (jackson2Present) {
-			addPartConverter(new MappingJackson2HttpMessageConverter());
-		}
-		else if (gsonPresent) {
-			addPartConverter(new GsonHttpMessageConverter());
-		}
-		else if (jsonbPresent) {
-			addPartConverter(new JsonbHttpMessageConverter());
-		}
-		else if (kotlinSerializationJsonPresent) {
-			addPartConverter(new KotlinSerializationJsonHttpMessageConverter());
-		}
-
-		if (jackson2XmlPresent && !shouldIgnoreXml) {
-			addPartConverter(new MappingJackson2XmlHttpMessageConverter());
-		}
-
-		if (jackson2SmilePresent) {
-			addPartConverter(new MappingJackson2SmileHttpMessageConverter());
-		}
+	/**
+	 * Create a new {@link AllEncompassingFormHttpMessageConverter} instance
+	 * using the given message converters.
+	 * @param converters the message converters to use for part conversion
+	 * @since 7.0
+	 */
+	public AllEncompassingFormHttpMessageConverter(Iterable<HttpMessageConverter<?>> converters) {
+		converters.forEach(this::addPartConverter);
 	}
 
 }

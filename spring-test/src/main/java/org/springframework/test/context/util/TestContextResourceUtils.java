@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 package org.springframework.test.context.util;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.ResourcePatternUtils;
@@ -75,7 +77,7 @@ public abstract class TestContextResourceUtils {
 	 * <li>A path starting with a slash will be treated as an absolute path
 	 * within the classpath, for example: {@code "/org/example/schema.sql"}.
 	 * Such a path will be prepended with the {@code classpath:} prefix.
-	 * <li>A path which is already prefixed with a URL protocol (e.g.,
+	 * <li>A path which is already prefixed with a URL protocol (for example,
 	 * {@code classpath:}, {@code file:}, {@code http:}, etc.) will not have its
 	 * protocol modified.
 	 * </ul>
@@ -135,13 +137,35 @@ public abstract class TestContextResourceUtils {
 	 * the given {@link ResourceLoader}.
 	 * @param resourceLoader the {@code ResourceLoader} to use to convert the paths
 	 * @param paths the paths to be converted
-	 * @return a new list of resources
+	 * @return a new, mutable list of resources
 	 * @since 4.2
 	 * @see #convertToResources(ResourceLoader, String...)
 	 * @see #convertToClasspathResourcePaths
 	 */
 	public static List<Resource> convertToResourceList(ResourceLoader resourceLoader, String... paths) {
-		return stream(resourceLoader, paths).collect(Collectors.toList());
+		return stream(resourceLoader, paths).collect(Collectors.toCollection(ArrayList::new));
+	}
+
+	/**
+	 * Convert the supplied paths to a list of {@link Resource} handles using the given
+	 * {@link ResourceLoader} and {@link Environment}.
+	 * @param resourceLoader the {@code ResourceLoader} to use to convert the paths
+	 * @param environment the {@code Environment} to use to resolve property placeholders
+	 * in the paths
+	 * @param paths the paths to be converted
+	 * @return a new, mutable list of resources
+	 * @since 6.2
+	 * @see #convertToResources(ResourceLoader, String...)
+	 * @see #convertToClasspathResourcePaths
+	 * @see Environment#resolveRequiredPlaceholders(String)
+	 */
+	public static List<Resource> convertToResourceList(
+			ResourceLoader resourceLoader, Environment environment, String... paths) {
+
+		return Arrays.stream(paths)
+				.map(environment::resolveRequiredPlaceholders)
+				.map(resourceLoader::getResource)
+				.collect(Collectors.toCollection(ArrayList::new));
 	}
 
 	private static Stream<Resource> stream(ResourceLoader resourceLoader, String... paths) {

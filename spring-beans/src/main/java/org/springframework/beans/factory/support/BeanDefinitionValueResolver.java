@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.BeansException;
@@ -41,7 +43,6 @@ import org.springframework.beans.factory.config.NamedBeanHolder;
 import org.springframework.beans.factory.config.RuntimeBeanNameReference;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.config.TypedStringValue;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -127,8 +128,7 @@ public class BeanDefinitionValueResolver {
 	 * @param value the value object to resolve 是解析的propertyValue的值
 	 * @return the resolved object
 	 */
-	@Nullable
-	public Object resolveValueIfNecessary(Object argName, @Nullable Object value) {
+	public @Nullable Object resolveValueIfNecessary(Object argName, @Nullable Object value) {
 		// We must check each value to see whether it requires a runtime reference
 		// to another bean to be resolved.
 		if (value instanceof RuntimeBeanReference ref) {
@@ -166,7 +166,7 @@ public class BeanDefinitionValueResolver {
 					(name, mbd) -> resolveInnerBeanValue(argName, name, mbd));
 		}
 		else if (value instanceof DependencyDescriptor dependencyDescriptor) {
-			Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
+			Set<String> autowiredBeanNames = new LinkedHashSet<>(2);
 			// TODO propertyValues是一个要注入的项时, 解析其依赖关系, 找到注入候选bean
 			Object result = this.beanFactory.resolveDependency(
 					dependencyDescriptor, this.beanName, autowiredBeanNames, this.typeConverter);
@@ -279,10 +279,11 @@ public class BeanDefinitionValueResolver {
 	 */
 	public <T> T resolveInnerBean(@Nullable String innerBeanName, BeanDefinition innerBd,
 			BiFunction<String, RootBeanDefinition, T> resolver) {
-		String nameToUse = (innerBeanName != null ? innerBeanName : "(inner bean)"
-				+ BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR + ObjectUtils.getIdentityHexString(innerBd));
-		return resolver.apply(nameToUse, this.beanFactory.getMergedBeanDefinition(
-				nameToUse, innerBd, this.beanDefinition));
+
+		String nameToUse = (innerBeanName != null ? innerBeanName : "(inner bean)" +
+				BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR + ObjectUtils.getIdentityHexString(innerBd));
+		return resolver.apply(nameToUse,
+				this.beanFactory.getMergedBeanDefinition(nameToUse, innerBd, this.beanDefinition));
 	}
 
 	/**
@@ -290,8 +291,7 @@ public class BeanDefinitionValueResolver {
 	 * @param value the candidate value (may be an expression)
 	 * @return the resolved value
 	 */
-	@Nullable
-	protected Object evaluate(TypedStringValue value) {
+	protected @Nullable Object evaluate(TypedStringValue value) {
 		Object result = doEvaluate(value.getValue());
 		if (!ObjectUtils.nullSafeEquals(result, value.getValue())) {
 			value.setDynamic();
@@ -304,14 +304,13 @@ public class BeanDefinitionValueResolver {
 	 * @param value the original value (may be an expression)
 	 * @return the resolved value if necessary, or the original value
 	 */
-	@Nullable
-	protected Object evaluate(@Nullable Object value) {
+	protected @Nullable Object evaluate(@Nullable Object value) {
 		if (value instanceof String str) {
 			return doEvaluate(str);
 		}
 		else if (value instanceof String[] values) {
 			boolean actuallyResolved = false;
-			Object[] resolvedValues = new Object[values.length];
+			@Nullable Object[] resolvedValues = new Object[values.length];
 			for (int i = 0; i < values.length; i++) {
 				String originalValue = values[i];
 				Object resolvedValue = doEvaluate(originalValue);
@@ -332,8 +331,7 @@ public class BeanDefinitionValueResolver {
 	 * @param value the original value (may be an expression)
 	 * @return the resolved value if necessary, or the original String value
 	 */
-	@Nullable
-	private Object doEvaluate(@Nullable String value) {
+	private @Nullable Object doEvaluate(@Nullable String value) {
 		return this.beanFactory.evaluateBeanDefinitionString(value, this.beanDefinition);
 	}
 
@@ -344,8 +342,7 @@ public class BeanDefinitionValueResolver {
 	 * @throws ClassNotFoundException if the specified type cannot be resolved
 	 * @see TypedStringValue#resolveTargetType
 	 */
-	@Nullable
-	protected Class<?> resolveTargetType(TypedStringValue value) throws ClassNotFoundException {
+	protected @Nullable Class<?> resolveTargetType(TypedStringValue value) throws ClassNotFoundException {
 		if (value.hasTargetType()) {
 			return value.getTargetType();
 		}
@@ -356,12 +353,13 @@ public class BeanDefinitionValueResolver {
 	 * Resolve a reference to another bean in the factory.
 	 */
 	// TODO 解析bean中的引用对象
-	@Nullable
-	private Object resolveReference(Object argName, RuntimeBeanReference ref) {
+	private @Nullable Object resolveReference(Object argName, RuntimeBeanReference ref) {
 		try {
 			Object bean;
 			// TODO 取得引用的bean的类型
 			Class<?> beanType = ref.getBeanType();
+			// TODO 没指定类型时, 根据引用设置的名字在当前容器中查找
+			String resolvedName = String.valueOf(doEvaluate(ref.getBeanName()));
 			if (ref.isToParent()) {
 				// TODO 如果这个引用是父容器中的显示引用, 那从父容器中去取
 				BeanFactory parent = this.beanFactory.getParentBeanFactory();
@@ -372,25 +370,27 @@ public class BeanDefinitionValueResolver {
 									" in parent factory: no parent factory available");
 				}
 				if (beanType != null) {
-					bean = parent.getBean(beanType);
+					bean = (parent.containsBean(resolvedName) ?
+							parent.getBean(resolvedName, beanType) : parent.getBean(beanType));
 				}
 				else {
 					// TODO 引用无法取得类型时, 就要按引用的bean的名字去取, 因为有可能是个SpEL表达式, 所以需要对名字进行解析
-					bean = parent.getBean(String.valueOf(doEvaluate(ref.getBeanName())));
+					bean = parent.getBean(resolvedName);
 				}
 			}
 			else {
-				// TODO 不是父容器中的显示引用时, 就在当前容器中拿
-				String resolvedName;
 				if (beanType != null) {
-					// TODO 指定了类型时, 在当前容器中找出指定类型所对应的bean实例, bean名
-					NamedBeanHolder<?> namedBean = this.beanFactory.resolveNamedBean(beanType);
-					bean = namedBean.getBeanInstance();
-					resolvedName = namedBean.getBeanName();
+					if (this.beanFactory.containsBean(resolvedName)) {
+						bean = this.beanFactory.getBean(resolvedName, beanType);
+					}
+					else {
+						// TODO 指定了类型时, 在当前容器中找出指定类型所对应的bean实例, bean名
+						NamedBeanHolder<?> namedBean = this.beanFactory.resolveNamedBean(beanType);
+						bean = namedBean.getBeanInstance();
+						resolvedName = namedBean.getBeanName();
+					}
 				}
 				else {
-					// TODO 没指定类型时, 根据引用设置的名字在当前容器中查找
-					resolvedName = String.valueOf(doEvaluate(ref.getBeanName()));
 					bean = this.beanFactory.getBean(resolvedName);
 				}
 				// TODO 然后注册到容器中
@@ -422,8 +422,7 @@ public class BeanDefinitionValueResolver {
 	//             <bean id="innerTestId" class="xxx.TestId"></bean>
 	//         </property>
 	//     </bean>
-	@Nullable
-	private Object resolveInnerBeanValue(Object argName, String innerBeanName, RootBeanDefinition mbd) {
+	private @Nullable Object resolveInnerBeanValue(Object argName, String innerBeanName, RootBeanDefinition mbd) {
 		try {
 			// Check given bean name whether it is unique. If not already unique,
 			// add counter - increasing the counter until the name is unique.
@@ -450,7 +449,8 @@ public class BeanDefinitionValueResolver {
 			if (innerBean instanceof FactoryBean<?> factoryBean) {
 				// TODO 如果bean实例是工厂类, 取得其中的内嵌类实例
 				boolean synthetic = mbd.isSynthetic();
-				innerBean = this.beanFactory.getObjectFromFactoryBean(factoryBean, actualInnerBeanName, !synthetic);
+				innerBean = this.beanFactory.getObjectFromFactoryBean(
+						factoryBean, null, actualInnerBeanName, !synthetic);
 			}
 			if (innerBean instanceof NullBean) {
 				innerBean = null;
@@ -513,7 +513,7 @@ public class BeanDefinitionValueResolver {
 	 * For each element in the managed set, resolve reference if necessary.
 	 */
 	private Set<?> resolveManagedSet(Object argName, Set<?> ms) {
-		Set<Object> resolved = new LinkedHashSet<>(ms.size());
+		Set<Object> resolved = CollectionUtils.newLinkedHashSet(ms.size());
 		int i = 0;
 		for (Object m : ms) {
 			resolved.add(resolveValueIfNecessary(new KeyedArgName(argName, i), m));

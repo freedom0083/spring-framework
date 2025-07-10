@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,9 @@
 package org.springframework.http;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
 
 /**
@@ -88,9 +85,6 @@ public final class HttpMethod implements Comparable<HttpMethod>, Serializable {
 
 	private static final HttpMethod[] values = new HttpMethod[] { GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, TRACE };
 
-	private static final Map<String, HttpMethod> mappings = Arrays.stream(values)
-			.collect(Collectors.toUnmodifiableMap(HttpMethod::name, Function.identity()));
-
 
 	private final String name;
 
@@ -121,31 +115,22 @@ public final class HttpMethod implements Comparable<HttpMethod>, Serializable {
 	 */
 	public static HttpMethod valueOf(String method) {
 		Assert.notNull(method, "Method must not be null");
-		HttpMethod result = mappings.get(method);
-		if (result != null) {
-			return result;
-		}
-		else {
-			return new HttpMethod(method);
-		}
-	}
-
-	/**
-	 * Resolve the given method value to an {@code HttpMethod}.
-	 * @param method the method value as a String
-	 * @return the corresponding {@code HttpMethod}, or {@code null} if not found
-	 * @since 4.2.4
-	 * @deprecated in favor of {@link #valueOf(String)}
-	 */
-	@Nullable
-	@Deprecated
-	public static HttpMethod resolve(@Nullable String method) {
-		return (method != null ? valueOf(method) : null);
+		return switch (method) {
+			case "GET" -> GET;
+			case "HEAD" -> HEAD;
+			case "POST" -> POST;
+			case "PUT" -> PUT;
+			case "PATCH" -> PATCH;
+			case "DELETE" -> DELETE;
+			case "OPTIONS" -> OPTIONS;
+			case "TRACE" -> TRACE;
+			default -> new HttpMethod(method);
+		};
 	}
 
 
 	/**
-	 * Return the name of this method, e.g. "GET", "POST".
+	 * Return the name of this method, for example, "GET", "POST".
 	 */
 	public String name() {
 		return this.name;
@@ -173,14 +158,8 @@ public final class HttpMethod implements Comparable<HttpMethod>, Serializable {
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o instanceof HttpMethod otherMethod) {
-			return this.name.equals(otherMethod.name);
-		}
-		return false;
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof HttpMethod that && this.name.equals(that.name)));
 	}
 
 	@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,11 @@ import org.springframework.test.annotation.TestAnnotationUtils;
  * @author Sam Brannen
  * @since 3.0
  * @see #evaluate()
+ * @deprecated since Spring Framework 7.0 in favor of the
+ * {@link org.springframework.test.context.junit.jupiter.SpringExtension SpringExtension}
+ * and JUnit Jupiter
  */
+@Deprecated(since = "7.0")
 public class SpringRepeat extends Statement {
 
 	protected static final Log logger = LogFactory.getLog(SpringRepeat.class);
@@ -77,8 +81,8 @@ public class SpringRepeat extends Statement {
 	@Override
 	public void evaluate() throws Throwable {
 		for (int i = 0; i < this.repeat; i++) {
-			if (this.repeat > 1 && logger.isInfoEnabled()) {
-				logger.info(String.format("Repetition %d of test %s#%s()", (i + 1),
+			if (this.repeat > 1 && logger.isTraceEnabled()) {
+				logger.trace(String.format("Repetition %d of test %s#%s()", (i + 1),
 						this.testMethod.getDeclaringClass().getSimpleName(), this.testMethod.getName()));
 			}
 			this.next.evaluate();

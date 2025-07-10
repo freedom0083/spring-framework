@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ public final class TestTransaction {
 	/**
 	 * Flag the current test-managed transaction for <em>rollback</em>.
 	 * <p>Invoking this method will <em>not</em> end the current transaction.
-	 * Rather, the value of this flag will be used to determine whether or not
+	 * Rather, the value of this flag will be used to determine whether
 	 * the current test-managed transaction should be rolled back or committed
 	 * once it is {@linkplain #end ended}.
 	 * @throws IllegalStateException if no transaction is active for the current test
@@ -96,7 +96,7 @@ public final class TestTransaction {
 	/**
 	 * Flag the current test-managed transaction for <em>commit</em>.
 	 * <p>Invoking this method will <em>not</em> end the current transaction.
-	 * Rather, the value of this flag will be used to determine whether or not
+	 * Rather, the value of this flag will be used to determine whether
 	 * the current test-managed transaction should be rolled back or committed
 	 * once it is {@linkplain #end ended}.
 	 * @throws IllegalStateException if no transaction is active for the current test

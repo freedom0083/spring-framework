@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
  * @author Rick Evans
  * @author Juergen Hoeller
  */
-public class ServletRequestAttributesTests {
+class ServletRequestAttributesTests {
 
 	private static final String KEY = "ThatThingThatThing";
 
@@ -50,13 +50,13 @@ public class ServletRequestAttributesTests {
 
 
 	@Test
-	public void ctorRejectsNullArg() {
+	void ctorRejectsNullArg() {
 		assertThatIllegalArgumentException().isThrownBy(() ->
 				new ServletRequestAttributes(null));
 	}
 
 	@Test
-	public void setRequestScopedAttribute() {
+	void setRequestScopedAttribute() {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		ServletRequestAttributes attrs = new ServletRequestAttributes(request);
 		attrs.setAttribute(KEY, VALUE, RequestAttributes.SCOPE_REQUEST);
@@ -65,7 +65,7 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void setRequestScopedAttributeAfterCompletion() {
+	void setRequestScopedAttributeAfterCompletion() {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		ServletRequestAttributes attrs = new ServletRequestAttributes(request);
 		request.close();
@@ -74,7 +74,7 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void setSessionScopedAttribute() {
+	void setSessionScopedAttribute() {
 		MockHttpSession session = new MockHttpSession();
 		session.setAttribute(KEY, VALUE);
 		MockHttpServletRequest request = new MockHttpServletRequest();
@@ -85,7 +85,7 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void setSessionScopedAttributeAfterCompletion() {
+	void setSessionScopedAttributeAfterCompletion() {
 		MockHttpSession session = new MockHttpSession();
 		session.setAttribute(KEY, VALUE);
 		MockHttpServletRequest request = new MockHttpServletRequest();
@@ -99,8 +99,8 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void getSessionScopedAttributeDoesNotForceCreationOfSession() {
-		HttpServletRequest request = mock(HttpServletRequest.class);
+	void getSessionScopedAttributeDoesNotForceCreationOfSession() {
+		HttpServletRequest request = mock();
 
 		ServletRequestAttributes attrs = new ServletRequestAttributes(request);
 		Object value = attrs.getAttribute(KEY, RequestAttributes.SCOPE_SESSION);
@@ -109,7 +109,7 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void removeSessionScopedAttribute() {
+	void removeSessionScopedAttribute() {
 		MockHttpSession session = new MockHttpSession();
 		session.setAttribute(KEY, VALUE);
 		MockHttpServletRequest request = new MockHttpServletRequest();
@@ -121,8 +121,8 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void removeSessionScopedAttributeDoesNotForceCreationOfSession() {
-		HttpServletRequest request = mock(HttpServletRequest.class);
+	void removeSessionScopedAttributeDoesNotForceCreationOfSession() {
+		HttpServletRequest request = mock();
 
 		ServletRequestAttributes attrs = new ServletRequestAttributes(request);
 		attrs.removeAttribute(KEY, RequestAttributes.SCOPE_SESSION);
@@ -130,9 +130,9 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void updateAccessedAttributes() {
-		HttpServletRequest request = mock(HttpServletRequest.class);
-		HttpSession session = mock(HttpSession.class);
+	void updateAccessedAttributes() {
+		HttpServletRequest request = mock();
+		HttpSession session = mock();
 		given(request.getSession(anyBoolean())).willReturn(session);
 		given(session.getAttribute(KEY)).willReturn(VALUE);
 
@@ -146,38 +146,38 @@ public class ServletRequestAttributesTests {
 	}
 
 	@Test
-	public void skipImmutableString() {
+	void skipImmutableString() {
 		doSkipImmutableValue("someString");
 	}
 
 	@Test
-	public void skipImmutableCharacter() {
-		doSkipImmutableValue(Character.valueOf('x'));
+	void skipImmutableCharacter() {
+		doSkipImmutableValue('x');
 	}
 
 	@Test
-	public void skipImmutableBoolean() {
+	void skipImmutableBoolean() {
 		doSkipImmutableValue(Boolean.TRUE);
 	}
 
 	@Test
-	public void skipImmutableInteger() {
+	void skipImmutableInteger() {
 		doSkipImmutableValue(1);
 	}
 
 	@Test
-	public void skipImmutableFloat() {
+	void skipImmutableFloat() {
 		doSkipImmutableValue(1.1F);
 	}
 
 	@Test
-	public void skipImmutableBigInteger() {
+	void skipImmutableBigInteger() {
 		doSkipImmutableValue(new BigInteger("1"));
 	}
 
 	private void doSkipImmutableValue(Object immutableValue) {
-		HttpServletRequest request = mock(HttpServletRequest.class);
-		HttpSession session = mock(HttpSession.class);
+		HttpServletRequest request = mock();
+		HttpSession session = mock();
 		given(request.getSession(anyBoolean())).willReturn(session);
 		given(session.getAttribute(KEY)).willReturn(immutableValue);
 

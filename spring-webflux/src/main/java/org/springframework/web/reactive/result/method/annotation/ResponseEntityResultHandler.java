@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package org.springframework.web.reactive.result.method.annotation;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.KotlinDetector;
@@ -35,7 +37,6 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.HttpMessageWriter;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.reactive.HandlerResult;
@@ -78,7 +79,20 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 	public ResponseEntityResultHandler(List<HttpMessageWriter<?>> writers,
 			RequestedContentTypeResolver resolver, ReactiveAdapterRegistry registry) {
 
-		super(writers, resolver, registry);
+		this(writers, resolver, registry, Collections.emptyList());
+	}
+
+	/**
+	 * Constructor with an {@link ReactiveAdapterRegistry} instance.
+	 * @param writers the writers for serializing to the response body
+	 * @param resolver to determine the requested content type
+	 * @param registry for adaptation to reactive types
+	 */
+	public ResponseEntityResultHandler(List<HttpMessageWriter<?>> writers,
+			RequestedContentTypeResolver resolver, ReactiveAdapterRegistry registry,
+			List<ErrorResponse.Interceptor> interceptors) {
+
+		super(writers, resolver, registry, interceptors);
 		setOrder(0);
 	}
 
@@ -94,7 +108,6 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 				isSupportedType(result.getReturnType().getGeneric().toClass());
 	}
 
-	@Nullable
 	private static Class<?> resolveReturnValueType(HandlerResult result) {
 		Class<?> valueType = result.getReturnType().toClass();
 		Object value = result.getReturnValue();
@@ -115,7 +128,7 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 
 
 	@Override
-	@SuppressWarnings("ConstantConditions")
+	@SuppressWarnings({"ConstantConditions", "NullAway"})
 	public Mono<Void> handleResult(ServerWebExchange exchange, HandlerResult result) {
 
 		Mono<?> returnValueMono;
@@ -137,21 +150,21 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 
 		return returnValueMono.flatMap(returnValue -> {
 			HttpEntity<?> httpEntity;
-			if (returnValue instanceof HttpEntity) {
-				httpEntity = (HttpEntity<?>) returnValue;
+			if (returnValue instanceof HttpEntity<?> he) {
+				httpEntity = he;
 			}
 			else if (returnValue instanceof ErrorResponse response) {
 				httpEntity = new ResponseEntity<>(response.getBody(), response.getHeaders(), response.getStatusCode());
 			}
 			else if (returnValue instanceof ProblemDetail detail) {
-				httpEntity = new ResponseEntity<>(returnValue, HttpHeaders.EMPTY, detail.getStatus());
+				httpEntity = ResponseEntity.of(detail).build();
 			}
-			else if (returnValue instanceof HttpHeaders) {
-				httpEntity = new ResponseEntity<>((HttpHeaders) returnValue, HttpStatus.OK);
+			else if (returnValue instanceof HttpHeaders headers) {
+				httpEntity = new ResponseEntity<>(headers, HttpStatus.OK);
 			}
 			else {
-				throw new IllegalArgumentException(
-						"HttpEntity or HttpHeaders expected but got: " + returnValue.getClass());
+				return Mono.error(() -> new IllegalArgumentException(
+						"HttpEntity or HttpHeaders expected but got: " + returnValue.getClass()));
 			}
 
 			if (httpEntity.getBody() instanceof ProblemDetail detail) {
@@ -159,6 +172,15 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 					URI path = URI.create(exchange.getRequest().getPath().value());
 					detail.setInstance(path);
 				}
+				if (logger.isWarnEnabled() && httpEntity instanceof ResponseEntity<?> responseEntity) {
+					if (responseEntity.getStatusCode().value() != detail.getStatus()) {
+						logger.warn(actualParameter.getExecutable().toGenericString() +
+								" returned ResponseEntity: " + responseEntity + ", but its status" +
+								" doesn't match the ProblemDetail status: " + detail.getStatus());
+					}
+				}
+				invokeErrorResponseInterceptors(
+						detail, (returnValue instanceof ErrorResponse response ? response : null));
 			}
 
 			if (httpEntity instanceof ResponseEntity<?> responseEntity) {
@@ -168,8 +190,7 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 			HttpHeaders entityHeaders = httpEntity.getHeaders();
 			HttpHeaders responseHeaders = exchange.getResponse().getHeaders();
 			if (!entityHeaders.isEmpty()) {
-				entityHeaders.entrySet().stream()
-						.forEach(entry -> responseHeaders.put(entry.getKey(), entry.getValue()));
+				responseHeaders.putAll(entityHeaders);
 			}
 
 			if (httpEntity.getBody() == null || returnValue instanceof HttpHeaders) {
@@ -179,11 +200,9 @@ public class ResponseEntityResultHandler extends AbstractMessageWriterResultHand
 			String etag = entityHeaders.getETag();
 			Instant lastModified = Instant.ofEpochMilli(entityHeaders.getLastModified());
 			HttpMethod httpMethod = exchange.getRequest().getMethod();
-			if (SAFE_METHODS.contains(httpMethod) && exchange.checkNotModified(etag, lastModified)) {
-				return exchange.getResponse().setComplete();
-			}
-
-			return writeBody(httpEntity.getBody(), bodyParameter, actualParameter, exchange);
+			return ((SAFE_METHODS.contains(httpMethod) && exchange.checkNotModified(etag, lastModified)) ?
+					exchange.getResponse().setComplete() :
+					writeBody(httpEntity.getBody(), bodyParameter, actualParameter, exchange));
 		});
 	}
 

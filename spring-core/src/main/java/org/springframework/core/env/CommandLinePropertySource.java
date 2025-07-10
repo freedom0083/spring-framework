@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,14 @@ package org.springframework.core.env;
 import java.util.Collection;
 import java.util.List;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.StringUtils;
 
 /**
  * Abstract base class for {@link PropertySource} implementations backed by command line
  * arguments. The parameterized type {@code T} represents the underlying source of command
- * line options. This may be as simple as a String array in the case of
- * {@link SimpleCommandLinePropertySource}, or specific to a particular API such as JOpt's
- * {@code OptionSet} in the case of {@link JOptCommandLinePropertySource}.
+ * line options.
  *
  * <h3>Purpose and General Usage</h3>
  *
@@ -72,9 +71,9 @@ import org.springframework.util.StringUtils;
  *
  * Because the {@code CommandLinePropertySource} was added to the {@code Environment}'s
  * set of {@link MutablePropertySources} using the {@code #addFirst} method, it has
- * highest search precedence, meaning that while "db.hostname" and other properties may
- * exist in other property sources such as the system environment variables, it will be
- * chosen from the command line property source first. This is a reasonable approach
+ * the highest search precedence, meaning that while "db.hostname" and other properties
+ * may exist in other property sources such as the system environment variables, it will
+ * be chosen from the command line property source first. This is a reasonable approach
  * given that arguments specified on the command line are naturally more specific than
  * those specified as environment variables.
  *
@@ -136,7 +135,7 @@ import org.springframework.util.StringUtils;
  * arguments" and available through the special {@linkplain
  * #DEFAULT_NON_OPTION_ARGS_PROPERTY_NAME "nonOptionArgs"} property.  If multiple
  * non-option arguments are specified, the value of this property will be a
- * comma-delimited string containing all of the arguments. This approach ensures a simple
+ * comma-delimited string containing all the arguments. This approach ensures a simple
  * and consistent return type (String) for all properties from a {@code
  * CommandLinePropertySource} and at the same time lends itself to conversion when used
  * in conjunction with the Spring {@link Environment} and its built-in {@code
@@ -189,7 +188,7 @@ import org.springframework.util.StringUtils;
  * <h3>Limitations</h3>
  *
  * This abstraction is not intended to expose the full power of underlying command line
- * parsing APIs such as JOpt or Commons CLI. It's intent is rather just the opposite: to
+ * parsing APIs such as JOpt or Commons CLI. Its intent is rather just the opposite: to
  * provide the simplest possible abstraction for accessing command line arguments
  * <em>after</em> they have been parsed. So the typical case will involve fully configuring
  * the underlying command line parsing API, parsing the {@code String[]} of arguments
@@ -203,7 +202,6 @@ import org.springframework.util.StringUtils;
  * @param <T> the source type
  * @see PropertySource
  * @see SimpleCommandLinePropertySource
- * @see JOptCommandLinePropertySource
  */
 public abstract class CommandLinePropertySource<T> extends EnumerablePropertySource<T> {
 
@@ -246,13 +244,13 @@ public abstract class CommandLinePropertySource<T> extends EnumerablePropertySou
 	 * This implementation first checks to see if the name specified is the special
 	 * {@linkplain #setNonOptionArgsPropertyName(String) "non-option arguments" property},
 	 * and if so delegates to the abstract {@link #getNonOptionArgs()} method
-	 * checking to see whether it returns an empty collection. Otherwise delegates to and
+	 * checking to see whether it returns an empty collection. Otherwise, delegates to and
 	 * returns the value of the abstract {@link #containsOption(String)} method.
 	 */
 	@Override
 	public final boolean containsProperty(String name) {
 		if (this.nonOptionArgsPropertyName.equals(name)) {
-			return !this.getNonOptionArgs().isEmpty();
+			return !getNonOptionArgs().isEmpty();
 		}
 		return this.containsOption(name);
 	}
@@ -261,16 +259,16 @@ public abstract class CommandLinePropertySource<T> extends EnumerablePropertySou
 	 * This implementation first checks to see if the name specified is the special
 	 * {@linkplain #setNonOptionArgsPropertyName(String) "non-option arguments" property},
 	 * and if so delegates to the abstract {@link #getNonOptionArgs()} method. If so
-	 * and the collection of non-option arguments is empty, this method returns {@code
-	 * null}. If not empty, it returns a comma-separated String of all non-option
-	 * arguments. Otherwise delegates to and returns the result of the abstract {@link
-	 * #getOptionValues(String)} method.
+	 * and the collection of non-option arguments is empty, this method returns
+	 * {@code null}. If not empty, it returns a comma-separated String of all non-option
+	 * arguments. Otherwise, this method delegates to and returns a comma-separated String
+	 * of the results of the abstract {@link #getOptionValues(String)} method or
+	 * {@code null} if there are no such option values.
 	 */
 	@Override
-	@Nullable
-	public final String getProperty(String name) {
+	public final @Nullable String getProperty(String name) {
 		if (this.nonOptionArgsPropertyName.equals(name)) {
-			Collection<String> nonOptionArguments = this.getNonOptionArgs();
+			Collection<String> nonOptionArguments = getNonOptionArgs();
 			if (nonOptionArguments.isEmpty()) {
 				return null;
 			}
@@ -278,7 +276,7 @@ public abstract class CommandLinePropertySource<T> extends EnumerablePropertySou
 				return StringUtils.collectionToCommaDelimitedString(nonOptionArguments);
 			}
 		}
-		Collection<String> optionValues = this.getOptionValues(name);
+		Collection<String> optionValues = getOptionValues(name);
 		if (optionValues == null) {
 			return null;
 		}
@@ -298,18 +296,17 @@ public abstract class CommandLinePropertySource<T> extends EnumerablePropertySou
 	 * Return the collection of values associated with the command line option having the
 	 * given name.
 	 * <ul>
-	 * <li>if the option is present and has no argument (e.g.: "--foo"), return an empty
+	 * <li>if the option is present and has no argument (for example: "--foo"), return an empty
 	 * collection ({@code []})</li>
-	 * <li>if the option is present and has a single value (e.g. "--foo=bar"), return a
+	 * <li>if the option is present and has a single value (for example, "--foo=bar"), return a
 	 * collection having one element ({@code ["bar"]})</li>
 	 * <li>if the option is present and the underlying command line parsing library
-	 * supports multiple arguments (e.g. "--foo=bar --foo=baz"), return a collection
+	 * supports multiple arguments (for example, "--foo=bar --foo=baz"), return a collection
 	 * having elements for each value ({@code ["bar", "baz"]})</li>
 	 * <li>if the option is not present, return {@code null}</li>
 	 * </ul>
 	 */
-	@Nullable
-	protected abstract List<String> getOptionValues(String name);
+	protected abstract @Nullable List<String> getOptionValues(String name);
 
 	/**
 	 * Return the collection of non-option arguments parsed from the command line.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,10 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.util.Assert;
+import org.springframework.util.ResourceUtils;
 
 /**
  * JBoss VFS based {@link Resource} implementation.
@@ -115,7 +117,7 @@ public class VfsResource extends AbstractResource {
 			}
 		}
 
-		return new VfsResource(VfsUtils.getRelative(new URL(getURL(), relativePath)));
+		return new VfsResource(VfsUtils.getRelative(ResourceUtils.toRelativeURL(getURL(), relativePath)));
 	}
 
 	@Override
@@ -130,8 +132,7 @@ public class VfsResource extends AbstractResource {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
-		return (this == other || (other instanceof VfsResource &&
-				this.resource.equals(((VfsResource) other).resource)));
+		return (this == other || (other instanceof VfsResource that && this.resource.equals(that.resource)));
 	}
 
 	@Override

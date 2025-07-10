@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.util.xml;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -33,11 +34,9 @@ import javax.xml.transform.Source;
 import javax.xml.transform.stax.StAXResult;
 import javax.xml.transform.stax.StAXSource;
 
+import org.jspecify.annotations.Nullable;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.XMLReader;
-
-import org.springframework.lang.Nullable;
-import org.springframework.util.StreamUtils;
 
 /**
  * Convenience methods for working with the StAX API. Partly historic due to JAXP 1.3
@@ -54,7 +53,7 @@ import org.springframework.util.StreamUtils;
 public abstract class StaxUtils {
 
 	private static final XMLResolver NO_OP_XML_RESOLVER =
-			(publicID, systemID, base, ns) -> StreamUtils.emptyInput();
+			(publicID, systemID, base, ns) -> InputStream.nullInputStream();
 
 
 	/**
@@ -134,13 +133,12 @@ public abstract class StaxUtils {
 	 * @throws IllegalArgumentException if {@code source} isn't a JAXP 1.4 {@link StAXSource}
 	 * or custom StAX Source
 	 */
-	@Nullable
-	public static XMLStreamReader getXMLStreamReader(Source source) {
-		if (source instanceof StAXSource) {
-			return ((StAXSource) source).getXMLStreamReader();
+	public static @Nullable XMLStreamReader getXMLStreamReader(Source source) {
+		if (source instanceof StAXSource stAXSource) {
+			return stAXSource.getXMLStreamReader();
 		}
-		else if (source instanceof StaxSource) {
-			return ((StaxSource) source).getXMLStreamReader();
+		else if (source instanceof StaxSource staxSource) {
+			return staxSource.getXMLStreamReader();
 		}
 		else {
 			throw new IllegalArgumentException("Source '" + source + "' is neither StaxSource nor StAXSource");
@@ -154,13 +152,12 @@ public abstract class StaxUtils {
 	 * @throws IllegalArgumentException if {@code source} isn't a JAXP 1.4 {@link StAXSource}
 	 * or custom StAX Source
 	 */
-	@Nullable
-	public static XMLEventReader getXMLEventReader(Source source) {
-		if (source instanceof StAXSource) {
-			return ((StAXSource) source).getXMLEventReader();
+	public static @Nullable XMLEventReader getXMLEventReader(Source source) {
+		if (source instanceof StAXSource stAXSource) {
+			return stAXSource.getXMLEventReader();
 		}
-		else if (source instanceof StaxSource) {
-			return ((StaxSource) source).getXMLEventReader();
+		else if (source instanceof StaxSource staxSource) {
+			return staxSource.getXMLEventReader();
 		}
 		else {
 			throw new IllegalArgumentException("Source '" + source + "' is neither StaxSource nor StAXSource");
@@ -220,13 +217,12 @@ public abstract class StaxUtils {
 	 * @throws IllegalArgumentException if {@code source} isn't a JAXP 1.4 {@link StAXResult}
 	 * or custom StAX Result
 	 */
-	@Nullable
-	public static XMLStreamWriter getXMLStreamWriter(Result result) {
-		if (result instanceof StAXResult) {
-			return ((StAXResult) result).getXMLStreamWriter();
+	public static @Nullable XMLStreamWriter getXMLStreamWriter(Result result) {
+		if (result instanceof StAXResult stAXResult) {
+			return stAXResult.getXMLStreamWriter();
 		}
-		else if (result instanceof StaxResult) {
-			return ((StaxResult) result).getXMLStreamWriter();
+		else if (result instanceof StaxResult staxResult) {
+			return staxResult.getXMLStreamWriter();
 		}
 		else {
 			throw new IllegalArgumentException("Result '" + result + "' is neither StaxResult nor StAXResult");
@@ -240,13 +236,12 @@ public abstract class StaxUtils {
 	 * @throws IllegalArgumentException if {@code source} isn't a JAXP 1.4 {@link StAXResult}
 	 * or custom StAX Result
 	 */
-	@Nullable
-	public static XMLEventWriter getXMLEventWriter(Result result) {
-		if (result instanceof StAXResult) {
-			return ((StAXResult) result).getXMLEventWriter();
+	public static @Nullable XMLEventWriter getXMLEventWriter(Result result) {
+		if (result instanceof StAXResult stAXResult) {
+			return stAXResult.getXMLEventWriter();
 		}
-		else if (result instanceof StaxResult) {
-			return ((StaxResult) result).getXMLEventWriter();
+		else if (result instanceof StaxResult staxResult) {
+			return staxResult.getXMLEventWriter();
 		}
 		else {
 			throw new IllegalArgumentException("Result '" + result + "' is neither StaxResult nor StAXResult");

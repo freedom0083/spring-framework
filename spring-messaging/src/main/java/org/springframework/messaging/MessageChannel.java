@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public interface MessageChannel {
 	 * <p>This method may block indefinitely, depending on the implementation.
 	 * To provide a maximum wait time, use {@link #send(Message, long)}.
 	 * @param message the message to send
-	 * @return whether or not the message was sent
+	 * @return whether the message was sent
 	 */
 	default boolean send(Message<?> message) {
 		return send(message, INDEFINITE_TIMEOUT);

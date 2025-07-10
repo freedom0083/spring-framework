@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package org.springframework.http.codec;
 
 import java.net.URLDecoder;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -34,7 +34,6 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.log.LogFormatUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpInputMessage;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -105,12 +104,17 @@ public class FormHttpMessageReader extends LoggingCodecSupport
 
 	@Override
 	public boolean canRead(ResolvableType elementType, @Nullable MediaType mediaType) {
-		boolean multiValueUnresolved =
-				elementType.hasUnresolvableGenerics() &&
-						MultiValueMap.class.isAssignableFrom(elementType.toClass());
+		if (!supportsMediaType(mediaType)) {
+			return false;
+		}
+		if (MultiValueMap.class.isAssignableFrom(elementType.toClass()) && elementType.hasUnresolvableGenerics()) {
+			return true;
+		}
+		return MULTIVALUE_STRINGS_TYPE.isAssignableFrom(elementType);
+	}
 
-		return ((MULTIVALUE_STRINGS_TYPE.isAssignableFrom(elementType) || multiValueUnresolved) &&
-				(mediaType == null || MediaType.APPLICATION_FORM_URLENCODED.isCompatibleWith(mediaType)));
+	private static boolean supportsMediaType(@Nullable MediaType mediaType) {
+		return (mediaType == null || MediaType.APPLICATION_FORM_URLENCODED.isCompatibleWith(mediaType));
 	}
 
 	@Override
@@ -129,8 +133,7 @@ public class FormHttpMessageReader extends LoggingCodecSupport
 
 		return DataBufferUtils.join(message.getBody(), this.maxInMemorySize)
 				.map(buffer -> {
-					CharBuffer charBuffer = charset.decode(buffer.asByteBuffer());
-					String body = charBuffer.toString();
+					String body = buffer.toString(charset);
 					DataBufferUtils.release(buffer);
 					MultiValueMap<String, String> formData = parseFormData(charset, body);
 					logFormData(formData, hints);
@@ -163,7 +166,7 @@ public class FormHttpMessageReader extends LoggingCodecSupport
 				result.add(URLDecoder.decode(pair, charset), null);
 			}
 			else {
-				String name = URLDecoder.decode(pair.substring(0, idx),  charset);
+				String name = URLDecoder.decode(pair.substring(0, idx), charset);
 				String value = URLDecoder.decode(pair.substring(idx + 1), charset);
 				result.add(name, value);
 			}

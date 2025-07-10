@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -32,7 +33,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpInputMessage;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.LoggingCodecSupport;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -83,19 +83,20 @@ public class MultipartHttpMessageReader extends LoggingCodecSupport
 
 	@Override
 	public boolean canRead(ResolvableType elementType, @Nullable MediaType mediaType) {
-		if (MULTIPART_VALUE_TYPE.isAssignableFrom(elementType)) {
-			if (mediaType == null) {
+		return supportsMediaType(mediaType) && MULTIPART_VALUE_TYPE.isAssignableFrom(elementType);
+	}
+
+	private boolean supportsMediaType(@Nullable MediaType mediaType) {
+		if (mediaType == null) {
+			return true;
+		}
+		for (MediaType supportedMediaType : MIME_TYPES) {
+			if (supportedMediaType.isCompatibleWith(mediaType)) {
 				return true;
-			}
-			for (MediaType supportedMediaType : MIME_TYPES) {
-				if (supportedMediaType.isCompatibleWith(mediaType)) {
-					return true;
-				}
 			}
 		}
 		return false;
 	}
-
 
 	@Override
 	public Flux<MultiValueMap<String, Part>> read(ResolvableType elementType,
@@ -129,7 +130,7 @@ public class MultipartHttpMessageReader extends LoggingCodecSupport
 	}
 
 	private List<Part> toList(Collection<Part> collection) {
-		return collection instanceof List ? (List<Part>) collection : new ArrayList<>(collection);
+		return (collection instanceof List<Part> list ? list : new ArrayList<>(collection));
 	}
 
 }

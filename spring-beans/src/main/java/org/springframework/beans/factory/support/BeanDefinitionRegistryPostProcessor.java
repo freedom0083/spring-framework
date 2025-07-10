@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2010 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.beans.factory.support;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
 /**
  * Extension to the standard {@link BeanFactoryPostProcessor} SPI, allowing for
@@ -43,5 +44,15 @@ public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProc
 	 */
 	// TODO 用来实现自定义类加载, 实现此方法可以动态的实现bean的注册
 	void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException;
+
+	/**
+	 * Empty implementation of {@link BeanFactoryPostProcessor#postProcessBeanFactory}
+	 * since custom {@code BeanDefinitionRegistryPostProcessor} implementations will
+	 * typically only provide a {@link #postProcessBeanDefinitionRegistry} method.
+	 * @since 6.1
+	 */
+	@Override
+	default void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+	}
 
 }

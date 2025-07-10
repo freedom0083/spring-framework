@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@ import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.TypeMismatchException;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.oxm.Marshaller;
@@ -51,11 +52,9 @@ import org.springframework.util.MimeType;
  */
 public class MarshallingMessageConverter extends AbstractMessageConverter {
 
-	@Nullable
-	private Marshaller marshaller;
+	private @Nullable Marshaller marshaller;
 
-	@Nullable
-	private Unmarshaller unmarshaller;
+	private @Nullable Unmarshaller unmarshaller;
 
 
 	/**
@@ -86,8 +85,8 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 		this();
 		Assert.notNull(marshaller, "Marshaller must not be null");
 		this.marshaller = marshaller;
-		if (marshaller instanceof Unmarshaller) {
-			this.unmarshaller = (Unmarshaller) marshaller;
+		if (marshaller instanceof Unmarshaller _unmarshaller) {
+			this.unmarshaller = _unmarshaller;
 		}
 	}
 
@@ -102,8 +101,7 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 	/**
 	 * Return the configured Marshaller.
 	 */
-	@Nullable
-	public Marshaller getMarshaller() {
+	public @Nullable Marshaller getMarshaller() {
 		return this.marshaller;
 	}
 
@@ -117,8 +115,7 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 	/**
 	 * Return the configured unmarshaller.
 	 */
-	@Nullable
-	public Unmarshaller getUnmarshaller() {
+	public @Nullable Unmarshaller getUnmarshaller() {
 		return this.unmarshaller;
 	}
 
@@ -142,9 +139,8 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 	}
 
 	@Override
-	@Nullable
-	protected Object convertFromInternal(Message<?> message, Class<?> targetClass, @Nullable Object conversionHint) {
-		Assert.notNull(this.unmarshaller, "Property 'unmarshaller' is required");
+	protected @Nullable Object convertFromInternal(Message<?> message, Class<?> targetClass, @Nullable Object conversionHint) {
+		Assert.state(this.unmarshaller != null, "Property 'unmarshaller' is required");
 		try {
 			Source source = getSource(message.getPayload());
 			Object result = this.unmarshaller.unmarshal(source);
@@ -159,8 +155,8 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 	}
 
 	private Source getSource(Object payload) {
-		if (payload instanceof byte[]) {
-			return new StreamSource(new ByteArrayInputStream((byte[]) payload));
+		if (payload instanceof byte[] bytes) {
+			return new StreamSource(new ByteArrayInputStream(bytes));
 		}
 		else {
 			return new StreamSource(new StringReader(payload.toString()));
@@ -168,11 +164,10 @@ public class MarshallingMessageConverter extends AbstractMessageConverter {
 	}
 
 	@Override
-	@Nullable
-	protected Object convertToInternal(Object payload, @Nullable MessageHeaders headers,
+	protected @Nullable Object convertToInternal(Object payload, @Nullable MessageHeaders headers,
 			@Nullable Object conversionHint) {
 
-		Assert.notNull(this.marshaller, "Property 'marshaller' is required");
+		Assert.state(this.marshaller != null, "Property 'marshaller' is required");
 		try {
 			if (byte[].class == getSerializedPayloadClass()) {
 				ByteArrayOutputStream out = new ByteArrayOutputStream(1024);

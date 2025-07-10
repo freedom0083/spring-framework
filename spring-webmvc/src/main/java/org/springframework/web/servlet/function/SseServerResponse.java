@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -37,7 +38,6 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.DelegatingServerHttpResponse;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.MultiValueMap;
@@ -46,17 +46,17 @@ import org.springframework.web.servlet.ModelAndView;
 
 /**
  * Implementation of {@link ServerResponse} for sending
- * <a href="https://www.w3.org/TR/eventsource/">Server-Sent Events</a>.
+ * <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">Server-Sent Events</a>.
  *
  * @author Arjen Poutsma
+ * @author Sebastien Deleuze
  * @since 5.3.2
  */
 final class SseServerResponse extends AbstractServerResponse {
 
 	private final Consumer<SseBuilder> sseConsumer;
 
-	@Nullable
-	private final Duration timeout;
+	private final @Nullable Duration timeout;
 
 
 	private SseServerResponse(Consumer<SseBuilder> sseConsumer, @Nullable Duration timeout) {
@@ -77,9 +77,8 @@ final class SseServerResponse extends AbstractServerResponse {
 	}
 
 
-	@Nullable
 	@Override
-	protected ModelAndView writeToInternal(HttpServletRequest request, HttpServletResponse response,
+	protected @Nullable ModelAndView writeToInternal(HttpServletRequest request, HttpServletResponse response,
 			Context context) throws ServletException, IOException {
 
 		DeferredResult<?> result;
@@ -91,7 +90,7 @@ final class SseServerResponse extends AbstractServerResponse {
 		}
 
 		DefaultAsyncServerResponse.writeAsync(request, response, result);
-		this.sseConsumer.accept(new DefaultSseBuilder(response, context, result));
+		this.sseConsumer.accept(new DefaultSseBuilder(response, context, result, this.headers()));
 		return null;
 	}
 
@@ -114,20 +113,41 @@ final class SseServerResponse extends AbstractServerResponse {
 
 		private final List<HttpMessageConverter<?>> messageConverters;
 
+		private final HttpHeaders httpHeaders;
+
 		private final StringBuilder builder = new StringBuilder();
 
 		private boolean sendFailed;
 
 
-		public DefaultSseBuilder(HttpServletResponse response, Context context, DeferredResult<?> deferredResult) {
+		public DefaultSseBuilder(HttpServletResponse response, Context context, DeferredResult<?> deferredResult,
+				HttpHeaders httpHeaders) {
 			this.outputMessage = new ServletServerHttpResponse(response);
 			this.deferredResult = deferredResult;
 			this.messageConverters = context.messageConverters();
+			this.httpHeaders = httpHeaders;
 		}
 
 		@Override
 		public void send(Object object) throws IOException {
 			data(object);
+		}
+
+		@Override
+		public void send() throws IOException {
+			this.builder.append('\n');
+			try {
+				OutputStream body = this.outputMessage.getBody();
+				body.write(builderBytes());
+				body.flush();
+			}
+			catch (IOException ex) {
+				this.sendFailed = true;
+				throw ex;
+			}
+			finally {
+				this.builder.setLength(0);
+			}
 		}
 
 		@Override
@@ -151,7 +171,6 @@ final class SseServerResponse extends AbstractServerResponse {
 
 		@Override
 		public SseBuilder comment(String comment) {
-			Assert.hasLength(comment, "Comment must not be empty");
 			String[] lines = comment.split("\n");
 			for (String line : lines) {
 				field("", line);
@@ -168,8 +187,8 @@ final class SseServerResponse extends AbstractServerResponse {
 		public void data(Object object) throws IOException {
 			Assert.notNull(object, "Object must not be null");
 
-			if (object instanceof String) {
-				writeString((String) object);
+			if (object instanceof String text) {
+				writeString(text);
 			}
 			else {
 				writeObject(object);
@@ -181,20 +200,7 @@ final class SseServerResponse extends AbstractServerResponse {
 			for (String line : lines) {
 				field("data", line);
 			}
-			this.builder.append('\n');
-
-			try {
-				OutputStream body = this.outputMessage.getBody();
-				body.write(builderBytes());
-				body.flush();
-			}
-			catch (IOException ex) {
-				this.sendFailed = true;
-				throw ex;
-			}
-			finally {
-				this.builder.setLength(0);
-			}
+			this.send();
 		}
 
 		@SuppressWarnings("unchecked")
@@ -207,7 +213,7 @@ final class SseServerResponse extends AbstractServerResponse {
 				for (HttpMessageConverter<?> converter : this.messageConverters) {
 					if (converter.canWrite(dataClass, MediaType.APPLICATION_JSON)) {
 						HttpMessageConverter<Object> objectConverter = (HttpMessageConverter<Object>) converter;
-						ServerHttpResponse response = new MutableHeadersServerHttpResponse(this.outputMessage);
+						ServerHttpResponse response = new MutableHeadersServerHttpResponse(this.outputMessage, this.httpHeaders);
 						objectConverter.write(data, MediaType.APPLICATION_JSON, response);
 						this.outputMessage.getBody().write(NL_NL);
 						this.outputMessage.flush();
@@ -277,9 +283,10 @@ final class SseServerResponse extends AbstractServerResponse {
 
 			private final HttpHeaders mutableHeaders = new HttpHeaders();
 
-			public MutableHeadersServerHttpResponse(ServerHttpResponse delegate) {
+			public MutableHeadersServerHttpResponse(ServerHttpResponse delegate, HttpHeaders headers) {
 				super(delegate);
 				this.mutableHeaders.putAll(delegate.getHeaders());
+				this.mutableHeaders.putAll(headers);
 			}
 
 			@Override

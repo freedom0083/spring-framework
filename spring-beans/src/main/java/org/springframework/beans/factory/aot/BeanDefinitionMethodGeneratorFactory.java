@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,13 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.factory.aot.AotServices.Source;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.core.log.LogMessage;
-import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -33,21 +35,19 @@ import org.springframework.util.ObjectUtils;
  * {@link RegisteredBean}.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 6.0
  * @see BeanDefinitionMethodGenerator
- * @see #getBeanDefinitionMethodGenerator(RegisteredBean, String)
+ * @see #getBeanDefinitionMethodGenerator(RegisteredBean)
  */
 class BeanDefinitionMethodGeneratorFactory {
 
-	private static final Log logger = LogFactory
-			.getLog(BeanDefinitionMethodGeneratorFactory.class);
+	private static final Log logger = LogFactory.getLog(BeanDefinitionMethodGeneratorFactory.class);
 
 
-	private final List<BeanRegistrationAotProcessor> aotProcessors;
+	private final AotServices<BeanRegistrationAotProcessor> aotProcessors;
 
-	private final List<BeanRegistrationExcludeFilter> excludeFilters;
-
-	private final List<BeanRegistrationCodeFragmentsCustomizer> codeGenerationCustomizers;
+	private final AotServices<BeanRegistrationExcludeFilter> excludeFilters;
 
 
 	/**
@@ -56,21 +56,49 @@ class BeanDefinitionMethodGeneratorFactory {
 	 * @param beanFactory the bean factory use
 	 */
 	BeanDefinitionMethodGeneratorFactory(ConfigurableListableBeanFactory beanFactory) {
-		this(new AotFactoriesLoader(beanFactory));
+		this(AotServices.factoriesAndBeans(beanFactory));
 	}
 
 	/**
 	 * Create a new {@link BeanDefinitionMethodGeneratorFactory} backed by the
-	 * given {@link AotFactoriesLoader}.
-	 * @param loader the AOT factory loader to use
+	 * given {@link AotServices.Loader}.
+	 * @param loader the AOT services loader to use
 	 */
-	BeanDefinitionMethodGeneratorFactory(AotFactoriesLoader loader) {
+	BeanDefinitionMethodGeneratorFactory(AotServices.Loader loader) {
 		this.aotProcessors = loader.load(BeanRegistrationAotProcessor.class);
 		this.excludeFilters = loader.load(BeanRegistrationExcludeFilter.class);
-		this.codeGenerationCustomizers = loader
-				.load(BeanRegistrationCodeFragmentsCustomizer.class);
+		for (BeanRegistrationExcludeFilter excludeFilter : this.excludeFilters) {
+			if (this.excludeFilters.getSource(excludeFilter) == Source.BEAN_FACTORY) {
+				Assert.state(excludeFilter instanceof BeanRegistrationAotProcessor ||
+						excludeFilter instanceof BeanFactoryInitializationAotProcessor,
+						() -> "BeanRegistrationExcludeFilter bean of type %s must also implement an AOT processor interface"
+								.formatted(excludeFilter.getClass().getName()));
+			}
+		}
 	}
 
+
+	/**
+	 * Return a {@link BeanDefinitionMethodGenerator} for the given
+	 * {@link RegisteredBean} defined with the specified property name, or
+	 * {@code null} if the registered bean is excluded by a
+	 * {@link BeanRegistrationExcludeFilter}. The resulting
+	 * {@link BeanDefinitionMethodGenerator} will include all
+	 * {@link BeanRegistrationAotProcessor} provided contributions.
+	 * @param registeredBean the registered bean
+	 * @param currentPropertyName the property name that this bean belongs to
+	 * @return a new {@link BeanDefinitionMethodGenerator} instance or {@code null}
+	 */
+	@Nullable BeanDefinitionMethodGenerator getBeanDefinitionMethodGenerator(
+			RegisteredBean registeredBean, @Nullable String currentPropertyName) {
+
+		if (isExcluded(registeredBean)) {
+			return null;
+		}
+		List<BeanRegistrationAotContribution> contributions = getAotContributions(registeredBean);
+		return new BeanDefinitionMethodGenerator(this, registeredBean,
+				currentPropertyName, contributions);
+	}
 
 	/**
 	 * Return a {@link BeanDefinitionMethodGenerator} for the given
@@ -79,20 +107,10 @@ class BeanDefinitionMethodGeneratorFactory {
 	 * {@link BeanDefinitionMethodGenerator} will include all
 	 * {@link BeanRegistrationAotProcessor} provided contributions.
 	 * @param registeredBean the registered bean
-	 * @return a new {@link BeanDefinitionMethodGenerator} instance or
-	 * {@code null}
+	 * @return a new {@link BeanDefinitionMethodGenerator} instance or {@code null}
 	 */
-	@Nullable
-	BeanDefinitionMethodGenerator getBeanDefinitionMethodGenerator(
-			RegisteredBean registeredBean, @Nullable String innerBeanPropertyName) {
-
-		if (isExcluded(registeredBean)) {
-			return null;
-		}
-		List<BeanRegistrationAotContribution> contributions = getAotContributions(
-				registeredBean);
-		return new BeanDefinitionMethodGenerator(this, registeredBean,
-				innerBeanPropertyName, contributions, this.codeGenerationCustomizers);
+	@Nullable BeanDefinitionMethodGenerator getBeanDefinitionMethodGenerator(RegisteredBean registeredBean) {
+		return getBeanDefinitionMethodGenerator(registeredBean, null);
 	}
 
 	private boolean isExcluded(RegisteredBean registeredBean) {
@@ -100,7 +118,7 @@ class BeanDefinitionMethodGeneratorFactory {
 			return true;
 		}
 		for (BeanRegistrationExcludeFilter excludeFilter : this.excludeFilters) {
-			if (excludeFilter.isExcluded(registeredBean)) {
+			if (excludeFilter.isExcludedFromAotProcessing(registeredBean)) {
 				logger.trace(LogMessage.format(
 						"Excluding registered bean '%s' from bean factory %s due to %s",
 						registeredBean.getBeanName(),
@@ -113,22 +131,26 @@ class BeanDefinitionMethodGeneratorFactory {
 	}
 
 	private boolean isImplicitlyExcluded(RegisteredBean registeredBean) {
-		Class<?> beanClass = registeredBean.getBeanClass();
-		if (BeanRegistrationExcludeFilter.class.isAssignableFrom(beanClass)) {
-			return false;
+		if (Boolean.TRUE.equals(registeredBean.getMergedBeanDefinition()
+				.getAttribute(BeanRegistrationAotProcessor.IGNORE_REGISTRATION_ATTRIBUTE))) {
+			return true;
 		}
-		return BeanFactoryInitializationAotProcessor.class.isAssignableFrom(beanClass)
-				|| BeanRegistrationAotProcessor.class.isAssignableFrom(beanClass);
+		Class<?> beanClass = registeredBean.getBeanClass();
+		if (BeanFactoryInitializationAotProcessor.class.isAssignableFrom(beanClass)) {
+			return true;
+		}
+		if (BeanRegistrationAotProcessor.class.isAssignableFrom(beanClass)) {
+			BeanRegistrationAotProcessor processor = this.aotProcessors.findByBeanName(registeredBean.getBeanName());
+			return (processor == null || processor.isBeanExcludedFromAotProcessing());
+		}
+		return false;
 	}
 
-	private List<BeanRegistrationAotContribution> getAotContributions(
-			RegisteredBean registeredBean) {
-
+	private List<BeanRegistrationAotContribution> getAotContributions(RegisteredBean registeredBean) {
 		String beanName = registeredBean.getBeanName();
 		List<BeanRegistrationAotContribution> contributions = new ArrayList<>();
 		for (BeanRegistrationAotProcessor aotProcessor : this.aotProcessors) {
-			BeanRegistrationAotContribution contribution = aotProcessor
-					.processAheadOfTime(registeredBean);
+			BeanRegistrationAotContribution contribution = aotProcessor.processAheadOfTime(registeredBean);
 			if (contribution != null) {
 				logger.trace(LogMessage.format(
 						"Adding bean registration AOT contribution %S from %S to '%S'",

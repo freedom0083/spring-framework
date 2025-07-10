@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.http.server.PathContainer;
-import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
@@ -47,6 +48,9 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 			new TreeSet<>(Collections.singleton(PathPatternParser.defaultInstance.parse("")));
 
 	private static final Set<String> EMPTY_PATH = Collections.singleton("");
+
+	private static final SortedSet<PathPattern> ROOT_PATH_PATTERNS =
+			new TreeSet<>(List.of(new PathPatternParser().parse(""), new PathPatternParser().parse("/")));
 
 
 	private final SortedSet<PathPattern> patterns;
@@ -86,8 +90,12 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 		return " || ";
 	}
 
-	private boolean isEmptyPathMapping() {
-		return this.patterns == EMPTY_PATH_PATTERN;
+	/**
+	 * Whether the condition is the "" (empty path) mapping.
+	 * @since 6.0.10
+	 */
+	public boolean isEmptyPathMapping() {
+		return (this.patterns == EMPTY_PATH_PATTERN);
 	}
 
 	/**
@@ -109,19 +117,18 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 	}
 
 	/**
-	 * Returns a new instance with URL patterns from the current instance ("this") and
-	 * the "other" instance as follows:
+	 * Combine the patterns of the current and of the other instances as follows:
 	 * <ul>
-	 * <li>If there are patterns in both instances, combine the patterns in "this" with
-	 * the patterns in "other" using {@link PathPattern#combine(PathPattern)}.
-	 * <li>If only one instance has patterns, use them.
-	 * <li>If neither instance has patterns, use an empty String (i.e. "").
+	 * <li>If only one instance has patterns, use those.
+	 * <li>If both have patterns, combine patterns from "this" instance with
+	 * patterns from the other instance via {@link PathPattern#combine(PathPattern)}.
+	 * <li>If neither has patterns, use {@code ""} and {@code "/"} as root path patterns.
 	 * </ul>
 	 */
 	@Override
 	public PatternsRequestCondition combine(PatternsRequestCondition other) {
 		if (isEmptyPathMapping() && other.isEmptyPathMapping()) {
-			return this;
+			return new PatternsRequestCondition(ROOT_PATH_PATTERNS);
 		}
 		else if (other.isEmptyPathMapping()) {
 			return this;
@@ -149,14 +156,12 @@ public final class PatternsRequestCondition extends AbstractRequestCondition<Pat
 	 * or {@code null} if no patterns match.
 	 */
 	@Override
-	@Nullable
-	public PatternsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
+	public @Nullable PatternsRequestCondition getMatchingCondition(ServerWebExchange exchange) {
 		SortedSet<PathPattern> matches = getMatchingPatterns(exchange);
 		return (matches != null ? new PatternsRequestCondition(matches) : null);
 	}
 
-	@Nullable
-	private SortedSet<PathPattern> getMatchingPatterns(ServerWebExchange exchange) {
+	private @Nullable SortedSet<PathPattern> getMatchingPatterns(ServerWebExchange exchange) {
 		PathContainer lookupPath = exchange.getRequest().getPath().pathWithinApplication();
 		TreeSet<PathPattern> result = null;
 		for (PathPattern pattern : this.patterns) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2017 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import org.springframework.core.Ordered;
  *
  * <p>The {@link #value} is optional and represents an order value as defined in the
  * {@link Ordered} interface. Lower values have higher priority. The default value is
- * {@code Ordered.LOWEST_PRECEDENCE}, indicating lowest priority (losing to any other
- * specified order value).
+ * {@code Ordered.LOWEST_PRECEDENCE}, indicating the lowest priority (losing to any
+ * other specified order value).
  *
  * <p><b>NOTE:</b> Since Spring 4.0, annotation-based ordering is supported for many
  * kinds of components in Spring, even for collection injection where the order values

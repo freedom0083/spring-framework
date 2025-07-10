@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ class AutowiredArgumentsCodeGeneratorTests {
 	}
 
 	@Test
-	void generateCodeWhenMulitpleArguments() {
+	void generateCodeWhenMultipleArguments() {
 		Method method = ReflectionUtils.findMethod(UnambiguousMethods.class, "three",
 				String.class, Integer.class, Boolean.class);
 		AutowiredArgumentsCodeGenerator generator = new AutowiredArgumentsCodeGenerator(
@@ -62,12 +62,12 @@ class AutowiredArgumentsCodeGeneratorTests {
 	}
 
 	@Test
-	void generateCodeWhenMulitpleArgumentsWithOffset() {
+	void generateCodeWhenMultipleArgumentsWithOffset() {
 		Constructor<?> constructor = Outer.Nested.class.getDeclaredConstructors()[0];
 		AutowiredArgumentsCodeGenerator generator = new AutowiredArgumentsCodeGenerator(
 				Outer.Nested.class, constructor);
 		assertThat(generator.generateCode(constructor.getParameterTypes(), 1))
-				.hasToString("args.get(0), args.get(1)");
+				.hasToString("args.get(1), args.get(2)");
 	}
 
 	@Test

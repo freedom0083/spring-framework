@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 package org.springframework.r2dbc.core;
 
-import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -34,8 +33,7 @@ import org.springframework.util.ObjectUtils;
 @Deprecated(since = "6.0")
 public final class Parameter {
 
-	@Nullable
-	private final Object value;
+	private final @Nullable Object value;
 
 	private final Class<?> type;
 
@@ -81,8 +79,7 @@ public final class Parameter {
 	 * Return the column value (can be {@code null}).
 	 * @see #hasValue()
 	 */
-	@Nullable
-	public Object getValue() {
+	public @Nullable Object getValue() {
 		return this.value;
 	}
 
@@ -102,7 +99,7 @@ public final class Parameter {
 	}
 
 	/**
-	 * Return whether this {@link Parameter} has a empty.
+	 * Return whether this {@link Parameter} has an empty value.
 	 * @return {@code true} if {@link #getValue()} is {@code null}
 	 */
 	public boolean isEmpty() {
@@ -111,20 +108,15 @@ public final class Parameter {
 
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (!(obj instanceof Parameter other)) {
-			return false;
-		}
-		return (ObjectUtils.nullSafeEquals(this.value, other.value) &&
-				ObjectUtils.nullSafeEquals(this.type, other.type));
+	public boolean equals(@Nullable Object other) {
+		return (this == other || (other instanceof Parameter that &&
+				ObjectUtils.nullSafeEquals(this.value, that.value) &&
+				ObjectUtils.nullSafeEquals(this.type, that.type)));
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.value, this.type);
+		return ObjectUtils.nullSafeHash(this.value, this.type);
 	}
 
 	@Override

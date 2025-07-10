@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import java.lang.reflect.Method;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
@@ -38,7 +38,9 @@ import org.springframework.util.StringUtils;
  * @see ProfileValueSource
  * @see ProfileValueSourceConfiguration
  * @see IfProfileValue
+ * @deprecated since Spring Framework 7.0 with no replacement
  */
+@Deprecated(since = "7.0")
 public abstract class ProfileValueUtils {
 
 	private static final Log logger = LogFactory.getLog(ProfileValueUtils.class);
@@ -187,7 +189,7 @@ public abstract class ProfileValueUtils {
 		String environmentValue = profileValueSource.get(ifProfileValue.name());
 		String[] annotatedValues = ifProfileValue.values();
 		if (StringUtils.hasLength(ifProfileValue.value())) {
-			Assert.isTrue(annotatedValues.length == 0, () -> "Setting both the 'value' and 'values' attributes " +
+			Assert.isTrue(annotatedValues.length == 0, "Setting both the 'value' and 'values' attributes " +
 						"of @IfProfileValue is not allowed: choose one or the other.");
 			annotatedValues = new String[] { ifProfileValue.value() };
 		}

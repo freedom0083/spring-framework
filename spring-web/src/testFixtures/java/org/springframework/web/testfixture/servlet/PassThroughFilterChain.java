@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
- * Implementation of the {@link jakarta.servlet.FilterConfig} interface which
+ * Implementation of the {@link jakarta.servlet.FilterChain} interface which
  * simply passes the call through to a given Filter/FilterChain combination
  * (indicating the next Filter in the chain along with the FilterChain that it is
  * supposed to work on) or to a given Servlet (indicating the end of the chain).
@@ -42,14 +42,11 @@ import org.springframework.util.Assert;
  */
 public class PassThroughFilterChain implements FilterChain {
 
-	@Nullable
-	private Filter filter;
+	private @Nullable Filter filter;
 
-	@Nullable
-	private FilterChain nextFilterChain;
+	private @Nullable FilterChain nextFilterChain;
 
-	@Nullable
-	private Servlet servlet;
+	private @Nullable Servlet servlet;
 
 
 	/**
@@ -84,7 +81,7 @@ public class PassThroughFilterChain implements FilterChain {
 			this.filter.doFilter(request, response, this.nextFilterChain);
 		}
 		else {
-			Assert.state(this.servlet != null, "Neither a Filter not a Servlet set");
+			Assert.state(this.servlet != null, "Neither a Filter nor a Servlet has been set");
 			this.servlet.service(request, response);
 		}
 	}

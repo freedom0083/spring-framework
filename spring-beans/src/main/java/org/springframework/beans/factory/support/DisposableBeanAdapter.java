@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,21 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
-import org.springframework.lang.Nullable;
+import org.springframework.core.ReactiveAdapter;
+import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
@@ -49,6 +56,7 @@ import org.springframework.util.StringUtils;
  * @author Costin Leau
  * @author Stephane Nicoll
  * @author Sam Brannen
+ * @author Sebastien Deleuze
  * @since 2.0
  * @see AbstractBeanFactory
  * @see org.springframework.beans.factory.DisposableBean
@@ -64,7 +72,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 
 	private static final String SHUTDOWN_METHOD_NAME = "shutdown";
 
+
 	private static final Log logger = LogFactory.getLog(DisposableBeanAdapter.class);
+
+	private static final boolean reactiveStreamsPresent = ClassUtils.isPresent(
+			"org.reactivestreams.Publisher", DisposableBeanAdapter.class.getClassLoader());
 
 
 	private final Object bean;
@@ -77,14 +89,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 
 	private boolean invokeAutoCloseable;
 
-	@Nullable
-	private String[] destroyMethodNames;
+	private String @Nullable [] destroyMethodNames;
 
-	@Nullable
-	private transient Method[] destroyMethods;
+	private transient Method @Nullable [] destroyMethods;
 
-	@Nullable
-	private final List<DestructionAwareBeanPostProcessor> beanPostProcessors;
+	private final @Nullable List<DestructionAwareBeanPostProcessor> beanPostProcessors;
 
 
 	/**
@@ -105,7 +114,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 		this.invokeDisposableBean = (bean instanceof DisposableBean &&
 				!beanDefinition.hasAnyExternallyManagedDestroyMethod(DESTROY_METHOD_NAME));
 
-		String[] destroyMethodNames = inferDestroyMethodsIfNecessary(bean, beanDefinition);
+		String[] destroyMethodNames = inferDestroyMethodsIfNecessary(bean.getClass(), beanDefinition);
 		if (!ObjectUtils.isEmpty(destroyMethodNames) &&
 				!(this.invokeDisposableBean && DESTROY_METHOD_NAME.equals(destroyMethodNames[0])) &&
 				!beanDefinition.hasAnyExternallyManagedDestroyMethod(destroyMethodNames[0])) {
@@ -114,9 +123,8 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 					(bean instanceof AutoCloseable && CLOSE_METHOD_NAME.equals(destroyMethodNames[0]));
 			if (!this.invokeAutoCloseable) {
 				this.destroyMethodNames = destroyMethodNames;
-				Method[] destroyMethods = new Method[destroyMethodNames.length];
-				for (int i = 0; i < destroyMethodNames.length; i++) {
-					String destroyMethodName = destroyMethodNames[i];
+				List<Method> destroyMethods = new ArrayList<>(destroyMethodNames.length);
+				for (String destroyMethodName : destroyMethodNames) {
 					Method destroyMethod = determineDestroyMethod(destroyMethodName);
 					if (destroyMethod == null) {
 						if (beanDefinition.isEnforceDestroyMethod()) {
@@ -136,11 +144,11 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 										beanName + "' has a non-boolean parameter - not supported as destroy method");
 							}
 						}
-						destroyMethod = ClassUtils.getInterfaceMethodIfPossible(destroyMethod, bean.getClass());
+						destroyMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(destroyMethod, bean.getClass());
+						destroyMethods.add(destroyMethod);
 					}
-					destroyMethods[i] = destroyMethod;
 				}
-				this.destroyMethods = destroyMethods;
+				this.destroyMethods = destroyMethods.toArray(Method[]::new);
 			}
 		}
 
@@ -166,7 +174,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * Create a new DisposableBeanAdapter for the given bean.
 	 */
 	private DisposableBeanAdapter(Object bean, String beanName, boolean nonPublicAccessAllowed,
-			boolean invokeDisposableBean, boolean invokeAutoCloseable, @Nullable String[] destroyMethodNames,
+			boolean invokeDisposableBean, boolean invokeAutoCloseable, String @Nullable [] destroyMethodNames,
 			@Nullable List<DestructionAwareBeanPostProcessor> postProcessors) {
 
 		this.bean = bean;
@@ -200,12 +208,15 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 				((DisposableBean) this.bean).destroy();
 			}
 			catch (Throwable ex) {
-				String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
-				if (logger.isDebugEnabled()) {
-					logger.warn(msg, ex);
-				}
-				else {
-					logger.warn(msg + ": " + ex);
+				if (logger.isWarnEnabled()) {
+					String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
+					if (logger.isDebugEnabled()) {
+						// Log at warn level like below but add the exception stacktrace only with debug level
+						logger.warn(msg, ex);
+					}
+					else {
+						logger.warn(msg + ": " + ex);
+					}
 				}
 			}
 		}
@@ -218,12 +229,15 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 				((AutoCloseable) this.bean).close();
 			}
 			catch (Throwable ex) {
-				String msg = "Invocation of close method failed on bean with name '" + this.beanName + "'";
-				if (logger.isDebugEnabled()) {
-					logger.warn(msg, ex);
-				}
-				else {
-					logger.warn(msg + ": " + ex);
+				if (logger.isWarnEnabled()) {
+					String msg = "Invocation of close method failed on bean with name '" + this.beanName + "'";
+					if (logger.isDebugEnabled()) {
+						// Log at warn level like below but add the exception stacktrace only with debug level
+						logger.warn(msg, ex);
+					}
+					else {
+						logger.warn(msg + ": " + ex);
+					}
 				}
 			}
 		}
@@ -233,21 +247,34 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 			}
 		}
 		else if (this.destroyMethodNames != null) {
-			for (String destroyMethodName: this.destroyMethodNames) {
+			for (String destroyMethodName : this.destroyMethodNames) {
 				Method destroyMethod = determineDestroyMethod(destroyMethodName);
 				if (destroyMethod != null) {
-					invokeCustomDestroyMethod(
-							ClassUtils.getInterfaceMethodIfPossible(destroyMethod, this.bean.getClass()));
+					destroyMethod = ClassUtils.getPubliclyAccessibleMethodIfPossible(destroyMethod, this.bean.getClass());
+					invokeCustomDestroyMethod(destroyMethod);
 				}
 			}
 		}
 	}
 
 
-	@Nullable
-	private Method determineDestroyMethod(String name) {
+	private @Nullable Method determineDestroyMethod(String destroyMethodName) {
 		try {
-			return findDestroyMethod(name);
+			Class<?> beanClass = this.bean.getClass();
+			MethodDescriptor descriptor = MethodDescriptor.create(this.beanName, beanClass, destroyMethodName);
+			String methodName = descriptor.methodName();
+
+			Method destroyMethod = findDestroyMethod(descriptor.declaringClass(), methodName);
+			if (destroyMethod != null) {
+				return destroyMethod;
+			}
+			for (Class<?> beanInterface : ClassUtils.getAllInterfacesForClass(beanClass)) {
+				destroyMethod = findDestroyMethod(beanInterface, methodName);
+				if (destroyMethod != null) {
+					return destroyMethod;
+				}
+			}
+			return null;
 		}
 		catch (IllegalArgumentException ex) {
 			throw new BeanDefinitionValidationException("Could not find unique destroy method on bean with name '" +
@@ -255,11 +282,10 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 		}
 	}
 
-	@Nullable
-	private Method findDestroyMethod(String name) {
+	private @Nullable Method findDestroyMethod(Class<?> clazz, String name) {
 		return (this.nonPublicAccessAllowed ?
-				BeanUtils.findMethodWithMinimalParameters(this.bean.getClass(), name) :
-				BeanUtils.findMethodWithMinimalParameters(this.bean.getClass().getMethods(), name));
+				BeanUtils.findMethodWithMinimalParameters(clazz, name) :
+				BeanUtils.findMethodWithMinimalParameters(clazz.getMethods(), name));
 	}
 
 	/**
@@ -269,32 +295,66 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * assuming a "force" parameter), else logging an error.
 	 */
 	private void invokeCustomDestroyMethod(Method destroyMethod) {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Invoking custom destroy method '" + destroyMethod.getName() +
+					"' on bean with name '" + this.beanName + "': " + destroyMethod);
+		}
+
 		int paramCount = destroyMethod.getParameterCount();
-		final Object[] args = new Object[paramCount];
+		Object[] args = new Object[paramCount];
 		if (paramCount == 1) {
 			args[0] = Boolean.TRUE;
 		}
-		if (logger.isTraceEnabled()) {
-			logger.trace("Invoking custom destroy method '" + destroyMethod.getName() +
-					"' on bean with name '" + this.beanName + "'");
-		}
+
 		try {
 			ReflectionUtils.makeAccessible(destroyMethod);
-			destroyMethod.invoke(this.bean, args);
+			Object returnValue = destroyMethod.invoke(this.bean, args);
+
+			if (returnValue == null) {
+				// Regular case: a void method
+				logDestroyMethodCompletion(destroyMethod, false);
+			}
+			else if (returnValue instanceof Future<?> future) {
+				// An async task: await its completion.
+				future.get();
+				logDestroyMethodCompletion(destroyMethod, true);
+			}
+			else if (!reactiveStreamsPresent || !new ReactiveDestroyMethodHandler().await(destroyMethod, returnValue)) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Unknown return value type from custom destroy method '" + destroyMethod.getName() +
+							"' on bean with name '" + this.beanName + "': " + returnValue.getClass());
+				}
+			}
 		}
-		catch (InvocationTargetException ex) {
-			String msg = "Custom destroy method '" + destroyMethod.getName() + "' on bean with name '" +
-					this.beanName + "' threw an exception";
-			if (logger.isDebugEnabled()) {
-				logger.warn(msg, ex.getTargetException());
-			}
-			else {
-				logger.warn(msg + ": " + ex.getTargetException());
-			}
+		catch (InvocationTargetException | ExecutionException ex) {
+			logDestroyMethodException(destroyMethod, ex.getCause());
 		}
 		catch (Throwable ex) {
-			logger.warn("Failed to invoke custom destroy method '" + destroyMethod.getName() +
-					"' on bean with name '" + this.beanName + "'", ex);
+			if (logger.isWarnEnabled()) {
+				logger.warn("Failed to invoke custom destroy method '" + destroyMethod.getName() +
+						"' on bean with name '" + this.beanName + "'", ex);
+			}
+		}
+	}
+
+	void logDestroyMethodException(Method destroyMethod, @Nullable Throwable ex) {
+		if (logger.isWarnEnabled()) {
+			String msg = "Custom destroy method '" + destroyMethod.getName() + "' on bean with name '" +
+					this.beanName + "' propagated an exception";
+			if (logger.isDebugEnabled()) {
+				// Log at warn level like below but add the exception stacktrace only with debug level
+				logger.warn(msg, ex);
+			}
+			else {
+				logger.warn(msg + ": " + ex);
+			}
+		}
+	}
+
+	void logDestroyMethodCompletion(Method destroyMethod, boolean async) {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Custom destroy method '" + destroyMethod.getName() +
+					"' on bean with name '" + this.beanName + "' completed" + (async ? " asynchronously" : ""));
 		}
 	}
 
@@ -325,7 +385,8 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * @param beanDefinition the corresponding bean definition
 	 */
 	public static boolean hasDestroyMethod(Object bean, RootBeanDefinition beanDefinition) {
-		return (bean instanceof DisposableBean || inferDestroyMethodsIfNecessary(bean, beanDefinition) != null);
+		return (bean instanceof DisposableBean ||
+				inferDestroyMethodsIfNecessary(bean.getClass(), beanDefinition) != null);
 	}
 
 
@@ -342,8 +403,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * <p>Also processes the {@link java.io.Closeable} and {@link java.lang.AutoCloseable}
 	 * interfaces, reflectively calling the "close" method on implementing beans as well.
 	 */
-	@Nullable
-	private static String[] inferDestroyMethodsIfNecessary(Object bean, RootBeanDefinition beanDefinition) {
+	static String @Nullable [] inferDestroyMethodsIfNecessary(Class<?> target, RootBeanDefinition beanDefinition) {
 		String[] destroyMethodNames = beanDefinition.getDestroyMethodNames();
 		if (destroyMethodNames != null && destroyMethodNames.length > 1) {
 			return destroyMethodNames;
@@ -352,23 +412,23 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 		String destroyMethodName = beanDefinition.resolvedDestroyMethodName;
 		if (destroyMethodName == null) {
 			destroyMethodName = beanDefinition.getDestroyMethodName();
-			boolean autoCloseable = (bean instanceof AutoCloseable);
+			boolean autoCloseable = (AutoCloseable.class.isAssignableFrom(target));
 			if (AbstractBeanDefinition.INFER_METHOD.equals(destroyMethodName) ||
 					(destroyMethodName == null && autoCloseable)) {
 				// Only perform destroy method inference in case of the bean
 				// not explicitly implementing the DisposableBean interface
 				destroyMethodName = null;
-				if (!(bean instanceof DisposableBean)) {
+				if (!(DisposableBean.class.isAssignableFrom(target))) {
 					if (autoCloseable) {
 						destroyMethodName = CLOSE_METHOD_NAME;
 					}
 					else {
 						try {
-							destroyMethodName = bean.getClass().getMethod(CLOSE_METHOD_NAME).getName();
+							destroyMethodName = target.getMethod(CLOSE_METHOD_NAME).getName();
 						}
 						catch (NoSuchMethodException ex) {
 							try {
-								destroyMethodName = bean.getClass().getMethod(SHUTDOWN_METHOD_NAME).getName();
+								destroyMethodName = target.getMethod(SHUTDOWN_METHOD_NAME).getName();
 							}
 							catch (NoSuchMethodException ex2) {
 								// no candidate destroy method found
@@ -403,8 +463,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	 * @param processors the List to search
 	 * @return the filtered List of DestructionAwareBeanPostProcessors
 	 */
-	@Nullable
-	private static List<DestructionAwareBeanPostProcessor> filterPostProcessors(
+	private static @Nullable List<DestructionAwareBeanPostProcessor> filterPostProcessors(
 			List<DestructionAwareBeanPostProcessor> processors, Object bean) {
 
 		List<DestructionAwareBeanPostProcessor> filteredPostProcessors = null;
@@ -417,6 +476,61 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 			}
 		}
 		return filteredPostProcessors;
+	}
+
+
+	/**
+	 * Inner class to avoid a hard dependency on the Reactive Streams API at runtime.
+	 */
+	private class ReactiveDestroyMethodHandler {
+
+		public boolean await(Method destroyMethod, Object returnValue) throws InterruptedException {
+			ReactiveAdapter adapter = ReactiveAdapterRegistry.getSharedInstance().getAdapter(returnValue.getClass());
+			if (adapter != null) {
+				CountDownLatch latch = new CountDownLatch(1);
+				adapter.toPublisher(returnValue).subscribe(new DestroyMethodSubscriber(destroyMethod, latch));
+				latch.await();
+				return true;
+			}
+			return false;
+		}
+	}
+
+
+	/**
+	 * Reactive Streams Subscriber for destroy method completion.
+	 */
+	private class DestroyMethodSubscriber implements Subscriber<Object> {
+
+		private final Method destroyMethod;
+
+		private final CountDownLatch latch;
+
+		public DestroyMethodSubscriber(Method destroyMethod, CountDownLatch latch) {
+			this.destroyMethod = destroyMethod;
+			this.latch = latch;
+		}
+
+		@Override
+		public void onSubscribe(Subscription s) {
+			s.request(Integer.MAX_VALUE);
+		}
+
+		@Override
+		public void onNext(Object o) {
+		}
+
+		@Override
+		public void onError(Throwable t) {
+			this.latch.countDown();
+			logDestroyMethodException(this.destroyMethod, t);
+		}
+
+		@Override
+		public void onComplete() {
+			this.latch.countDown();
+			logDestroyMethodCompletion(this.destroyMethod, true);
+		}
 	}
 
 }

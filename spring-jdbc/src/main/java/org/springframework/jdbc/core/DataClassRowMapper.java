@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,39 +20,53 @@ import java.lang.reflect.Constructor;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.TypeConverter;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.TypeDescriptor;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
  * {@link RowMapper} implementation that converts a row into a new instance
  * of the specified mapped target class. The mapped target class must be a
- * top-level class and may either expose a data class constructor with named
- * parameters corresponding to column names or classic bean property setters
- * (or even a combination of both).
+ * top-level class or {@code static} nested class, and it may expose either a
+ * <em>data class</em> constructor with named parameters corresponding to column
+ * names or classic bean property setter methods with property names corresponding
+ * to column names (or even a combination of both).
+ *
+ * <p>The term "data class" applies to Java <em>records</em>, Kotlin <em>data
+ * classes</em>, and any class which has a constructor with named parameters
+ * that are intended to be mapped to corresponding column names.
+ *
+ * <p>When combining a data class constructor with setter methods, any property
+ * mapped successfully via a constructor argument will not be mapped additionally
+ * via a corresponding setter method. This means that constructor arguments take
+ * precedence over property setter methods.
  *
  * <p>Note that this class extends {@link BeanPropertyRowMapper} and can
  * therefore serve as a common choice for any mapped target class, flexibly
  * adapting to constructor style versus setter methods in the mapped class.
  *
+ * <p>Please note that this class is designed to provide convenience rather than
+ * high performance. For best performance, consider using a custom {@code RowMapper}
+ * implementation.
+ *
  * @author Juergen Hoeller
+ * @author Sam Brannen
  * @since 5.3
  * @param <T> the result type
+ * @see SimplePropertyRowMapper
  */
 public class DataClassRowMapper<T> extends BeanPropertyRowMapper<T> {
 
-	@Nullable
-	private Constructor<T> mappedConstructor;
+	private @Nullable Constructor<T> mappedConstructor;
 
-	@Nullable
-	private String[] constructorParameterNames;
+	private @Nullable String @Nullable [] constructorParameterNames;
 
-	@Nullable
-	private TypeDescriptor[] constructorParameterTypes;
+	private TypeDescriptor @Nullable [] constructorParameterTypes;
 
 
 	/**
@@ -91,10 +105,10 @@ public class DataClassRowMapper<T> extends BeanPropertyRowMapper<T> {
 	}
 
 	@Override
-	protected T constructMappedInstance(ResultSet rs, TypeConverter tc) throws SQLException  {
+	protected T constructMappedInstance(ResultSet rs, TypeConverter tc) throws SQLException {
 		Assert.state(this.mappedConstructor != null, "Mapped constructor was not initialized");
 
-		Object[] args;
+		@Nullable Object[] args;
 		if (this.constructorParameterNames != null && this.constructorParameterTypes != null) {
 			args = new Object[this.constructorParameterNames.length];
 			for (int i = 0; i < args.length; i++) {

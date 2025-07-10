@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import java.net.URI
-import java.util.*
+import java.util.Optional
 import java.util.function.Supplier
 
 /**
- * Allow to create easily a WebMvc.fn [RouterFunction] with a [Reactive router Kotlin DSL][RouterFunctionDsl].
+ * Allow to create easily a WebMvc.fn [RouterFunction] with a [router Kotlin DSL][RouterFunctionDsl].
  *
  * Example:
  *
@@ -54,7 +54,7 @@ import java.util.function.Supplier
 fun router(routes: (RouterFunctionDsl.() -> Unit)) = RouterFunctionDsl(routes).build()
 
 /**
- * Provide a WebMvc.fn [RouterFunction] Reactive Kotlin DSL created by [`router { }`][router] in order to be able to write idiomatic Kotlin code.
+ * Provide a WebMvc.fn [RouterFunction] Kotlin DSL created by [`router { }`][router] in order to be able to write idiomatic Kotlin code.
  *
  * @author Sebastien Deleuze
  * @since 5.2
@@ -549,6 +549,11 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 * Route to the given handler function if the given pathExtension predicate applies.
 	 * @see RouterFunctions.route
 	 */
+	@Suppress("removal", "DEPRECATION")
+	@Deprecated("without replacement to discourage use of path extensions for request mapping and for" +
+			"content negotiation (with similar deprecations and removals already applied to" +
+			"annotated controllers). For further context, please read issue " +
+			"https://github.com/spring-projects/spring-framework/issues/24179", replaceWith = ReplaceWith("None"))
 	fun pathExtension(extension: String, f: (ServerRequest) -> ServerResponse) {
 		builder.add(RouterFunctions.route(RequestPredicates.pathExtension(extension), HandlerFunction(f)))
 	}
@@ -558,13 +563,23 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 * @param extension the path extension to match against, ignoring case
 	 * @return a predicate that matches if the request's path has the given file extension
 	 */
+	@Suppress("removal", "DEPRECATION")
+	@Deprecated("without replacement to discourage use of path extensions for request mapping and for" +
+			"content negotiation (with similar deprecations and removals already applied to" +
+			"annotated controllers). For further context, please read issue " +
+			"https://github.com/spring-projects/spring-framework/issues/24179", replaceWith = ReplaceWith("None"))
 	fun pathExtension(extension: String): RequestPredicate = RequestPredicates.pathExtension(extension)
 
 	/**
 	 * Route to the given handler function if the given pathExtension predicate applies.
 	 * @see RouterFunctions.route
 	 */
-	fun pathExtension(predicate: (String) -> Boolean, f: (ServerRequest) -> ServerResponse) {
+	@Suppress("removal", "DEPRECATION")
+	@Deprecated("without replacement to discourage use of path extensions for request mapping and for" +
+			"content negotiation (with similar deprecations and removals already applied to" +
+			"annotated controllers). For further context, please read issue " +
+			"https://github.com/spring-projects/spring-framework/issues/24179", replaceWith = ReplaceWith("None"))
+	fun pathExtension(predicate: (String?) -> Boolean, f: (ServerRequest) -> ServerResponse) {
 		builder.add(RouterFunctions.route(RequestPredicates.pathExtension(predicate), HandlerFunction(f)))
 	}
 
@@ -573,7 +588,12 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 * predicate.
 	 * @see RequestPredicates.pathExtension
 	 */
-	fun pathExtension(predicate: (String) -> Boolean): RequestPredicate =
+	@Suppress("removal", "DEPRECATION")
+	@Deprecated("without replacement to discourage use of path extensions for request mapping and for" +
+			"content negotiation (with similar deprecations and removals already applied to" +
+			"annotated controllers). For further context, please read issue " +
+			"https://github.com/spring-projects/spring-framework/issues/24179", replaceWith = ReplaceWith("None"))
+	fun pathExtension(predicate: (String?) -> Boolean): RequestPredicate =
 			RequestPredicates.pathExtension(predicate)
 
 	/**
@@ -610,6 +630,15 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 */
 	operator fun String.invoke(f: (ServerRequest) -> ServerResponse) {
 		builder.add(RouterFunctions.route(RequestPredicates.path(this), HandlerFunction(f)))
+	}
+
+	/**
+	 * Route requests that match the given predicate to the given resource.
+	 * @see RouterFunctions.resource
+	 * @since 6.1.4
+	 */
+	fun resource(predicate: RequestPredicate, resource: Resource) {
+		builder.resource(predicate, resource)
 	}
 
 	/**
@@ -697,6 +726,30 @@ class RouterFunctionDsl internal constructor (private val init: (RouterFunctionD
 	 */
 	inline fun <reified E : Throwable> onError(noinline responseProvider: (Throwable, ServerRequest) -> ServerResponse) {
 		builder.onError({it is E}, responseProvider)
+	}
+
+	/**
+	 * Add an attribute with the given name and value to the last route built with this builder.
+	 * @param name the attribute name
+	 * @param value the attribute value
+	 * @since 6.0
+	 */
+	fun withAttribute(name: String, value: Any) {
+		builder.withAttribute(name, value)
+	}
+
+	/**
+	 * Manipulate the attributes of the last route built with the given consumer.
+	 *
+	 * The map provided to the consumer is "live", so that the consumer can be used
+	 * to [overwrite][MutableMap.put] existing attributes,
+	 * [remove][MutableMap.remove] attributes, or use any of the other
+	 * [MutableMap] methods.
+	 * @param attributesConsumer a function that consumes the attributes map
+	 * @since 6.0
+	 */
+	fun withAttributes(attributesConsumer: (MutableMap<String, Any>) -> Unit) {
+		builder.withAttributes(attributesConsumer)
 	}
 
 	/**

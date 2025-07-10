@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ public interface FilePart extends Part {
 	 * the directory portion, the file name could also contain characters such
 	 * as ".." and others that can be used maliciously. It is recommended to not
 	 * use this filename directly. Preferably generate a unique one and save
-	 * this one one somewhere for reference, if necessary.
+	 * this one somewhere for reference, if necessary.
 	 * @return the original filename, or the empty String if no file has been chosen
 	 * in the multipart form, or {@code null} if not defined or not available
 	 * @see <a href="https://tools.ietf.org/html/rfc7578#section-4.2">RFC 7578, Section 4.2</a>

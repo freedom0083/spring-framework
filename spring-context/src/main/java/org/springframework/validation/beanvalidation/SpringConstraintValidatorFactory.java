@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import org.springframework.util.Assert;
  * <p>Note that this class is meant for programmatic use, not for declarative use
  * in a standard {@code validation.xml} file. Consider
  * {@link org.springframework.web.bind.support.SpringWebConstraintValidatorFactory}
- * for declarative use in a web application, e.g. with JAX-RS or JAX-WS.
+ * for declarative use in a web application, for example, with JAX-RS or JAX-WS.
  *
  * @author Juergen Hoeller
  * @since 3.0

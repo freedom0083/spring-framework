@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,18 @@
 package org.springframework.messaging.handler.annotation.support;
 
 import java.lang.annotation.Annotation;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.messaging.converter.SmartMessageConverter;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -36,12 +38,16 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.SmartValidator;
 import org.springframework.validation.Validator;
-import org.springframework.validation.annotation.Validated;
+import org.springframework.validation.annotation.ValidationAnnotationUtils;
 
 /**
  * A resolver to extract and convert the payload of a message using a
- * {@link MessageConverter}. It also validates the payload using a
- * {@link Validator} if the argument is annotated with a Validation annotation.
+ * {@link MessageConverter}.
+ *
+ * <p>Validation is applied if the method argument is annotated with
+ * {@link org.springframework.validation.annotation.Validated} or
+ * {@code @jakarta.validation.Valid}. Validation failure results in an
+ * {@link MethodArgumentNotValidException}.
  *
  * <p>This {@link HandlerMethodArgumentResolver} should be ordered last as it
  * supports all types and does not require the {@link Payload} annotation.
@@ -56,8 +62,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 
 	private final MessageConverter converter;
 
-	@Nullable
-	private final Validator validator;
+	private final @Nullable Validator validator;
 
 	private final boolean useDefaultResolution;
 
@@ -106,33 +111,34 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	}
 
 	@Override
-	@Nullable
-	public Object resolveArgument(MethodParameter parameter, Message<?> message) throws Exception {
+	public @Nullable Object resolveArgument(MethodParameter parameter, Message<?> message) throws Exception {
 		Payload ann = parameter.getParameterAnnotation(Payload.class);
 		if (ann != null && StringUtils.hasText(ann.expression())) {
 			throw new IllegalStateException("@Payload SpEL expressions not supported by this resolver");
 		}
 
+		boolean isOptionalTargetClass = (parameter.getParameterType() == Optional.class);
 		Object payload = message.getPayload();
 		if (isEmptyPayload(payload)) {
-			if (ann == null || ann.required()) {
+			if ((ann == null || ann.required()) && !isOptionalTargetClass) {
 				String paramName = getParameterName(parameter);
 				BindingResult bindingResult = new BeanPropertyBindingResult(payload, paramName);
 				bindingResult.addError(new ObjectError(paramName, "Payload value must not be empty"));
 				throw new MethodArgumentNotValidException(message, parameter, bindingResult);
 			}
 			else {
-				return null;
+				return (isOptionalTargetClass ? Optional.empty() : null);
 			}
+		}
+
+		if (payload instanceof Optional<?> optional) {
+			payload = optional.get();
+			message = MessageBuilder.createMessage(payload, message.getHeaders());
 		}
 
 		Class<?> targetClass = resolveTargetClass(parameter, message);
 		Class<?> payloadClass = payload.getClass();
-		if (ClassUtils.isAssignable(targetClass, payloadClass)) {
-			validate(message, parameter, payload);
-			return payload;
-		}
-		else {
+		if (!ClassUtils.isAssignable(targetClass, payloadClass)) {
 			if (this.converter instanceof SmartMessageConverter smartConverter) {
 				payload = smartConverter.fromMessage(message, targetClass, parameter);
 			}
@@ -143,9 +149,9 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 				throw new MessageConversionException(message, "Cannot convert from [" +
 						payloadClass.getName() + "] to [" + targetClass.getName() + "] for " + message);
 			}
-			validate(message, parameter, payload);
-			return payload;
 		}
+		validate(message, parameter, payload);
+		return (isOptionalTargetClass ? Optional.of(payload) : payload);
 	}
 
 	private String getParameterName(MethodParameter param) {
@@ -161,11 +167,14 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 		if (payload == null) {
 			return true;
 		}
-		else if (payload instanceof byte[]) {
-			return ((byte[]) payload).length == 0;
+		else if (payload instanceof byte[] bytes) {
+			return bytes.length == 0;
 		}
-		else if (payload instanceof String) {
-			return !StringUtils.hasText((String) payload);
+		else if (payload instanceof String text) {
+			return !StringUtils.hasText(text);
+		}
+		else if (payload instanceof Optional<?> optional) {
+			return optional.isEmpty();
 		}
 		else {
 			return false;
@@ -176,7 +185,7 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	 * Resolve the target class to convert the payload to.
 	 * <p>By default this is simply {@link MethodParameter#getParameterType()}
 	 * but that can be overridden to select a more specific target type after
-	 * also taking into account the "Content-Type", e.g. return {@code String}
+	 * also taking into account the "Content-Type", for example, return {@code String}
 	 * if target type is {@code Object} and {@code "Content-Type:text/**"}.
 	 * @param parameter the target method parameter
 	 * @param message the message being processed
@@ -184,14 +193,11 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 	 * @since 5.2
 	 */
 	protected Class<?> resolveTargetClass(MethodParameter parameter, Message<?> message) {
-		return parameter.getParameterType();
+		return parameter.nestedIfOptional().getNestedParameterType();
 	}
 
 	/**
 	 * Validate the payload if applicable.
-	 * <p>The default implementation checks for {@code @jakarta.validation.Valid},
-	 * Spring's {@link Validated},
-	 * and custom annotations whose name starts with "Valid".
 	 * @param message the currently processed message
 	 * @param parameter the method parameter
 	 * @param target the target payload object
@@ -202,14 +208,12 @@ public class PayloadMethodArgumentResolver implements HandlerMethodArgumentResol
 			return;
 		}
 		for (Annotation ann : parameter.getParameterAnnotations()) {
-			Validated validatedAnn = AnnotationUtils.getAnnotation(ann, Validated.class);
-			if (validatedAnn != null || ann.annotationType().getSimpleName().startsWith("Valid")) {
-				Object hints = (validatedAnn != null ? validatedAnn.value() : AnnotationUtils.getValue(ann));
-				Object[] validationHints = (hints instanceof Object[] ? (Object[]) hints : new Object[] {hints});
+			Object[] validationHints = ValidationAnnotationUtils.determineValidationHints(ann);
+			if (validationHints != null) {
 				BeanPropertyBindingResult bindingResult =
 						new BeanPropertyBindingResult(target, getParameterName(parameter));
-				if (!ObjectUtils.isEmpty(validationHints) && this.validator instanceof SmartValidator) {
-					((SmartValidator) this.validator).validate(target, bindingResult, validationHints);
+				if (!ObjectUtils.isEmpty(validationHints) && this.validator instanceof SmartValidator sv) {
+					sv.validate(target, bindingResult, validationHints);
 				}
 				else {
 					this.validator.validate(target, bindingResult);

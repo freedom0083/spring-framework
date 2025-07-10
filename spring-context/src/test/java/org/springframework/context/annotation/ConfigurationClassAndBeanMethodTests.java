@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.springframework.context.annotation;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,16 +44,16 @@ class ConfigurationClassAndBeanMethodTests {
 		ConfigurationClass configurationClass2 = newConfigurationClass(Config1.class);
 		ConfigurationClass configurationClass3 = newConfigurationClass(Config2.class);
 
-		assertThat(configurationClass1.equals(null)).isFalse();
+		assertThat(configurationClass1).isNotEqualTo(null);
 		assertThat(configurationClass1).isNotSameAs(configurationClass2);
 
-		assertThat(configurationClass1.equals(configurationClass1)).isTrue();
-		assertThat(configurationClass2.equals(configurationClass2)).isTrue();
-		assertThat(configurationClass1.equals(configurationClass2)).isTrue();
-		assertThat(configurationClass2.equals(configurationClass1)).isTrue();
+		assertThat(configurationClass1).isEqualTo(configurationClass1);
+		assertThat(configurationClass2).isEqualTo(configurationClass2);
+		assertThat(configurationClass1).isEqualTo(configurationClass2);
+		assertThat(configurationClass2).isEqualTo(configurationClass1);
 
-		assertThat(configurationClass1.equals(configurationClass3)).isFalse();
-		assertThat(configurationClass3.equals(configurationClass2)).isFalse();
+		assertThat(configurationClass1).isNotEqualTo(configurationClass3);
+		assertThat(configurationClass3).isNotEqualTo(configurationClass2);
 
 		// ---------------------------------------------------------------------
 
@@ -73,18 +72,18 @@ class ConfigurationClassAndBeanMethodTests {
 		BeanMethod beanMethod_3_1 = beanMethods3.get(1);
 		BeanMethod beanMethod_3_2 = beanMethods3.get(2);
 
-		assertThat(beanMethod_1_0.equals(null)).isFalse();
+		assertThat(beanMethod_1_0).isNotEqualTo(null);
 		assertThat(beanMethod_1_0).isNotSameAs(beanMethod_2_0);
 
-		assertThat(beanMethod_1_0.equals(beanMethod_1_0)).isTrue();
-		assertThat(beanMethod_1_0.equals(beanMethod_2_0)).isTrue();
-		assertThat(beanMethod_1_1.equals(beanMethod_2_1)).isTrue();
-		assertThat(beanMethod_1_2.equals(beanMethod_2_2)).isTrue();
+		assertThat(beanMethod_1_0).isEqualTo(beanMethod_1_0);
+		assertThat(beanMethod_1_0).isEqualTo(beanMethod_2_0);
+		assertThat(beanMethod_1_1).isEqualTo(beanMethod_2_1);
+		assertThat(beanMethod_1_2).isEqualTo(beanMethod_2_2);
 
 		assertThat(beanMethod_1_0.getMetadata().getMethodName()).isEqualTo(beanMethod_3_0.getMetadata().getMethodName());
-		assertThat(beanMethod_1_0.equals(beanMethod_3_0)).isFalse();
-		assertThat(beanMethod_1_1.equals(beanMethod_3_1)).isFalse();
-		assertThat(beanMethod_1_2.equals(beanMethod_3_2)).isFalse();
+		assertThat(beanMethod_1_0).isNotEqualTo(beanMethod_3_0);
+		assertThat(beanMethod_1_1).isNotEqualTo(beanMethod_3_1);
+		assertThat(beanMethod_1_2).isNotEqualTo(beanMethod_3_2);
 	}
 
 	@Test
@@ -129,7 +128,7 @@ class ConfigurationClassAndBeanMethodTests {
 			.startsWith("ConfigurationClass: beanName 'Config1', class path resource");
 
 		List<BeanMethod> beanMethods = getBeanMethods(configurationClass);
-		String prefix = "BeanMethod: " + Config1.class.getName();
+		String prefix = "BeanMethod: java.lang.String " + Config1.class.getName();
 		assertThat(beanMethods.get(0).toString()).isEqualTo(prefix + ".bean0()");
 		assertThat(beanMethods.get(1).toString()).isEqualTo(prefix + ".bean1(java.lang.String)");
 		assertThat(beanMethods.get(2).toString()).isEqualTo(prefix + ".bean2(java.lang.String,java.lang.Integer)");
@@ -156,7 +155,7 @@ class ConfigurationClassAndBeanMethodTests {
 	private static List<BeanMethod> getBeanMethods(ConfigurationClass configurationClass) {
 		List<BeanMethod> beanMethods = configurationClass.getBeanMethods().stream()
 				.sorted(Comparator.comparing(beanMethod -> beanMethod.getMetadata().getMethodName()))
-				.collect(Collectors.toList());
+				.toList();
 		assertThat(beanMethods).hasSize(3);
 		return beanMethods;
 	}

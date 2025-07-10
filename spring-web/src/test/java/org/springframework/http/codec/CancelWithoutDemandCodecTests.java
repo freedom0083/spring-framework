@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ReactiveHttpOutputMessage;
 import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.http.codec.json.Jackson2JsonEncoder;
+import org.springframework.http.codec.json.JacksonJsonEncoder;
 import org.springframework.http.codec.multipart.MultipartHttpMessageWriter;
 import org.springframework.http.codec.protobuf.ProtobufDecoder;
 import org.springframework.http.codec.protobuf.ProtobufEncoder;
@@ -53,13 +53,13 @@ import org.springframework.web.testfixture.xml.Pojo;
  * Test scenarios for data buffer leaks.
  * @author Rossen Stoyanchev
  */
-public class CancelWithoutDemandCodecTests {
+class CancelWithoutDemandCodecTests {
 
 	private final LeakAwareDataBufferFactory bufferFactory = new LeakAwareDataBufferFactory();
 
 
 	@AfterEach
-	public void tearDown() throws Exception {
+	void tearDown() {
 		this.bufferFactory.checkForLeaks();
 	}
 
@@ -76,14 +76,14 @@ public class CancelWithoutDemandCodecTests {
 
 	@Test // gh-22107
 	public void cancelWithJackson() {
-		Jackson2JsonEncoder encoder = new Jackson2JsonEncoder();
+		JacksonJsonEncoder encoder = new JacksonJsonEncoder();
 
 		Flux<DataBuffer> flux = encoder.encode(Flux.just(new Pojo("foofoo", "barbar"), new Pojo("bar", "baz")),
 				this.bufferFactory, ResolvableType.forClass(Pojo.class),
 				MediaType.APPLICATION_JSON, Collections.emptyMap());
 
 		BaseSubscriber<DataBuffer> subscriber = new ZeroDemandSubscriber();
-		flux.subscribe(subscriber); // Assume sync execution (e.g. encoding with Flux.just)..
+		flux.subscribe(subscriber); // Assume sync execution (for example, encoding with Flux.just)
 		subscriber.cancel();
 	}
 
@@ -96,7 +96,7 @@ public class CancelWithoutDemandCodecTests {
 				MediaType.APPLICATION_XML, Collections.emptyMap());
 
 		BaseSubscriber<DataBuffer> subscriber = new ZeroDemandSubscriber();
-		flux.subscribe(subscriber); // Assume sync execution (e.g. encoding with Flux.just)..
+		flux.subscribe(subscriber); // Assume sync execution (for example, encoding with Flux.just)
 		subscriber.cancel();
 	}
 
@@ -107,15 +107,15 @@ public class CancelWithoutDemandCodecTests {
 
 		Flux<DataBuffer> flux = encoder.encode(Mono.just(msg),
 				this.bufferFactory, ResolvableType.forClass(Msg.class),
-				new MimeType("application", "x-protobuf"), Collections.emptyMap());
+				MediaType.APPLICATION_PROTOBUF, Collections.emptyMap());
 
 		BaseSubscriber<DataBuffer> subscriber = new ZeroDemandSubscriber();
-		flux.subscribe(subscriber); // Assume sync execution (e.g. encoding with Flux.just)..
+		flux.subscribe(subscriber); // Assume sync execution (for example, encoding with Flux.just)
 		subscriber.cancel();
 	}
 
 	@Test // gh-22731
-	public void cancelWithProtobufDecoder() throws InterruptedException {
+	public void cancelWithProtobufDecoder() {
 		ProtobufDecoder decoder = new ProtobufDecoder();
 
 		Mono<DataBuffer> input = Mono.fromCallable(() -> {
@@ -150,7 +150,7 @@ public class CancelWithoutDemandCodecTests {
 	@Test // gh-22107
 	public void cancelWithSse() {
 		ServerSentEvent<?> event = ServerSentEvent.builder().data("bar").id("c42").event("foo").build();
-		ServerSentEventHttpMessageWriter writer = new ServerSentEventHttpMessageWriter(new Jackson2JsonEncoder());
+		ServerSentEventHttpMessageWriter writer = new ServerSentEventHttpMessageWriter(new JacksonJsonEncoder());
 		CancellingOutputMessage outputMessage = new CancellingOutputMessage(this.bufferFactory);
 
 		writer.write(Mono.just(event), ResolvableType.forClass(ServerSentEvent.class), MediaType.TEXT_EVENT_STREAM,
@@ -187,7 +187,7 @@ public class CancelWithoutDemandCodecTests {
 		public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 			Flux<? extends DataBuffer> flux = Flux.from(body);
 			BaseSubscriber<DataBuffer> subscriber = new ZeroDemandSubscriber();
-			flux.subscribe(subscriber); // Assume sync execution (e.g. encoding with Flux.just)..
+			flux.subscribe(subscriber); // Assume sync execution (for example, encoding with Flux.just)
 			subscriber.cancel();
 			return Mono.empty();
 		}
@@ -196,7 +196,7 @@ public class CancelWithoutDemandCodecTests {
 		public Mono<Void> writeAndFlushWith(Publisher<? extends Publisher<? extends DataBuffer>> body) {
 			Flux<? extends DataBuffer> flux = Flux.from(body).concatMap(Flux::from);
 			BaseSubscriber<DataBuffer> subscriber = new ZeroDemandSubscriber();
-			flux.subscribe(subscriber); // Assume sync execution (e.g. encoding with Flux.just)..
+			flux.subscribe(subscriber); // Assume sync execution (for example, encoding with Flux.just)
 			subscriber.cancel();
 			return Mono.empty();
 		}
@@ -229,4 +229,5 @@ public class CancelWithoutDemandCodecTests {
 			// Just subscribe without requesting
 		}
 	}
+
 }

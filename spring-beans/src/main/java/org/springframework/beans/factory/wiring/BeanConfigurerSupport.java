@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.beans.factory.wiring;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanCurrentlyInCreationException;
@@ -26,7 +27,6 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -52,11 +52,9 @@ public class BeanConfigurerSupport implements BeanFactoryAware, InitializingBean
 	/** Logger available to subclasses. */
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	@Nullable
-	private volatile BeanWiringInfoResolver beanWiringInfoResolver;
+	private volatile @Nullable BeanWiringInfoResolver beanWiringInfoResolver;
 
-	@Nullable
-	private volatile ConfigurableListableBeanFactory beanFactory;
+	private volatile @Nullable ConfigurableListableBeanFactory beanFactory;
 
 
 	/**
@@ -76,11 +74,11 @@ public class BeanConfigurerSupport implements BeanFactoryAware, InitializingBean
 	 */
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) {
-		if (!(beanFactory instanceof ConfigurableListableBeanFactory)) {
+		if (!(beanFactory instanceof ConfigurableListableBeanFactory clbf)) {
 			throw new IllegalArgumentException(
 				"Bean configurer aspect needs to run in a ConfigurableListableBeanFactory: " + beanFactory);
 		}
-		this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
+		this.beanFactory = clbf;
 		if (this.beanWiringInfoResolver == null) {
 			this.beanWiringInfoResolver = createDefaultBeanWiringInfoResolver();
 		}
@@ -92,8 +90,7 @@ public class BeanConfigurerSupport implements BeanFactoryAware, InitializingBean
 	 * <p>The default implementation builds a {@link ClassNameBeanWiringInfoResolver}.
 	 * @return the default BeanWiringInfoResolver (never {@code null})
 	 */
-	@Nullable
-	protected BeanWiringInfoResolver createDefaultBeanWiringInfoResolver() {
+	protected @Nullable BeanWiringInfoResolver createDefaultBeanWiringInfoResolver() {
 		return new ClassNameBeanWiringInfoResolver();
 	}
 
@@ -158,8 +155,7 @@ public class BeanConfigurerSupport implements BeanFactoryAware, InitializingBean
 		}
 		catch (BeanCreationException ex) {
 			Throwable rootCause = ex.getMostSpecificCause();
-			if (rootCause instanceof BeanCurrentlyInCreationException) {
-				BeanCreationException bce = (BeanCreationException) rootCause;
+			if (rootCause instanceof BeanCurrentlyInCreationException bce) {
 				String bceBeanName = bce.getBeanName();
 				if (bceBeanName != null && beanFactory.isCurrentlyInCreation(bceBeanName)) {
 					if (logger.isDebugEnabled()) {

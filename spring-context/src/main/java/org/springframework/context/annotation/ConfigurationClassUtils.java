@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 package org.springframework.context.annotation;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -30,6 +30,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.context.event.EventListenerFactory;
 import org.springframework.core.Conventions;
 import org.springframework.core.Ordered;
@@ -38,39 +39,59 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
- * Utilities for identifying {@link Configuration} classes.
+ * Utilities for identifying and configuring {@link Configuration} classes.
  *
  * @author Chris Beams
  * @author Juergen Hoeller
  * @author Sam Brannen
- * @since 3.1
+ * @author Stephane Nicoll
+ * @since 6.0
  */
-abstract class ConfigurationClassUtils {
+public abstract class ConfigurationClassUtils {
 
-	public static final String CONFIGURATION_CLASS_FULL = "full";
+	static final String CONFIGURATION_CLASS_FULL = "full";
 
-	public static final String CONFIGURATION_CLASS_LITE = "lite";
+	static final String CONFIGURATION_CLASS_LITE = "lite";
 
-	public static final String CONFIGURATION_CLASS_ATTRIBUTE =
+	/**
+	 * When set to {@link Boolean#TRUE}, this attribute signals that the bean class
+	 * for the given {@link BeanDefinition} should be considered as a candidate
+	 * configuration class in 'lite' mode by default.
+	 * <p>For example, a class registered directly with an {@code ApplicationContext}
+	 * should always be considered a configuration class candidate.
+	 * @since 6.0.10
+	 */
+	static final String CANDIDATE_ATTRIBUTE =
+			Conventions.getQualifiedAttributeName(ConfigurationClassPostProcessor.class, "candidate");
+
+	static final String CONFIGURATION_CLASS_ATTRIBUTE =
 			Conventions.getQualifiedAttributeName(ConfigurationClassPostProcessor.class, "configurationClass");
 
-	private static final String ORDER_ATTRIBUTE =
+	static final String ORDER_ATTRIBUTE =
 			Conventions.getQualifiedAttributeName(ConfigurationClassPostProcessor.class, "order");
 
 
 	private static final Log logger = LogFactory.getLog(ConfigurationClassUtils.class);
 
-	private static final Set<String> candidateIndicators = new HashSet<>(8);
+	private static final Set<String> candidateIndicators = Set.of(
+			Component.class.getName(),
+			ComponentScan.class.getName(),
+			Import.class.getName(),
+			ImportResource.class.getName());
 
-	static {
-		candidateIndicators.add(Component.class.getName());
-		candidateIndicators.add(ComponentScan.class.getName());
-		candidateIndicators.add(Import.class.getName());
-		candidateIndicators.add(ImportResource.class.getName());
+
+	/**
+	 * Initialize a configuration class proxy for the specified class.
+	 * @param userClass the configuration class to initialize
+	 */
+	@SuppressWarnings("unused") // Used by AOT-optimized generated code
+	public static Class<?> initializeConfigurationClass(Class<?> userClass) {
+		Class<?> configurationClass = new ConfigurationClassEnhancer().enhance(userClass, null);
+		Enhancer.registerStaticCallbacks(configurationClass, ConfigurationClassEnhancer.CALLBACKS);
+		return configurationClass;
 	}
 
 
@@ -82,7 +103,7 @@ abstract class ConfigurationClassUtils {
 	 * @param metadataReaderFactory the current factory in use by the caller
 	 * @return whether the candidate qualifies as (any kind of) configuration class
 	 */
-	public static boolean checkConfigurationClassCandidate(
+	static boolean checkConfigurationClassCandidate(
 			BeanDefinition beanDef, MetadataReaderFactory metadataReaderFactory) {
 
 		String className = beanDef.getBeanClassName();
@@ -92,17 +113,17 @@ abstract class ConfigurationClassUtils {
 		}
 
 		AnnotationMetadata metadata;
-		if (beanDef instanceof AnnotatedBeanDefinition &&
-				className.equals(((AnnotatedBeanDefinition) beanDef).getMetadata().getClassName())) {
+		if (beanDef instanceof AnnotatedBeanDefinition annotatedBd &&
+				className.equals(annotatedBd.getMetadata().getClassName())) {
 			// Can reuse the pre-parsed metadata from the given BeanDefinition...
 			// TODO 对于AnnotatedBeanDefinition类型的bd来说, 如果其元数据中的'class'与bd的'class'相同, 则直接使用bd的元数据
-			metadata = ((AnnotatedBeanDefinition) beanDef).getMetadata();
+			metadata = annotatedBd.getMetadata();
 		}
-		else if (beanDef instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) beanDef).hasBeanClass()) {
+		else if (beanDef instanceof AbstractBeanDefinition abstractBd && abstractBd.hasBeanClass()) {
 			// Check already loaded Class if present...
 			// since we possibly can't even load the class file for this Class.
 			// TODO 否则bd是AbstractBeanDefinition, 同时其'class'为一个引用时, 取得'class'指向的引用
-			Class<?> beanClass = ((AbstractBeanDefinition) beanDef).getBeanClass();
+			Class<?> beanClass = abstractBd.getBeanClass();
 			// TODO 如果引用属于以下任何一个类型的后处理器时, 都不是一个配置类
 			if (BeanFactoryPostProcessor.class.isAssignableFrom(beanClass) ||
 					BeanPostProcessor.class.isAssignableFrom(beanClass) ||
@@ -127,13 +148,15 @@ abstract class ConfigurationClassUtils {
 				return false;
 			}
 		}
+
 		// TODO 拿出@Configuration的内容
-		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
+		Map<String, @Nullable Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			// TODO 带有@Configuration注解, 并且不是代理方法时, 设置configurationClass为full类型
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
-		else if (config != null || isConfigurationCandidate(metadata)) {
+		else if (config != null || Boolean.TRUE.equals(beanDef.getAttribute(CANDIDATE_ATTRIBUTE)) ||
+				isConfigurationCandidate(metadata)) {
 			// TODO 带有@Configuration注解, 或有其他注解以及@Bean时, 设置configurationClass为lite类型
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
@@ -158,7 +181,7 @@ abstract class ConfigurationClassUtils {
 	 * @return {@code true} if the given class is to be registered for
 	 * configuration class processing; {@code false} otherwise
 	 */
-	public static boolean isConfigurationCandidate(AnnotationMetadata metadata) {
+	static boolean isConfigurationCandidate(AnnotationMetadata metadata) {
 		// Do not consider an interface or an annotation...
 		if (metadata.isInterface()) {
 			// TODO 元数据为接口或注解时排除
@@ -197,9 +220,8 @@ abstract class ConfigurationClassUtils {
 	 * or {@code Ordered.LOWEST_PRECEDENCE} if none declared
 	 * @since 5.0
 	 */
-	@Nullable
-	public static Integer getOrder(AnnotationMetadata metadata) {
-		Map<String, Object> orderAttributes = metadata.getAnnotationAttributes(Order.class.getName());
+	public static @Nullable Integer getOrder(AnnotationMetadata metadata) {
+		Map<String, @Nullable Object> orderAttributes = metadata.getAnnotationAttributes(Order.class.getName());
 		return (orderAttributes != null ? ((Integer) orderAttributes.get(AnnotationUtils.VALUE)) : null);
 	}
 

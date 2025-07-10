@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.hamcrest.Matcher;
+import org.jspecify.annotations.Nullable;
 import org.reactivestreams.Publisher;
 
 import org.springframework.context.ApplicationContext;
@@ -39,10 +40,17 @@ import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.codec.ClientCodecConfigurer;
 import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.lang.Nullable;
+import org.springframework.http.server.reactive.SslInfo;
+import org.springframework.test.json.JsonComparator;
+import org.springframework.test.json.JsonCompareMode;
+import org.springframework.test.json.JsonComparison;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.Validator;
+import org.springframework.web.client.ApiVersionFormatter;
+import org.springframework.web.client.ApiVersionInserter;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolverBuilder;
+import org.springframework.web.reactive.config.ApiVersionConfigurer;
+import org.springframework.web.reactive.config.BlockingExecutionConfigurer;
 import org.springframework.web.reactive.config.CorsRegistry;
 import org.springframework.web.reactive.config.PathMatchConfigurer;
 import org.springframework.web.reactive.config.ViewResolverRegistry;
@@ -76,14 +84,6 @@ import org.springframework.web.util.UriBuilderFactory;
  * <li>...
  * </ul>
  *
- * <p><strong>Warning</strong>: {@code WebTestClient} is not usable yet in
- * Kotlin due to a <a href="https://youtrack.jetbrains.com/issue/KT-5464">type inference issue</a>
- * which is expected to be fixed as of Kotlin 1.3. You can watch
- * <a href="https://github.com/spring-projects/spring-framework/issues/20606">gh-20606</a>
- * for up-to-date information. Meanwhile, the proposed alternative is to use
- * directly {@link WebClient} with its Reactor and Spring Kotlin extensions to
- * perform integration tests on an embedded WebFlux server.
- *
  * @author Rossen Stoyanchev
  * @author Brian Clozel
  * @author Sam Brannen
@@ -98,7 +98,7 @@ public interface WebTestClient {
 	/**
 	 * The name of a request header used to assign a unique id to every request
 	 * performed through the {@code WebTestClient}. This can be useful for
-	 * storing contextual information at all phases of request processing (e.g.
+	 * storing contextual information at all phases of request processing (for example,
 	 * from a server-side component) under that id and later to look up
 	 * that information once an {@link ExchangeResult} is available.
 	 */
@@ -180,7 +180,7 @@ public interface WebTestClient {
 	 * There are builder methods to customize the Java config. The resulting
 	 * WebFlux application will be tested without an HTTP server using a mock
 	 * request and response.
-	 * @param controllers one or more controller instances to tests
+	 * @param controllers one or more controller instances to test
 	 * (specified {@code Class} will be turned into instance)
 	 * @return chained API to customize server and client config; use
 	 * {@link MockServerSpec#configureClient()} to transition to client config
@@ -203,7 +203,7 @@ public interface WebTestClient {
 	}
 
 	/**
-	 * Use this option to setup a server from the Spring configuration of your
+	 * Use this option to set up a server from the Spring configuration of your
 	 * application, or some subset of it. Internally the provided configuration
 	 * is passed to {@code WebHttpHandlerBuilder} to set up the request
 	 * processing chain. The resulting WebFlux application will be tested
@@ -275,6 +275,15 @@ public interface WebTestClient {
 		 * @param sessionManager the session manager to use
 		 */
 		<T extends B> T webSessionManager(WebSessionManager sessionManager);
+
+		/**
+		 * Set or reset SSL session information to assign to mock server requests.
+		 * @param info the {@link SslInfo} to use
+		 * @since 7.0
+		 * @see SslInfo#from(String)
+		 * @see SslInfo#from(String, java.security.cert.X509Certificate...)
+		 */
+		<T extends B> T sslInfo(@Nullable SslInfo info);
 
 		/**
 		 * Shortcut for pre-packaged customizations to the mock server setup.
@@ -349,10 +358,23 @@ public interface WebTestClient {
 		ControllerSpec validator(Validator validator);
 
 		/**
+		 * Configure API versioning for mapping requests to controller methods.
+		 * @since 7.0
+		 */
+		ControllerSpec apiVersioning(Consumer<ApiVersionConfigurer> configurer);
+
+		/**
 		 * Configure view resolution.
 		 * @see WebFluxConfigurer#configureViewResolvers
 		 */
 		ControllerSpec viewResolvers(Consumer<ViewResolverRegistry> consumer);
+
+		/**
+		 * Configure blocking execution options.
+		 * @since 6.1
+		 * @see WebFluxConfigurer#configureBlockingExecution
+		 */
+		ControllerSpec blockingExecution(Consumer<BlockingExecutionConfigurer> consumer);
 	}
 
 
@@ -400,7 +422,7 @@ public interface WebTestClient {
 		 * Manipulate the default headers with the given consumer. The
 		 * headers provided to the consumer are "live", so that the consumer can be used to
 		 * {@linkplain HttpHeaders#set(String, String) overwrite} existing header values,
-		 * {@linkplain HttpHeaders#remove(Object) remove} values, or use any of the other
+		 * {@linkplain HttpHeaders#remove(String) remove} values, or use any of the other
 		 * {@link HttpHeaders} methods.
 		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
 		 * @return this builder
@@ -424,6 +446,24 @@ public interface WebTestClient {
 		 * @return this builder
 		 */
 		Builder defaultCookies(Consumer<MultiValueMap<String, String>> cookiesConsumer);
+
+		/**
+		 * Global option to specify an API version to add to every request,
+		 * if not already set.
+		 * @param version the version to use
+		 * @return this builder
+		 * @since 7.0
+		 */
+		Builder defaultApiVersion(Object version);
+
+		/**
+		 * Configure an {@link ApiVersionInserter} to abstract how an API version
+		 * specified via {@link RequestHeadersSpec#apiVersion(Object)}
+		 * is inserted into the request.
+		 * @param apiVersionInserter the inserter to use
+		 * @since 7.0
+		 */
+		Builder apiVersionInserter(ApiVersionInserter apiVersionInserter);
 
 		/**
 		 * Add the given filter to the filter chain.
@@ -488,21 +528,23 @@ public interface WebTestClient {
 		Builder exchangeStrategies(ExchangeStrategies strategies);
 
 		/**
-		 * Customize the strategies configured via
-		 * {@link #exchangeStrategies(ExchangeStrategies)}. This method is
-		 * designed for use in scenarios where multiple parties wish to update
-		 * the {@code ExchangeStrategies}.
-		 * @deprecated as of 5.1.13 in favor of {@link #codecs(Consumer)}
-		 */
-		@Deprecated
-		Builder exchangeStrategies(Consumer<ExchangeStrategies.Builder> configurer);
-
-		/**
 		 * Max amount of time to wait for responses.
 		 * <p>By default 5 seconds.
 		 * @param timeout the response timeout value
 		 */
 		Builder responseTimeout(Duration timeout);
+
+		/**
+		 * Set the {@link ClientHttpConnector} to use.
+		 * <p>By default, this is initialized and set internally. However, the
+		 * connector may also be prepared externally and passed via
+		 * {@link WebTestClient#bindToServer(ClientHttpConnector)} such as for
+		 * {@code MockMvcWebTestClient} tests, and in that case you can use this
+		 * from {@link #mutateWith(WebTestClientConfigurer)} to replace it.
+		 * @param connector the connector to use
+		 * @since 6.1
+		 */
+		Builder clientConnector(ClientHttpConnector connector);
 
 		/**
 		 * Apply the given configurer to this builder instance.
@@ -538,19 +580,19 @@ public interface WebTestClient {
 
 		/**
 		 * Specify the URI for the request using a URI template and URI variables.
-		 * <p>If a {@link UriBuilderFactory} was configured for the client (e.g.
+		 * <p>If a {@link UriBuilderFactory} was configured for the client (for example,
 		 * with a base URI) it will be used to expand the URI template.
 		 * @return spec to add headers or perform the exchange
 		 */
-		S uri(String uri, Object... uriVariables);
+		S uri(String uri, @Nullable Object... uriVariables);
 
 		/**
 		 * Specify the URI for the request using a URI template and URI variables.
-		 * <p>If a {@link UriBuilderFactory} was configured for the client (e.g.
+		 * <p>If a {@link UriBuilderFactory} was configured for the client (for example,
 		 * with a base URI) it will be used to expand the URI template.
 		 * @return spec to add headers or perform the exchange
 		 */
-		S uri(String uri, Map<String, ?> uriVariables);
+		S uri(String uri, Map<String, ? extends @Nullable Object> uriVariables);
 
 		/**
 		 * Build the URI for the request with a {@link UriBuilder} obtained
@@ -631,12 +673,23 @@ public interface WebTestClient {
 		 * Manipulate the request's headers with the given consumer. The
 		 * headers provided to the consumer are "live", so that the consumer can be used to
 		 * {@linkplain HttpHeaders#set(String, String) overwrite} existing header values,
-		 * {@linkplain HttpHeaders#remove(Object) remove} values, or use any of the other
+		 * {@linkplain HttpHeaders#remove(String) remove} values, or use any of the other
 		 * {@link HttpHeaders} methods.
 		 * @param headersConsumer a function that consumes the {@code HttpHeaders}
 		 * @return this builder
 		 */
 		S headers(Consumer<HttpHeaders> headersConsumer);
+
+		/**
+		 * Set an API version for the request. The version is inserted into the
+		 * request by the {@linkplain Builder#apiVersionInserter(ApiVersionInserter)
+		 * configured} {@code ApiVersionInserter}.
+		 * @param version the API version of the request; this can be a String or
+		 * some Object that can be formatted by the inserter &mdash; for example,
+		 * through an {@link ApiVersionFormatter}
+		 * @since 7.0
+		 */
+		S apiVersion(Object version);
 
 		/**
 		 * Set the attribute with the given name to the given value.
@@ -756,15 +809,6 @@ public interface WebTestClient {
 		 * @see org.springframework.web.reactive.function.BodyInserters
 		 */
 		RequestHeadersSpec<?> body(BodyInserter<?, ? super ClientHttpRequest> inserter);
-
-		/**
-		 * Shortcut for {@link #body(BodyInserter)} with a
-		 * {@linkplain BodyInserters#fromValue value inserter}.
-		 * As of 5.2 this method delegates to {@link #bodyValue(Object)}.
-		 * @deprecated as of Spring Framework 5.2 in favor of {@link #bodyValue(Object)}
-		 */
-		@Deprecated
-		RequestHeadersSpec<?> syncBody(Object body);
 	}
 
 
@@ -796,7 +840,7 @@ public interface WebTestClient {
 		 * <p>If a single {@link Error} or {@link RuntimeException} is thrown,
 		 * it will be rethrown.
 		 * <p>If multiple exceptions are thrown, this method will throw an
-		 * {@link AssertionError} whose error message is a summary of all of the
+		 * {@link AssertionError} whose error message is a summary of all the
 		 * exceptions. In addition, each exception will be added as a
 		 * {@linkplain Throwable#addSuppressed(Throwable) suppressed exception} to
 		 * the {@code AssertionError}.
@@ -860,13 +904,13 @@ public interface WebTestClient {
 
 		/**
 		 * Consume and decode the response body to {@code byte[]} and then apply
-		 * assertions on the raw content (e.g. isEmpty, JSONPath, etc.)
+		 * assertions on the raw content (for example, isEmpty, JSONPath, etc.).
 		 */
 		BodyContentSpec expectBody();
 
 		/**
 		 * Exit the chained flow in order to consume the response body
-		 * externally, e.g. via {@link reactor.test.StepVerifier}.
+		 * externally, for example, via {@link reactor.test.StepVerifier}.
 		 * <p>Note that when {@code Void.class} is passed in, the response body
 		 * is consumed and released. If no content is expected, then consider
 		 * using {@code .expectBody().isEmpty()} instead which asserts that
@@ -903,26 +947,26 @@ public interface WebTestClient {
 		/**
 		 * Assert the extracted body is equal to the given value.
 		 */
-		<T extends S> T isEqualTo(B expected);
+		<T extends S> T isEqualTo(@Nullable B expected);
 
 		/**
 		 * Assert the extracted body with a {@link Matcher}.
 		 * @since 5.1
 		 */
-		<T extends S> T value(Matcher<? super B> matcher);
+		<T extends S> T value(Matcher<? super @Nullable B> matcher);
 
 		/**
-		 * Transform the extracted the body with a function, e.g. extracting a
+		 * Transform the extracted the body with a function, for example, extracting a
 		 * property, and assert the mapped value with a {@link Matcher}.
 		 * @since 5.1
 		 */
-		<T extends S, R> T value(Function<B, R> bodyMapper, Matcher<? super R> matcher);
+		<T extends S, R> T value(Function<@Nullable B, @Nullable R> bodyMapper, Matcher<? super @Nullable R> matcher);
 
 		/**
 		 * Assert the extracted body with a {@link Consumer}.
 		 * @since 5.1
 		 */
-		<T extends S> T value(Consumer<B> consumer);
+		<T extends S> T value(Consumer<@Nullable B> consumer);
 
 		/**
 		 * Assert the exchange result with the given {@link Consumer}.
@@ -942,7 +986,7 @@ public interface WebTestClient {
 	 *
 	 * @param <E> the body list element type
 	 */
-	interface ListBodySpec<E> extends BodySpec<List<E>, ListBodySpec<E>> {
+	interface ListBodySpec<E> extends BodySpec<List<@Nullable E>, ListBodySpec<E>> {
 
 		/**
 		 * Assert the extracted list of values is of the given size.
@@ -955,14 +999,14 @@ public interface WebTestClient {
 		 * @param elements the elements to check
 		 */
 		@SuppressWarnings("unchecked")
-		ListBodySpec<E> contains(E... elements);
+		ListBodySpec<E> contains(@Nullable E... elements);
 
 		/**
 		 * Assert the extracted list of values doesn't contain the given elements.
 		 * @param elements the elements to check
 		 */
 		@SuppressWarnings("unchecked")
-		ListBodySpec<E> doesNotContain(E... elements);
+		ListBodySpec<E> doesNotContain(@Nullable E... elements);
 	}
 
 
@@ -985,10 +1029,10 @@ public interface WebTestClient {
 		 * <a href="https://jsonassert.skyscreamer.org/">JSONassert</a> library
 		 * to be on the classpath.
 		 * @param expectedJson the expected JSON content
-		 * @see #json(String, boolean)
+		 * @see #json(String, JsonCompareMode)
 		 */
 		default BodyContentSpec json(String expectedJson) {
-			return json(expectedJson, false);
+			return json(expectedJson, JsonCompareMode.LENIENT);
 		}
 
 		/**
@@ -1007,8 +1051,36 @@ public interface WebTestClient {
 		 * @param strict enables strict checking if {@code true}
 		 * @since 5.3.16
 		 * @see #json(String)
+		 * @deprecated in favor of {@link #json(String, JsonCompareMode)}
 		 */
+		@Deprecated(since = "6.2")
 		BodyContentSpec json(String expectedJson, boolean strict);
+
+		/**
+		 * Parse the expected and actual response content as JSON and perform a
+		 * comparison using the given {@linkplain JsonCompareMode mode}. If the
+		 * comparison failed, throws an {@link AssertionError} with the message
+		 * of the {@link JsonComparison}.
+		 * <p>Use of this method requires the
+		 * <a href="https://jsonassert.skyscreamer.org/">JSONassert</a> library
+		 * to be on the classpath.
+		 * @param expectedJson the expected JSON content
+		 * @param compareMode the compare mode
+		 * @since 6.2
+		 * @see #json(String)
+		 */
+		BodyContentSpec json(String expectedJson, JsonCompareMode compareMode);
+
+		/**
+		 * Parse the expected and actual response content as JSON and perform a
+		 * comparison using the given {@link JsonComparator}. If the comparison
+		 * failed, throws an {@link AssertionError} with the message  of the
+		 * {@link JsonComparison}.
+		 * @param expectedJson the expected JSON content
+		 * @param comparator the comparator to use
+		 * @since 6.2
+		 */
+		BodyContentSpec json(String expectedJson, JsonComparator comparator);
 
 		/**
 		 * Parse expected and actual response content as XML and assert that
@@ -1017,7 +1089,7 @@ public interface WebTestClient {
 		 * <p>Use of this method requires the
 		 * <a href="https://github.com/xmlunit/xmlunit">XMLUnit</a> library on
 		 * the classpath.
-		 * @param expectedXml the expected JSON content.
+		 * @param expectedXml the expected XML content.
 		 * @since 5.1
 		 * @see org.springframework.test.util.XmlExpectationsHelper#assertXmlEqual(String, String)
 		 */
@@ -1027,12 +1099,10 @@ public interface WebTestClient {
 		 * Access to response body assertions using a
 		 * <a href="https://github.com/jayway/JsonPath">JsonPath</a> expression
 		 * to inspect a specific subset of the body.
-		 * <p>The JSON path expression can be a parameterized string using
-		 * formatting specifiers as defined in {@link String#format}.
 		 * @param expression the JsonPath expression
-		 * @param args arguments to parameterize the expression
+		 * @since 6.2
 		 */
-		JsonPathAssertions jsonPath(String expression, Object... args);
+		JsonPathAssertions jsonPath(String expression);
 
 		/**
 		 * Access to response body assertions using an XPath expression to

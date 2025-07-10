@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,20 +29,21 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceProperty;
 import jakarta.persistence.PersistenceUnit;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.springframework.aot.generate.DefaultGenerationContext;
-import org.springframework.aot.generate.InMemoryGeneratedFiles;
+import org.springframework.aot.hint.FieldHint;
 import org.springframework.aot.hint.TypeReference;
-import org.springframework.aot.test.generator.compile.CompileWithTargetClassAccess;
-import org.springframework.aot.test.generator.compile.Compiled;
-import org.springframework.aot.test.generator.compile.TestCompiler;
+import org.springframework.aot.test.generate.TestGenerationContext;
 import org.springframework.beans.factory.aot.BeanRegistrationAotContribution;
 import org.springframework.beans.factory.aot.BeanRegistrationCode;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RegisteredBean;
 import org.springframework.beans.factory.support.RootBeanDefinition;
+import org.springframework.core.test.tools.CompileWithForkedClassLoader;
+import org.springframework.core.test.tools.Compiled;
+import org.springframework.core.test.tools.TestCompiler;
 import org.springframework.util.ReflectionUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,27 +55,38 @@ import static org.mockito.Mockito.mock;
  * @author Stephane Nicoll
  * @author Phillip Webb
  */
-@CompileWithTargetClassAccess
+@CompileWithForkedClassLoader
 class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 
 	private DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 
-	private InMemoryGeneratedFiles generatedFiles;
-
-	private DefaultGenerationContext generationContext;
+	private TestGenerationContext generationContext;
 
 	@BeforeEach
 	void setup() {
 		this.beanFactory = new DefaultListableBeanFactory();
-		this.generatedFiles = new InMemoryGeneratedFiles();
-		this.generationContext = new DefaultGenerationContext(generatedFiles);
+		this.generationContext = new TestGenerationContext();
+	}
+
+	@Test
+	void processAheadOfTimeWhenPersistenceUnitOnFieldAndPropertyValueSet() {
+		RegisteredBean registeredBean = registerBean(DefaultPersistenceUnitField.class);
+		registeredBean.getMergedBeanDefinition().getPropertyValues().add("emf", "myEntityManagerFactory");
+		assertThat(processAheadOfTime(registeredBean)).isNotNull(); // Field not handled by property values
+	}
+
+	@Test
+	void processAheadOfTimeWhenPersistenceUnitOnMethodAndPropertyValueSet() {
+		RegisteredBean registeredBean = registerBean(DefaultPersistenceUnitMethod.class);
+		registeredBean.getMergedBeanDefinition().getPropertyValues().add("emf", "myEntityManagerFactory");
+		assertThat(processAheadOfTime(registeredBean)).isNull();
 	}
 
 	@Test
 	void processAheadOfTimeWhenPersistenceUnitOnPublicField() {
 		RegisteredBean registeredBean = registerBean(DefaultPersistenceUnitField.class);
 		testCompile(registeredBean, (actual, compiled) -> {
-			EntityManagerFactory entityManagerFactory = mock(EntityManagerFactory.class);
+			EntityManagerFactory entityManagerFactory = mock();
 			this.beanFactory.registerSingleton("entityManagerFactory",
 					entityManagerFactory);
 			DefaultPersistenceUnitField instance = new DefaultPersistenceUnitField();
@@ -89,7 +101,7 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 	void processAheadOfTimeWhenPersistenceUnitOnPublicSetter() {
 		RegisteredBean registeredBean = registerBean(DefaultPersistenceUnitMethod.class);
 		testCompile(registeredBean, (actual, compiled) -> {
-			EntityManagerFactory entityManagerFactory = mock(EntityManagerFactory.class);
+			EntityManagerFactory entityManagerFactory = mock();
 			this.beanFactory.registerSingleton("entityManagerFactory",
 					entityManagerFactory);
 			DefaultPersistenceUnitMethod instance = new DefaultPersistenceUnitMethod();
@@ -105,7 +117,7 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 		RegisteredBean registeredBean = registerBean(
 				CustomUnitNamePublicPersistenceUnitMethod.class);
 		testCompile(registeredBean, (actual, compiled) -> {
-			EntityManagerFactory entityManagerFactory = mock(EntityManagerFactory.class);
+			EntityManagerFactory entityManagerFactory = mock();
 			this.beanFactory.registerSingleton("custom", entityManagerFactory);
 			CustomUnitNamePublicPersistenceUnitMethod instance = new CustomUnitNamePublicPersistenceUnitMethod();
 			actual.accept(registeredBean, instance);
@@ -122,7 +134,7 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 		RegisteredBean registeredBean = registerBean(
 				DefaultPersistenceContextField.class);
 		testCompile(registeredBean, (actual, compiled) -> {
-			EntityManagerFactory entityManagerFactory = mock(EntityManagerFactory.class);
+			EntityManagerFactory entityManagerFactory = mock();
 			this.beanFactory.registerSingleton("entityManagerFactory",
 					entityManagerFactory);
 			DefaultPersistenceContextField instance = new DefaultPersistenceContextField();
@@ -132,13 +144,8 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 					.singleElement().satisfies(typeHint -> {
 						assertThat(typeHint.getType()).isEqualTo(
 								TypeReference.of(DefaultPersistenceContextField.class));
-						assertThat(typeHint.fields()).singleElement()
-								.satisfies(fieldHint -> {
-									assertThat(fieldHint.getName())
-											.isEqualTo("entityManager");
-									assertThat(fieldHint.isAllowWrite()).isTrue();
-									assertThat(fieldHint.isAllowUnsafeAccess()).isFalse();
-								});
+						assertThat(typeHint.fields()).singleElement().satisfies(fieldHint ->
+								assertThat(fieldHint.getName()).isEqualTo("entityManager"));
 					});
 		});
 	}
@@ -148,7 +155,7 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 		RegisteredBean registeredBean = registerBean(
 				CustomPropertiesPersistenceContextMethod.class);
 		testCompile(registeredBean, (actual, compiled) -> {
-			EntityManagerFactory entityManagerFactory = mock(EntityManagerFactory.class);
+			EntityManagerFactory entityManagerFactory = mock();
 			this.beanFactory.registerSingleton("entityManagerFactory",
 					entityManagerFactory);
 			CustomPropertiesPersistenceContextMethod instance = new CustomPropertiesPersistenceContextMethod();
@@ -169,6 +176,28 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 		});
 	}
 
+	@Test
+	void processAheadOfTimeWhenPersistenceContextOnPrivateFields() {
+		RegisteredBean registeredBean = registerBean(
+				SeveralPersistenceContextField.class);
+		testCompile(registeredBean, (actual, compiled) -> {
+			EntityManagerFactory entityManagerFactory = mock();
+			this.beanFactory.registerSingleton("custom", entityManagerFactory);
+			this.beanFactory.registerAlias("custom", "another");
+			SeveralPersistenceContextField instance = new SeveralPersistenceContextField();
+			actual.accept(registeredBean, instance);
+			assertThat(instance).extracting("customEntityManager").isNotNull();
+			assertThat(instance).extracting("anotherEntityManager").isNotNull();
+			assertThat(this.generationContext.getRuntimeHints().reflection().typeHints())
+					.singleElement().satisfies(typeHint -> {
+						assertThat(typeHint.getType()).isEqualTo(
+								TypeReference.of(SeveralPersistenceContextField.class));
+						assertThat(typeHint.fields().map(FieldHint::getName))
+								.containsOnly("customEntityManager", "anotherEntityManager");
+					});
+		});
+	}
+
 	private RegisteredBean registerBean(Class<?> beanClass) {
 		String beanName = "testBean";
 		this.beanFactory.registerBeanDefinition(beanName,
@@ -178,13 +207,17 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 
 	private void testCompile(RegisteredBean registeredBean,
 			BiConsumer<BiConsumer<RegisteredBean, Object>, Compiled> result) {
-		PersistenceAnnotationBeanPostProcessor postProcessor = new PersistenceAnnotationBeanPostProcessor();
-		BeanRegistrationAotContribution contribution = postProcessor
-				.processAheadOfTime(registeredBean);
-		BeanRegistrationCode beanRegistrationCode = mock(BeanRegistrationCode.class);
+		BeanRegistrationAotContribution contribution = processAheadOfTime(registeredBean);
+		BeanRegistrationCode beanRegistrationCode = mock();
 		contribution.applyTo(generationContext, beanRegistrationCode);
-		TestCompiler.forSystem().withFiles(generatedFiles)
+		generationContext.writeGeneratedContent();
+		TestCompiler.forSystem().with(generationContext)
 				.compile(compiled -> result.accept(new Invoker(compiled), compiled));
+	}
+
+	private @Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
+		PersistenceAnnotationBeanPostProcessor postProcessor = new PersistenceAnnotationBeanPostProcessor();
+		return postProcessor.processAheadOfTime(registeredBean);
 	}
 
 	static class Invoker implements BiConsumer<RegisteredBean, Object> {
@@ -261,6 +294,18 @@ class PersistenceAnnotationBeanPostProcessorAotContributionTests {
 		public void setEntityManager(EntityManager entityManager) {
 			this.entityManager = entityManager;
 		}
+
+	}
+
+	static class SeveralPersistenceContextField {
+
+		@SuppressWarnings("unused")
+		@PersistenceContext(name = "custom")
+		private EntityManager customEntityManager;
+
+		@SuppressWarnings("unused")
+		@PersistenceContext(name = "another")
+		private EntityManager anotherEntityManager;
 
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+
+import org.springframework.lang.Contract;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
 /**
@@ -34,9 +36,9 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * meta-annotations to ultimately provide a quick way to map the attributes of
  * a root {@link Annotation}.
  *
- * <p>Supports convention based merging of meta-annotations as well as implicit
- * and explicit {@link AliasFor @AliasFor} aliases. Also provides information
- * about mirrored attributes.
+ * <p>Supports merging of meta-annotations as well as implicit and explicit
+ * {@link AliasFor @AliasFor} aliases. Also provides information about mirrored
+ * attributes.
  *
  * <p>This class is designed to be cached so that meta-annotations only need to
  * be searched once, regardless of how many times they are actually used.
@@ -76,7 +78,6 @@ final class AnnotationTypeMappings {
 
 	private void addAllMappings(Class<? extends Annotation> annotationType,
 			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
 		Deque<AnnotationTypeMapping> queue = new ArrayDeque<>();
 		addIfPossible(queue, null, annotationType, null, visitedAnnotationTypes);
 		while (!queue.isEmpty()) {
@@ -87,7 +88,7 @@ final class AnnotationTypeMappings {
 	}
 
 	private void addMetaAnnotationsToQueue(Deque<AnnotationTypeMapping> queue, AnnotationTypeMapping source) {
-		Annotation[] metaAnnotations = AnnotationsScanner.getDeclaredAnnotations(source.getAnnotationType(), false);
+		@Nullable Annotation[] metaAnnotations = AnnotationsScanner.getDeclaredAnnotations(source.getAnnotationType(), false);
 		for (Annotation metaAnnotation : metaAnnotations) {
 			if (!isMappable(source, metaAnnotation)) {
 				continue;
@@ -127,6 +128,7 @@ final class AnnotationTypeMappings {
 		}
 	}
 
+	@Contract("_, null -> false")
 	private boolean isMappable(AnnotationTypeMapping source, @Nullable Annotation metaAnnotation) {
 		return (metaAnnotation != null && !this.filter.matches(metaAnnotation) &&
 				!AnnotationFilter.PLAIN.matches(source.getAnnotationType()) &&
@@ -160,7 +162,7 @@ final class AnnotationTypeMappings {
 	 * @param index the index to return
 	 * @return the {@link AnnotationTypeMapping}
 	 * @throws IndexOutOfBoundsException if the index is out of range
-	 * (<tt>index &lt; 0 || index &gt;= size()</tt>)
+	 * ({@code index < 0 || index >= size()})
 	 */
 	AnnotationTypeMapping get(int index) {
 		return this.mappings.get(index);
@@ -218,7 +220,7 @@ final class AnnotationTypeMappings {
 	 * some JVM languages support (such as Kotlin)
 	 * @return type mappings for the annotation type
 	 */
-	private static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
+	static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
 			RepeatableContainers repeatableContainers, AnnotationFilter annotationFilter,
 			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
 
@@ -230,7 +232,8 @@ final class AnnotationTypeMappings {
 			return noRepeatablesCache.computeIfAbsent(annotationFilter,
 					key -> new Cache(repeatableContainers, key)).get(annotationType, visitedAnnotationTypes);
 		}
-		return new AnnotationTypeMappings(repeatableContainers, annotationFilter, annotationType, visitedAnnotationTypes);
+		return new AnnotationTypeMappings(repeatableContainers, annotationFilter, annotationType,
+				visitedAnnotationTypes);
 	}
 
 	static void clearCache() {
@@ -270,14 +273,13 @@ final class AnnotationTypeMappings {
 		 */
 		AnnotationTypeMappings get(Class<? extends Annotation> annotationType,
 				Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
 			return this.mappings.computeIfAbsent(annotationType, key -> createMappings(key, visitedAnnotationTypes));
 		}
 
 		private AnnotationTypeMappings createMappings(Class<? extends Annotation> annotationType,
 				Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
-			return new AnnotationTypeMappings(this.repeatableContainers, this.filter, annotationType, visitedAnnotationTypes);
+			return new AnnotationTypeMappings(this.repeatableContainers, this.filter, annotationType,
+					visitedAnnotationTypes);
 		}
 	}
 

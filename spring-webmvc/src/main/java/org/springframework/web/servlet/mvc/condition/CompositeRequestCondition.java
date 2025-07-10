@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import java.util.Collections;
 import java.util.List;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.jspecify.annotations.Nullable;
 
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -133,8 +133,8 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 
 	private void assertNumberOfConditions(CompositeRequestCondition other) {
 		Assert.isTrue(getLength() == other.getLength(),
-				"Cannot combine CompositeRequestConditions with a different number of conditions. " +
-				ObjectUtils.nullSafeToString(this.requestConditions) + " and  " +
+				() -> "Cannot combine CompositeRequestConditions with a different number of conditions. " +
+				ObjectUtils.nullSafeToString(this.requestConditions) + " and " +
 				ObjectUtils.nullSafeToString(other.requestConditions));
 	}
 
@@ -144,17 +144,17 @@ public class CompositeRequestCondition extends AbstractRequestCondition<Composit
 	 * <p>An empty {@code CompositeRequestCondition} matches to all requests.
 	 */
 	@Override
-	@Nullable
-	public CompositeRequestCondition getMatchingCondition(HttpServletRequest request) {
+	public @Nullable CompositeRequestCondition getMatchingCondition(HttpServletRequest request) {
 		if (isEmpty()) {
 			return this;
 		}
 		RequestConditionHolder[] matchingConditions = new RequestConditionHolder[getLength()];
 		for (int i = 0; i < getLength(); i++) {
-			matchingConditions[i] = this.requestConditions[i].getMatchingCondition(request);
-			if (matchingConditions[i] == null) {
+			RequestConditionHolder matchingCondition = this.requestConditions[i].getMatchingCondition(request);
+			if (matchingCondition == null) {
 				return null;
 			}
+			matchingConditions[i] = matchingCondition;
 		}
 		return new CompositeRequestCondition(matchingConditions);
 	}

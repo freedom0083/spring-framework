@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-present the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,36 +43,36 @@ import static org.mockito.Mockito.verify;
  * @author Rod Johnson
  * @author Juergen Hoeller
  */
-public class ControllerTests {
+class ControllerTests {
 
 	@Test
-	public void parameterizableViewController() throws Exception {
+	void parameterizableViewController() throws Exception {
 		String viewName = "viewName";
 		ParameterizableViewController pvc = new ParameterizableViewController();
 		pvc.setViewName(viewName);
 		// We don't care about the params.
 		ModelAndView mv = pvc.handleRequest(new MockHttpServletRequest("GET", "foo.html"), new MockHttpServletResponse());
-		assertThat(mv.getModel().size() == 0).as("model has no data").isTrue();
-		assertThat(mv.getViewName().equals(viewName)).as("model has correct viewname").isTrue();
-		assertThat(pvc.getViewName().equals(viewName)).as("getViewName matches").isTrue();
+		assertThat(mv.getModel()).as("model has no data").isEmpty();
+		assertThat(mv.getViewName()).as("model has correct viewname").isEqualTo(viewName);
+		assertThat(pvc.getViewName()).as("getViewName matches").isEqualTo(viewName);
 	}
 
 	@Test
-	public void servletForwardingController() throws Exception {
+	void servletForwardingController() throws Exception {
 		ServletForwardingController sfc = new ServletForwardingController();
 		sfc.setServletName("action");
 		doTestServletForwardingController(sfc, false);
 	}
 
 	@Test
-	public void servletForwardingControllerWithInclude() throws Exception {
+	void servletForwardingControllerWithInclude() throws Exception {
 		ServletForwardingController sfc = new ServletForwardingController();
 		sfc.setServletName("action");
 		doTestServletForwardingController(sfc, true);
 	}
 
 	@Test
-	public void servletForwardingControllerWithBeanName() throws Exception {
+	void servletForwardingControllerWithBeanName() throws Exception {
 		ServletForwardingController sfc = new ServletForwardingController();
 		sfc.setBeanName("action");
 		doTestServletForwardingController(sfc, false);
@@ -81,10 +81,10 @@ public class ControllerTests {
 	private void doTestServletForwardingController(ServletForwardingController sfc, boolean include)
 			throws Exception {
 
-		HttpServletRequest request = mock(HttpServletRequest.class);
-		HttpServletResponse response = mock(HttpServletResponse.class);
-		ServletContext context = mock(ServletContext.class);
-		RequestDispatcher dispatcher = mock(RequestDispatcher.class);
+		HttpServletRequest request = mock();
+		HttpServletResponse response = mock();
+		ServletContext context = mock();
+		RequestDispatcher dispatcher = mock();
 
 		given(request.getMethod()).willReturn("GET");
 		given(context.getNamedDispatcher("action")).willReturn(dispatcher);
@@ -109,7 +109,7 @@ public class ControllerTests {
 	}
 
 	@Test
-	public void servletWrappingController() throws Exception {
+	void servletWrappingController() throws Exception {
 		HttpServletRequest request = new MockHttpServletRequest("GET", "/somePath");
 		HttpServletResponse response = new MockHttpServletResponse();
 
@@ -137,7 +137,7 @@ public class ControllerTests {
 	}
 
 	@Test
-	public void servletWrappingControllerWithBeanName() throws Exception {
+	void servletWrappingControllerWithBeanName() throws Exception {
 		HttpServletRequest request = new MockHttpServletRequest("GET", "/somePath");
 		HttpServletResponse response = new MockHttpServletResponse();
 

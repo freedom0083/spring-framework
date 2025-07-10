@@ -284,6 +284,12 @@ public interface Opcodes {
   int V17 = 0 << 16 | 61;
   int V18 = 0 << 16 | 62;
   int V19 = 0 << 16 | 63;
+  int V20 = 0 << 16 | 64;
+  int V21 = 0 << 16 | 65;
+  int V22 = 0 << 16 | 66;
+  int V23 = 0 << 16 | 67;
+  int V24 = 0 << 16 | 68;
+  int V25 = 0 << 16 | 69;
 
   /**
    * Version flag indicating that the class is using 'preview' features.
