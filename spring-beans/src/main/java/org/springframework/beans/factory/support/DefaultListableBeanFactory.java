@@ -1456,7 +1456,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 		}
 		else if (!beanDefinition.equals(existingDefinition)) {
-			// TODO 被代理后, bd会出现与窗口中不相等的情况
+			// TODO 被代理后, bd会出现与容器中不相等的情况
 			if (explicitBeanOverride && logger.isInfoEnabled()) {
 				logger.info("Overriding bean definition for bean '" + beanName +
 						"' with a different definition: replacing [" + existingDefinition +
