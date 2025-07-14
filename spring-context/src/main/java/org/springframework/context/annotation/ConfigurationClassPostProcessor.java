@@ -417,13 +417,21 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		SingletonBeanRegistry singletonRegistry = null;
 		if (registry instanceof SingletonBeanRegistry sbr) {
 			singletonRegistry = sbr;
-			if (!this.localBeanNameGeneratorSet) {
-				// TODO 生成默认的bean name生成器(internalConfigurationBeanNameGenerator)
-				BeanNameGenerator generator = (BeanNameGenerator) singletonRegistry.getSingleton(
-						AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR);
-				if (generator != null) {
-					this.componentScanBeanNameGenerator = generator;
-					this.importBeanNameGenerator = generator;
+			// TODO 生成默认的bean name生成器(internalConfigurationBeanNameGenerator)
+			BeanNameGenerator configurationGenerator = (BeanNameGenerator) singletonRegistry.getSingleton(
+					AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR);
+			if (configurationGenerator != null) {
+				if (this.localBeanNameGeneratorSet) {
+					if (configurationGenerator instanceof ConfigurationBeanNameGenerator &
+							configurationGenerator != this.importBeanNameGenerator) {
+						throw new IllegalStateException("Context-level ConfigurationBeanNameGenerator [" +
+								configurationGenerator + "] must not be overridden with processor-level generator [" +
+								this.importBeanNameGenerator + "]");
+					}
+				}
+				else {
+					this.componentScanBeanNameGenerator = configurationGenerator;
+					this.importBeanNameGenerator = configurationGenerator;
 				}
 			}
 		}

@@ -18,10 +18,7 @@ package org.springframework.context.annotation;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -211,16 +208,33 @@ class ConfigurationClassBeanDefinitionReader {
 		AnnotationAttributes bean = AnnotationConfigUtils.attributesFor(metadata, Bean.class);
 		Assert.state(bean != null, "No @Bean annotation attributes");
 
-		// Consider name and any aliases
-		List<String> names = new ArrayList<>(Arrays.asList(bean.getStringArray("name")));
+		// Consider name and any aliases.
+		String[] explicitNames = bean.getStringArray("name");
 		// TODO 把name属性(配置的别名)中第一个元素弹出, 当做bean的名字, 如果没配置name属性, 直接使用bean方法的名字
-		String beanName = (!names.isEmpty() ? names.remove(0) : methodName);
-
-		// Register aliases even when overridden
-		for (String alias : names) {
-			// TODO 把别名都注册到容器中保存别名的地方(SimpleAliasRegistry.aliasMap)
-			this.registry.registerAlias(beanName, alias);
+		String beanName;
+		String localBeanName;
+		if (explicitNames.length > 0 && StringUtils.hasText(explicitNames[0])) {
+			beanName = explicitNames[0];
+			localBeanName = beanName;
+			// Register aliases even when overridden below.
+			for (int i = 1; i < explicitNames.length; i++) {
+				// TODO 把别名都注册到容器中保存别名的地方(SimpleAliasRegistry.aliasMap)
+				this.registry.registerAlias(beanName, explicitNames[i]);
+			}
 		}
+		else {
+			// Default bean name derived from method name.
+			beanName = (this.importBeanNameGenerator instanceof ConfigurationBeanNameGenerator cbng ?
+					cbng.deriveBeanName(metadata) : methodName);
+			localBeanName = methodName;
+		}
+
+		ConfigurationClassBeanDefinition beanDef =
+				new ConfigurationClassBeanDefinition(configClass, metadata, localBeanName);
+		// TODO 使用配置类创建一个严格匹配构造器参数类型的beanDefinition(setLenientConstructorResolution(false)):
+		//  1. 宽松模式: 使用Spring构造的参数数组的类型和获取到的构造方法的参数类型进行对比
+		//  2. 严格模式: 还需要检查能否将构造方法的参数复制到对应的属性中
+		beanDef.setSource(this.sourceExtractor.extractSource(metadata, configClass.getResource()));
 
 		// Has this effectively been overridden before (for example, via XML)?
 		// TODO 判断一下当前@Bean方法是否可以覆盖其他的同名@Bean方法, 如果不可以, 会使用第一个注册的@Bean方法
@@ -233,7 +247,7 @@ class ConfigurationClassBeanDefinitionReader {
 		//  4. @Bean方法的角色: 如果当前@Bean方法的角色不是应用级的(BeanDefinition.ROLE_APPLICATION), 即ROLE_SUPPORT
 		//   或ROLE_INFRASTRUCTURE时, 返回false, 表示可以对之前的@Bean方法进行覆盖
 		//  5. 其他情况: 返回true, 表示当前@Bean方法不可以覆盖之前的@Bean方法;
-		if (isOverriddenByExistingDefinition(beanMethod, beanName)) {
+		if (isOverriddenByExistingDefinition(beanMethod, beanName, beanDef)) {
 			// TODO @Bean定义的name属性不能和配置类的名字相同, 否则需要抛出冲突异常
 			if (beanName.equals(beanMethod.getConfigurationClass().getBeanName())) {
 				throw new BeanDefinitionStoreException(beanMethod.getConfigurationClass().getResource().getDescription(),
@@ -242,12 +256,6 @@ class ConfigurationClassBeanDefinitionReader {
 			}
 			return;
 		}
-
-		// TODO 使用配置类创建一个严格匹配构造器参数类型的beanDefinition(setLenientConstructorResolution(false)):
-		//  1. 宽松模式: 使用Spring构造的参数数组的类型和获取到的构造方法的参数类型进行对比
-		//  2. 严格模式: 还需要检查能否将构造方法的参数复制到对应的属性中
-		ConfigurationClassBeanDefinition beanDef = new ConfigurationClassBeanDefinition(configClass, metadata, beanName);
-		beanDef.setSource(this.sourceExtractor.extractSource(metadata, configClass.getResource()));
 
 		if (metadata.isStatic()) {
 			// static @Bean method
@@ -331,7 +339,7 @@ class ConfigurationClassBeanDefinitionReader {
 					new BeanDefinitionHolder(beanDef, beanName), this.registry,
 					proxyMode == ScopedProxyMode.TARGET_CLASS);
 			beanDefToRegister = new ConfigurationClassBeanDefinition(
-					(RootBeanDefinition) proxyDef.getBeanDefinition(), configClass, metadata, beanName);
+					(RootBeanDefinition) proxyDef.getBeanDefinition(), configClass, metadata, localBeanName);
 		}
 
 		if (logger.isTraceEnabled()) {
@@ -343,7 +351,9 @@ class ConfigurationClassBeanDefinitionReader {
 	}
 
 	@SuppressWarnings("NullAway") // Reflection
-	protected boolean isOverriddenByExistingDefinition(BeanMethod beanMethod, String beanName) {
+	private boolean isOverriddenByExistingDefinition(
+			BeanMethod beanMethod, String beanName, ConfigurationClassBeanDefinition newBeanDef) {
+
 		if (!this.registry.containsBeanDefinition(beanName)) {
 			return false;
 		}
@@ -367,9 +377,7 @@ class ConfigurationClassBeanDefinitionReader {
 					configClass.getMetadata().getAnnotationAttributes(Configuration.class.getName());
 			if ((attributes != null && (Boolean) attributes.get("enforceUniqueMethods")) ||
 					!this.registry.isBeanDefinitionOverridable(beanName)) {
-				throw new BeanDefinitionOverrideException(beanName,
-						new ConfigurationClassBeanDefinition(configClass, beanMethod.getMetadata(), beanName),
-						existingBeanDef,
+				throw new BeanDefinitionOverrideException(beanName, newBeanDef, existingBeanDef,
 						"@Bean method override with same bean name but different method name: " + existingBeanDef);
 			}
 			return true;
@@ -453,17 +461,20 @@ class ConfigurationClassBeanDefinitionReader {
 		});
 	}
 
-	private void loadBeanDefinitionsFromImportBeanDefinitionRegistrars(Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> registrars) {
+	private void loadBeanDefinitionsFromImportBeanDefinitionRegistrars(
+			Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> registrars) {
+
 		registrars.forEach((registrar, metadata) ->
 				registrar.registerBeanDefinitions(metadata, this.registry, this.importBeanNameGenerator));
 	}
 
 	private void loadBeanDefinitionsFromBeanRegistrars(Map<String, BeanRegistrar> registrars) {
-		Assert.isInstanceOf(ListableBeanFactory.class, this.registry,
-				"Cannot support bean registrars since " + this.registry.getClass().getName() +
-						" does not implement BeanDefinitionRegistry");
-		registrars.values().forEach(registrar -> registrar.register(new BeanRegistryAdapter(this.registry,
-				(ListableBeanFactory) this.registry, this.environment, registrar.getClass()), this.environment));
+		if (!(this.registry instanceof ListableBeanFactory beanFactory)) {
+			throw new IllegalStateException("Cannot support bean registrars since " +
+					this.registry.getClass().getName() + " does not implement ListableBeanFactory");
+		}
+		registrars.values().forEach(registrar -> registrar.register(new BeanRegistryAdapter(
+				this.registry, beanFactory, this.environment, registrar.getClass()), this.environment));
 	}
 
 
@@ -480,32 +491,32 @@ class ConfigurationClassBeanDefinitionReader {
 
 		private final MethodMetadata factoryMethodMetadata;
 
-		private final String derivedBeanName;
+		private final String localBeanName;
 
 		public ConfigurationClassBeanDefinition(
-				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
+				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String localBeanName) {
 
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
-			this.derivedBeanName = derivedBeanName;
+			this.localBeanName = localBeanName;
 			setResource(configClass.getResource());
 			setLenientConstructorResolution(false);
 		}
 
 		public ConfigurationClassBeanDefinition(RootBeanDefinition original,
-				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
+				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String localBeanName) {
 
 			super(original);
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
-			this.derivedBeanName = derivedBeanName;
+			this.localBeanName = localBeanName;
 		}
 
 		private ConfigurationClassBeanDefinition(ConfigurationClassBeanDefinition original) {
 			super(original);
 			this.annotationMetadata = original.annotationMetadata;
 			this.factoryMethodMetadata = original.factoryMethodMetadata;
-			this.derivedBeanName = original.derivedBeanName;
+			this.localBeanName = original.localBeanName;
 		}
 
 		@Override
@@ -521,7 +532,7 @@ class ConfigurationClassBeanDefinitionReader {
 		@Override
 		public boolean isFactoryMethod(Method candidate) {
 			return (super.isFactoryMethod(candidate) && BeanAnnotationHelper.isBeanAnnotated(candidate) &&
-					BeanAnnotationHelper.determineBeanNameFor(candidate).equals(this.derivedBeanName));
+					BeanAnnotationHelper.determineBeanNameFor(candidate).equals(this.localBeanName));
 		}
 
 		@Override
