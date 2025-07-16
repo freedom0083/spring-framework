@@ -16,15 +16,18 @@
 
 package org.springframework.build;
 
-import java.util.Map;
-
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.api.tasks.testing.TestFrameworkOptions;
 import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions;
 import org.gradle.testretry.TestRetryPlugin;
 import org.gradle.testretry.TestRetryTaskExtension;
+import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest;
+
+import java.util.Map;
 
 /**
  * Conventions that are applied in the presence of the {@link JavaBasePlugin}. When the
@@ -32,6 +35,8 @@ import org.gradle.testretry.TestRetryTaskExtension;
  * <ul>
  * <li>The {@link TestRetryPlugin Test Retry} plugin is applied so that flaky tests
  * are retried 3 times when running on the CI server.
+ * <li>Common test properties are configured
+ * <li>The Mockito Java agent is set on test tasks.
  * </ul>
  *
  * @author Brian Clozel
@@ -45,6 +50,7 @@ class TestConventions {
 	}
 
 	private void configureTestConventions(Project project) {
+		configureMockitoAgent(project);
 		project.getTasks().withType(Test.class,
 				test -> {
 					configureTests(project, test);
@@ -73,6 +79,24 @@ class TestConventions {
 				"--add-opens=java.base/java.util=ALL-UNNAMED",
 				"-Xshare:off"
 		);
+	}
+
+	private void configureMockitoAgent(Project project) {
+		if (project.hasProperty("mockitoVersion")) {
+			String mockitoVersion = (String) project.getProperties().get("mockitoVersion");
+			Configuration mockitoAgentConfig = project.getConfigurations().create("mockitoAgent");
+			mockitoAgentConfig.setTransitive(false);
+			Dependency mockitoCore = project.getDependencies().create("org.mockito:mockito-core:" + mockitoVersion);
+			mockitoAgentConfig.getDependencies().add(mockitoCore);
+			project.afterEvaluate(p -> {
+				p.getTasks().withType(Test.class, test -> test.jvmArgs("-javaagent:" + mockitoAgentConfig.getAsPath()));
+				project.getPlugins().withId("org.jetbrains.kotlin.jvm", plugin -> {
+					project.getTasks().withType(KotlinJvmTest.class, kotlinTest -> {
+						kotlinTest.jvmArgs("-javaagent:" + mockitoAgentConfig.getAsPath());
+					});
+				});
+			});
+		}
 	}
 
 	private void configureTestRetryPlugin(Project project, Test test) {
