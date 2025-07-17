@@ -177,9 +177,10 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		Assert.notNull(resources, "Resource array must not be null");
 		int count = 0;
 		for (Resource resource : resources) {
-			// TODO 使用子类进行解析和注册bean, 然后返回注册bean的数量
+			// TODO 使用子类进行解析和注册 bean, 然后返回注册 bean 的数量
 			count += loadBeanDefinitions(resource);
 		}
+		// TODO 返回本次注册的 Bean 的总数
 		return count;
 	}
 
@@ -213,9 +214,9 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		if (resourceLoader instanceof ResourcePatternResolver resourcePatternResolver) {
 			// Resource pattern matching available.
 			try {
-				// TODO 将文件路径转化为Resource
+				// TODO 将文件路径转化为 Resource
 				Resource[] resources = resourcePatternResolver.getResources(location);
-				// TODO 将resources中对应的类文件集合注册到容器
+				// TODO 将 resources 中对应的类文件集合注册到容器
 				int count = loadBeanDefinitions(resources);
 				if (actualResources != null) {
 					Collections.addAll(actualResources, resources);
@@ -232,9 +233,9 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		}
 		else {
 			// Can only load single resources by absolute URL.
-			// TODO 将文件路径转化为Resource, 这边是处理单一Resource的情况
+			// TODO 将文件路径转化为 Resource, 这边是处理单一 Resource 的情况
 			Resource resource = resourceLoader.getResource(location);
-			// TODO 将resource对应的类文件注册到容器
+			// TODO 将 resource 对应的类文件注册到容器
 			int count = loadBeanDefinitions(resource);
 			if (actualResources != null) {
 				actualResources.add(resource);
@@ -253,7 +254,7 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		for (String location : locations) {
 			count += loadBeanDefinitions(location);
 		}
-		// TODO 本次注册的bean的数量
+		// TODO 本次注册的 bean 的数量
 		return count;
 	}
 

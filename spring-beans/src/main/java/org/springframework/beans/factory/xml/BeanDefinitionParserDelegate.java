@@ -409,6 +409,7 @@ public class BeanDefinitionParserDelegate {
 	 * {@link org.springframework.beans.factory.parsing.ProblemReporter}.
 	 */
 	public @Nullable BeanDefinitionHolder parseBeanDefinitionElement(Element ele) {
+		// TODO 解析顶层 <bean />
 		return parseBeanDefinitionElement(ele, null);
 	}
 
@@ -417,23 +418,23 @@ public class BeanDefinitionParserDelegate {
 	 * if there were errors during parse. Errors are reported to the
 	 * {@link org.springframework.beans.factory.parsing.ProblemReporter}.
 	 */
-	// TODO containingBean为null，表示解析的是顶层<bean />
+	// TODO containingBean 为null，表示解析的是顶层 <bean />
 	public @Nullable BeanDefinitionHolder parseBeanDefinitionElement(Element ele, @Nullable BeanDefinition containingBean) {
-		// TODO 取得id属性对应的值
+		// TODO 取得 id 属性对应的值
 		String id = ele.getAttribute(ID_ATTRIBUTE);
-		// TODO 取得name属性对应的值
+		// TODO 取得 name 属性对应的值
 		String nameAttr = ele.getAttribute(NAME_ATTRIBUTE);
 
 		List<String> aliases = new ArrayList<>();
 		if (StringUtils.hasLength(nameAttr)) {
-			// TODO name属性存在时, 将指定的名字放到一个别名集合里
+			// TODO name 属性存在时, 将指定的名字放到一个别名集合里，是将 name 属性的定义按“逗号，分号，空格”进行切分
 			String[] nameArr = StringUtils.tokenizeToStringArray(nameAttr, MULTI_VALUE_ATTRIBUTE_DELIMITERS);
 			aliases.addAll(Arrays.asList(nameArr));
 		}
-		// TODO 默认将id做为beanName
+		// TODO 默认将 id 做为 beanName
 		String beanName = id;
 		if (!StringUtils.hasText(beanName) && !aliases.isEmpty()) {
-			// TODO 不指定id时,使用第一个别名当做bean的名字
+			// TODO 不指定 id 时,使用第一个别名当做 bean 的名字
 			beanName = aliases.remove(0);
 			if (logger.isTraceEnabled()) {
 				logger.trace("No XML 'id' specified - using '" + beanName +
@@ -444,34 +445,35 @@ public class BeanDefinitionParserDelegate {
 		if (containingBean == null) {
 			checkNameUniqueness(beanName, aliases, ele);
 		}
-		// TODO 开始解析<bean />, 解析完成后返回一个GenericBeanDefinition类型的beanDefinition, 其中bd的beanClass属性会有以下几种情况:
-		//  a. class实例: 由readerContext指定的类加载器所加载的bean实例
-		//  b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
-		//  c. null: bean没有指定'class'属性的情况
+		// TODO 开始解析 <bean />, 解析完成后返回一个 GenericBeanDefinition 类型的 BeanDefinition, 其中 beanClass 属性会有以下几种情况:
+		//  a. class 实例: 由 readerContext 指定的类加载器所加载的 bean 实例
+		//  b. class 全限定名: readerContext 没指定类加载器时, 直接使用 className 的值
+		//  c. null: bean 没有指定 'class' 属性的情况
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 		if (beanDefinition != null) {
-			// TODO 解析成功时, 就要判断是否设置了beanName, 即是否有'id', 或'name'属性
+			// TODO 解析成功时, 就要判断是否设置了 beanName, 即 <bean /> 是否有 'id', 或 'name'  属性
 			if (!StringUtils.hasText(beanName)) {
 				try {
-					// TODO 如果还是没有beanName属性, 则根据规则生成一个
+					// TODO 如果还是没有 beanName 属性, 则根据规则生成一个
 					if (containingBean != null) {
-						// TODO 当要得到的bean是包含在其他bean内部的内嵌bean时, 会根据bd的beanClass属性来生成beanName:
-						//  class名+'#'+bd转化的16进制字符串
+						// TODO 当要得到的 bean 是包含在其他 bean 内部的内嵌 bean 时, 会根据 BeanDefinition 的 beanClass 属性来生成 beanName:
+						//  class 名+'#'+ bd 转化的 16 进制字符串
 						beanName = BeanDefinitionReaderUtils.generateBeanName(
 								beanDefinition, this.readerContext.getRegistry(), true);
 					}
 					else {
-						// TODO bean是个顶层bd时, 会根据bd的beanClass属性来生成beanName: class名+0开始的序列号
+						// TODO bean 是个顶层 BeanDefinition 时, 会根据 beanClass 属性来生成 beanName: class 名+0开始的序列号
+						//  1. beanName 为：com.javadoop.example.MessageServiceImpl#0
+						//  2. beanClassName 为：com.javadoop.example.MessageServiceImpl
 						beanName = this.readerContext.generateBeanName(beanDefinition);
 						// Register an alias for the plain bean class name, if still possible,
 						// if the generator returned the class name plus a suffix.
 						// This is expected for Spring 1.2/2.0 backwards compatibility.
-						// TODO 再取得'class'属性对应的名字
 						String beanClassName = beanDefinition.getBeanClassName();
 						if (beanClassName != null &&
 								beanName.startsWith(beanClassName) && beanName.length() > beanClassName.length() &&
 								!this.readerContext.getRegistry().isBeanNameInUse(beanClassName)) {
-							// TODO 'class'属性对应的class名是beanName的子集, 且没有注册进容器时, 将其做为别名注册
+							// TODO 'class' 属性对应的 class 名是 beanName 的子集, 且没有注册进容器时, 将其做为别名注册
 							aliases.add(beanClassName);
 						}
 					}
@@ -487,7 +489,7 @@ public class BeanDefinitionParserDelegate {
 				}
 			}
 			String[] aliasesArray = StringUtils.toStringArray(aliases);
-			// TODO 返回一个包含beanDefinition, 名字和别名表的holder
+			// TODO 返回一个包含 BeanDefinition, 名字和别名表的 holder
 			return new BeanDefinitionHolder(beanDefinition, beanName, aliasesArray);
 		}
 		// TODO 解析失败则什么也不返回了
@@ -534,25 +536,25 @@ public class BeanDefinitionParserDelegate {
 		}
 
 		try {
-			// TODO 创建一个GenericBeanDefinition类型的bd, bd的beanClass属性会有以下几种情况:
-			//  a. class实例: 由readerContext指定的类加载器所加载的bean实例
-			//  b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
-			//  c. null: bean没有指定'class'属性的情况
+			// TODO 创建一个 GenericBeanDefinition 类型的 BeanDefinition, 其 beanClass 属性会有以下几种情况:
+			//  a. class 实例: 由 readerContext 指定的类加载器所加载的 bean 实例
+			//  b. class 全限定名: readerContext 没指定类加载器时, 直接使用 className 的值
+			//  c. null: bean 没有指定 'class' 属性的情况
 			AbstractBeanDefinition bd = createBeanDefinition(className, parent);
-			// TODO 解析元素的属性放到bd中, 比如: scope, abstract, lazy-init, autowire-candidate, factory-bean, factory-method等等
+			// TODO 解析元素的属性放到 BeanDefinition 中, 比如: scope, abstract, lazy-init, autowire-candidate, factory-bean, factory-method 等等
 			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);
 			bd.setDescription(DomUtils.getChildElementValueByTagName(ele, DESCRIPTION_ELEMENT));
-			// TODO 解析元数据<meta />放到bd中
+			// TODO 解析元数据 <meta /> 放到 BeanDefinition 中
 			parseMetaElements(ele, bd);
-			// TODO 解析<lookup-method />放到bd中
+			// TODO 解析 <lookup-method /> 放到 BeanDefinition 中
 			parseLookupOverrideSubElements(ele, bd.getMethodOverrides());
-			// TODO 解析<replaced-method />放到bd中
+			// TODO 解析 <replaced-method /> 放到 BeanDefinition 中
 			parseReplacedMethodSubElements(ele, bd.getMethodOverrides());
-			// TODO 解析<constructor-arg />放到bd中
+			// TODO 解析 <constructor-arg /> 放到 BeanDefinition 中
 			parseConstructorArgElements(ele, bd);
-			// TODO 解析<property />放到bd中
+			// TODO 解析 <property /> 放到 BeanDefinition 中
 			parsePropertyElements(ele, bd);
-			// TODO 解析<qualifier />放到bd中
+			// TODO 解析 <qualifier /> 放到 BeanDefinition 中
 			parseQualifierElements(ele, bd);
 
 			bd.setResource(this.readerContext.getResource());
@@ -687,12 +689,12 @@ public class BeanDefinitionParserDelegate {
 	 */
 	protected AbstractBeanDefinition createBeanDefinition(@Nullable String className, @Nullable String parentName)
 			throws ClassNotFoundException {
-		// TODO 创建一个GenericBeanDefinition类型的bd, 会设置bd的以下属性:
-		//  1. parentName: 由参数parentName所指定的双亲, 可能为空
+		// TODO 创建一个 GenericBeanDefinition 类型的 BeanDefinition, 会设置 BeanDefinition 的以下属性:
+		//  1. parentName: 由参数 parentName 所指定的双亲, 可能为空
 		//  2. beanClass: 有三种可能:
-		//                a. class实例: 由readerContext指定的类加载器所加载的bean实例
-		//                b. class全限定名: readerContext没指定类加载器时, 直接使用className的值
-		//                c. null: bean没有指定'class'属性的情况
+		//                a. class 实例: 由 readerContext 指定的类加载器所加载的 bean 实例
+		//                b. class 全限定名: readerContext 没指定类加载器时, 直接使用 className 的值
+		//                c. null: bean 没有指定 'class' 属性的情况
 		return BeanDefinitionReaderUtils.createBeanDefinition(
 				parentName, className, this.readerContext.getBeanClassLoader());
 	}

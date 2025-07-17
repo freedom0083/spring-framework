@@ -34,6 +34,7 @@ import org.springframework.core.io.ResourceLoader;
  * @since 1.1
  * @see org.springframework.core.io.Resource
  */
+// TODO 用来 XML，注解类，或 properties 中解析定义的 Bean 变成 Spring BeanDefinition
 public interface BeanDefinitionReader {
 
 	/**

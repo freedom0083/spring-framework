@@ -302,7 +302,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			throw new IllegalStateException(
 					"postProcessBeanFactory already called on this post-processor against " + registry);
 		}
-		// TODO 正常的bean都会放入注册过的后处理器缓存中
+		// TODO 正常的 bean 都会放入注册过的后处理器缓存中
 		this.registriesPostProcessed.add(registryId);
 		// TODO 然后再开始处理配置文件
 		processConfigBeanDefinitions(registry);

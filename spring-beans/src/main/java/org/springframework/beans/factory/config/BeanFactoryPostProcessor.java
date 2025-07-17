@@ -60,6 +60,7 @@ import org.springframework.beans.BeansException;
  * @see PropertyResourceConfigurer
  */
 @FunctionalInterface
+// TODO BeanFactory 的后处理器，对 BeanFactory 行为进行干预
 public interface BeanFactoryPostProcessor {
 
 	/**

@@ -66,40 +66,40 @@ public abstract class ScopedProxyUtils {
 
 		// Create a scoped proxy definition for the original bean name,
 		// "hiding" the target bean in an internal target definition.
-		// TODO 生成一个用于返回的代理holder
+		// TODO 生成一个用于返回的代理 RootBeanDefinition
 		RootBeanDefinition proxyDefinition = new RootBeanDefinition(ScopedProxyFactoryBean.class);
-		// TODO 将目标类注册为代理类的被装饰的beanDefinition.
-		//  为什么不直接用的传进来的definition? 看起来好像传进来的definition是带别名的
+		// TODO 将目标类注册为代理类的被装饰的 beanDefinition.
+		//  为什么不直接用的传进来的 definition ? 看起来好像传进来的 definition 是带别名的
 		proxyDefinition.setDecoratedDefinition(new BeanDefinitionHolder(targetDefinition, targetBeanName));
-		// TODO 设置原始bean
+		// TODO 设置原始 bean
 		proxyDefinition.setOriginatingBeanDefinition(targetDefinition);
 		proxyDefinition.setSource(definition.getSource());
 		proxyDefinition.setRole(targetDefinition.getRole());
-		// TODO 将目标bean名注册到property属性中
+		// TODO 将目标 bean 名注册到 property 属性中
 		proxyDefinition.getPropertyValues().add("targetBeanName", targetBeanName);
 		if (proxyTargetClass) {
-			// TODO proxyTargetClass是true时, 表示是为类创建代理. Spring会强制使用CGLIB来创建代理. 方式就是'preserveTargetClass'
-			//  属性为true. AbstractAutoProxyCreator.createProxy()方法代建代理时会用到此值
+			// TODO proxyTargetClass 是 true 时, 表示是为类创建代理. Spring 会强制使用 CGLIB 来创建代理. 方式就是 'preserveTargetClass'
+			//  属性为 true. AbstractAutoProxyCreator.createProxy() 方法代建代理时会用到此值
 			targetDefinition.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// ScopedProxyFactoryBean's "proxyTargetClass" default is TRUE, so we don't need to set it explicitly here.
 		}
 		else {
-			// TODO 不是cglib时, 设置为基于接口代理的模式
+			// TODO 不是 cglib 时, 设置为基于接口代理的模式
 			proxyDefinition.getPropertyValues().add("proxyTargetClass", Boolean.FALSE);
 		}
 
 		// Copy autowire settings from original bean definition.a
-		// TODO 代理类继承目标类的自动注入属性, primary属性, 以及可能存在的qualifier属性
+		// TODO 代理类继承目标类的自动注入属性, primary 属性, 以及可能存在的 qualifier 属性
 		proxyDefinition.setAutowireCandidate(targetDefinition.isAutowireCandidate());
 		proxyDefinition.setPrimary(targetDefinition.isPrimary());
 		if (targetDefinition instanceof AbstractBeanDefinition abd) {
 			proxyDefinition.copyQualifiersFrom(abd);
 		}
-		// TODO 然后禁止目标类自动注入, 以及不能识别为primary
+		// TODO 然后禁止目标类自动注入, 以及不能识别为 primary
 		// The target bean should be ignored in favor of the scoped proxy.
 		targetDefinition.setAutowireCandidate(false);
 		targetDefinition.setPrimary(false);
-		// TODO 目标类重新设置后, 再把新的目标类注册到容器中(beanDefinitionMap)
+		// TODO 目标类重新设置后, 再把新的目标类注册到容器中
 		// Register the target bean as separate bean in the factory.
 		registry.registerBeanDefinition(targetBeanName, targetDefinition);
 

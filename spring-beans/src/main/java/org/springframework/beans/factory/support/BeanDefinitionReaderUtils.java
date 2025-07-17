@@ -59,20 +59,20 @@ public abstract class BeanDefinitionReaderUtils {
 			@Nullable String parentName, @Nullable String className, @Nullable ClassLoader classLoader) throws ClassNotFoundException {
 
 		GenericBeanDefinition bd = new GenericBeanDefinition();
-		// TODO 设置双亲bd
+		// TODO 设置上层 BeanDefinition
 		bd.setParentName(parentName);
 		if (className != null) {
-			// TODO 设置了class属性时
+			// TODO 设置了 class 属性时
 			if (classLoader != null) {
-				// TODO 如果设置了类加载器, 则对指定类名进行加载, 将加载后的实例放到bd的beanClass属性中
+				// TODO 如果设置了类加载器, 则对指定类名进行加载, 将加载后的实例放到 BeanDefinition 的 beanClass 属性中
 				bd.setBeanClass(ClassUtils.forName(className, classLoader));
 			}
 			else {
-				// TODO 如果没有类加载器, 直接将字符串做为beanClass属性
+				// TODO 如果没有类加载器, 直接将字符串做为 beanClass 属性
 				bd.setBeanClassName(className);
 			}
 		}
-		// TODO 如果bean的配置中没有设置'class'属性, 则返回的bd的beanClass属性为null
+		// TODO 如果 bean 的配置中没有设置 'class' 属性, 则返回的 BeanDefinition 的 beanClass 属性为 null
 		return bd;
 	}
 
@@ -178,11 +178,12 @@ public abstract class BeanDefinitionReaderUtils {
 
 		// Register bean definition under primary name.
 		String beanName = definitionHolder.getBeanName();
-		// TODO 委托给BeanDefinitionRegistry进行注册
+		// TODO 委托给 BeanDefinitionRegistry 进行注册
 		registry.registerBeanDefinition(beanName, definitionHolder.getBeanDefinition());
 
 		// Register aliases for bean name, if any.
 		String[] aliases = definitionHolder.getAliases();
+		// TODO 如果有别名，还需要再注册到别名中
 		if (aliases != null) {
 			for (String alias : aliases) {
 				registry.registerAlias(beanName, alias);

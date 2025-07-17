@@ -39,7 +39,8 @@ import org.springframework.core.ResolvableType;
  * @see org.springframework.beans.factory.support.RootBeanDefinition
  * @see org.springframework.beans.factory.support.ChildBeanDefinition
  */
-// TODO 用来描述Bean实例的顶级基础接口. 存放Bean元数据, 比如: Bean类名, scope, 属性, 构造函数参数列表, 依赖的bean, 是否是单例类, 是否是懒加载等一些列信息
+// TODO 用来描述 Spring 中的 Bean 的顶级基础接口.
+//  在 Java 对象的基础上，增加了 Spring 的额外属性的元数据表示, 比如: Bean类名, scope, 属性, 构造函数参数列表, 依赖的bean, 是否是单例类, 是否是懒加载等一些列信息
 public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 	/**

@@ -329,7 +329,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Loading XML bean definitions from " + encodedResource);
 		}
-		// TODO 用ThreadLoad存放配置文件resource
+		// TODO 用ThreadLoad存放配置文件 resource
 		Set<EncodedResource> currentResources = this.resourcesCurrentlyBeingLoaded.get();
 
 		if (!currentResources.add(encodedResource)) {
@@ -342,7 +342,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 			if (encodedResource.getEncoding() != null) {
 				inputSource.setEncoding(encodedResource.getEncoding());
 			}
-			// TODO 这里开始解析resource, 并将解析的bean注册到容器
+			// TODO 这里开始解析 resource, 并将解析的 bean 注册到容器
 			return doLoadBeanDefinitions(inputSource, encodedResource.getResource());
 		}
 		catch (IOException ex) {
@@ -391,18 +391,19 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see #doLoadDocument
 	 * @see #registerBeanDefinitions
 	 */
+	// TODO 从 XML 文件中解析 BeanDefinition 并放到容器中
 	protected int doLoadBeanDefinitions(InputSource inputSource, Resource resource)
 			throws BeanDefinitionStoreException {
 
 		try {
-			// TODO 用SAX解析XML文件
+			// TODO 用 SAX 解析 XML 文件
 			Document doc = doLoadDocument(inputSource, resource);
-			// TODO 用解析后的结点注册BeanDefinition
+			// TODO 用解析后的结点注册 BeanDefinition
 			int count = registerBeanDefinitions(doc, resource);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Loaded " + count + " bean definitions from " + resource);
 			}
-			// TODO 返回本次解析注册的bean的数量
+			// TODO 返回本次解析注册的 bean的数量
 			return count;
 		}
 		catch (BeanDefinitionStoreException ex) {
@@ -517,10 +518,10 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see BeanDefinitionDocumentReader#registerBeanDefinitions
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
-		// TODO 创建一个DefaultBeanDefinitionDocumentReader来解析xml生成的document
+		// TODO 实例化一个 DefaultBeanDefinitionDocumentReader 来解析 xml 生成的 document
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();
 		int countBefore = getRegistry().getBeanDefinitionCount();
-		// TODO 开始解析由xml生成的document并注册到容器
+		// TODO 开始正式解析 BeanDefinition 并注册到容器
 		documentReader.registerBeanDefinitions(doc, createReaderContext(resource));
 		// TODO 返回本次注册的bean的数量
 		return getRegistry().getBeanDefinitionCount() - countBefore;

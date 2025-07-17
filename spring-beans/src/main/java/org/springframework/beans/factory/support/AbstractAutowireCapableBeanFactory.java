@@ -441,11 +441,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		Object result = existingBean;
 		for (BeanPostProcessor processor : getBeanPostProcessors()) {
-			// TODO 挨个执行所有后处理器的postProcessAfterInitialization方法, 对初始化后的bean进行处理. 这是个很重要的方法, AOP,
+			// TODO 挨个执行所有后处理器的 postProcessAfterInitialization 方法, 对初始化后的 bean 进行处理. 这是个很重要的方法, AOP,
 			//  JNDI, 等实现都是基于后处理器的此方法
 			Object current = processor.postProcessAfterInitialization(result, beanName);
 			if (current == null) {
-				// TODO 如果处理后返回的是null, 直接返回传入的bean对象
+				// TODO 如果处理后返回的是 null, 直接返回传入的 bean 对象
 				return result;
 			}
 			// TODO 否则返回处理后的对象
@@ -492,8 +492,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 *
 	 * @param beanName the name of the bean
 	 * @param mbd the merged bean definition for the bean
-	 * @param args explicit arguments to use for constructor or factory method invocation 为bean设置的参数值, 只有构造方法
-	 *             和工厂方法可以用此参数来给取得的bean赋值, 同时bean的scope也必需是prototype类型
+	 * @param args explicit arguments to use for constructor or factory method invocation 为 bean 设置的参数值, 只有构造方法
+	 *             和工厂方法可以用此参数来给取得的 bean 赋值, 同时 bean 的 scope 也必需是 prototype 类型
 	 * @return
 	 * @throws BeanCreationException
 	 */
@@ -509,16 +509,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
-		// TODO 解析类mbd持有的类. 如果mbd设置了class引用, 不再做任何处理，直接返回这个引用.
-		//  否则, 通过ClassLoader.loadClass()或Class.ForName()对全限定名加载
+		// TODO 解析类 mbd 持有的类. 如果 mbd 设置了 class 引用, 不再做任何处理，直接返回这个引用.
+		//  否则, 通过 ClassLoader.loadClass() 或 Class.ForName() 对全限定名加载
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
-			// TODO 类加载成功后, 如果mbd的class属性设置的是全限定名, 用mbd复制一个新的mbd, 这个复制用的是深拷贝, 然后所解析好的引用
-			//  做为新mbd的beanClass. 后面再处理时，用的就是这个复制的mbd了
+			// TODO 类加载成功后, 如果 mbd 的 class 属性设置的是全限定名, 用 mbd 复制一个新的 mbd, 这个复制用的是深拷贝, 然后所解析好的引用
+			//  做为新 mbd 的 beanClass. 后面再处理时，用的就是这个复制的 mbd 了
 			mbdToUse = new RootBeanDefinition(mbd);
 			mbdToUse.setBeanClass(resolvedClass);
 			try {
-				// TODO 处理bean的方法重载(@Lookup, <lookup-method />, <replace-method />)
+				// TODO 处理 bean 的方法重载(@Lookup, <lookup-method />, <replace-method />)
 				mbdToUse.prepareMethodOverrides();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -529,8 +529,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
-			// TODO 返回一个目标类的代理(用于动态代理等). 如果是普通的bean, 这里返回的会是null. 容器里所有的
-			//  InstantiationAwareBeanPostProcessors实例都会在此处生效, 同时进行前置处理
+			// TODO 返回一个目标类的代理(用于动态代理等). 如果是普通的 bean, 这里返回的会是 null. 容器里所有的
+			//  InstantiationAwareBeanPostProcessors 实例都会在此处生效, 同时进行前置处理
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				// TODO 短路操作, 如果返回的是代理对象, 则创建结束, 直接返回
@@ -543,7 +543,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		try {
-			// TODO 开始正式创建bean实例, 然后返回创建好的bean实例
+			// TODO 开始正式创建 bean 实例, 然后返回创建好的 bean 实例
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'");
@@ -581,31 +581,31 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throws BeanCreationException {
 
 		// Instantiate the bean.
-		// TODO 经过包含后的bean实例
+		// TODO 经过包装后的 bean 实例
 		BeanWrapper instanceWrapper = null;
 		if (mbd.isSingleton()) {
-			// TODO 单例的情况, 尝试从 FactoryBean 的实例缓存取得bean实例
+			// TODO 单例的情况, 尝试从 FactoryBean 的实例缓存取得 bean 实例
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		if (instanceWrapper == null) {
-			// TODO 缓存中不存在bean实例时, 说明其不是一个 FactoryBean, 创建对应的bean实例
+			// TODO 缓存中不存在 bean 实例时, 说明其不是一个 FactoryBean, 创建对应的 bean 实例
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
-		// TODO 取得被包装过的bean实例以及bean实例的类信息
+		// TODO 取得被包装过的 bean 实例以及 bean 实例的类信息
 		Object bean = instanceWrapper.getWrappedInstance();
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
-			// TODO bean实例的不是NullBean类型时, 将其做为解析后的目标类型, 放到mbd的resolvedTargetType属性中
+			// TODO bean 实例的不是 NullBean 类型时, 将其做为解析后的目标类型, 放到 mbd 的 resolvedTargetType 属性中
 			mbd.resolvedTargetType = beanType;
 		}
 
 		// Allow post-processors to modify the merged bean definition.
 		synchronized (mbd.postProcessingLock) {
-			// TODO 判断mbd是否被MergedBeanDefinitionPostProcessor类型的后处理器处理过
+			// TODO 判断 mbd 是否被 MergedBeanDefinitionPostProcessor 类型的后处理器处理过
 			if (!mbd.postProcessed) {
 				try {
-					// TODO 没被处理过, 就用MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition()方法
-					//  对bean进行处理, 经过这里后, 自动注入, 生命周期等注解的方法或字段会被放入缓存, 后面填充属性时就可以使用了
+					// TODO 没被处理过, 就用 MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition() 方法
+					//  对 bean 进行处理, 经过这里后, 自动注入, 生命周期等注解的方法或字段会被放入缓存, 后面填充属性时就可以使用了
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -619,9 +619,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
-		// TODO 提前暴露可以解析循环依赖的问题. 这里先验证一下当前bean是否支持提前暴露. 如果当前bean是个单例的, 且允许循环引用时, 如果
-		//  这个bean正处在创建过程中, 则表示其支持提前暴露. 支持提前暴露的bean会向singletonFactories添加一个objectFactory, 后期
-		//  依赖该bean的其他bean都可以从singletonFactories中直接获取
+		// TODO 提前暴露可以解析循环依赖的问题. 这里先验证一下当前 bean 是否支持提前暴露. 如果当前 bean 是个单例的, 且允许循环引用时, 如果
+		//  这个 bean 正处在创建过程中, 则表示其支持提前暴露. 支持提前暴露的 bean 会向 singletonFactories 添加一个 objectFactory, 后期
+		//  依赖该 bean 的其他 bean 都可以从 singletonFactories 中直接获取
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -629,19 +629,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
-			// TODO 解决单例bean的循环引用是通过提前暴露bean来实现的. 如果bean支持提前暴露, 会通过addSingletonFactory()方法将其放到
-			//  singletonFactories, 和registeredSingletons缓存中, 同时从earlySingletonObjects缓存中移除.
-			//  提前暴露的bean有可能需要进行AOP代理, 所以SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference()方法
-			//  会看容器中是否有可以应用于当前操作的bean的Advisor来决定是否为其创建动态代理. 基于接口的代理会用JDK的动态代理实现, 基于
-			//  类的代理会用CGLIB来实现
+			// TODO 解决单例 bean 的循环引用是通过提前暴露 bean 来实现的. 如果 bean 支持提前暴露, 会通过 addSingletonFactory() 方法将其放到
+			//  singletonFactories, 和 registeredSingletons 缓存中, 同时从e arlySingletonObjects 缓存中移除.
+			//  提前暴露的 bean 有可能需要进行 AOP 代理, 所以 SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference() 方法
+			//  会看容器中是否有可以应用于当前操作的 bean 的 Advisor 来决定是否为其创建动态代理. 基于接口的代理会用 JDK 的动态代理实现, 基于
+			//  类的代理会用 CGLIB 来实现
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
 		// Initialize the bean instance.
-		// TODO 到这为止, bean的实例化已经完成, 下面开始准备对实例化的bean进行初始化
+		// TODO 到这为止, bean 的实例化已经完成, 下面开始准备对实例化的 bean 进行初始化
 		Object exposedObject = bean;
 		try {
-			// TODO 开始给bean填充属性
+			// TODO 开始给 bean 填充属性
 			populateBean(beanName, mbd, instanceWrapper);
 			// TODO 进行初始化
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
@@ -656,18 +656,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		if (earlySingletonExposure) {
-			// TODO 支持提前暴露时, 拿出对应的单例bean
+			// TODO 支持提前暴露时, 拿出对应的单例 bean
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
 				if (exposedObject == bean) {
 					exposedObject = earlySingletonReference;
 				}
 				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
-					// TODO 取得所有依赖此bean的依赖bean
+					// TODO 取得所有依赖此 bean 的依赖 bean
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = CollectionUtils.newLinkedHashSet(dependentBeans.length);
 					for (String dependentBean : dependentBeans) {
-						// TODO 遍历所有依赖bean, 如果依赖的bean正在创建, 就把依赖bean加入到列表里
+						// TODO 遍历所有依赖 bean, 如果依赖的 bean 正在创建, 就把依赖 bean 加入到列表里
 						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
 							actualDependentBeans.add(dependentBean);
 						}
@@ -736,22 +736,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @return the type for the bean if determinable, or {@code null} otherwise
 	 */
 	protected @Nullable Class<?> determineTargetType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
-		// TODO 从bean的mbd中取得bean所表示的Class对象
+		// TODO 从 bean 的 mbd 中取得 bean 所表示的 Class 对象
 		Class<?> targetType = mbd.getTargetType();
 		if (targetType == null) {
 			if (mbd.getFactoryMethodName() != null) {
-				// TODO 所表示的Class对象不存在时, 根据bean的不同类型来解析其所表示的Class对象:
+				// TODO 所表示的 Class 对象不存在时, 根据 bean 的不同类型来解析其所表示的 Class 对象:
 				targetType = getTypeForFactoryMethod(beanName, mbd, typesToMatch);
 			}
 			else {
-				// TODO 其他情况直接取得bean的类型
+				// TODO 其他情况直接取得 bean 的类型
 				targetType = resolveBeanClass(mbd, beanName, typesToMatch);
 				if (mbd.hasBeanClass()) {
 					targetType = getInstantiationStrategy().getActualBeanClass(mbd, beanName, this);
 				}
 			}
 			if (ObjectUtils.isEmpty(typesToMatch) || getTempClassLoader() == null) {
-				// TODO 并没有指定匹配的类型时, 把解析后的bean所表示的Class放到resolvedTargetType缓存中
+				// TODO 并没有指定匹配的类型时, 把解析后的 bean 所表示的 Class 放到 resolvedTargetType 缓存中
 				mbd.resolvedTargetType = targetType;
 			}
 		}
@@ -1290,31 +1290,31 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@SuppressWarnings("deprecation")
 	protected @Nullable Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
-		// TODO Spring的一个扩展点, 允许我们在bean实例化前, 和实例化后做一些处理, 这里主要是为bean生成代理
+		// TODO Spring 的一个扩展点, 允许我们在 bean 实例化前, 和实例化后做一些处理, 这里主要是为 bean 生成代理
 		Object bean = null;
-		// TODO beforeInstantiationResolved是用来确定bean是否已经解析过了:
-		//  true: 表示bean已经解析过了, 不需要再进行前置处理
-		//  false: 表示bean还没有被解析过, 这时会在实例化前对bean definition做前置处理
+		// TODO beforeInstantiationResolved 是用来确定 bean 是否已经解析过了:
+		//  true: 表示 bean 已经解析过了, 不需要再进行前置处理
+		//  false: 表示 bean 还没有被解析过, 这时会在实例化前对 BeanDefinition 做前置处理
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
-			// TODO hasInstantiationAwareBeanPostProcessors()方法用来标记容器里是否有InstantiationAwareBeanPostProcessor的实现
-			//  InstantiationAwareBeanPostProcessor接口的主要作用是在目标实例化前后, 以及实例的属性进行处理
+			// TODO hasInstantiationAwareBeanPostProcessors() 方法用来标记容器里是否有 InstantiationAwareBeanPostProcessor 的实现
+			//  InstantiationAwareBeanPostProcessor 接口的主要作用是在目标实例化前后, 以及实例的属性进行处理
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
-				// TODO 当这个mbd是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的InstantiationAwareBeanPostProcessor
-				//  类型后处理器时, 尝试从mbd中拿到bean的类型
+				// TODO 当这个mbd是由容器创建的, 并且容器注册过用于对实例化阶段进行处理的 InstantiationAwareBeanPostProcessor
+				//  类型后处理器时, 尝试从 mbd 中拿到 bean 的类型
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-					// TODO 拿到了bean所表示的Class对象时, 用后处理器对其进行处理, 生成一个代理对象, 如果没有处理结果, 也不需要再进行实例化的后处理器了
+					// TODO 拿到了 bean 所表示的 Class 对象时, 用后处理器对其进行处理, 生成一个代理对象, 如果没有处理结果, 也不需要再进行实例化的后处理器了
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
-						// TODO resolveBeforeInstantiation是个短路方法, 一旦生成了代理对象, 调用他的外层方法就会直接返回代理对象,
-						//  而不再对bean进行其他处理(不会调用BeanPostProcessor后处理器的postProcessAfterInitialization()方法).
-						//  所以Spring在这里为创建的代理应用了BeanPostProcessor后处理器, 让代理类在初始化后也可以被后处理器处理
+						// TODO resolveBeforeInstantiation 是个短路方法, 一旦生成了代理对象, 调用他的外层方法就会直接返回代理对象,
+						//  而不再对 bean 进行其他处理(不会调用 BeanPostProcessor 后处理器的 postProcessAfterInitialization() 方法).
+						//  所以 Spring 在这里为创建的代理应用了 BeanPostProcessor 后处理器, 让代理类在初始化后也可以被后处理器处理
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
 			}
-			// TODO 因为已经执行了本方法, 此时如果就表示bean已经解析过了
+			// TODO 因为已经执行了本方法, 此时如果就表示 bean 已经解析过了
 			mbd.beforeInstantiationResolved = (bean != null);
 		}
 		return bean;
@@ -1365,33 +1365,33 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object @Nullable [] args) {
 		// Make sure bean class is actually resolved at this point.
-		// TODO 解析类, 通过ClassLoader.loadClass()或Class.ForName()对指定名字的类进行加载, 得到对应的引用. 根据类属性或类名加载
-		//  resolveBeanClass()最后接收一个Class类型的可变长参数, 根据代码来看, 主要是为了支持AspectJ. 这些参数会排除在由LTW指定的
-		//  自定义ClassLoader之外, 由JDK进行加载. 在创建实体时并没有指定这个参数
+		// TODO 解析类, 通过 ClassLoader.loadClass() 或 Class.ForName() 对指定名字的类进行加载, 得到对应的引用. 根据类属性或类名加载
+		//  resolveBeanClass() 最后接收一个Class类型的可变长参数, 根据代码来看, 主要是为了支持 AspectJ. 这些参数会排除在由 LTW 指定的
+		//  自定义 ClassLoader 之外, 由 JDK 进行加载. 在创建实体时并没有指定这个参数
 		Class<?> beanClass = resolveBeanClass(mbd, beanName);
-		// TODO 确保class不为空, 并且访问权限为public. Spring无法创建非public对象, 会抛出BeanCreationException异常
+		// TODO 确保 class 不为空, 并且访问权限为 public. Spring 无法创建非 public 对象, 会抛出 BeanCreationException 异常
 		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
 
 		if (args == null) {
-			// TODO 在用注解形式配置bean时, AnnotatedBeanDefinitionReader#registerBean()方法有三个重载设置过Supplier:
-			//  1. registerBean(Class<T>, @Nullable Supplier<T>): Spring中没有调用过
-			//  2. registerBean(Class<T>, @Nullable String, @Nullable Supplier<T>): Spring中没有调用过
+			// TODO 在用注解形式配置 bean 时, AnnotatedBeanDefinitionReader#registerBean() 方法有三个重载设置过Supplier:
+			//  1. registerBean(Class<T>, @Nullable Supplier<T>): Spring 中没有调用过
+			//  2. registerBean(Class<T>, @Nullable String, @Nullable Supplier<T>): Spring 中没有调用过
 			//  3. registerBean(Class<T>, @Nullable String, @Nullable Supplier<T>, BeanDefinitionCustomizer...): 这个重载被容器
 			//       AnnotationConfigApplicationContext#registerBean(@Nullable String, Class<T>, @Nullable Supplier<T>, BeanDefinitionCustomizer...)
-			//       进行了重载, 可以设置Supplier.
-			//  这三个重载最终都会调用AnnotatedBeanDefinitionReader#doRegisterBean()来设置用于创建bean对象的Supplier
+			//       进行了重载, 可以设置 Supplier.
+			//  这三个重载最终都会调用 AnnotatedBeanDefinitionReader#doRegisterBean() 来设置用于创建 bean 对象的 Supplier
 			Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 			if (instanceSupplier != null) {
-				// TODO 如果设置了mbd中的supplier属性, 从supplier中取得实例并包装为BeanWrapper返回
+				// TODO 如果设置了 mbd 中的 supplier 属性, 从 supplier 中取得实例并包装为 BeanWrapper 返回
 				return obtainFromSupplier(instanceSupplier, beanName, mbd);
 			}
 		}
 
 		if (mbd.getFactoryMethodName() != null) {
-			// TODO 设置了工厂方法时, 用工厂方法实例化对应的bean并返回. 工厂方法有两种类型:
+			// TODO 设置了工厂方法时, 用工厂方法实例化对应的 bean 并返回. 工厂方法有两种类型:
 			//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
 			//     A. XML配置方式:
 			//        <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
@@ -1399,9 +1399,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//        </bean>
 			//        a. factoryBeanName: null, 静态工厂方法没有工厂
 			//        b. factoryBean: null, 静态工厂方法没有工厂类
-			//        c. factoryClass: 'class'属性, 指向的是静态工厂方法的全限定名, 即: 例子中的'factory.StaticCarFactory'
-			//        d. factoryMethod: 'factory-method'属性, 指向静态工厂方法的名字, 即: 例子中的'getCar'
-			//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
+			//        c. factoryClass: 'class' 属性, 指向的是静态工厂方法的全限定名, 即: 例子中的 'factory.StaticCarFactory'
+			//        d. factoryMethod: 'factory-method' 属性, 指向静态工厂方法的名字, 即: 例子中的 'getCar'
+			//        e. explicitArgs: 'constructor-arg' 标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的 'Audio'
 			//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
 			//        package factory
 			//        @Configuration
@@ -1500,15 +1500,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param beanName the corresponding bean name
 	 * @return a BeanWrapper for the new instance
 	 */
-	// TODO 从Supplier中创建bean
+	// TODO 从 Supplier 中创建 bean
 	private BeanWrapper obtainFromSupplier(Supplier<?> supplier, String beanName, RootBeanDefinition mbd) {
-		// TODO 拿出当前线程NamedThreadLoad的bean, 然后设置为新的bean
+		// TODO 拿出当前线程 NamedThreadLoad 的 bean, 然后设置为新的 bean
 		String outerBean = this.currentlyCreatedBean.get();
 		this.currentlyCreatedBean.set(beanName);
 		Object instance;
 
 		try {
-			// TODO 通过Supplier函数得到实例
+			// TODO 通过 Supplier 函数得到实例
 			instance = obtainInstanceFromSupplier(supplier, beanName, mbd);
 		}
 		catch (Throwable ex) {
@@ -1519,11 +1519,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		finally {
 			if (outerBean != null) {
-				// TODO 如果当前线程NamedThreadLoad有值, 再设置一下
+				// TODO 如果当前线程 NamedThreadLoad 有值, 再设置一下
 				this.currentlyCreatedBean.set(outerBean);
 			}
 			else {
-				// TODO 否则从当前线程NamedThreadLoad中移除beanName
+				// TODO 否则从当前线程 NamedThreadLoad 中移除 beanName
 				this.currentlyCreatedBean.remove();
 			}
 		}

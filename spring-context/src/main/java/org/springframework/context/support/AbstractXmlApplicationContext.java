@@ -82,7 +82,7 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 	@Override
 	protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
 		// Create a new XmlBeanDefinitionReader for the given BeanFactory.
-		// TODO 为传入的DefaultListableBeanFactory容器创建一个用于解析xml的reader
+		// TODO 为传入的DefaultListableBeanFactory 容器创建一个用于解析 xml 的 reader
 		XmlBeanDefinitionReader beanDefinitionReader = new XmlBeanDefinitionReader(beanFactory);
 
 		// Configure the bean definition reader with this context's
@@ -93,9 +93,9 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 
 		// Allow a subclass to provide custom initialization of the reader,
 		// then proceed with actually loading the bean definitions.
-		// TODO 初始化reader
+		// TODO 初始化 reader
 		initBeanDefinitionReader(beanDefinitionReader);
-		// TODO 解析xml文件, 然后注册到容器中
+		// TODO 解析 xml 文件, 然后注册到容器中
 		loadBeanDefinitions(beanDefinitionReader);
 	}
 
@@ -127,7 +127,7 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 	protected void loadBeanDefinitions(XmlBeanDefinitionReader reader) throws BeansException, IOException {
 		Resource[] configResources = getConfigResources();
 		if (configResources != null) {
-			// TODO 先解析一下Resource指定的bean, 这个方法是有返回值的, 返回的是本次注册bean的数量
+			// TODO 先解析一下 Resource 指定的 bean, 这个方法是有返回值的, 返回的是本次注册 bean 的数量
 			reader.loadBeanDefinitions(configResources);
 		}
 		// TODO configLocations is xml file location which provided when ApplicationContext instantiation
@@ -135,7 +135,7 @@ public abstract class AbstractXmlApplicationContext extends AbstractRefreshableC
 		//  finally, location will convert to resource and parse same as loadBeanDefinitions(Resource[])(line 124)
 		String[] configLocations = getConfigLocations();
 		if (configLocations != null) {
-			// TODO 然后再解析由字符串指定的文件, 这边最终还是会解析成Resource, 然后使用统一方式进行解析
+			// TODO 然后再解析由字符串指定的文件, 这边最终还是会解析成 Resource, 然后使用统一方式进行解析
 			reader.loadBeanDefinitions(configLocations);
 		}
 	}

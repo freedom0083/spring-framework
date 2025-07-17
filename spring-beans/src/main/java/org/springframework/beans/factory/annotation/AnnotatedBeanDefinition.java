@@ -32,7 +32,7 @@ import org.springframework.core.type.MethodMetadata;
  * @see AnnotatedGenericBeanDefinition
  * @see org.springframework.core.type.AnnotationMetadata
  */
-// TODO 注解类型BeanDefinition
+// TODO 注解类型 BeanDefinition ，相比 BeanDefinition 保存了注解相关的元数据和取得工厂方法元数据的内容
 public interface AnnotatedBeanDefinition extends BeanDefinition {
 
 	/**

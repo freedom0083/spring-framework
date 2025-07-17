@@ -123,15 +123,16 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// the new (child) delegate with a reference to the parent for fallback purposes,
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
-		// TODO 此方法会被递归调用, 所以配置文件中<beans />内部可以定义<beans />, 这个方法的root不一定是xml的根节点,
-		//  也可能是嵌套在里面的<beans />节点, 所以这里需要定义上层的解析代理
+		// TODO 此方法会被递归调用, 所以配置文件中 <beans /> 内部可以定义 <beans />, 这个方法的 root 不一定是 xml 的根节点,
+		//  也可能是嵌套在里面的 <beans /> 节点, 所以这里需要定义上层的解析代理
 		BeanDefinitionParserDelegate parent = this.delegate;
 		BeanDefinitionParserDelegate current = createDelegate(getReaderContext(), root, parent);
-		// TODO 根据xml的元素生成一个带有默认属性的BeanDefinitionParserDelegate代理
+		// TODO 根据xml的元素生成一个带有默认属性的 BeanDefinitionParserDelegate 代理
 		this.delegate = current;
 
 		if (current.isDefaultNamespace(root)) {
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
+			// TODO 处理配置文件中有 profile 的情况，即：<beans ... profile="dev" />
 			if (StringUtils.hasText(profileSpec)) {
 				// TODO 处理根节点的<beans ... profile="dev" />
 				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(
@@ -139,7 +140,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				// We cannot use Profiles.of(...) since profile expressions are not supported
 				// in XML config. See SPR-12458 for details.
 				if (!getReaderContext().getEnvironment().acceptsProfiles(specifiedProfiles)) {
-					// TODO 不处理不接受的profile类型
+					// TODO 不处理不接受的 profile 类型，比如当前是 Dev 阶段，肯定不会对 Test 阶段的 Profile 进行解析，所以直接路过
 					if (logger.isDebugEnabled()) {
 						logger.debug("Skipped XML bean definition file due to specified profiles [" + profileSpec +
 								"] not matching: " + getReaderContext().getResource());
@@ -148,11 +149,11 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				}
 			}
 		}
-		// TODO 对xml的预处理, 勾子方法, 什么也没做
+		// TODO 对 xml 的预处理, 勾子方法, 什么也没做
 		preProcessXml(root);
-		// TODO 开始解析xml, "import", "alias", "bean"
+		// TODO 开始解析 xml, "import", "alias", "bean"
 		parseBeanDefinitions(root, current);
-		// TODO 对xml的后处理, 勾子方法, 什么都没做
+		// TODO 对 xml 的后处理, 勾子方法, 什么都没做
 		postProcessXml(root);
 
 		this.delegate = parent;
@@ -173,16 +174,17 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * "import", "alias", "bean".
 	 * @param root the DOM root element of the document
 	 */
+	// TODO 开始解析 <import />、<alias />、<bean />、<beans /> 以及一些自定义的标签
 	protected void parseBeanDefinitions(Element root, BeanDefinitionParserDelegate delegate) {
 		if (delegate.isDefaultNamespace(root)) {
-			// TODO 根元素属于默认命名空间时(如: <import />、<alias />、<bean />、<beans />等), 开始解析其子元素
+			// TODO 根元素属于默认命名空间时(如: <import />、<alias />、<bean />、<beans />), 开始解析其子元素
 			NodeList nl = root.getChildNodes();
 			for (int i = 0; i < nl.getLength(); i++) {
 				Node node = nl.item(i);
 				if (node instanceof Element ele) {
 					if (delegate.isDefaultNamespace(ele)) {
-						// TODO xml的元素属于默认命名空间时(如: <import />、<alias />、<bean />、<beans />等)
-						//  直接解析默认元素, 这里只解析了<import />、<alias />、<bean />、<beans />这4个元素
+						// TODO xml 的元素属于默认命名空间，即：http://www.springframework.org/schema/beans 下的标签
+						//  有 <import />、<alias />、<bean />、<beans /> 这4个元素
 						parseDefaultElement(ele, delegate);
 					}
 					else {
@@ -200,20 +202,20 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 	private void parseDefaultElement(Element ele, BeanDefinitionParserDelegate delegate) {
 		if (delegate.nodeNameEquals(ele, IMPORT_ELEMENT)) {
-			// TODO 解析<import />, 先解析import的配置文件
+			// TODO 解析 <import />, 先解析 import 的配置文件
 			importBeanDefinitionResource(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
-			// TODO 解析<alias />, 注册一下别名
+			// TODO 解析 <alias /> , 注册一下别名
 			processAliasRegistration(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
-			// TODO 解析<bean />, 正式开始对xml中每个bean进行解析
+			// TODO 解析 <bean /> , 正式开始对 xml 中每个 bean 进行解析
 			processBeanDefinition(ele, delegate);
 		}
 		else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
 			// recurse
-			// TODO 递归解析<beans />
+			// TODO 递归解析 <beans />
 			doRegisterBeanDefinitions(ele);
 		}
 	}
@@ -223,7 +225,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * from the given resource into the bean factory.
 	 */
 	protected void importBeanDefinitionResource(Element ele) {
-		// TODO 取得<import />指定的位置
+		// TODO 取得 <import /> 指定的位置
 		String location = ele.getAttribute(RESOURCE_ATTRIBUTE);
 		if (!StringUtils.hasText(location)) {
 			getReaderContext().error("Resource location must not be empty", ele);
@@ -248,7 +250,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// Absolute or relative?
 		if (absoluteLocation) {
 			try {
-				// TODO 使用绝对路径时, 就可以直接使用路径指定的位置进行解析, 即, 先要解析import的配置文件, 都解析结束后, 再继续解析当前文件
+				// TODO 使用绝对路径时, 就可以直接使用路径指定的位置进行解析, 即, 先要解析 import 的配置文件, 都解析结束后, 再继续解析当前文件
 				int importCount = getReaderContext().getReader().loadBeanDefinitions(location, actualResources);
 				if (logger.isTraceEnabled()) {
 					logger.trace("Imported " + importCount + " bean definitions from URL location [" + location + "]");
@@ -327,14 +329,14 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * and registering it with the registry.
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
-		// TODO 对元素进行解析, 得到一个包含bd, 名字和别名表的holder
+		// TODO 对元素进行解析, 得到一个包含 BeanDefinition, 名字和别名表的 holder
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
 		if (bdHolder != null) {
 			// TODO 解析成功的话开始解析自定义属性
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
-				// TODO 使用DefaultListableBeanFactory#registerBeanDefinition()将bd注册到注册中心beanDefinitionMap
+				// TODO 使用 DefaultListableBeanFactory#registerBeanDefinition() 将 BeanDefinition 注册到容器 BeanDefinitionMap
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			}
 			catch (BeanDefinitionStoreException ex) {

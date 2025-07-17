@@ -107,6 +107,9 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 	@Override
 	public String generateBeanName(BeanDefinition definition, BeanDefinitionRegistry registry) {
 		if (definition instanceof AnnotatedBeanDefinition annotatedBeanDefinition) {
+			// TODO 对于注解类型的 BeanDefinition 尝试从注解中取得名字当 Bean 名字，比如：
+			//  1. @Component 中的 value
+			//  2. 其他类型注解中的 value (已不推荐，最好都是放到 @Component 中设置)
 			String beanName = determineBeanNameFromAnnotation(annotatedBeanDefinition);
 			if (StringUtils.hasText(beanName)) {
 				// Explicit bean name found.
@@ -114,6 +117,7 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 			}
 		}
 		// Fallback: generate a unique default bean name.
+		// TODO 从注解中没找到可以用的名字时，退回到最原始的方式生成 Bean 的名字，用小写开头的文件名做为 Bean 名
 		return buildDefaultBeanName(definition, registry);
 	}
 
@@ -124,7 +128,7 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 	 */
 	protected @Nullable String determineBeanNameFromAnnotation(AnnotatedBeanDefinition annotatedDef) {
 		AnnotationMetadata metadata = annotatedDef.getMetadata();
-
+        // TODO Spring 6.1 新加入的，先判断一下 @Component 是否设置了 name 或 value，如果设置了可以直接做为 Bean 名字
 		String beanName = getExplicitBeanName(metadata);
 		if (beanName != null) {
 			return beanName;
@@ -133,12 +137,13 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 		// List of annotations directly present on the class we're searching on.
 		// MergedAnnotation implementations do not implement equals()/hashCode(),
 		// so we use a List and a 'visited' Set below.
+		// TODO 拿出直接声明在当前类上所有注解
 		List<MergedAnnotation<Annotation>> mergedAnnotations = metadata.getAnnotations().stream()
 				.filter(MergedAnnotation::isDirectlyPresent)
 				.toList();
 
 		Set<AnnotationAttributes> visited = new HashSet<>();
-
+        // TODO 查看所有原型注解是否有可以用来当 Bean 名字的
 		for (MergedAnnotation<Annotation> mergedAnnotation : mergedAnnotations) {
 			AnnotationAttributes attributes = mergedAnnotation.asAnnotationAttributes(ADAPTATIONS);
 			if (visited.add(attributes)) {

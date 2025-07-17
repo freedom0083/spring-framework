@@ -118,29 +118,29 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	@Override
 	protected final void refreshBeanFactory() throws BeansException {
 		if (hasBeanFactory()) {
-			// TODO 当前ApplicationContext存在beanFactory时, 会先进行清理动作, 会销毁所有Bean, 然后再创建新的beanFactory
+			// TODO 当前 ApplicationContext 存在beanFactory时, 会先进行清理动作, 会销毁所有 Bean, 然后再创建新的 beanFactory
 			destroyBeans();
 			closeBeanFactory();
 		}
 		try {
-			// TODO 创建DefaultListableBeanFactory
+			// TODO 创建 DefaultListableBeanFactory
 			DefaultListableBeanFactory beanFactory = createBeanFactory();
 			beanFactory.setSerializationId(getId());
 			beanFactory.setApplicationStartup(getApplicationStartup());
 			// TODO 设置是否支持覆盖和循环引用
 			customizeBeanFactory(beanFactory);
-			// TODO 加载Bean到BeanFactory, 同样根据使用不同的配置方式分为两种:
-			//  1. 对于使用非配置类方式的情况来说, 总体思路都是创建一个reader, 然后用reader来解析配置文件.
-			//     reader可以解析字符串形式的路径, 或者直接使用Resource. 无论使用哪种方式, 最终都会转化为对Resource的解析.
-			//     即, 使用AbstractBeanDefinitionReader#loadBeanDefinitions(Resource)来进行解析和注册工作:
-			//     AbstractXmlApplicationContext: 除了可以处理字符串形式的path外, 还可以直接处理直接处理Resource
-			//     GroovyWebApplicationContext, XmlWebApplicationContext: 这俩只能处理字符串形式的path
-			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext创建了用于解析动作的reader和扫描动作的scanner:
-			//     a. reader: AnnotatedBeanDefinitionReader会注册实现了BeanDefinitionRegistryPostProcessor接口的后处理器,
-			//        通过实现postProcessBeanDefinitionRegistry()方法来实现自定义bean注册的功能,
-			//        比如解析配置类的ConfigurationClassPostProcessor后处理器靠其来在后面执行后处理器等.
-			//     b. scanner: ClassPathBeanDefinitionScanner来扫描指定包下的@Component, @Repository, @Controller等
-			//  这一步实际上和使用AnnotationConfigApplicationContext完全相同
+			// TODO 加载 Bean 到 BeanFactory, 同样根据使用不同的配置方式分为两种:
+			//  1. 对于使用非配置类方式的情况来说, 总体思路都是创建一个 reader, 然后用 reader 来解析配置文件.
+			//     reader 可以解析字符串形式的路径, 或者直接使用 Resource. 无论使用哪种方式, 最终都会转化为对 Resource 的解析.
+			//     即, 使用 AbstractBeanDefinitionReader#loadBeanDefinitions(Resource) 来进行解析和注册工作:
+			//     a. AbstractXmlApplicationContext: 除了可以处理字符串形式的 path 外, 还可以直接处理直接处理 Resource
+			//     b. GroovyWebApplicationContext, XmlWebApplicationContext: 这俩只能处理字符串形式的 path
+			//  2. 用于用配置类进行配置的情况, AnnotationConfigWebApplicationContext 创建了用于解析动作的 reader 和扫描动作的 scanner:
+			//     a. reader: AnnotatedBeanDefinitionReader 会注册实现了 BeanDefinitionRegistryPostProcessor 接口的后处理器,
+			//        通过实现 postProcessBeanDefinitionRegistry() 方法来实现自定义bean注册的功能,
+			//        比如解析配置类的 ConfigurationClassPostProcessor 后处理器靠其在后面执行后处理器等.
+			//     b. scanner: ClassPathBeanDefinitionScanner 来扫描指定包下的 @Component, @Repository, @Controller 等
+			//  这一步实际上和使用 AnnotationConfigApplicationContext 默认构造函数中创建 AnnotateBeanDefinitionReader 完全相同
 			loadBeanDefinitions(beanFactory);
 			// TODO 更新容器，之前这里是同步更新的
 			this.beanFactory = beanFactory;
@@ -228,7 +228,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	 */
 	protected void customizeBeanFactory(DefaultListableBeanFactory beanFactory) {
 		if (this.allowBeanDefinitionOverriding != null) {
-			// TODO 如果允许覆盖，则不同配置文件里的Bean使用相同id或name时会发生覆盖
+			// TODO 如果允许覆盖，则不同配置文件里的 Bean 使用相同 id 或 name 时会发生覆盖
 			beanFactory.setAllowBeanDefinitionOverriding(this.allowBeanDefinitionOverriding);
 		}
 		if (this.allowCircularReferences != null) {

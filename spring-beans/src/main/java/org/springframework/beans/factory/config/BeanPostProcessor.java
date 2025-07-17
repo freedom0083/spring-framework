@@ -56,6 +56,7 @@ import org.springframework.beans.BeansException;
  * @see ConfigurableBeanFactory#addBeanPostProcessor
  * @see BeanFactoryPostProcessor
  */
+// TODO Bean 后处理器，可以在 Bean 的前后进行干预，执行需要的内容
 public interface BeanPostProcessor {
 
 	/**

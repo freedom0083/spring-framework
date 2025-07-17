@@ -68,6 +68,7 @@ class ConditionEvaluator {
 	 * @param metadata the meta data
 	 * @return if the item should be skipped
 	 */
+	// TODO 控制 @Conditional 条件是否满足
 	public boolean shouldSkip(AnnotatedTypeMetadata metadata) {
 		return shouldSkip(metadata, null);
 	}
@@ -78,6 +79,7 @@ class ConditionEvaluator {
 	 * @param phase the phase of the call
 	 * @return if the item should be skipped
 	 */
+	// TODO 控制 @Conditional 条件是否满足，在解析解析文件，注册 Bean 阶段，以及不满足 @Conditional 时，都会跳过
 	public boolean shouldSkip(@Nullable AnnotatedTypeMetadata metadata, @Nullable ConfigurationPhase phase) {
 		if (metadata == null || !metadata.isAnnotated(Conditional.class.getName())) {
 			return false;
@@ -86,13 +88,18 @@ class ConditionEvaluator {
 		if (phase == null) {
 			if (metadata instanceof AnnotationMetadata annotationMetadata &&
 					ConfigurationClassUtils.isConfigurationCandidate(annotationMetadata)) {
-				// TODO 元数据中包含任何注解时, 表示为解析@Configuration阶段
+				// TODO 元数据中包含以下注解时, 表示为解析 @Configuration 阶段
+				//  @Component
+				//  @ComponentScan
+				//  @Import
+				//  @ImportResource
+				//  @Bean
 				return shouldSkip(metadata, ConfigurationPhase.PARSE_CONFIGURATION);
 			}
 			// TODO 注册阶段
 			return shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN);
 		}
-
+        // TODO 取得所有 @Conditional 判断是否满足条件
 		List<Condition> conditions = collectConditions(metadata);
 		for (Condition condition : conditions) {
 			ConfigurationPhase requiredPhase = null;
@@ -119,7 +126,7 @@ class ConditionEvaluator {
 		}
 
 		List<Condition> conditions = new ArrayList<>();
-		// TODO 在元数据中拿出@Condition的value值, 构建condition对象
+		// TODO 在元数据中拿出 @Condition 的值, 构建 condition 对象
 		for (String[] conditionClasses : getConditionClasses(metadata)) {
 			for (String conditionClass : conditionClasses) {
 				Condition condition = getCondition(conditionClass, this.context.getClassLoader());

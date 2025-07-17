@@ -221,36 +221,38 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	// TODO 根据名字取得容器中注册的原生的单例对象, 提供对提前暴露的支持
 	protected @Nullable Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock.
-		// TODO 首先从单例缓存(第一级缓存)里尝试取得bean, 这个缓存都是创建好的单例bean
+		// TODO 首先从单例缓存(第一级缓存 singletonObjects)里尝试取得 bean, 这个缓存都是创建好的单例 bean
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
-			// TODO 如果单例缓存(第一级缓存)里没取到bean, 这个bean正处于创建过程中时, 尝试从提前暴露的单例缓存(第二级缓存)里取,
-			//  允许提前暴露的bean会在创建时进入earlySingletonObjects缓存
+			// TODO 如果单例缓存(第一级缓存 singletonObjects)里没取到 bean, 这个 bean 正处于创建过程中时, 尝试从提前暴露的单例缓存(第二级缓存 earlySingletonObjects)里取,
+			//  允许提前暴露的 bean 会在创建时进入 earlySingletonObjects 缓存
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
+				// TODO 如果提前暴露的单例缓存(第二级缓存 earlySingletonObjects)里也没有取得 bean, 也支持提前显露时, 后面的操作就需要在单例缓存(第一级缓存 singletonObjects)上进行同步
 				if (!this.singletonLock.tryLock()) {
 					// Avoid early singleton inference outside of original creation thread.
+					// TODO 得不到锁就直接返回吧
 					return null;
 				}
-				// TODO 如果提前暴露的单例缓存(第二级缓存)里也没有取得bean, 也支持提前显露时, 后面的操作就需要在单例缓存(第一级缓存)上进行同步
+
 				try {
 					// Consistent creation of early reference within full singleton lock.
-					// TODO 然后再取一次, 先从单例缓存(第一级缓存)里取
+					// TODO 然后再取一次, 先从单例缓存(第一级缓存 singletonObjects)里取
 					singletonObject = this.singletonObjects.get(beanName);
 					if (singletonObject == null) {
-						// TODO 取不到时，再从提前暴露的单例缓存(第二级缓存)里取
+						// TODO 取不到时，再从提前暴露的单例缓存(第二级缓存 earlySingletonObjects)里取
 						singletonObject = this.earlySingletonObjects.get(beanName);
 						if (singletonObject == null) {
-							// TODO 如果还是没找到, 这时就要singletonFactories缓存(第三级缓存)里取了
-							//  singletonFactories缓存(第三级缓存)里存的都是调用addSingletonFactory()的ObjectFactory初始化策略
+							// TODO 如果还是没找到, 这时就要 singletonFactories 缓存(第三级缓存 singletonFactories)里取了
+							//  singletonFactories 缓存(第三级缓存 singletonFactories)里存的都是调用 addSingletonFactory() 的 ObjectFactory 初始化策略
 							//  如果这里也没有, 那就是真的没有了
 							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 							if (singletonFactory != null) {
-								// TODO 如果singletonFactories中存在预先设置的ObjectFactory, 则根据factory实现的getObject()返回对象
+								// TODO 如果singletonFactories中存在预先设置的 ObjectFactory, 则根据 factory 实现的 getObject() 返回对象
 								singletonObject = singletonFactory.getObject();
 								// Singleton could have been added or removed in the meantime.
 								if (this.singletonFactories.remove(beanName) != null) {
-									// TODO 然后将其加入到提前暴露的单例缓存(第二级缓存), 并从singletonFactories缓存中删除
+									// TODO 然后将其加入到提前暴露的单例缓存(第二级缓存 earlySingletonObjects), 并从三级缓存 singletonFactories 缓存中删除
 									this.earlySingletonObjects.put(beanName, singletonObject);
 								}
 								else {

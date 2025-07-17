@@ -491,15 +491,15 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws ClassNotFoundException if the class name could be resolved
 	 */
 	public @Nullable Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
-		// TODO 从bd中的beanClass属性中取得bean对应的class对象或是类的全限定名
+		// TODO 从 bd 中的 beanClass 属性中取得 bean 对应的 class 对象或是类的全限定名
 		String className = getBeanClassName();
 		if (className == null) {
-			// TODO 没有设置bean对应的'class'属性时, 即bean没有对应的class引用或是全限定名, 直接返回null
+			// TODO 没有设置 bean 对应的 'class' 属性时, 即 bean 没有对应的 class 引用或是全限定名, 直接返回 null
 			return null;
 		}
-		// TODO 有名字时, 委托给ClassUtils使用传入的类加载器对指定名字的类进行加载
+		// TODO 有名字时, 委托给 ClassUtils 使用传入的类加载器对指定名字的类进行加载
 		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
-		// TODO 加载的类赋给beanClass
+		// TODO 加载的类赋给 beanClass
 		this.beanClass = resolvedClass;
 		return resolvedClass;
 	}
@@ -1253,13 +1253,13 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	public void validate() throws BeanDefinitionValidationException {
 		if (hasMethodOverrides() && getFactoryMethodName() != null) {
-			// TODO methodOverrides与工厂方法不能同时设置
+			// TODO methodOverrides 与工厂方法不能同时设置
 			throw new BeanDefinitionValidationException(
 					"Cannot combine factory method with container-generated method overrides: " +
 					"the factory method must create the concrete bean instance.");
 		}
 		if (hasBeanClass()) {
-			// TODO 如果配置中包含'class'属性, 且其为class类型时, 处理方法覆盖
+			// TODO 如果配置中包含 'class' 属性, 且其为 class 类型时, 处理方法覆盖
 			prepareMethodOverrides();
 		}
 	}
@@ -1270,8 +1270,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
-		// TODO Spring支持lookup-method(一般用于单例bean依赖原型bean的情况, 可以实现依赖动态原型bean),
-		//  replace-method(用于替换目标bean的方法)两个依赖注入的方式, 比如: <lookup-method name="getFruit" bean="bananer"/>
+		// TODO Spring 支持 lookup-method (一般用于单例 bean 依赖原型 bean 的情况, 可以实现依赖动态原型 bean),
+		//  replace-method (用于替换目标 bean 的方法)两个依赖注入的方式, 比如: <lookup-method name="getFruit" bean="banana"/>
 		//  相当于调用指定类里面的指定方法进行注入, 所以需要处理方法覆盖
 		// Check that lookup methods exists.
 		if (hasMethodOverrides()) {

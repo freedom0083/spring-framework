@@ -66,25 +66,27 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
-		// TODO 用于收集Spring启动时的相关数据信息、处理时间等，目前有两个实现：
+		// TODO 用于收集 Spring 启动时的相关数据信息、处理时间等，目前有两个实现：
 		//  1. DefaultStartupStep: 默认实现，什么也没做；
 		//  2. FlightRecorderApplicationStartup: 利用JFR来对容器的启动进行监控；
 		StartupStep createAnnotatedBeanDefReader = getApplicationStartup().start("spring.context.annotated-bean-reader.create");
-		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
-		//  根据情况注册一些RootBeanDefinition(AbstractBeanDefinition)类型用于处理注解的后处理器:
-		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
-		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
-		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
-		//  2. AutowiredAnnotationBeanPostProcessor: 继承自InstantiationAwareBeanPostProcessorAdapter, 同时实现了
-		//     MergedBeanDefinitionPostProcessor接口(用于自动装配, 可以处理@Autowire, @Value, 以及JSR-330中的@Inject)
-		//  3. CommonAnnotationBeanPostProcessor: 提供生命周期管理(@PostConstruct, @PreDestroy), 以及其他通用处理(@WebServiceRef,
-		//     @EJB, @Resource)
-		//  4. PersistenceAnnotationBeanPostProcessor:
-		//  5. EventListenerMethodProcessor:
-		//  6. DefaultEventListenerFactory:
+		// TODO 初始化具有解析注解能力的 reader, 此 reader 会把解释配置类的内容，生成 BeanDefinition 后注册到 BeanRegistry。
+		//  初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
+		//  同时注册 6 个 RootBeanDefinition (AbstractBeanDefinition) 用于处理注解的后处理器:
+		//  1. ConfigurationClassPostProcessor: 实现了 BeanDefinitionRegistryPostProcessor, BeanRegistrationAotProcessor,
+		//     BeanFactoryInitializationAotProcessor 接口。用来处理 @Configuration，@ComponmentScan 等注解。
+		//     通过实现 postProcessBeanDefinitionRegistry() 方法, 来实现自定义的bean注册动作。@Configuration 配置类就是从这里解析配置类,
+		//     将其中的 bean 解析为 BeanDefinition 后注册到容器中的
+		//  2. AutowiredAnnotationBeanPostProcessor: 继承自 InstantiationAwareBeanPostProcessorAdapter, 同时实现了
+		//     MergedBeanDefinitionPostProcessor 接口(用于自动装配, 可以处理 @Autowire, @Value, 以及 JSR-330 中的 @Inject)
+		//  3. CommonAnnotationBeanPostProcessor: 提供生命周期管理( @PostConstruct, @PreDestroy ), 处理 JSR-250 规范的注解
+		//     以及其他通用处理( @WebServiceRef, @EJB, @Resource )
+		//  4. PersistenceAnnotationBeanPostProcessor: 处理JPA相关的注解, 如 @PersistenceContext, @PersistenceUnit 等
+		//  5. EventListenerMethodProcessor: 处理事件监听器, 主要是对 @EventListener 注解的处理
+		//  6. DefaultEventListenerFactory: 事件监听器工厂, 用于创建事件监听器
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		createAnnotatedBeanDefReader.end();
-		// TODO 初始化一个使用默认过滤器的bean扫描器, 此扫描器用于后面解析过程时对指定包进行扫描
+		// TODO 初始化一个使用默认过滤器的bean扫描器, 此扫描器用于后面解析过程时对指定包进行扫描，然后解析为 BeanDefinition 后注册到容器中
 		//  默认的过滤器可以处理@Component, @Repository, @Controller和J2EE 6的@ManagedBean, JSR-330的@Named
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}
@@ -93,9 +95,25 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * Create a new AnnotationConfigApplicationContext with the given DefaultListableBeanFactory.
 	 * @param beanFactory the DefaultListableBeanFactory instance to use for this context
 	 */
+	// TODO 根据指定的 DefaultListableBeanFactory 创建一个 AnnotationConfigApplicationContext 实例
 	public AnnotationConfigApplicationContext(DefaultListableBeanFactory beanFactory) {
 		super(beanFactory);
+		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
+		//  整个过程会先初始化 DefaultListableBeanFactory，确保 BeanFactory 提供 @Order，@Lazy，@Qualifier，@Value 的支持，
+		//  然后再注册以下 6 个后处理器:
+		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
+		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
+		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
+		//  2. AutowiredAnnotationBeanPostProcessor: 继承自InstantiationAwareBeanPostProcessorAdapter, 同时实现了
+		//     MergedBeanDefinitionPostProcessor接口(用于自动装配, 可以处理@Autowire, @Value, 以及JSR-330中的@Inject)
+		//  3. CommonAnnotationBeanPostProcessor: 用于处理J2EE 6的注解，提供生命周期管理的 @PostConstruct、@PreDestroy,
+		//     以及其他通用处理(@WebServiceRef, @EJB, @Resource)
+		//  4. PersistenceAnnotationBeanPostProcessor: 处理JPA相关的注解, 如@PersistenceContext, @PersistenceUnit等
+		//  5. EventListenerMethodProcessor: 处理事件监听器, 主要是对@EventListener注解的处理
+		//  6. DefaultEventListenerFactory: 事件监听器工厂, 用于创建事件监听器
 		this.reader = new AnnotatedBeanDefinitionReader(this);
+		// TODO 初始化一个使用默认过滤器的 bean 扫描器, 此扫描器用于后面解析过程时对指定包进行扫描
+		//  默认的过滤器可以处理 @Component, @Repository, @Controller 和J2EE 6的 @ManagedBean, JSR-330 的 @Named
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}
 
@@ -105,10 +123,14 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * @param componentClasses one or more component classes &mdash; for example,
 	 * {@link Configuration @Configuration} classes
 	 */
+	// TODO 处理直接传递进来的配置类
 	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
+		// TODO 开始做准备工作，初始化 beanFactory, 用来生成 BeanFactory 及解析配置文件的 AnnotatedBeanDefinitionReader,
+		//  用来扫描给定目录，并解析其中内容的 ClassPathBeanDefinitionScanner
 		this();
-		// TODO 用初始化好的AnnotatedBeanDefinitionReader来解析配置类, 设置由@Lazy, @Primary, @DependsOn, @Role, @Description等
-		//  指定的value值, 并将配置类注册到容器中.  register最终调用的是AnnotationBeanDefinitionReader#doRegisterBean()
+		// TODO 用初始化好的AnnotatedBeanDefinitionReader 来解析配置类, 设置由 @Lazy, @Primary, @DependsOn, @Role, @Description 等
+		//  指定的 value 值, 并将配置类注册到容器中. register 最终调用的是 AnnotationBeanDefinitionReader#doRegisterBean()
+		//  方法调用结束后，容器 BeanDefinitionMap 中会有上面注册的 6 个后处理器，以及传进来的这些个 componentClasses
 		register(componentClasses);
 		// TODO 开始注册bean, 同时完成单例bean的实例化
 		refresh();
@@ -120,11 +142,15 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * and automatically refreshing the context.
 	 * @param basePackages the packages to scan for component classes
 	 */
+	// TODO 处理传进来的是一个包路径的情况
 	public AnnotationConfigApplicationContext(String... basePackages) {
+		// TODO 开始做准备工作，初始化 beanFactory, 用来生成 BeanFactory 及解析配置文件的 AnnotatedBeanDefinitionReader,
+		//  用来扫描给定目录，并解析其中内容的 ClassPathBeanDefinitionScanner
 		this();
-		// TODO 如果传入的是一个包路径, 则扫描包下所有符合要求的bean, 并注册到容器中
+		// TODO 如果传入的是一个包路径, 则扫描包下所有符合要求的bean, 并注册到容器中，方法调用结束后，容器 BeanDefinitionMap 中会有上面
+		//  注册的 6 个后处理器，以及路径下扫描到的这些内容
 		scan(basePackages);
-		// TODO 开始注册bean, 同时完成单例bean的实例化
+		// TODO 开始注册bean, 同时完成单例 bean 的实例化
 		refresh();
 	}
 

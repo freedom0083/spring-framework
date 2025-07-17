@@ -45,7 +45,7 @@ import org.springframework.core.AliasRegistry;
  * @see org.springframework.beans.factory.xml.XmlBeanDefinitionReader
  * @see PropertiesBeanDefinitionReader
  */
-// TODO 具有增, 查, 删BeanDefinition的能力. 一次只能注册一个BeanDefinition.
+// TODO 具有增, 查, 删 BeanDefinition 的能力. 一次只能注册一个 BeanDefinition.
 public interface BeanDefinitionRegistry extends AliasRegistry {
 
 	/**

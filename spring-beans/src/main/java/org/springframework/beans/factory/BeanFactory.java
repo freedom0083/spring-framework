@@ -118,6 +118,7 @@ import org.springframework.core.ResolvableType;
  * @see DisposableBean#destroy
  * @see org.springframework.beans.factory.support.RootBeanDefinition#getDestroyMethodName
  */
+// TODO 根据 BeanDefinition 生产对应的 Bean
 public interface BeanFactory {
 
 	/**

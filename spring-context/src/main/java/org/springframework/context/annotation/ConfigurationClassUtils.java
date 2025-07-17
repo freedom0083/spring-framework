@@ -191,18 +191,23 @@ public abstract class ConfigurationClassUtils {
 		// Any of the typical annotations found?
 		for (String indicator : candidateIndicators) {
 			if (metadata.isAnnotated(indicator)) {
-				// TODO 在候选名单里, 就算配置类
+				// TODO 只要包含以下注解的就算配置类：
+				//  @Component
+				//  @ComponentScan
+				//  @Import
+				//  @ImportResource
 				return true;
 			}
 		}
 
 		// Finally, let's look for @Bean methods...
+		// TODO 否则，包含 @Bean 注解的方法，也算配置类
 		return hasBeanMethods(metadata);
 	}
 
 	static boolean hasBeanMethods(AnnotationMetadata metadata) {
 		try {
-			// TODO 元数据里带@Bean的, 就算配置类
+			// TODO 元数据里带 @Bean 的, 就算配置类
 			return metadata.hasAnnotatedMethods(Bean.class.getName());
 		}
 		catch (Throwable ex) {
