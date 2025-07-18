@@ -48,10 +48,10 @@ import org.springframework.util.ObjectUtils;
 @SuppressWarnings("serial")
 // TODO 用来描述一个用于注入的依赖项
 public class DependencyDescriptor extends InjectionPoint implements Serializable {
-	// TODO 声明注入项的Class对象, 即: 注入项所在的类或接口的Class对象. (在 field/methodParameter中已经隐含)
+	// TODO 声明注入项的 Class 对象, 即: 注入项所在的类或接口的 Class 对象. (在 field/methodParameter 中已经隐含)
 	private final Class<?> declaringClass;
 
-	// TODO 注入项是方法参数时(方法, 或构造函数的参数), 记录使用此参数的方法的名字(构造函数时为null)
+	// TODO 注入项是方法参数时(方法, 或构造函数的参数), 记录使用此参数的方法的名字(构造函数时为 null )
 	private @Nullable String methodName;
 
 	// TODO 如果所包装的是成员方法的某个参数，则这里记录该参数的类型
@@ -102,7 +102,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 */
 	public DependencyDescriptor(MethodParameter methodParameter, boolean required, boolean eager) {
 		super(methodParameter);
-		// TODO 取得要注入的方法参数的Class对象
+		// TODO 取得要注入的方法参数的 Class 对象
 		this.declaringClass = methodParameter.getDeclaringClass();
 		if (methodParameter.getMethod() != null) {
 			// TODO 如果要注入的方法参数是个方法, 取得其方法名
@@ -112,7 +112,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		this.parameterTypes = methodParameter.getExecutable().getParameterTypes();
 		// TODO 取得方法参数所在的索引位置
 		this.parameterIndex = methodParameter.getParameterIndex();
-		// TODO 取得包含此方法参数的Class对象
+		// TODO 取得包含此方法参数的 Class 对象
 		this.containingClass = methodParameter.getContainingClass();
 		this.required = required;
 		this.eager = eager;
@@ -280,11 +280,11 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Build a {@link ResolvableType} object for the wrapped parameter/field.
 	 * @since 4.0
 	 */
-	// TODO 为被包装的参数或字段创建一个ResolvableType对象
+	// TODO 为被包装的参数或字段创建一个 ResolvableType 对象
 	public ResolvableType getResolvableType() {
 		ResolvableType resolvableType = this.resolvableType;
 		if (resolvableType == null) {
-			// TODO 缓存中不存在解析过的resolvableType时, 开始进行解析
+			// TODO 缓存中不存在解析过的 resolvableType 时, 开始进行解析
 			resolvableType = (this.field != null ?
 					// TODO 解析字段
 					ResolvableType.forField(this.field, this.nestingLevel, this.containingClass) :
@@ -364,7 +364,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Determine the declared (non-generic) type of the wrapped parameter/field.
 	 * @return the declared type (never {@code null})
 	 */
-	// TODO 返回注入项的type类型
+	// TODO 返回注入项的 type 类型
 	public Class<?> getDependencyType() {
 		if (this.field != null) {
 			// TODO 对字段的处理逻辑

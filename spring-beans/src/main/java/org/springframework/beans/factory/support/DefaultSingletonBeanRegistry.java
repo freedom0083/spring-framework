@@ -531,7 +531,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	@Override
-	// TODO 判断给定的bean是否为单例
+	// TODO 判断给定的 bean 是否为单例
 	public boolean containsSingleton(String beanName) {
 		return this.singletonObjects.containsKey(beanName);
 	}
@@ -641,14 +641,14 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param beanName the name of the bean
 	 * @param dependentBeanName the name of the dependent bean
 	 */
-	// TODO 注册bean的依赖关系. 当前操作的bean有一个保存所有依赖其的bean的列表. 这里会把依赖bean插进去. 同时还会更新依赖bean本身自
-	//  带的依赖了哪些bean的集合
+	// TODO 注册 bean 的依赖关系. 当前操作的 bean 有一个保存所有依赖其的 bean 的列表. 这里会把依赖 bean 插进去. 同时还会更新依赖 bean
+	//  本身自带的依赖了哪些 bean 的集合
 	public void registerDependentBean(String beanName, String dependentBeanName) {
 		// TODO 拿到要检查的bean的最终名字
 		String canonicalName = canonicalName(beanName);
 
 		synchronized (this.dependentBeanMap) {
-			// TODO 取得依赖此bean的所有bean的集合, 然后把参数传进来的dependentBeanName也加入进去
+			// TODO 取得依赖此 bean 的所有 bean 的集合, 然后把参数传进来的 dependentBeanName 也加入进去
 			Set<String> dependentBeans =
 					this.dependentBeanMap.computeIfAbsent(canonicalName, k -> new LinkedHashSet<>(8));
 			if (!dependentBeans.add(dependentBeanName)) {
@@ -657,7 +657,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		}
 
 		synchronized (this.dependenciesForBeanMap) {
-			// TODO 然后再把参数传进来的dependentBeanName所依赖的bean集合也拿出来, 把当前bean再放进去
+			// TODO 然后再把参数传进来的 dependentBeanName 所依赖的 bean 集合也拿出来, 把当前 bean 再放进去
 			Set<String> dependenciesForBean =
 					this.dependenciesForBeanMap.computeIfAbsent(dependentBeanName, k -> new LinkedHashSet<>(8));
 			dependenciesForBean.add(canonicalName);

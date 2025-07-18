@@ -142,52 +142,52 @@ public abstract class AnnotationConfigUtils {
 	 */
 	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
 			BeanDefinitionRegistry registry, @Nullable Object source) {
-		// TODO 根据registry类型取得DefaultListableBeanFactory:
-		//  1. 如果是DefaultListableBeanFactory类型，直接返回;
-		//  2. 如果是GenericApplicationContext类型，则返回的是其中的DefaultListableBeanFactory
+		// TODO 根据 registry 类型取得 DefaultListableBeanFactory:
+		//  1. 如果是 DefaultListableBeanFactory 类型，直接返回;
+		//  2. 如果是 GenericApplicationContext 类型，则返回的是其中的 DefaultListableBeanFactory
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
 		if (beanFactory != null) {
 			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
-				// TODO 注册支持注解的比较器, 支持@Order
+				// TODO 注册支持注解的比较器, 支持 @Order
 				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
 			}
 			if (!(beanFactory.getAutowireCandidateResolver() instanceof ContextAnnotationAutowireCandidateResolver)) {
-				// TODO 注册支持注解的依赖策略, 默认支持@Lazy, @Qualifier, @Value
+				// TODO 注册支持注解的依赖策略, 默认支持 @Lazy, @Qualifier, @Value
 				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
 			}
 		}
 
 		Set<BeanDefinitionHolder> beanDefs = CollectionUtils.newLinkedHashSet(6);
-		// TODO 如果registry中没有配置类的后处理器, 则注册一个
+		// TODO 如果 registry 中没有配置类的后处理器, 则注册一个
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			// TODO 用ConfigurationClassPostProcessor构造一个用来解析@Configuration配置类的RootBeanDefinition
-			//  其实现了BeanDefinitionRegistryPostProcessor接口, 通过postProcessBeanDefinitionRegistry()方法实现自定义bean的注册动作
+			// TODO 用 ConfigurationClassPostProcessor 构造一个用来解析 @Configuration 配置类的 RootBeanDefinition
+			//  其实现了 BeanDefinitionRegistryPostProcessor 接口, 通过 postProcessBeanDefinitionRegistry() 方法实现自定义 bean 的注册动作
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
-		// TODO 如果registry中没有解析@Autowired注解的后处理器, 则注册一个
-		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) { // TODO 注册用来处理@Autowired注解的后处理器
-			// TODO 用一个用来处理@Autowired, @Value以及JSR-330(@Inject)的后处理器构造一个RootBeanDefinition
+		// TODO 如果 registry 中没有解析 @Autowired 注解的后处理器, 则注册一个
+		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) { // TODO 注册用来处理 @Autowired 注解的后处理器
+			// TODO 用一个用来处理 @Autowired, @Value以及JSR-330(@Inject)的后处理器构造一个 RootBeanDefinition
 			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
-		// TODO 如果支持Jakarta Annotations，且registry中没有处理Jakarta注解的后处理器, 则注册一个
+		// TODO 如果支持 Jakarta Annotations，且 registry 中没有处理 Jakarta 注解的后处理器, 则注册一个
 		// Check for Jakarta Annotations support, and if present add the CommonAnnotationBeanPostProcessor.
 		if (jakartaAnnotationsPresent && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			// TODO 用一个可以处理Jakarta支持的注解的后处理器构造一个RootBeanDefinition
+			// TODO 用一个可以处理 Jakarta 支持的注解的后处理器构造一个 RootBeanDefinition
 			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, COMMON_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
-		// TODO 如果支持JPA，且registry中没有处理JPA注解的后处理器, 则注册一个
+		// TODO 如果支持 JPA，且 registry 中没有处理 JPA 注解的后处理器, 则注册一个
 		// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.
 		if (jpaPresent && !registry.containsBeanDefinition(PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME)) {
-			// TODO 使用PersistenceAnnotationBeanPostProcessor增加对JPA的支持
+			// TODO 使用 PersistenceAnnotationBeanPostProcessor 增加对 JPA 的支持
 			RootBeanDefinition def = new RootBeanDefinition();
 			try {
 				def.setBeanClass(ClassUtils.forName(PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME,
@@ -198,23 +198,23 @@ public abstract class AnnotationConfigUtils {
 						"Cannot load optional framework class: " + PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME, ex);
 			}
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
-		// TODO 如果registry中没有处理@EventListener注解的后处理器, 则注册一个
+		// TODO 如果 registry 中没有处理 @EventListener 注解的后处理器, 则注册一个
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
 			// TODO 增加用于处理事件注解(@EventListener)的处理器
 			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
 		}
-		// TODO 如果registry中没有处理事件的工厂方法, 则注册一个
+		// TODO 如果 registry 中没有处理事件的工厂方法, 则注册一个
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
 			// TODO 增加用于处理事件的工厂方法
 			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
 			def.setSource(source);
-			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的holder放到待返回的set中
+			// TODO 将其注册到容器(beanDefinitionMap), 并将返回的 holder 放到待返回的 set 中
 			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_FACTORY_BEAN_NAME));
 		}
 
@@ -246,6 +246,7 @@ public abstract class AnnotationConfigUtils {
 		processCommonDefinitionAnnotations(abd, abd.getMetadata());
 	}
 
+	// TODO 解析通用的 6 个注解
 	static void processCommonDefinitionAnnotations(AnnotatedBeanDefinition abd, AnnotatedTypeMetadata metadata) {
 		AnnotationAttributes lazy = attributesFor(metadata, Lazy.class);
 		if (lazy != null) {

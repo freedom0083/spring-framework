@@ -1393,7 +1393,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (mbd.getFactoryMethodName() != null) {
 			// TODO 设置了工厂方法时, 用工厂方法实例化对应的 bean 并返回. 工厂方法有两种类型:
 			//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
-			//     A. XML配置方式:
+			//     A. XML 配置方式:
 			//        <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
 			//            <constructor-arg value="Audio" />
 			//        </bean>
@@ -1402,7 +1402,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//        c. factoryClass: 'class' 属性, 指向的是静态工厂方法的全限定名, 即: 例子中的 'factory.StaticCarFactory'
 			//        d. factoryMethod: 'factory-method' 属性, 指向静态工厂方法的名字, 即: 例子中的 'getCar'
 			//        e. explicitArgs: 'constructor-arg' 标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的 'Audio'
-			//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+			//     B. 注解配置方式, 解析过程在 ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod) 方法中:
 			//        package factory
 			//        @Configuration
 			//        Class CarConfiguration {
@@ -1412,21 +1412,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//        }
 			//        a. factoryBeanName: null, 静态工厂方法没有工厂
 			//        b. factoryBean: null, 静态工厂方法没有工厂类
-			//        c. factoryClass: 配置类的全限定名, 即: 例子中的'factory.CarConfiguration'
-			//        d. factoryMethod: @Bean所标注的static方法 mark
+			//        c. factoryClass: 配置类的全限定名, 即: 例子中的 'factory.CarConfiguration'
+			//        d. factoryMethod: @Bean 所标注的 static 方法 mark
 			//        e. explicitArgs: mark
-			//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
+			//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有 'class' 属性:
 			//     A. XML配置方式:
 			//        <bean id="carFactory" class="xxx.CarFactory">
 			//        <bean id="car" factory-bean="carFactory" factory-method="getCar">
 			//            <constructor-arg value="BMW"></constructor-arg>
 			//        </bean>
-			//        a. factoryBeanName: 'factory-bean'属性指定的实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 例子中的'carFactory'
-			//        b. factoryBean: 'factory-bean'属性所指定的bean实例, 即: 例子中的'<bean id="carFactory" class="xxx.CarFactory">'
-			//        c. factoryClass: 'factory-bean'属性所指定的bean实例的Class对象, 即: 例子中的'xxx.CarFactory'
-			//        d. factoryMethod: 'factory-method'属性: 指向实例工厂方法的名字, 即: 例子中的'getCar'
-			//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
-			//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+			//        a. factoryBeanName: 'factory-bean' 属性指定的实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 例子中的 'carFactory'
+			//        b. factoryBean: 'factory-bean' 属性所指定的 bean 实例, 即: 例子中的'<bean id="carFactory" class="xxx.CarFactory">'
+			//        c. factoryClass: 'factory-bean' 属性所指定的 bean 实例的Class对象, 即: 例子中的 'xxx.CarFactory'
+			//        d. factoryMethod: 'factory-method' 属性: 指向实例工厂方法的名字, 即: 例子中的 'getCar'
+			//        e. explicitArgs: 'constructor-arg' 标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的 'Audio'
+			//     B. 注解配置方式, 解析过程在 ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod) 方法中:
 			//        package factory
 			//        @Configuration
 			//        Class CarConfiguration {
@@ -1434,10 +1434,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			//            public static getCar() {
 			//            }
 			//        }
-			//        a. factoryBeanName: 注解方式的工厂类为@Bean所在的类的名字, 即: 例子中的'CarConfiguration'
-			//        a. factoryBean: 注解方式的工厂类为@Bean所在的类, 即, 例子中的'CarConfiguration'
-			//        b. factoryClass: 工厂类的Class对象, 即, 例子中的'CarConfiguration'
-			//        c. factoryMethod: @Bean所标注的方法 mark
+			//        a. factoryBeanName: 注解方式的工厂类为 @Bean 所在的类的名字, 即: 例子中的 'CarConfiguration'
+			//        a. factoryBean: 注解方式的工厂类为 @Bean 所在的类, 即, 例子中的 'CarConfiguration'
+			//        b. factoryClass: 工厂类的 Class 对象, 即, 例子中的 'CarConfiguration'
+			//        c. factoryMethod: @Bean 所标注的方法 mark
 			//        d. explicitArgs: mark
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
@@ -1642,7 +1642,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @return a BeanWrapper for the new instance
 	 * @see #getBean(String, Object[])
 	 */
-	// TODO 设置了工厂方法时, 用工厂方法实例化对应的bean并返回. 工厂方法有两种类型:
+	// TODO 设置了工厂方法时, 用工厂方法实例化对应的 bean 并返回. 工厂方法有两种类型:
 	//  1. 静态工厂方法: 不需要直接实例化工厂类即可使用工厂方法, 类似于静态类:
 	//     A. XML配置方式:
 	//        <bean id="car" class="factory.StaticCarFactory" factory-method="getCar">
@@ -1650,10 +1650,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//        </bean>
 	//        a. factoryBeanName: null, 静态工厂方法没有工厂
 	//        b. factoryBean: null, 静态工厂方法没有工厂类
-	//        c. factoryClass: 'class'属性, 指向的是静态工厂方法的全限定名, 即: 例子中的'factory.StaticCarFactory'
-	//        d. factoryMethod: 'factory-method'属性, 指向静态工厂方法的名字, 即: 例子中的'getCar'
-	//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
-	//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+	//        c. factoryClass: 'class' 属性, 指向的是静态工厂方法的全限定名, 即: 例子中的 'factory.StaticCarFactory'
+	//        d. factoryMethod: 'factory-method' 属性, 指向静态工厂方法的名字, 即: 例子中的 'getCar'
+	//        e. explicitArgs: 'constructor-arg' 标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的 'Audio'
+	//     B. 注解配置方式, 解析过程在 ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod) 方法中:
 	//        package factory
 	//        @Configuration
 	//        Class CarConfiguration {
@@ -1663,21 +1663,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//        }
 	//        a. factoryBeanName: null, 静态工厂方法没有工厂
 	//        b. factoryBean: null, 静态工厂方法没有工厂类
-	//        c. factoryClass: 配置类的全限定名, 即: 例子中的'factory.CarConfiguration'
-	//        d. factoryMethod: @Bean所标注的static方法 mark
+	//        c. factoryClass: 配置类的全限定名, 即: 例子中的 'factory.CarConfiguration'
+	//        d. factoryMethod: @Bean 所标注的 static 方法 mark
 	//        e. explicitArgs: mark
-	//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有'class'属性:
+	//  2. 实例工厂: 实例化后才能使用工厂方法, 类似于普通类, 实例工厂没有 'class' 属性:
 	//     A. XML配置方式:
 	//        <bean id="carFactory" class="xxx.CarFactory">
 	//        <bean id="car" factory-bean="carFactory" factory-method="getCar">
 	//            <constructor-arg value="BMW"></constructor-arg>
 	//        </bean>
-	//        a. factoryBeanName: 'factory-bean'属性指定的实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 例子中的'carFactory'
-	//        b. factoryBean: 'factory-bean'属性所指定的bean实例, 即: 例子中的'<bean id="carFactory" class="xxx.CarFactory">'
-	//        c. factoryClass: 'factory-bean'属性所指定的bean实例的Class对象, 即: 例子中的'xxx.CarFactory'
-	//        d. factoryMethod: 'factory-method'属性: 指向实例工厂方法的名字, 即: 例子中的'getCar'
-	//        e. explicitArgs: 'constructor-arg'标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
-	//     B. 注解配置方式, 解析过程在ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod)方法中:
+	//        a. factoryBeanName: 'factory-bean' 属性指定的实例工厂方法的名字, 调用工厂方法前需要实例化的类, 即: 例子中的 'carFactory'
+	//        b. factoryBean: 'factory-bean' 属性所指定的bean实例, 即: 例子中的 '<bean id="carFactory" class="xxx.CarFactory">'
+	//        c. factoryClass: 'factory-bean' 属性所指定的bean实例的Class对象, 即: 例子中的 'xxx.CarFactory'
+	//        d. factoryMethod: 'factory-method' 属性: 指向实例工厂方法的名字, 即: 例子中的 'getCar'
+	//        e. explicitArgs: 'constructor-arg' 标签所指定的, 用于调用工厂方法时使用的参数, 即: 例子中的'Audio'
+	//     B. 注解配置方式, 解析过程在 ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(BeanMethod) 方法中:
 	//        package factory
 	//        @Configuration
 	//        Class CarConfiguration {
@@ -1685,14 +1685,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//            public static getCar() {
 	//            }
 	//        }
-	//        a. factoryBeanName: 注解方式的工厂类为@Bean所在的类的名字, 即: 例子中的'CarConfiguration'
-	//        a. factoryBean: 注解方式的工厂类为@Bean所在的类, 即, 例子中的'CarConfiguration'
-	//        b. factoryClass: 工厂类的Class对象, 即, 例子中的'CarConfiguration'
-	//        c. factoryMethod: @Bean所标注的方法 mark
+	//        a. factoryBeanName: 注解方式的工厂类为 @Bean 所在的类的名字, 即: 例子中的 'CarConfiguration'
+	//        a. factoryBean: 注解方式的工厂类为 @Bean 所在的类, 即, 例子中的 'CarConfiguration'
+	//        b. factoryClass: 工厂类的 Class 对象, 即, 例子中的 'CarConfiguration'
+	//        c. factoryMethod: @Bean 所标注的方法 mark
 	//        d. explicitArgs: mark
 	protected BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object @Nullable [] explicitArgs) {
-		// TODO ConstructorResolver通过工厂方法来实例化一个bean
+		// TODO ConstructorResolver 通过工厂方法来实例化一个bean
 		return new ConstructorResolver(this).instantiateUsingFactoryMethod(beanName, mbd, explicitArgs);
 	}
 
@@ -1726,14 +1726,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
 		if (bw == null) {
 			if (mbd.hasPropertyValues()) {
-				// TODO 如果没有bean包装实例, 但mbd有bean的属性值时, 会抛出'Cannot apply property values to null instance'的
+				// TODO 如果没有 bean 包装实例, 但 mbd 有 bean 的属性值时, 会抛出'Cannot apply property values to null instance'的
 				//  BeanCreationException异常
 				throw new BeanCreationException(
 						mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
 			}
 			else {
 				// Skip property population phase for null instance.
-				// TODO 同时mbd也没有属性值时, 直接跳过就好
+				// TODO 同时 mbd 也没有属性值时, 直接跳过就好
 				return;
 			}
 		}
@@ -2177,12 +2177,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// TODO 之所以叫 wrappedBean 是因为后面后处理器可能会对 bean 实例进行加工包装
 		Object wrappedBean = bean;
 		if (mbd == null || !mbd.isSynthetic()) {
-			// TODO 调用所有后处理的 postProcessBeforeInitialization 方法在bean初始化前做一些处理
+			// TODO 调用所有后处理的 postProcessBeforeInitialization 方法在 bean 初始化前做一些处理
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
-			// TODO 执行 init-method, 如果bean实现了 InitializingBean 接口，还会调用afterPropertiesSet()方法做一些特殊处理
+			// TODO 执行 init-method, 如果bean实现了 InitializingBean 接口，还会调用 afterPropertiesSet() 方法做一些特殊处理
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -2190,7 +2190,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					(mbd != null ? mbd.getResourceDescription() : null), beanName, ex.getMessage(), ex);
 		}
 		if (mbd == null || !mbd.isSynthetic()) {
-			// TODO 调用所有后处理的 postProcessAfterInitialization 方法在bean初始化前做一些处理
+			// TODO 调用所有后处理的 postProcessAfterInitialization 方法在 bean 初始化前做一些处理
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
 

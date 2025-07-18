@@ -140,7 +140,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			//        通过实现 postProcessBeanDefinitionRegistry() 方法来实现自定义bean注册的功能,
 			//        比如解析配置类的 ConfigurationClassPostProcessor 后处理器靠其在后面执行后处理器等.
 			//     b. scanner: ClassPathBeanDefinitionScanner 来扫描指定包下的 @Component, @Repository, @Controller 等
-			//  这一步实际上和使用 AnnotationConfigApplicationContext 默认构造函数中创建 AnnotateBeanDefinitionReader 完全相同
+			//     这一步实际上和使用 AnnotationConfigApplicationContext 默认构造函数中创建 AnnotateBeanDefinitionReader 完全相同
 			loadBeanDefinitions(beanFactory);
 			// TODO 更新容器，之前这里是同步更新的
 			this.beanFactory = beanFactory;

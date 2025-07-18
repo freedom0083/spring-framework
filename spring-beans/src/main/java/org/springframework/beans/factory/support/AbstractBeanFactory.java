@@ -517,7 +517,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Override
-	// TODO 判断容器中是否包含指定bean
+	// TODO 判断容器中是否包含指定 bean
 	public boolean containsBean(String name) {
 		String beanName = transformedBeanName(name);
 		if (containsSingleton(beanName) || containsBeanDefinition(beanName)) {
@@ -638,29 +638,29 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see #getBean
 	 * @see #getType
 	 */
-	// TODO 判断给定的bean名是否与指定的类型相匹配
+	// TODO 判断给定的 bean 名是否与指定的类型相匹配
 	protected boolean isTypeMatch(String name, ResolvableType typeToMatch, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
-		// TODO 取得bean的id
+		// TODO 取得 bean 的 id
 		String beanName = transformedBeanName(name);
-		// TODO 判断一下给定的bean是否为工厂类('&'开头)
+		// TODO 判断一下给定的bean 是否为工厂类('&'开头)
 		boolean isFactoryDereference = BeanFactoryUtils.isFactoryDereference(name);
 
 		// Check manually registered singletons.
-		// TODO 根据最终名字取得容器中注册的原生的bean实例对象, 不支持提前暴露
+		// TODO 根据最终名字取得容器中注册的原生的 bean 实例对象, 不支持提前暴露
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null && beanInstance.getClass() != NullBean.class) {
 
 			// Determine target for FactoryBean match if necessary.
-			// TODO 取到bean的实例对象时会根据其是否为工厂类执行不同的判断方法
+			// TODO 取到 bean 的实例对象时会根据其是否为工厂类执行不同的判断方法
 			if (beanInstance instanceof FactoryBean<?> factoryBean) {
-				// TODO bean实例对象为工厂类时(实现了FactoryBean接口)
+				// TODO bean 实例对象为工厂类时(实现了 FactoryBean 接口)
 				if (!isFactoryDereference) {
 					if (factoryBean instanceof SmartFactoryBean<?> smartFactoryBean &&
 							smartFactoryBean.supportsType(typeToMatch.toClass())) {
 						return true;
 					}
-					// TODO 对于传入的bean名不是以'&'开头的工厂类, 用bean实例表示的工厂类的类型做为判断条件
+					// TODO 对于传入的 bean 名不是以 '&' 开头的工厂类, 用 bean 实例表示的工厂类的类型做为判断条件
 					Class<?> type = getTypeForFactoryBean(factoryBean);
 					if (type == null) {
 						return false;
@@ -686,7 +686,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							}
 						}
 						else {
-							// TODO 传入的本身就是一个工厂类时(name参数以'&'开头), 实例本身即为工厂类的实例, 直接进行比较即可
+							// TODO 传入的本身就是一个工厂类时( name 参数以'&'开头), 实例本身即为工厂类的实例, 直接进行比较即可
 							return typeToMatch.isAssignableFrom(targetType);
 						}
 					}
@@ -1149,12 +1149,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 		String result = value;
 		for (StringValueResolver resolver : this.embeddedValueResolvers) {
-			// TODO 用注册的实现了StringValueResolver接口的解析器挨个儿解析传入的值, 以下实现类实现了解析方法:
-			//  1. EmbeddedValueResolver: 用于解析@Value注解的值, 当配置了表达式解析器时, 还可以解析SpEL表达式
-			//  2. PropertyPlaceholderConfigurer$PlaceholderResolvingStringValueResolver: 用PropertyPlaceholderHelper提供的
+			// TODO 用注册的实现了 StringValueResolver 接口的解析器挨个儿解析传入的值, 以下实现类实现了解析方法:
+			//  1. EmbeddedValueResolver: 用于解析 @Value 注解的值, 当配置了表达式解析器时, 还可以解析 SpEL 表达式
+			//  2. PropertyPlaceholderConfigurer$PlaceholderResolvingStringValueResolver: 用 PropertyPlaceholderHelper 提供的
 			//     实现处理值, 这里会替换掉${}
-			//  3. PropertyPlaceholderConfigurer#processProperties(): 传入的是一个Lambda表达式, 如果手动配置了PropertyPlaceholderConfigurer
-			//     或PropertySourcesPlaceholderConfigurer, 并且ignoreUnresolvablePlaceholders没有设置为true时, 当遇到非法占位符时, 会抛出异常
+			//  3. PropertyPlaceholderConfigurer#processProperties(): 传入的是一个 Lambda 表达式, 如果手动配置了 PropertyPlaceholderConfigurer
+			//     或 PropertySourcesPlaceholderConfigurer, 并且 ignoreUnresolvablePlaceholders 没有设置为 true 时, 当遇到非法占位符时, 会抛出异常
 			//  4. AbstractApplicationContext#finishBeanFactoryInitialization(): 在容器初始化时, 如果容器发现没设置解析器,
 			//     则会提供一个默认的, 可以解析非法占位符的解析器(无法解析占位符时, 会原样输出)
 			result = resolver.resolveStringValue(result);
@@ -1514,7 +1514,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	protected void initBeanWrapper(BeanWrapper bw) {
 		bw.setConversionService(getConversionService());
-		// TODO 注册属性编辑器, BeanWrapper本身实现了PropertyEditorRegistry接口
+		// TODO 注册属性编辑器, BeanWrapper 本身实现了 PropertyEditorRegistry 接口
 		registerCustomEditors(bw);
 	}
 
@@ -1543,7 +1543,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			applyEditorRegistrars(registry, this.propertyEditorRegistrars);
 		}
 		if (!this.customEditors.isEmpty()) {
-			// TODO 注册一遍PropertyEditors类型的自定义属性编辑器
+			// TODO 注册一遍 PropertyEditors 类型的自定义属性编辑器
 			this.customEditors.forEach((requiredType, editorClass) ->
 					registry.registerCustomEditor(requiredType, BeanUtils.instantiateClass(editorClass)));
 		}
@@ -1938,7 +1938,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		if (beanDefinition != null) {
 			String scopeName = beanDefinition.getScope();
 			if (scopeName != null) {
-				// TODO 取得 BeanDefinition的作用域
+				// TODO 取得 BeanDefinition 的作用域
 				scope = getRegisteredScope(scopeName);
 			}
 		}

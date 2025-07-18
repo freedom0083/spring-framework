@@ -1214,7 +1214,18 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		this.mainThreadPrefix = getThreadNamePrefix();
 		try {
 			for (String beanName : beanNames) {
-				// TODO 合并父 Bean 中的配置
+				// TODO 合并父 Bean 中的配置。对于一个 bean 定义来说，可能存在以下几种情况：
+				//  1. 该 BeanDefinition 存在 “父定义”：首先使用 “父定义” 的参数构建一个 RootBeanDefinition，然后再使用该
+				//     BeanDefinition 的参数来进行覆盖。
+				//  2. 该 BeanDefinition 不存在 “父定义”，并且该 BeanDefinition 的类型是 RootBeanDefinition：直接返回该
+				//     RootBeanDefinition 的一个克隆。
+				//  3. 该 BeanDefinition 不存在 “父定义”，但是该 BeanDefinition 的类型不是 RootBeanDefinition：使用该
+				//     BeanDefinition 的参数构建一个 RootBeanDefinition。
+				//  通常 BeanDefinition 在之前加载到 BeanFactory 中的时候，通常是被封装成 GenericBeanDefinition 或
+				//  ScannedGenericBeanDefinition，但是从这边之后 bean 的后续流程处理都是针对 RootBeanDefinition，
+				//  因此在这边会统一将 BeanDefinition 转换成 RootBeanDefinition。
+				//  如果使用 XML 配置来注册 bean，则该 bean 定义会被封装成：GenericBeanDefinition；
+				//  如果我们使用注解的方式来注册 bean，也就是@Compoment，则该 bean 定义会被封装成 ScannedGenericBeanDefinition。
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				// TODO 只处理非 abstract、非懒加载的单例 Bean
 				if (!mbd.isAbstract() && mbd.isSingleton()) {
@@ -1772,13 +1783,13 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	public @Nullable Object resolveDependency(DependencyDescriptor descriptor, @Nullable String requestingBeanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
 		// TODO 将当前容器里方法参数名的解析策略设置到依赖描述的待注入项中(这个待注入项可能是字段, 方法参数(工厂方法, 或构造函数的参数))
-		//  AbstractAutowireCapableBeanFactory容器默认解析策略是DefaultParameterNameDiscoverer
+		//  AbstractAutowireCapableBeanFactory 容器默认解析策略是 DefaultParameterNameDiscoverer
 		descriptor.initParameterNameDiscovery(getParameterNameDiscoverer());
 		if (Optional.class == descriptor.getDependencyType()) {
-			// TODO 如果依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))是Optional类型, 将依赖描述的待注入项重新包装为一个
-			//  NestedDependencyDescriptor, 然后再调用doResolveDependency(DependencyDescriptor, @Nullable String, @Nullable Set<String>, @Nullable TypeConverter)
-			//  解析. 解析结果会被包装为一个Optional返回.
-			//  比如: private Optional<GenericBean<Object, Object>> objectGenericBean; 类型会变为Optional[GenericBean(t=obj1, w=2)]
+			// TODO 如果依赖描述的待注入项(字段, 方法参数(工厂方法, 或构造函数的参数))是 Optional 类型, 将依赖描述的待注入项重新包装为一个
+			//  NestedDependencyDescriptor, 然后再调用 doResolveDependency(DependencyDescriptor, @Nullable String, @Nullable Set<String>, @Nullable TypeConverter)
+			//  解析. 解析结果会被包装为一个 Optional 返回.
+			//  比如: private Optional<GenericBean<Object, Object>> objectGenericBean; 类型会变为 Optional[GenericBean(t=obj1, w=2)]
 			return createOptionalDependency(descriptor, requestingBeanName);
 		}
 		else if (ObjectFactory.class == descriptor.getDependencyType() ||
@@ -1816,7 +1827,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * @throws BeansException
 	 */
 	@SuppressWarnings("NullAway") // Dataflow analysis limitation
-	// TODO 解析依赖, 这里会解析@Value, @Autowire这些
+	// TODO 解析依赖, 这里会解析 @Value, @Autowire 这些
 	public @Nullable Object doResolveDependency(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) throws BeansException {
 		// TODO 保存当前注入点, 用于处理结束后恢复现场
@@ -1825,37 +1836,37 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// Step 1: pre-resolved shortcut for single bean match, for example, from @Autowired
 			Object shortcut = descriptor.resolveShortcut(this);
 			if (shortcut != null) {
-				// TODO 依赖项是ShortcutDependencyDescriptor类型才能解析出值, 这时直接返回就好
+				// TODO 依赖项是 ShortcutDependencyDescriptor 类型才能解析出值, 这时直接返回就好
 				return shortcut;
 			}
 			// TODO 取得依赖描述的待注入项的类型(字段类型, 方法参数(工厂方法, 或构造函数的参数)类型), 这里会处理泛型
 			Class<?> type = descriptor.getDependencyType();
 
 			// Step 2: pre-defined value or expression, for example, from @Value
-			// TODO 下面开始处理@Value注解. AutowireCandidateResolver接口的默认方法getSuggestedValue()用来取得依赖描述的待注入项
-			//  上@Value注解中的value值:
-			//  1. AutowireCandidateResolver: 提供了默认方法, 返回null
-			//  2. SimpleAutowireCandidateResolver: 是AutowireCandidateResolver接口的实现类, 返回null. Java 8后接口提供了默认
+			// TODO 下面开始处理 @Value 注解. AutowireCandidateResolver 接口的默认方法 getSuggestedValue() 用来取得依赖描述的待注入项
+			//  上 @Value 注解中的 value 值:
+			//  1. AutowireCandidateResolver: 提供了默认方法, 返回 null
+			//  2. SimpleAutowireCandidateResolver: 是 AutowireCandidateResolver 接口的实现类, 返回 null. Java 8 后接口提供了默认
 			//     类特性, 实现类可以不再提供默认实现, 这里是为了向后兼容而保留
-			//  3. QualifierAnnotationAutowireCandidateResolver: 处理@Value注解, 取得其中值, 如果值为null, 再取使用方法参数
-			//     (工厂方法, 或构造函数的参数)的方法上的@Value的值
+			//  3. QualifierAnnotationAutowireCandidateResolver: 处理 @Value 注解, 取得其中值, 如果值为 null, 再取使用方法参数
+			//     (工厂方法, 或构造函数的参数)的方法上的 @Value 的值
 			Object value = getAutowireCandidateResolver().getSuggestedValue(descriptor);
 			if (value != null) {
-				// TODO 解析出了@Value值, 就要对其中的属性进行解析了
+				// TODO 解析出了 @Value 值, 就要对其中的属性进行解析了
 				if (value instanceof String strValue) {
-					// TODO 如果是String类型, 用StringValueResolver解析@Value中的占位符(${}).
-					//  TIPS: 这里有个要注意的地方, 当没有设置PlaceholderConfigurerSupport的子类时, Spring容器会提供一个支持解析
-					//        非法字符的StringValueResolver类型解析器. 遇到非法占位符时会原样输出.
-					//        但是如果手动指定过PlaceholderConfigurerSupport的子类, 并且没有设置明确设置支持非法占位符时, 遇到
-					//        非法占位符时, 会抛出异常. Spring Boot环境下添加的就是不支持非法占位符的PlaceholderConfigurerSupport
+					// TODO 如果是 String 类型, 用 StringValueResolver 解析 @Value 中的占位符(${}).
+					//  TIPS: 这里有个要注意的地方, 当没有设置 PlaceholderConfigurerSupport 的子类时, Spring 容器会提供一个支持解析
+					//        非法字符的 StringValueResolver 类型解析器. 遇到非法占位符时会原样输出.
+					//        但是如果手动指定过 PlaceholderConfigurerSuppor t的子类, 并且没有设置明确设置支持非法占位符时, 遇到
+					//        非法占位符时, 会抛出异常. Spring Boot 环境下添加的就是不支持非法占位符的 PlaceholderConfigurerSupport
 					String resolvedValue = resolveEmbeddedValue(strValue);
 					BeanDefinition bd = (beanName != null && containsBean(beanName) ?
 							getMergedBeanDefinition(beanName) : null);
-					// TODO 上面解析了@Value中的占位符, 解析结果可能是一个字面量, 或SpEL表达式, 或Resource等, 这时再用
-					//  StandardBeanExpressionResolver处理SpEL, 或Resources等非字面量的情况
+					// TODO 上面解析了 @Value 中的占位符, 解析结果可能是一个字面量, 或 SpEL 表达式, 或 Resource 等, 这时再用
+					//  StandardBeanExpressionResolver 处理 SpEL, 或 Resources 等非字面量的情况
 					value = evaluateBeanDefinitionString(resolvedValue, bd);
 				}
-				// TODO 当没有提供类型转换器时, 会看是否有自定义的类型转换器, 如果没有直接使用默认的类型转换器SimpleTypeConverter
+				// TODO 当没有提供类型转换器时, 会看是否有自定义的类型转换器, 如果没有直接使用默认的类型转换器 SimpleTypeConverter
 				TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
 				try {
 					// TODO 将解析结果转换为依赖描述的待注入项所指定的类型
@@ -1871,13 +1882,18 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 
 			// Step 3: shortcut for declared dependency name or qualifier-suggested name matching target bean name
+			// TODO 使用标准的 Bean 查找机制时
 			if (descriptor.usesStandardBeanLookup()) {
+				// TODO 查看注入点上是否设置了名字
 				String dependencyName = descriptor.getDependencyName();
 				if (dependencyName == null || !containsBean(dependencyName)) {
+					// TODO 没设置名字，或不在容器中时，再看 @Qualifier 中的 value 做为名字，能否在容器中找到对应的 Bean 如果能，
+					//  则将其做为注入名
 					String suggestedName = getAutowireCandidateResolver().getSuggestedName(descriptor);
 					dependencyName = (suggestedName != null && containsBean(suggestedName) ? suggestedName : null);
 				}
 				if (dependencyName != null) {
+					// TODO 取得规范名，会递归所有别名
 					dependencyName = canonicalName(dependencyName);  // dependency name can be alias of target name
 					if (isTypeMatch(dependencyName, type) && isAutowireCandidate(dependencyName, descriptor) &&
 							!isFallback(dependencyName) && !hasPrimaryConflict(dependencyName, type) &&
@@ -1885,6 +1901,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						if (autowiredBeanNames != null) {
 							autowiredBeanNames.add(dependencyName);
 						}
+						// TODO 解析 Bean
 						Object dependencyBean = resolveBean(dependencyName, descriptor.getResolvableType());
 						return resolveInstance(dependencyBean, descriptor, type, dependencyName);
 					}
@@ -1892,11 +1909,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 
 			// Step 4a: multiple beans as stream / array / standard collection / plain map
-			// TODO 如果没有@Value注解, 就开始准备自动装配@Autowire的情况了.
-			//  数组, Collection, Map等类型也支持自动注入, Spring会直接把符合类型的bean都注入到数组或容器中，处理逻辑是：
-			//  1.确定容器或数组的组件类型, 对其分别进行处理
-			//  2.调用findAutowireCandidates(核心方法)方法，获取与组件类型匹配的Map(beanName -> bean实例)
-			//  3.将符合beanNames添加到autowiredBeanNames中
+			// TODO 如果没有 @Value 注解, 就开始准备自动装配 @Autowire 的情况了.
+			//  数组, Collection, Map 等类型也支持自动注入, Spring 会直接把符合类型的 bean 都注入到数组或容器中，处理逻辑是：
+			//    1.确定容器或数组的组件类型, 对其分别进行处理
+			//    2.调用 findAutowireCandidates (核心方法)方法，获取与组件类型匹配的 Map(beanName -> bean实例)
+			//    3.将符合 beanNames 添加到 autowiredBeanNames 中
 			Object multipleBeans = resolveMultipleBeans(descriptor, beanName, autowiredBeanNames, typeConverter);
 			if (multipleBeans != null) {
 				// TODO 找到直接返回依赖
@@ -2003,11 +2020,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private @Nullable Object resolveMultipleBeans(DependencyDescriptor descriptor, @Nullable String beanName,
 			@Nullable Set<String> autowiredBeanNames, @Nullable TypeConverter typeConverter) {
 		// TODO 取得依赖描述的待注入项的类型(字段类型, 方法参数(工厂方法, 或构造函数的参数)类型), 这里会处理泛型.
-		//  Spring支持数组、Collection、Map等类型的自动注入:
-		//    1. 数组类型: int[]时, 得到的类型就是int[]
-		//    2. 集合类型: List<>时, 得到的是List<>
-		//    3. Map类型: Map<>时, 得到的是Map<>
-		//  TIPS: 这里只是得到依赖描述的待注入项的声明类型, 而不是具体的组件类型, 比如int[], 这里得到的只是int[], 而不是int
+		//  Spring支持数组、Collection、Map 等类型的自动注入:
+		//    1. 数组类型: int[] 时, 得到的类型就是 int[]
+		//    2. 集合类型: List<> 时, 得到的是 List<>
+		//    3. Map类型: Map<> 时, 得到的是 Map<>
+		//  TIPS: 这里只是得到依赖描述的待注入项的声明类型, 而不是具体的组件类型, 比如 int[], 这里得到的只是 int[], 而不是int
 		Class<?> type = descriptor.getDependencyType();
 
 		// TODO 下面是按依赖描述的待注入项的类型进行解析
@@ -2018,7 +2035,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				// TODO 如果有自动装配过的bean集合时, 将找到的候选bean全部放进去
 				autowiredBeanNames.addAll(matchingBeans.keySet());
 			}
-			// TODO 通过DependencyDescriptor#resolveCandidate()方法, 在当前容器中挨个实例化候选类, 同时过滤掉NullBean
+			// TODO 通过 DependencyDescriptor#resolveCandidate() 方法, 在当前容器中挨个实例化候选类, 同时过滤掉 NullBean
 			Stream<Object> stream = matchingBeans.keySet().stream()
 					.map(name -> descriptor.resolveCandidate(name, type, this))
 					.filter(bean -> !(bean instanceof NullBean));
@@ -2029,9 +2046,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			return stream;
 		}
 		else if (type.isArray()) {
-			// TODO 依赖描述的待注入项是数组的情况, 取得依赖描述的待注入项的组件类型. 比如: int[] field时, 数组的组件类型就是int
+			// TODO 依赖描述的待注入项是数组的情况, 取得依赖描述的待注入项的组件类型. 比如: int[] field时, 数组的组件类型就是 int
 			Class<?> componentType = type.componentType();
-			// TODO 然后再取得依赖描述的待注入项的包装类型(ResolvableType). 比如: int[] field时, 得到的是包装成ResolvableType的int[]
+			// TODO 然后再取得依赖描述的待注入项的包装类型(ResolvableType). 比如: int[] field时, 得到的是包装成 ResolvableType 的 int[]
 			ResolvableType resolvableType = descriptor.getResolvableType();
 			// TODO 解析数组的类型. 这里会做一个判断, 如果依赖描述的待注入项的类型无法解析时, 使用依赖描述的待注入项的声明类型进行替代
 			Class<?> resolvedArrayType = resolvableType.resolve(type);
@@ -2043,7 +2060,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				// TODO 没解析出组件类型, 返回null
 				return null;
 			}
-			// TODO 根据依赖描述的待注入项的名字, 组件类型, 以及MultiElementDescriptor来寻找自动注入候选类
+			// TODO 根据依赖描述的待注入项的名字, 组件类型, 以及 MultiElementDescriptor 来寻找自动注入候选类
 			Map<String, Object> matchingBeans = findAutowireCandidates(beanName, componentType,
 					new MultiElementDescriptor(descriptor));
 			if (matchingBeans.isEmpty()) {
@@ -2214,12 +2231,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	//  2. 再看容器中所有指定类型的bean(包括父容器中指定类型的bean)
 	protected Map<String, Object> findAutowireCandidates(
 			@Nullable String beanName, Class<?> requiredType, DependencyDescriptor descriptor) {
-		// TODO 根据依赖描述的待注入项的类型, 在当前容器及其父容器中查找同类型的候选bean, 包括非单例的bean
+		// TODO 根据依赖描述的待注入项的类型, 在当前容器及其父容器中查找同类型的候选 bean, 包括非单例的 bean
 		String[] candidateNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 				this, requiredType, true, descriptor.isEager());
 		Map<String, Object> result = CollectionUtils.newLinkedHashMap(candidateNames.length);
-		// TODO 首先, 看依赖描述的待注入项的类型是否为容器启动时自动配置的特殊依赖bean, 即: 容器类型的bean. 容器类型的bean会直接加入到自动装配候选结果集中.
-		//  在容器启动时, AbstractApplication在prepareBeanFactory()方法中自动为resolvableDependencies缓存添加了4个容器类型的依赖bean:
+		// TODO 首先, 看依赖描述的待注入项的类型是否为容器启动时自动配置的特殊依赖 bean, 即: 容器类型的 bean. 容器类型的 bean 会直接加入到自动装配候选结果集中.
+		//  在容器启动时, AbstractApplication在prepareBeanFactory() 方法中自动为 resolvableDependencies 缓存添加了4个容器类型的依赖bean:
 		//    1. BeanFactory: 容器本身, 这个时候ApplicationContext就有了BeanFactory的所有功能了
 		//    2. ResourceLoader: 初始化的ApplicationContext本身
 		//    3. ApplicationEventPublisher: 初始化的ApplicationContext本身
@@ -2680,14 +2697,14 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private Optional<?> createOptionalDependency(
 			DependencyDescriptor descriptor, @Nullable String beanName, final @Nullable Object... args) {
 
-		// TODO Optional类型用于包装其他类型, 将依赖注入项包装为处理嵌套类的NestedDependencyDescriptor
+		// TODO Optional 类型用于包装其他类型, 将依赖注入项包装为处理嵌套类的 NestedDependencyDescriptor
 		DependencyDescriptor descriptorToUse = new NestedDependencyDescriptor(descriptor) {
 			@Override
 			public boolean isRequired() {
 				return false;
 			}
 			@Override
-			// TODO 重写了resolveCandidate()方法
+			// TODO 重写了 resolveCandidate() 方法
 			public Object resolveCandidate(String beanName, Class<?> requiredType, BeanFactory beanFactory) {
 				// TODO 当有参数时, 从容器中取得指定类型参数的依赖项
 				return (!ObjectUtils.isEmpty(args) ? beanFactory.getBean(beanName, args) :
@@ -2699,7 +2716,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				return ObjectUtils.isEmpty(args);
 			}
 		};
-		// TODO 然后开始解析依赖项, 最后返回一个Optional包装好的, 解析过的依赖对象
+		// TODO 然后开始解析依赖项, 最后返回一个 Optional 包装好的, 解析过的依赖对象
 		Object result = doResolveDependency(descriptorToUse, beanName, null, null);
 		return (result instanceof Optional<?> optional ? optional : Optional.ofNullable(result));
 	}

@@ -164,18 +164,18 @@ class ConfigurationClassParser {
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, resourceLoader);
 	}
 
-	// TODO 由ConfigurationClassPostProcessor的processConfigBeanDefinitions()方法进入
+	// TODO 由 ConfigurationClassPostProcessor 的 processConfigBeanDefinitions() 方法进入
 	public void parse(Set<BeanDefinitionHolder> configCandidates) {
 		for (BeanDefinitionHolder holder : configCandidates) {
 			BeanDefinition bd = holder.getBeanDefinition();
 			try {
 				ConfigurationClass configClass;
 				if (bd instanceof AnnotatedBeanDefinition annotatedBeanDef) {
-					// TODO 解析AnnotatedBeanDefinition
+					// TODO 解析 AnnotatedBeanDefinition
 					configClass = parse(annotatedBeanDef, holder.getBeanName());
 				}
 				else if (bd instanceof AbstractBeanDefinition abstractBeanDef && abstractBeanDef.hasBeanClass()) {
-					// TODO 解析AbstractBeanDefinition
+					// TODO 解析 AbstractBeanDefinition
 					configClass = parse(abstractBeanDef.getBeanClass(), holder.getBeanName());
 				}
 				else {
@@ -199,11 +199,12 @@ class ConfigurationClassParser {
 						"Failed to parse configuration class [" + bd.getBeanClassName() + "]", ex);
 			}
 		}
-		// TODO 配置类解析完毕后, 再解析由@DeferredImport指定的配置类
+		// TODO 配置类解析完毕后, 再解析由 @DeferredImport 指定的配置类
 		this.deferredImportSelectorHandler.process();
 	}
 
 	private ConfigurationClass parse(AnnotatedBeanDefinition beanDef, String beanName) {
+		// TODO 把配置文件封装成一个 ConfigurationClass
 		ConfigurationClass configClass = new ConfigurationClass(
 				beanDef.getMetadata(), beanName, (beanDef instanceof ScannedGenericBeanDefinition));
 		processConfigurationClass(configClass, DEFAULT_EXCLUSION_FILTER);
@@ -259,9 +260,11 @@ class ConfigurationClassParser {
 
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
 		if (existingClass != null) {
+			// TODO 配置文件被解析过时
 			if (configClass.isImported()) {
-				// TODO 对import进行处理
+				// TODO 对 import 进行处理
 				if (existingClass.isImported()) {
+					// TODO 把所有解析过的 import 配置合并
 					existingClass.mergeImportedBy(configClass);
 				}
 				// Otherwise ignore new imported config class; existing non-imported class overrides it.
@@ -324,7 +327,7 @@ class ConfigurationClassParser {
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), org.springframework.context.annotation.PropertySource.class,
 				PropertySources.class, true)) {
-			// TODO 处理@PropertySources, 加载properties
+			// TODO 处理 @PropertySources, 加载 properties
 			if (this.propertySourceRegistry != null) {
 				this.propertySourceRegistry.processPropertySource(propertySource);
 			}
@@ -354,11 +357,11 @@ class ConfigurationClassParser {
 						"Component scan for configuration class [%s] could not be used with conditions in REGISTER_BEAN phase: %s"
 								.formatted(configClass.getMetadata().getClassName(), registerBeanConditions));
 			}
-			// TODO 遇到@ComponentScans时, 使用ClassPathBeanDefinitionScanner对@ComponentScans指定的包开始进行扫描
+			// TODO 遇到 @ComponentScans 时, 使用 ClassPathBeanDefinitionScanner 对 @ComponentScans 指定的包开始进行扫描
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
-				// TODO 这里开始解析@ComponentScan内指定位置的类, 然后注册到容器中, 这时bean的属性已经被填充好了
-				//  如果设置了代理机制, 则返回的会是代理类的holder
+				// TODO 这里开始解析 @ComponentScan 内指定位置的类, 然后注册到容器中, 这时 bean 的属性已经被填充好了
+				//  如果设置了代理机制, 则返回的会是代理类的 holder
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
@@ -443,7 +446,7 @@ class ConfigurationClassParser {
 			for (SourceClass memberClass : memberClasses) {
 				if (ConfigurationClassUtils.isConfigurationCandidate(memberClass.getMetadata()) &&
 						!memberClass.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
-					// TODO 把带有@Bean注解的类加入到候选中
+					// TODO 把带有 @Bean 注解的类加入到候选中
 					candidates.add(memberClass);
 				}
 			}

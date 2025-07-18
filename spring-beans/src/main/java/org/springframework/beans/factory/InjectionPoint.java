@@ -45,10 +45,10 @@ import org.springframework.util.ObjectUtils;
 public class InjectionPoint {
 
 	// TODO 表示注入项为一个方法参数(方法, 或构造函数的参数), 其中会包含该参数的详细信息, 比如: 参数名, 在方法中的位置, 类型,
-	//  泛型类型, 注解信息等. 如果注入项是一个Field字段(成员属性), 则此值为null
+	//  泛型类型, 注解信息等. 如果注入项是一个 Field 字段(成员属性), 则此值为 null
 	protected @Nullable MethodParameter methodParameter;
 
-	// TODO 表示注入项为一个字段(成员属性). 如果注入项是一个MethodParameter方法参数, 则此值为null
+	// TODO 表示注入项为一个字段(成员属性). 如果注入项是一个 MethodParameter 方法参数, 则此值为 null
 	protected @Nullable Field field;
 
 	// TODO 注入项为字段(成员属性)时, 该字段上标注的所有注解会放到这个属性
@@ -117,11 +117,11 @@ public class InjectionPoint {
 	/**
 	 * Return the wrapped MethodParameter, assuming it is present.
 	 * @return the MethodParameter (never {@code null})
-	 * @throws IllegalStateException if no MethodParameter is available 如果当前对象包装的不是方法参数则抛出异常IllegalStateException
+	 * @throws IllegalStateException if no MethodParameter is available 如果当前对象包装的不是方法参数则抛出异常 IllegalStateException
 	 * @since 5.0
 	 */
-	// TODO 获取描述符所包装的方法参数(方法, 或构造函数的参数), 肯定不为null. 如果描述符所包装的不是方法参数(方法, 或构造函数的参数),
-	//  则抛出IllegalStateException异常
+	// TODO 获取描述符所包装的方法参数(方法, 或构造函数的参数), 肯定不为 null. 如果描述符所包装的不是方法参数(方法, 或构造函数的参数),
+	//  则抛出 IllegalStateException 异常
 	protected final MethodParameter obtainMethodParameter() {
 		Assert.state(this.methodParameter != null, "MethodParameter is not available");
 		return this.methodParameter;

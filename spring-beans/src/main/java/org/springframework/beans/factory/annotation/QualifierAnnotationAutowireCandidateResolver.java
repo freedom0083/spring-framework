@@ -447,6 +447,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	}
 
 	@Override
+	// TODO 解析 @Qualifier 中的 value，未设置时返回 null
 	public @Nullable String getSuggestedName(DependencyDescriptor descriptor) {
 		for (Annotation annotation : descriptor.getAnnotations()) {
 			if (isQualifier(annotation.annotationType())) {
@@ -464,15 +465,15 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * @see Value
 	 */
 	@Override
-	// TODO 取得依赖描述的待注入项的@Value注解中的value
+	// TODO 取得依赖描述的待注入项的 @Value 注解中的 value
 	public @Nullable Object getSuggestedValue(DependencyDescriptor descriptor) {
-		// TODO 先取得依赖描述的待注入项(可能是个字段, 或者方法)的所有注解, 然后取得其中的@Value的值
+		// TODO 先取得依赖描述的待注入项(可能是个字段, 或者方法)的所有注解, 然后取得其中的 @Value 的值
 		Object value = findValue(descriptor.getAnnotations());
 		if (value == null) {
 			// TODO 如果没有取到, 则这个依赖描述的待注入项可能是方法参数(工厂方法, 或构造函数的参数)
 			MethodParameter methodParam = descriptor.getMethodParameter();
 			if (methodParam != null) {
-				// TODO 如果真的是方法参数(工厂方法, 或构造函数的参数), 则尝试从其方法(构造函数, 或工厂方法)上的注解入手, 看看有没有@Value注解取得
+				// TODO 如果真的是方法参数(工厂方法, 或构造函数的参数), 则尝试从其方法(构造函数, 或工厂方法)上的注解入手, 看看有没有 @Value 注解取得
 				value = findValue(methodParam.getMethodAnnotations());
 			}
 		}
@@ -484,7 +485,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	protected @Nullable Object findValue(Annotation[] annotationsToSearch) {
 		if (annotationsToSearch.length > 0) {   // qualifier annotations have to be local
-			// TODO 拿到@Value注解
+			// TODO 拿到 @Value 注解
 			AnnotationAttributes attr = AnnotatedElementUtils.getMergedAnnotationAttributes(
 					AnnotatedElementUtils.forAnnotations(annotationsToSearch), this.valueAnnotationType);
 			if (attr != null) {
@@ -499,7 +500,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * Extract the value attribute from the given annotation.
 	 * @since 4.3
 	 */
-	// TODO 从注解中提取value内容
+	// TODO 从注解中提取 value 内容
 	protected Object extractValue(AnnotationAttributes attr) {
 		Object value = attr.get(AnnotationUtils.VALUE);
 		if (value == null) {

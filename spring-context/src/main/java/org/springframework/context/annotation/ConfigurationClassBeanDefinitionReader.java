@@ -130,7 +130,7 @@ class ConfigurationClassBeanDefinitionReader {
 	 */
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
-		// TODO 查检一下配置类是否需要进行注册, 对于不需要注册的配置类来说, 将其从缓存registry以及import缓存中移除, 然后直接返回
+		// TODO 查检一下配置类是否需要进行注册, 对于不需要注册的配置类来说, 将其从缓存 registry 以及 import 缓存中移除, 然后直接返回
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
 			String beanName = configClass.getBeanName();
 			if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
@@ -145,14 +145,14 @@ class ConfigurationClassBeanDefinitionReader {
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
-			// TODO 这边开始处理配置类中@Bean标注的方法了
+			// TODO 这边开始处理配置类中 @Bean 标注的方法了
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
-		// TODO 解析并注册@ImportResources指定的xml配置文件内定义的bean
+		// TODO 解析并注册 @ImportResources 指定的 xml 配置文件内定义的bean
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
 		loadBeanDefinitionsFromImportBeanDefinitionRegistrars(configClass.getImportBeanDefinitionRegistrars());
-		// TODO 解析实现ImportBeanDefinitionRegistrar接口的类, 通过registerBeanDefinitions()来进行自定义的处理工作
-		//  比如AspectJAutoProxyRegistrar通过解析自已的注解来进行后面的AOP处理
+		// TODO 解析实现 ImportBeanDefinitionRegistrar 接口的类, 通过 registerBeanDefinitions() 来进行自定义的处理工作
+		//  比如 AspectJAutoProxyRegistrar 通过解析自已的注解来进行后面的AOP处理
 		loadBeanDefinitionsFromBeanRegistrars(configClass.getBeanRegistrars());
 	}
 

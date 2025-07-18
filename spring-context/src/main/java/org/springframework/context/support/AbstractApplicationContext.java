@@ -595,8 +595,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
-			// TODO 对 beanFactory 进行设置, 设置类加载器，添加几个 BeanPostProcessor， 手动注册一些 Bean，
-			//  实现自动装配规则, Spel表达式, 监听器等
+			// TODO 对 beanFactory 进行设置, 主要设置了几个 BeanPostProcessor：
+			//  1. ApplicationContextAwareProcessor：用来处理实现了 Aware 接口的 bean
+			//  2. ApplicationListenerDetector: 注册监听事件
+			//  3. LoadTimeWeaverAwareProcessor: 支持 AspectJ 时，提供静态代理能力
+			//  同时以下内容没有时也会自动注册：
+			//  1. environment
+			//  2. systemProperties
+			//  3. systemEnvironment
+			//  4. applicationStartup
 			prepareBeanFactory(beanFactory);
 
 			try {
@@ -611,8 +618,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// TODO 调用 BeanFactoryPostProcessor 各个实现类的 postProcessBeanFactory(factory) 执行容器的后处理器,
 				//  委托给PostProcessorRegistrationDelegate#invokeBeanFactoryPostProcessors(
 				//    ConfigurableListableBeanFactory, List<BeanFactoryPostProcessor>)方法, 此方法内会调用容器的 getBean() 方法
-				//  对所有的 BeanFactoryPostProcessor 后处理器进行初始化, 并放入容器。
-				//  只有经过 getBean() 后，容器中的 Bean 才会真正的被实例化。
+				//  对所有的 BeanFactoryPostProcessor 后处理器进行初始化, 并放入容器。只有经过 getBean() 后，容器中的 Bean 才会真正的被实例化。
+				//  当前只有 ConfigurationClassPostProcessor 在 postProcessBeanDefinitionRegistry 里定义了解析配置文件的动作
 				invokeBeanFactoryPostProcessors(beanFactory);
 				// Register bean processors that intercept bean creation.
 				// TODO 注册所有的 BeanPostProcessor 后处理器，与 BeanFactoryPostProcessor 不同，这里是对普通 Bean 注册后处理器
@@ -750,9 +757,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
+		// TODO 关联类加载器
 		beanFactory.setBeanClassLoader(getClassLoader());
 		// TODO 设置 Spel 表达式解析器, 默认使用 StandardBeanExpressionResolver 做为解析器, 其使用 SpelExpressionParser 做为分析器解析 Spel
 		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+		// TODO 设置属性编辑器
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 
 		// Configure the bean factory with context callbacks.
@@ -760,7 +769,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		//  会自动 ApplicationContextAwareProcessor#postProcessBeforeInitialization() 来进行一些处理, 此方法可以处理以下几种类型的bean:
 		//  1. EnvironmentAware: 将其 environment 自动设置为当前 ApplicationContext 的 environment
 		//  2. EmbeddedValueResolverAware: 将其 embeddedValueResolver 自动其自动设置为当前 ApplicationContext的embeddedValueResolver
-		//  3. ResourceLoaderAware: 将其R esourceLoader 自动设置为当前 ApplicationContext
+		//  3. ResourceLoaderAware: 将其 ResourceLoader 自动设置为当前 ApplicationContext
 		//  4. ApplicationEventPublisherAware: 为其 ApplicationEventPublisher 自动设置为当前 ApplicationContext
 		//  5. ApplicationContextAware: 将其 ApplicationContext 自动设置当前 ApplicationContext
 		//  6. MessageSourceAware: 为其 MessageSource 自动设置为当前 ApplicationContext
@@ -815,6 +824,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
 			beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
 		}
+		// TODO 当没有 applicationStartup 时, 自动注册一个
 		if (!beanFactory.containsLocalBean(APPLICATION_STARTUP_BEAN_NAME)) {
 			beanFactory.registerSingleton(APPLICATION_STARTUP_BEAN_NAME, getApplicationStartup());
 		}

@@ -88,8 +88,9 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
-		// TODO 首先初始化 DefaultListableBeanFactory，确保 BeanFactory 提供 @Order，@Lazy，@Qualifier，@Value 的支持，
-		//  然后注册以下后处理器：
+		// TODO 初始化解析带注解的bean的reader, 初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
+		//	 整个过程会先初始化 DefaultListableBeanFactory，确保 BeanFactory 提供 @Order，@Lazy，@Qualifier，@Value 的支持，
+		//	 然后再注册以下 6 个后处理器:
 		//   1. ConfigurationClassPostProcessor：用于处理 @Configuration 注解的后处理器，解析所有 @Bean 注解的方法
 		//   2. AutowiredAnnotationBeanPostProcessor：用于处理 @Autowired、@Value 等注解的后处理器
 		//   3. CommonAnnotationBeanPostProcessor：用于处理J2EE 6的注解，提供生命周期管理的 @PostConstruct、@PreDestroy,
@@ -143,6 +144,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * @param componentClasses one or more component classes,
 	 * for example, {@link Configuration @Configuration} classes：传进来的要解析的配置类
 	 */
+	// TODO 解析传入的多个配置类并注册到容器
 	public void register(Class<?>... componentClasses) {
 		for (Class<?> componentClass : componentClasses) {
 			registerBean(componentClass);
@@ -154,6 +156,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * class-declared annotations.
 	 * @param beanClass the class of the bean 传进来的要解析的配置类
 	 */
+	// TODO 解析传入的单个配置类并注册到容器
 	public void registerBean(Class<?> beanClass) {
 		doRegisterBean(beanClass, null, null, null, null);
 	}
@@ -258,7 +261,7 @@ public class AnnotatedBeanDefinitionReader {
 	 * {@link BeanDefinition}, for example, setting a lazy-init or primary flag
 	 * @since 5.0
 	 */
-	// TODO
+	// TODO 将配置类解析为 BeanDefinition，并注册到容器中
 	private <T> void doRegisterBean(Class<T> beanClass, @Nullable String name,
 			Class<? extends Annotation> @Nullable [] qualifiers, @Nullable Supplier<T> supplier,
 			BeanDefinitionCustomizer @Nullable [] customizers) {
@@ -279,13 +282,14 @@ public class AnnotatedBeanDefinitionReader {
 		//  开头的类名做为名字
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
 		// TODO 根据 @Lazy, @Primary, @DependsOn, @Role, @Description 这五个注解中的value来设置 bean 中对应的方法
-		//  1. @Lazy：指定 Bean 是否为懒加载，默认为 false 表示立即初始化，为 true 时表示首次使用时初始化
-		//  2. @Primary：自动装配时出现多个 Bean 候选时，做为首选，否则会抛出异常
-		//  3. @DependsOn：定义 Bean 初始化顺序
-		//  4. @Role：用于用户自定义 Bean 其 value 是 int 类型，表示 Bean 在应用中的角色，默认为 0
-		//  5. @Description：用于描述 Bean
+		//  1. @Lazy：类级或方法级，用来控制配置类中配置的 Bean 是否为懒加载
+		//  2. @Primary：方法级，自动装配时出现多个 Bean 候选时，做为首选，否则会抛出异常
+		//  3. @DependsOn：类级或方法级，定义 Bean 初始化顺序，要先初始化其定义的 Bean 后再初始化当前的配置类
+		//  4. @Role：类级或方法级，用于用户自定义 Bean 其 value 是 int 类型，表示 Bean 在应用中的角色，默认为 0
+		//  5. @Description：类级或方法级，用于描述 Bean
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
-		// TODO 解析 @Qualifier 注解, @Autowired 自动装配时用来区分相同类型的多个 Bean，会变为 byName 方式注入
+		// TODO 如果设置了 @Qualifier 注解，根据注解的内容重新设置 primary, fallback, lazy,
+		//  与 @Autowired 结合使用时用来区分相同类型的多个 Bean，会变为 byName 方式注入
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {

@@ -65,13 +65,14 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * Create a new AnnotationConfigApplicationContext that needs to be populated
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
+	// TODO 默认构造器不会解析配置类，只会创建一个用于解析配置文件的 reader，以及扫描的 scanner。使用时需要自己手动执行 register() 解析
+	//  配置类（并不解析其中的配置内容，如 @Bean 什么的），再调用 refresh() 启动整个容器
 	public AnnotationConfigApplicationContext() {
 		// TODO 用于收集 Spring 启动时的相关数据信息、处理时间等，目前有两个实现：
 		//  1. DefaultStartupStep: 默认实现，什么也没做；
 		//  2. FlightRecorderApplicationStartup: 利用JFR来对容器的启动进行监控；
 		StartupStep createAnnotatedBeanDefReader = getApplicationStartup().start("spring.context.annotated-bean-reader.create");
-		// TODO 初始化具有解析注解能力的 reader, 此 reader 会把解释配置类的内容，生成 BeanDefinition 后注册到 BeanRegistry。
-		//  初始化过程会调用AnnotationConfigUtils#registerAnnotationConfigProcessors()
+		// TODO 初始化具有解析配置类能力的 reader, 初始化过程会调用 AnnotationConfigUtils#registerAnnotationConfigProcessors()
 		//  同时注册 6 个 RootBeanDefinition (AbstractBeanDefinition) 用于处理注解的后处理器:
 		//  1. ConfigurationClassPostProcessor: 实现了 BeanDefinitionRegistryPostProcessor, BeanRegistrationAotProcessor,
 		//     BeanFactoryInitializationAotProcessor 接口。用来处理 @Configuration，@ComponmentScan 等注解。
@@ -102,7 +103,7 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		//  整个过程会先初始化 DefaultListableBeanFactory，确保 BeanFactory 提供 @Order，@Lazy，@Qualifier，@Value 的支持，
 		//  然后再注册以下 6 个后处理器:
 		//  1. ConfigurationClassPostProcessor: 实现了BeanDefinitionRegistryPostProcessor接口
-		//     通过实现postProcessBeanDefinitionRegistry()方法, 来实现自定义的bean注册动作
+		//     通过实现 postProcessBeanDefinitionRegistry() 方法, 来实现自定义的bean注册动作
 		//     @Configuration配置类就是从这里解析配置类, 将其中的bean注册到容器的
 		//  2. AutowiredAnnotationBeanPostProcessor: 继承自InstantiationAwareBeanPostProcessorAdapter, 同时实现了
 		//     MergedBeanDefinitionPostProcessor接口(用于自动装配, 可以处理@Autowire, @Value, 以及JSR-330中的@Inject)
@@ -128,9 +129,11 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		// TODO 开始做准备工作，初始化 beanFactory, 用来生成 BeanFactory 及解析配置文件的 AnnotatedBeanDefinitionReader,
 		//  用来扫描给定目录，并解析其中内容的 ClassPathBeanDefinitionScanner
 		this();
-		// TODO 用初始化好的AnnotatedBeanDefinitionReader 来解析配置类, 设置由 @Lazy, @Primary, @DependsOn, @Role, @Description 等
-		//  指定的 value 值, 并将配置类注册到容器中. register 最终调用的是 AnnotationBeanDefinitionReader#doRegisterBean()
-		//  方法调用结束后，容器 BeanDefinitionMap 中会有上面注册的 6 个后处理器，以及传进来的这些个 componentClasses
+		// TODO 用默认构造器初始化好的 AnnotatedBeanDefinitionReader 来将配置类转化为 BeanDefinition 注册到容器中(不解析配置内容),
+		//  解析方式同样是设置由 @Lazy, @Primary, @DependsOn, @Role, @Description 等指定的 value 值, 并将配置类注册到容器中.
+		//  register 最终调用的是 AnnotationBeanDefinitionReader#doRegisterBean() 方法调用结束后，容器 BeanDefinitionMap
+		//  中会有上面注册的 6 个后处理器，以及传进来的这些个 componentClasses。
+		//   而具体的配置内容解析，是在 ConfigurationClassPostProcessor 后处理器的 postProcessBeanDefinitionRegistry() 中进行
 		register(componentClasses);
 		// TODO 开始注册bean, 同时完成单例bean的实例化
 		refresh();
@@ -210,10 +213,12 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * @see #refresh()
 	 */
 	@Override
+	// TODO 调用reader解析配置类，仅仅是将配置类解析为 BeanDefinition，并不解析其中的内容
 	public void register(Class<?>... componentClasses) {
 		Assert.notEmpty(componentClasses, "At least one component class must be specified");
 		StartupStep registerComponentClass = getApplicationStartup().start("spring.context.component-classes.register")
 				.tag("classes", () -> Arrays.toString(componentClasses));
+		// TODO 开始解析配置类并注册到容器中
 		this.reader.register(componentClasses);
 		registerComponentClass.end();
 	}
